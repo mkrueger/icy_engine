@@ -2,20 +2,8 @@ use std::io;
 
 use crate::{Buffer, Position, TextAttribute};
 
-use super::{ParseStates, SaveOptions};
+use super::{ SaveOptions};
 
-fn conv_ch(ch: u8) -> u8 {
-    if (b'0'..=b'9').contains(&ch) {
-        return ch - b'0';
-    }
-    if (b'a'..=b'f').contains(&ch) {
-        return 10 + ch - b'a';
-    }
-    if (b'A'..=b'F').contains(&ch) {
-        return 10 + ch - b'A';
-    }
-    0
-}
 
 const HEX_TABLE: &[u8;16] = b"0123456789ABCDEF";
 
@@ -76,48 +64,3 @@ pub fn get_save_sauce_default_pcb(buf: &Buffer) -> (bool, String)
     ( false, String::new() )
 }
 
-
-#[allow(non_snake_case)]
-pub fn display_PCBoard(buf: &Buffer, data: &mut ParseStates, ch: u8) -> Option<u8> {
-    if data.pcb_color {
-        data.pcb_pos += 1;
-        if data.pcb_pos < 3 {
-            match data.pcb_pos {
-                1 => {
-                    data.pcb_value = conv_ch(ch);
-                    return None;
-                }
-                2 => {
-                    data.pcb_value = (data.pcb_value << 4) + conv_ch(ch);
-                    data.text_attr = TextAttribute::from_u8(data.pcb_value, buf.buffer_type);
-                }
-                _ => {}
-            }
-        }
-        data.pcb_color = false;
-        data.pcb_code = false;
-        return None;
-    }
-
-    if data.pcb_code {
-        match ch {
-            b'@' => {
-                data.pcb_code = false;
-            }
-            b'X' => {
-                data.pcb_color = true;
-                data.pcb_pos = 0;
-            }
-            _ => {}
-        }
-        return None;
-    }
-    match ch {
-        b'@' => {
-            data.pcb_code = true;
-
-            None
-        }
-        _ => Some(ch),
-    }
-}

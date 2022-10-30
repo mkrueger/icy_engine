@@ -4,8 +4,12 @@ mod ascii_parser;
 pub use ascii_parser::*;
 mod ansi_parser;
 pub use ansi_parser::*;
+mod avatar_parser;
+pub use avatar_parser::*;
 mod petscii_parser;
 pub use petscii_parser::*;
+mod pcboard_parser;
+pub use pcboard_parser::*;
 
 pub trait BufferParser {
 
@@ -36,9 +40,9 @@ impl Caret {
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
-    pub fn ff(&mut self, _buf: &mut Buffer) {
-        self.pos.x = 0;
-        self.pos.y = 1;
+    pub fn ff(&mut self, buf: &mut Buffer) {
+        buf.clear();
+        self.pos = Position::new();
         self.attr = super::TextAttribute::DEFAULT;
     }
 

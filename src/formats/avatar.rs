@@ -1,8 +1,8 @@
-use std::{cmp::{max, min}, io};
+use std::{io};
 
 use crate::{Buffer, Position, TextAttribute};
 
-use super::{ParseStates, SaveOptions};
+use super::{ SaveOptions};
 
 /// Starts Avatar command
 const AVT_CMD: u8 = 22;
@@ -12,7 +12,7 @@ const AVT_CLR: u8 = 12;
 
 ///  Read two bytes from the modem. Send the first one to the screen as many times as the binary value
 ///  of the second one. This is the exception where the two bytes may have their high bit set. Do not reset it here!
-const AVT_REP: u8 = 25;
+// const AVT_REP: u8 = 25;
 
 pub enum AvtReadState {
     Chars,
@@ -20,122 +20,6 @@ pub enum AvtReadState {
     ReadCommand,
     MoveCursor,
     ReadColor,
-}
-
-// Advanced Video Attribute Terminal Assembler and Recreator
-pub fn display_avt(result: &Buffer, data: &mut ParseStates, ch: u8) -> io::Result<(Option<u8>, bool)>  {
-
-    match data.avt_state {
-        AvtReadState::Chars => {
-            match ch {
-                AVT_CLR => {
-                    data.caret_pos = Position::new();
-                    data.text_attr = TextAttribute::DEFAULT;
-                }
-                AVT_REP => {
-                    data.avt_state = AvtReadState::RepeatChars;
-                    data.avatar_state = 1;
-                }
-                AVT_CMD => {
-                    data.avt_state = AvtReadState::ReadCommand;
-                }
-                _ => {
-                    return Ok((Some(ch), false));
-                }
-            }
-            Ok((None, false))
-        }
-        AvtReadState::ReadCommand => {
-            match ch {
-                1 => {
-                    data.avt_state = AvtReadState::ReadColor;
-                    return Ok((None, false));
-                }
-                2 => {
-                    data.text_attr.set_blink(true);
-                }
-                3 => {
-                    data.caret_pos.y = max(0, data.caret_pos.y - 1);
-                }
-                4 => {
-                    data.caret_pos.y += 1;
-                }  
-                
-                5 => {
-                    data.caret_pos.x = max(0, data.caret_pos.x - 1);
-                }
-                6 => {
-                    data.caret_pos.x = min(79, data.caret_pos.x + 1);
-                }           
-                7 => {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "todo: avt cleareol."));
-                } 
-                8 =>  {
-                    data.avt_state = AvtReadState::MoveCursor;
-                    data.avatar_state = 1;
-                    return Ok((None, false));
-                }
-                // TODO implement commands from FSC0025.txt & FSC0037.txt
-                _ => { 
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unsupported avatar command {}", ch)));
-                }
-            }
-            data.avt_state = AvtReadState::Chars;
-            Ok((None, false))
-        }
-        AvtReadState::RepeatChars => {
-            match data.avatar_state {
-                1=> {
-                    data.avt_repeat_char = ch;
-                    data.avatar_state = 2;
-                    Ok((None, false))
-                }
-                2 => {
-                    data.avt_repeat_count = ch as i32;
-                    data.avatar_state = 3;
-                    Ok((None, true))
-                }
-                3 => {
-                    if data.avt_repeat_count > 0 {
-                        data.avt_repeat_count -= 1;
-                        if data.avt_repeat_count == 0 {
-                            data.avt_state = AvtReadState::Chars;
-                        }
-                        return Ok((Some(data.avt_repeat_char), data.avt_repeat_count > 0));
-                    }
-                    Ok((None, false))
-                }
-                _ => { 
-                    data.avt_state = AvtReadState::Chars;
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "error in reading avt state"))
-                }
-            }
-        }
-        AvtReadState::ReadColor => {
-            data.text_attr = TextAttribute::from_u8(ch, result.buffer_type);
-            data.avt_state = AvtReadState::Chars;
-            Ok((None, false))
-        }
-        AvtReadState::MoveCursor => {
-            match data.avatar_state {
-                1=> {
-                    data.avt_repeat_char = ch;
-                    data.avatar_state = 2;
-                    Ok((None, false))
-                }
-                2 => {
-                    data.caret_pos.x = data.avt_repeat_char as i32;
-                    data.caret_pos.y = ch as i32;
-                    
-                    data.avt_state = AvtReadState::Chars;
-                    Ok((None, false))
-                }
-                _ => { 
-                    Err(io::Error::new(io::ErrorKind::InvalidData, "error in reading avt avt_gotoxy"))
-                }
-            }
-        }
-    }
 }
 
 pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>

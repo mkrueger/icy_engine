@@ -5,7 +5,9 @@ use std::{
 };
 use std::ffi::OsStr;
 
-use super::{Layer, read_xb, Position, DosChar,  ParseStates, read_binary, display_PCBoard,  display_avt, TextAttribute, Size, UndoOperation, Palette, SauceString, Line, BitFont, SaveOptions };
+use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser};
+
+use super::{Layer, read_xb, Position, DosChar, read_binary, Size, UndoOperation, Palette, SauceString, Line, BitFont, SaveOptions };
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -15,6 +17,14 @@ pub enum BufferType {
     ExtFont    = 0b_0010,  // 0-7 fg, 0-7 bg, blink + extended font
     ExtFontIce = 0b_0011,  // 0-7 fg, 0-15 bg + extended font
     NoLimits   = 0b_0111   // free colors, blink + extended font 
+}
+
+enum CharInterpreter {
+    Ascii,
+    Ansi,
+    Avatar,
+    Pcb,
+    Petscii
 }
 
 impl BufferType {
@@ -271,17 +281,15 @@ impl Buffer {
         }
 
         let (sauce_type, file_size) = result.read_sauce_info(bytes)?;
-        let mut parse_avt  = false;
-        let mut parse_pcb  = false;
-        let mut parse_ansi = false;
         let mut check_extension = false;
+        let mut interpreter = CharInterpreter::Ascii;
 
         match sauce_type {
-            super::SauceFileType::Ascii => { parse_ansi = true; /* There are files that are marked as Ascii but contain ansi codes. */ },
-            super::SauceFileType::Ansi => { parse_ansi = true; check_extension = true; },
-            super::SauceFileType::ANSiMation => { parse_ansi = true; eprintln!("WARNING: ANSiMations are not fully supported."); },
-            super::SauceFileType::PCBoard => { parse_pcb = true; parse_ansi = true; },
-            super::SauceFileType::Avatar => { parse_avt = true; },
+            super::SauceFileType::Ascii => { interpreter = CharInterpreter::Ansi;  /* There are files that are marked as Ascii but contain ansi codes. */ },
+            super::SauceFileType::Ansi => { interpreter = CharInterpreter::Ansi;  check_extension = true; },
+            super::SauceFileType::ANSiMation => { interpreter = CharInterpreter::Ansi;  eprintln!("WARNING: ANSiMations are not fully supported."); },
+            super::SauceFileType::PCBoard => { interpreter = CharInterpreter::Pcb;  },
+            super::SauceFileType::Avatar => { interpreter = CharInterpreter::Avatar;  },
             super::SauceFileType::TundraDraw => {
                 if result.width == 0 { result.width = 80; }
                 super::read_tnd(&mut result, bytes, file_size)?;
@@ -298,7 +306,7 @@ impl Buffer {
             },
             super::SauceFileType::Undefined => { check_extension = true; },
         }
-        
+
         if check_extension {
             if let Some(ext) = ext {
                 let ext = OsStr::to_str(ext).unwrap().to_lowercase();
@@ -326,101 +334,33 @@ impl Buffer {
                         super::read_tnd(&mut result, bytes, file_size)?;
                         return Ok(result);
                     }
-                    "ans" => { parse_ansi = true; }
-                    "ice" => { parse_ansi = true; result.buffer_type = BufferType::LegacyIce; }
-                    "avt" => { parse_avt = true;  }
-                    "pcb" => { parse_pcb = true; parse_ansi = true; }
+                    "ans" => { interpreter = CharInterpreter::Ansi; }
+                    "ice" => { interpreter = CharInterpreter::Ansi; result.buffer_type = BufferType::LegacyIce; }
+                    "avt" => { interpreter = CharInterpreter::Avatar; }
+                    "pcb" => { interpreter = CharInterpreter::Pcb; }
+                    "seq" => { interpreter = CharInterpreter::Petscii; }
                     _ => {}
                 }
             }
         }
 
-        let mut data = ParseStates::new();
         if result.width == 0 { result.width = 80; }
         result.height = 1;
-        data.screen_width = result.width;
 
+        let mut interpreter: Box<dyn BufferParser> = match interpreter {
+            CharInterpreter::Ascii => Box::new(AsciiParser::new()),
+            CharInterpreter::Ansi => Box::new(AnsiParser::new()),
+            CharInterpreter::Avatar => Box::new(AvatarParser::new(false)),
+            CharInterpreter::Pcb => Box::new(PCBoardParser::new()),
+            CharInterpreter::Petscii => Box::new(PETSCIIParser::new()),
+        };
+
+        let mut caret = Caret::new();
         for b in bytes.iter().take(file_size) {
-            let mut ch = Some(*b);
-            data.cur_input_pos.x += 1;
-
-            if parse_ansi {
-                if let Some(_c) = ch {
-                panic!("todo");
-                 //   ch = display_ans(&mut result, &mut data, c)?;
-                }
-            }
-            if parse_pcb {
-                if let Some(c) = ch {
-                    ch = display_PCBoard(&result, &mut data, c);
-                }
-            }
-
-            if parse_avt {
-                if let Some(c) = ch { 
-                    let mut avt_result = display_avt(&result, &mut data, c)?;
-                    let ch = avt_result.0;
-                    if let Some(26) = ch { break; }
-                    Buffer::output_char(&mut result, &mut data, ch);
-                    while avt_result.1 {
-                        avt_result = display_avt(&result, &mut data, 0)?;
-                        Buffer::output_char(&mut result, &mut data, avt_result.0);
-                    }
-                }
-            } else {
-                if let Some(26) = ch { break; }
-                Buffer::output_char(&mut result,  &mut data, ch);
-            }
+            interpreter.as_mut().print_char(&mut result, &mut caret, *b)?;
         }
         Ok(result)
     }
-
-    fn output_char(result: &mut Buffer, data: &mut ParseStates, ch: Option<u8>) {
-        if let Some(ch) = ch {
-            match ch {
-                10 => {
-                    for x in data.caret_pos.x..(result.width as i32) {
-                        let p =Position::from(x, data.caret_pos.y);
-                        if result.get_char(p).is_none() {
-                            result.set_char(0, p, Some(DosChar::new()));
-                        }
-                    }
-    
-                    data.caret_pos.x = 0;
-                    data.caret_pos.y += 1;
-                    data.cur_input_pos.y += 1;
-                    result.height = data.caret_pos.y + 1;
-                    data.cur_input_pos.x = 1;
-                }
-                12 => {
-                    data.caret_pos.x = 0;
-                    data.caret_pos.y = 1;
-                    data.text_attr = TextAttribute::DEFAULT;
-                }
-                13 => {
-                    data.caret_pos.x = 0;
-                }
-                _ => {
-                    result.height = data.caret_pos.y + 1;
-                    result.set_char(
-                        0,
-                        data.caret_pos,
-                        Some(DosChar {
-                            char_code: ch as u16,
-                            attribute: data.text_attr,
-                            ext_font: false
-                        }),
-                    );
-                    data.caret_pos.x += 1;
-                    if data.caret_pos.x >= result.width {
-                        data.caret_pos.x = 0;
-                        data.caret_pos.y += 1;
-                    }
-                }
-            }
-        }
-    }
-
 
     pub fn to_screenx(&self, x: i32) -> f64
     {
