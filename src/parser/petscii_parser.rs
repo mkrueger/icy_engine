@@ -7,7 +7,8 @@ pub struct PETSCIIParser {
     underline_mode: bool,
     reverse_mode: bool,
     got_esc: bool,
-    shift_mode: bool
+    shift_mode: bool,
+    c_shift: bool
 }
 
 impl PETSCIIParser {
@@ -16,7 +17,8 @@ impl PETSCIIParser {
             shift_mode: false,
             underline_mode: false,
             reverse_mode: false,
-            got_esc: false
+            got_esc: false,
+            c_shift: false
         }
     }
 
@@ -132,6 +134,8 @@ impl BufferParser for PETSCIIParser {
         match ch {
             0x02 => self.underline_mode = true,   // C128
             0x05 => caret.set_foreground(WHITE),
+            0x08 => self.c_shift = false,
+            0x09 => self.c_shift = true,
             0x0A => caret.cr(buf),
             0x0D | 0x8D => { 
                 caret.lf(buf);

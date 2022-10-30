@@ -71,7 +71,6 @@ impl Caret {
         let old_x = self.pos.x;
         self.pos.x = min(buf.width as i32 - 1, self.pos.x + num);
         fill_line(buf, self.pos.y, old_x, self.pos.x);
-        println!("RIGHT{}", num);
     }
 
     pub fn up(&mut self, _buf: &mut Buffer, num: i32) {
