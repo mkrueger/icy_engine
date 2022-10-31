@@ -64,6 +64,15 @@ impl Caret {
         self.pos.x = max(0, self.pos.x - 1);
         buf.set_char(0, self.pos, Some(DosChar::default()));
     }
+
+    pub fn del(&mut self, buf: &mut Buffer) {
+        if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
+            let i = self.pos.x as usize ;
+            if i < line.chars.len(){ 
+                line.chars.remove(i);
+            }
+        }
+    }
     
     pub fn left(&mut self, buf: &mut Buffer, num: i32) {
         let old_x = self.pos.x;
@@ -78,12 +87,12 @@ impl Caret {
     }
 
     pub fn up(&mut self, buf: &mut Buffer, num: i32) {
-        self.pos.y = max(buf.get_firt_visible_line(), self.pos.y.saturating_sub(num));
+        self.pos.y = max(buf.get_first_visible_line(), self.pos.y.saturating_sub(num));
     }
 
     pub fn down(&mut self, buf: &mut Buffer, num: i32) {
         if buf.is_terminal_buffer {
-            self.pos.y = min(buf.get_firt_visible_line() + buf.height - 1, self.pos.y + num);
+            self.pos.y = min(buf.get_first_visible_line() + buf.height - 1, self.pos.y + num);
         } else { 
             self.pos.y = self.pos.y + num;
         }

@@ -5,18 +5,19 @@ use super::BufferType;
 pub struct TextAttribute {
     foreground_color: u8,
     background_color: u8,
-    blink: bool
+    blink: bool,
+    is_underline: bool
 }
 
 impl std::fmt::Display for TextAttribute {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(Attr: {:X}, fg {}, bg {}, blink {})", self.as_u8(BufferType::LegacyDos), self.get_foreground(), self.get_background(), self.is_blink())
+        write!(f, "(Attr: {:X}, fg {}, bg {}, blink {})", self.as_u8(BufferType::LegacyDos), self.get_foreground(), self.get_background(), self.is_blinking())
     }
 }
 
 impl TextAttribute
 {
-    pub const DEFAULT : TextAttribute = TextAttribute{ foreground_color: 7, background_color: 0, blink: false };
+    pub const DEFAULT : TextAttribute = TextAttribute{ foreground_color: 7, background_color: 0, blink: false, is_underline: false };
 
     pub fn from_u8(attr: u8, buffer_type: BufferType) -> Self
     {
@@ -37,13 +38,14 @@ impl TextAttribute
         TextAttribute {
             foreground_color,
             background_color,
-            blink
+            blink,
+            is_underline: false
         }
     }
 
     pub fn from_color(fg: u8, bg: u8) -> Self
     {
-        TextAttribute { foreground_color: fg, background_color: bg, blink: false }
+        TextAttribute { foreground_color: fg, background_color: bg, blink: false, is_underline: false }
     }
 
     pub fn as_u8(self, buffer_type: BufferType) -> u8
@@ -55,7 +57,7 @@ impl TextAttribute
         };
 
         let bg = if buffer_type.use_blink() {
-            self.background_color & 0b_0111 | if self.is_blink() { 0b_1000 } else { 0 }
+            self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 }
         } else {
             self.background_color & 0b_0111
         };
@@ -90,14 +92,25 @@ impl TextAttribute
         }
     }
 
-    pub fn is_blink(self) -> bool
+    pub fn is_blinking(self) -> bool
     {
         self.blink
     }
 
-    pub fn set_blink(&mut self, is_blink: bool)
+    pub fn set_is_blinking(&mut self, is_blink: bool)
     {
         self.blink = is_blink;
+    }
+
+
+    pub fn get_is_underlined(self) -> bool
+    {
+        self.is_underline
+    }
+
+    pub fn set_is_underlined(&mut self, is_underline: bool)
+    {
+        self.is_underline = is_underline;
     }
 
     pub fn get_foreground(self) -> u8

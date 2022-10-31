@@ -128,7 +128,7 @@ impl Buffer {
 
     /// terminal buffers have a viewport on the bottom of the buffer
     /// this function gives back the first visible line.
-    pub fn get_firt_visible_line(&self) -> i32 {
+    pub fn get_first_visible_line(&self) -> i32 {
         return if self.is_terminal_buffer {
             max(0, self.layers[0].lines.len() as i32 - self.height)
         } else { 

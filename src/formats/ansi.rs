@@ -79,7 +79,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                     if (!last_attr.is_bold() || first_char) && cur_attr.is_bold() {
                         // if blinking is turned off "0;" will be written which would reset the bold state here
                         // bold state is set again after blink reset.
-                        if (!last_attr.is_blink() && !first_char) || cur_attr.is_blink() {
+                        if (!last_attr.is_blinking() && !first_char) || cur_attr.is_blinking() {
                             result.push(b'1');
                             wrote_part = true;
                         }
@@ -91,13 +91,13 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                     }
 
                     // handle blink change
-                    if (!last_attr.is_blink() || first_char) && cur_attr.is_blink()  {
+                    if (!last_attr.is_blinking() || first_char) && cur_attr.is_blinking()  {
                         if wrote_part {
                             result.push(b';');
                         }
                         result.push(b'5');
                         wrote_part = true;
-                    } else if (last_attr.is_blink() || first_char) && !cur_attr.is_blink()  {
+                    } else if (last_attr.is_blinking() || first_char) && !cur_attr.is_blinking()  {
                         if wrote_part {
                             result.push(b';');
                         }

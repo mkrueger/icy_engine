@@ -80,7 +80,7 @@ impl BufferParser for AvatarParser {
                         return Ok(None);
                     }
                     2 => {
-                        caret.attr.set_blink(true);
+                        caret.attr.set_is_blinking(true);
                     }
                     3 => {
                         caret.pos.y = max(0, caret.pos.y - 1);

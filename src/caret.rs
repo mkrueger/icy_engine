@@ -1,6 +1,7 @@
 use super::{Position, TextAttribute};
 
 
+#[derive(Clone)]
 pub struct Caret {
     pub(super) pos: Position,
     pub(super) attr: TextAttribute,
@@ -12,6 +13,21 @@ impl Caret {
     pub fn new() -> Self {
         Self {
             pos: Position::new(),
+            attr: TextAttribute::DEFAULT,
+            insert_mode: false
+        }
+    }
+
+    pub fn from(pos: Position) -> Self {
+        Self {
+            pos,
+            attr: TextAttribute::DEFAULT,
+            insert_mode: false
+        }
+    }
+    pub fn from_xy(x: i32, y: i32) -> Self {
+        Self {
+            pos: Position { x, y },
             attr: TextAttribute::DEFAULT,
             insert_mode: false
         }
