@@ -63,7 +63,7 @@ impl Caret {
     /// (backspace, BS, \b, ^H), may overprint the previous character
     pub fn bs(&mut self, buf: &mut Buffer) {
         self.pos.x = max(0, self.pos.x - 1);
-        buf.set_char(0, self.pos, Some(DosChar::default()));
+        buf.set_char(0, self.pos, Some(DosChar::from(b' ' as u16, self.attr)));
     }
 
     pub fn del(&mut self, buf: &mut Buffer) {
@@ -153,6 +153,43 @@ impl Buffer {
     fn clear_line_start(&mut self, pos: &Position) {
         for x in 0..pos.x {
             self.set_char(0, Position::from(x, pos.y), Some(DosChar::new()));
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Buffer, Caret, AnsiParser, BufferParser, Position, TextAttribute};
+
+    fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) 
+    {
+        let mut buf = Buffer::create(80, 25);
+        let mut caret  = Caret::new();
+        // remove editing layer
+        buf.layers.remove(0);
+        buf.layers[0].is_locked = false;
+        buf.layers[0].is_transparent = false;
+      
+        assert_eq!(25, buf.layers[0].lines.len());
+        
+        run_parser(&mut buf, &mut caret, parser, input);
+        
+        (buf, caret)
+    }
+
+    fn run_parser<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8])
+    {
+        for b in input {
+            parser.print_char(buf,caret, *b).unwrap();
+        }
+    }
+    
+    #[test]
+    fn test_bs() {
+        let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[1;43mtest\x08\x08\x08\x08");
+        assert_eq!(Position::new(), caret.pos);
+        for i in 0..4 {
+            assert_eq!(TextAttribute::from_color(15, 6), buf.get_char(Position::from(i, 0)).unwrap().attribute);
         }
     }
 }

@@ -263,13 +263,18 @@ impl BufferParser for AnsiParser {
                 b'M' => { // Delete Line
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
-                        buf.layers[0].remove_line(caret.pos.y);
+                        if caret.pos.y  < buf.layers[0].lines.len() as i32 {
+                            buf.layers[0].remove_line(caret.pos.y);
+                        }
                     } else {
                         if self.parsed_numbers.len() != 1 {
                             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid parameters sequence {}", self.parsed_numbers[0])));
                         }
                         if let Some(number) = self.parsed_numbers.get(0) {
                             for _ in 0..*number {
+                                if caret.pos.y >= buf.layers[0].lines.len() as i32 {
+                                    break;
+                                }
                                 buf.layers[0].remove_line(caret.pos.y);
                             }
                         } else {
