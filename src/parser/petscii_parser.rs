@@ -74,7 +74,7 @@ impl PETSCIIParser {
             b'R' => { println!("Set screen to reverse video unsupported."); }, // Set screen to reverse video
             b'N' => { println!("Set screen to normal (non reverse video) state unsupported."); }, // Set screen to normal (non reverse video) state
 
-            _=> { println!("Unknown C128 escape code: 0x{:02X}/{} ", ch, char::from_u32(ch as u32).unwrap())}
+            _=> { println!("Unknown C128 escape code: 0x{:02X}/{:?} ", ch, char::from_u32(ch as u32))}
         }
         return Ok(None);
     }

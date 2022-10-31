@@ -13,7 +13,8 @@ pub struct AnsiParser {
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
     parsed_numbers: Vec<i32>,
-    current_sequence: String
+    current_sequence: String,
+    in_custom_command: bool
 }
 
 const ANSI_CSI: u8 = b'[';
@@ -30,7 +31,8 @@ impl AnsiParser {
             saved_pos: Position::new(),
             parsed_numbers: Vec::new(),
             current_sequence: String::new(),
-            saved_cursor_opt: None
+            saved_cursor_opt: None,
+            in_custom_command: false
         }
     }
 
@@ -85,6 +87,44 @@ impl BufferParser for AnsiParser {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Can't convert char {}", ch)));
             }
 
+            if self.in_custom_command && !(ch >= b'0' && ch <= b'9') {
+                self.in_custom_command  = false; 
+                self.ans_code = false;
+                self.got_escape = false;
+                match ch {
+                    b'l' => {
+                        if self.parsed_numbers.len() != 1 {
+                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                        }
+                        match self.parsed_numbers[0] {
+                            25 => {
+                                caret.is_visible = false;
+                            }
+                            _ => { 
+                                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                            }
+                        } 
+                    }
+                    b'h' => {
+                        if self.parsed_numbers.len() != 1 {
+                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                        }
+                        match self.parsed_numbers[0] {
+                            25 => {
+                                caret.is_visible = true;
+                            }
+                            _ => { 
+                                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                            }
+                        } 
+                    }
+                    _ => {
+                        // error in control sequence, terminate reading
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                    }
+                }
+                return Ok(None);
+            }
             match ch {
                 b'm' => { // Select Graphic Rendition 
                     for n in &self.parsed_numbers {
@@ -128,7 +168,6 @@ impl BufferParser for AnsiParser {
                         if self.parsed_numbers[0] > 0 { 
                             // always be in terminal mode for gotoxy
                             caret.pos.y =  min(buf.get_first_visible_line() + buf.height - 1, max(0, buf.get_first_visible_line() + self.parsed_numbers[0] - 1));
-                            println!("parsed line:{} first visible: {}, last line: {} caret line:{}", self.parsed_numbers[0], buf.get_first_visible_line(), buf.get_first_visible_line() + buf.height, caret.pos.y)
                         }
                         if self.parsed_numbers.len() > 1 {
                             if self.parsed_numbers[1] > 0 {
@@ -308,6 +347,11 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 
+                b'?' => { // read custom command
+                    self.in_custom_command = true;
+                    return Ok(None);
+                }
+
                 b'K' => { // Erase in line
                     if self.parsed_numbers.len() > 0 {
                         match self.parsed_numbers[0] {
@@ -462,4 +506,21 @@ mod tests {
         assert_eq!(TextAttribute::DEFAULT, caret.attr);
         assert_eq!(Position::new() , caret.get_position());
     }
+
+    #[test]
+    fn test_cursor_visibilty() {
+        let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[?25l");
+        assert_eq!(false, caret.is_visible);
+        run_parser(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1b[?25h");
+        assert_eq!(true, caret.is_visible);
+    }
+
+    #[test]
+    fn test_cursor_visibilty_reset() {
+        let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[?25l");
+        assert_eq!(false, caret.is_visible);
+        run_parser(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x0C"); // FF
+        assert_eq!(true, caret.is_visible);
+    }
+    
 }

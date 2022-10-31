@@ -5,7 +5,8 @@ use super::{Position, TextAttribute};
 pub struct Caret {
     pub(super) pos: Position,
     pub(super) attr: TextAttribute,
-    pub insert_mode: bool
+    pub insert_mode: bool,
+    pub is_visible: bool
 }
 
 impl Caret {
@@ -14,6 +15,7 @@ impl Caret {
         Self {
             pos: Position::new(),
             attr: TextAttribute::DEFAULT,
+            is_visible: true,
             insert_mode: false
         }
     }
@@ -22,6 +24,7 @@ impl Caret {
         Self {
             pos,
             attr: TextAttribute::DEFAULT,
+            is_visible: true,
             insert_mode: false
         }
     }
@@ -29,6 +32,7 @@ impl Caret {
         Self {
             pos: Position { x, y },
             attr: TextAttribute::DEFAULT,
+            is_visible: true,
             insert_mode: false
         }
     }
@@ -65,6 +69,7 @@ impl Default for Caret {
         Self {
             pos: Position::default(),
             attr: TextAttribute::DEFAULT,
+            is_visible: true,
             insert_mode: Default::default()
         }
     }

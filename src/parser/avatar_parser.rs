@@ -104,8 +104,9 @@ impl BufferParser for AvatarParser {
                         return Ok(None);
                     }
                     // TODO implement commands from FSC0025.txt & FSC0037.txt
-                    _ => { 
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unsupported avatar command {}", ch)));
+                    _ => {
+                        self.avt_state = AvtReadState::Chars;
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unsupported avatar command 0x{:02X}", ch)));
                     }
                 }
                 self.avt_state = AvtReadState::Chars;

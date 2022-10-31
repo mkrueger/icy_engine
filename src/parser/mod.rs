@@ -43,6 +43,7 @@ impl Caret {
     pub fn ff(&mut self, buf: &mut Buffer) {
         buf.clear();
         self.pos = Position::new();
+        self.is_visible = true;
         self.attr = super::TextAttribute::DEFAULT;
     }
 
