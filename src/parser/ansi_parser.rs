@@ -82,8 +82,8 @@ impl BufferParser for AnsiParser {
                 b'H' | b'f' => { // Cursor Position + Horizontal Vertical Position ('f')
                     if !self.parsed_numbers.is_empty() {
                         if self.parsed_numbers[0] > 0 { 
-                            let top_line = max(0, buf.layers[0].lines.len() as i32 - buf.height);
-                            caret.pos.y =  max(0, top_line + self.parsed_numbers[0] - 1);
+                            // always be in terminal mode for gotoxy
+                            caret.pos.y =  min(buf.get_firt_visible_line() + buf.height - 1, max(0, buf.get_firt_visible_line() + self.parsed_numbers[0] - 1));
                         }
                         if self.parsed_numbers.len() > 1 {
                             if self.parsed_numbers[1] > 0 {

@@ -1,7 +1,7 @@
 use std::{
     fs::File,
     io::{self, Read},
-    path::{PathBuf, Path},
+    path::{PathBuf, Path}, cmp::max,
 };
 use std::ffi::OsStr;
 
@@ -76,6 +76,7 @@ pub struct Buffer {
     pub height: i32,
 
     pub buffer_type: BufferType,
+    pub is_terminal_buffer: bool,
 
     pub palette: Palette,
     pub overlay_layer: Option<Layer>,
@@ -108,7 +109,7 @@ impl Buffer {
             comments: Vec::new(),
 
             buffer_type: BufferType::LegacyDos,
-
+            is_terminal_buffer: false,
             palette: Palette::new(),
 
             font: BitFont::default(),
@@ -123,10 +124,15 @@ impl Buffer {
 
     pub fn clear(&mut self) {
         self.layers[0].clear();
-        for y in 0..self.height as i32 {
-            for x in 0..self.width as i32 {
-                self.set_char(0, Position::from(x, y), Some(DosChar::new()));
-            }
+    }
+
+    /// terminal buffers have a viewport on the bottom of the buffer
+    /// this function gives back the first visible line.
+    pub fn get_firt_visible_line(&self) -> i32 {
+        return if self.is_terminal_buffer {
+            max(0, self.layers[0].lines.len() as i32 - self.height)
+        } else { 
+            0 
         }
     }
 

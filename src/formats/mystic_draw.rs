@@ -145,6 +145,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                     is_visible: true,
                     is_locked: false,
                     is_position_locked: false,
+                    is_transparent: false,
                     offset: Position::from(x, y),
                     lines: Vec::new(),
                 };

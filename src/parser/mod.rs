@@ -77,12 +77,16 @@ impl Caret {
         fill_line(buf, self.pos.y, old_x, self.pos.x);
     }
 
-    pub fn up(&mut self, _buf: &mut Buffer, num: i32) {
-        self.pos.y = max(0, self.pos.y.saturating_sub(num));
+    pub fn up(&mut self, buf: &mut Buffer, num: i32) {
+        self.pos.y = max(buf.get_firt_visible_line(), self.pos.y.saturating_sub(num));
     }
 
-    pub fn down(&mut self, _buf: &mut Buffer, num: i32) {
-        self.pos.y = self.pos.y + num;
+    pub fn down(&mut self, buf: &mut Buffer, num: i32) {
+        if buf.is_terminal_buffer {
+            self.pos.y = min(buf.get_firt_visible_line() + buf.height - 1, self.pos.y + num);
+        } else { 
+            self.pos.y = self.pos.y + num;
+        }
     }
 }
 

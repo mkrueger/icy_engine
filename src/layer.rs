@@ -22,6 +22,7 @@ pub struct Layer {
     pub is_visible: bool,
     pub is_locked: bool,
     pub is_position_locked: bool,
+    pub is_transparent: bool,
 
     pub offset: Position,
     pub lines: Vec<Line>,
@@ -34,6 +35,7 @@ impl Layer {
             is_visible: true,
             is_locked: false,
             is_position_locked: false,
+            is_transparent: true,
             lines: Vec::new(),
             offset: Position::new(),
         }
@@ -97,7 +99,11 @@ impl Layer {
                 return ch;
             }
         }
-        None
+        if self.is_transparent {
+            None
+        } else {
+            Some(DosChar::default())
+        }
     }
 
     pub fn remove_line(&mut self, index: i32)
