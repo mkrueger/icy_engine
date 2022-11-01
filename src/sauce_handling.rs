@@ -269,7 +269,7 @@ impl Buffer {
 
         match data_type {
             SauceDataType::BinaryText => {
-                self.width = (file_type as i32) << 1;
+                self.set_buffer_width((file_type as i32) << 1);
                 sauce_file_type = SauceFileType::Bin;
                 let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                 if use_ice { 
@@ -280,16 +280,16 @@ impl Buffer {
                 self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
             }
             SauceDataType::XBin => {
-                self.width = t_info1;
-                self.height = t_info2;
+                self.set_buffer_width(t_info1);
+                self.set_buffer_height(t_info2);
                 sauce_file_type = SauceFileType::XBin;
                 // no flags according to spec
             }
             SauceDataType::Character => {
                 match file_type {
                     SAUCE_FILE_TYPE_ASCII => {
-                        self.width = t_info1;
-                        self.height = t_info2;
+                        self.set_buffer_width(t_info1);
+                        self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::Ascii;
                         let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         if use_ice { 
@@ -300,8 +300,8 @@ impl Buffer {
                         self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_ANSI => {
-                        self.width = t_info1;
-                        self.height = t_info2;
+                        self.set_buffer_width(t_info1);
+                        self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::Ansi;
                         let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         if use_ice { 
@@ -312,8 +312,8 @@ impl Buffer {
                         self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
-                        self.width = t_info1;
-                        self.height = t_info2;
+                        self.set_buffer_width(t_info1);
+                        self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::ANSiMation;
                         let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         if use_ice { 
@@ -324,20 +324,20 @@ impl Buffer {
                         self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_PCBOARD => {
-                        self.width = t_info1;
-                        self.height = t_info2;
+                        self.set_buffer_width(t_info1);
+                        self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::PCBoard;
                         // no flags according to spec
                     }
                     SAUCE_FILE_TYPE_AVATAR => {
-                        self.width = t_info1;
-                        self.height = t_info2;
+                        self.set_buffer_width(t_info1);
+                        self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::Avatar;
                         // no flags according to spec
                     }
                     SAUCE_FILE_TYPE_TUNDRA_DRAW => {
-                        self.width = t_info1;
-                        self.height = t_info2;
+                        self.set_buffer_width(t_info1);
+                        self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::TundraDraw;
                         // no flags according to spec
                     }
@@ -427,8 +427,8 @@ impl Buffer {
             SauceFileType::Ascii => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_ASCII;
-                t_info1 = self.width;
-                t_info2 = self.height;
+                t_info1 = self.get_buffer_width();
+                t_info2 = self.get_buffer_height();
 
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
             },
@@ -436,43 +436,43 @@ impl Buffer {
             SauceFileType::Ansi => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_ANSI;
-                t_info1 = self.width;
-                t_info2 = self.height;
+                t_info1 = self.get_buffer_width();
+                t_info2 = self.get_buffer_height();
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
             },
             SauceFileType::ANSiMation => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_ANSIMATION;
-                t_info1 = self.width;
-                t_info2 = self.height;
+                t_info1 = self.get_buffer_width();
+                t_info2 = self.get_buffer_height();
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
             },
             SauceFileType::PCBoard => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_PCBOARD;
-                t_info1 = self.width;
-                t_info2 = self.height;
+                t_info1 = self.get_buffer_width();
+                t_info2 = self.get_buffer_height();
                 // no flags
                 t_info_str = &EMPTY_TINFO;
             },
             SauceFileType::Avatar => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_AVATAR;
-                t_info1 = self.width;
-                t_info2 = self.height;
+                t_info1 = self.get_buffer_width();
+                t_info2 = self.get_buffer_height();
                 // no flags
                 t_info_str = &EMPTY_TINFO;
             },
             SauceFileType::TundraDraw => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_TUNDRA_DRAW;
-                t_info1 = self.width;
+                t_info1 = self.get_buffer_width();
                 // no flags
                 t_info_str = &EMPTY_TINFO;
             }
             SauceFileType::Bin => {
                 data_type = SauceDataType::BinaryText;
-                let w = self.width / 2;
+                let w = self.get_buffer_width() / 2;
                 if w > u8::MAX as i32 {
                     return Err(io::Error::new(io::ErrorKind::InvalidData, "BIN files can only be saved up to 510 width."));
                 }
@@ -482,8 +482,8 @@ impl Buffer {
             SauceFileType::XBin => {
                 data_type = SauceDataType::XBin;
                 file_type = 0;
-                t_info1 = self.width;
-                t_info2 = self.height;
+                t_info1 = self.get_buffer_width();
+                t_info2 = self.get_buffer_height();
                 // no flags
                 t_info_str = &EMPTY_TINFO;
             }

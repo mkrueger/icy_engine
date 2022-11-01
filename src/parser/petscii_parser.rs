@@ -45,8 +45,8 @@ impl PETSCIIParser {
             b'A' => { println!("auto insert mode unsupported."); }, // Enable auto-insert mode
             b'C' => { println!("auto insert mode unsupported."); }, // Disable auto-insert mode
 
-            b'D' => { println!("Delete current line unsupported."); }, // Delete current line
-            b'I' => { println!("Insert line unsupported."); }, // Insert line
+            b'D' => { buf.remove_terminal_line(caret.pos.y); }, // Delete current line
+            b'I' => { buf.insert_terminal_line(caret.pos.y); }, // Insert line
 
             b'Y' => { println!("Set default tab stops (8 spaces) unsupported."); }, // Set default tab stops (8 spaces)
             b'Z' => { println!("Clear all tab stops unsupported."); }, // Clear all tab stops
@@ -85,8 +85,8 @@ impl PETSCIIParser {
             return;
         }
         self.shift_mode = shift_mode;
-        for y in 0..buf.height {
-            for x in 0..buf.width {
+        for y in 0..buf.get_buffer_height() {
+            for x in 0..buf.get_buffer_width() {
                 if let Some(ch) = &mut buf.get_char(Position::from(x as i32, y as i32)) {
                     ch.ext_font = shift_mode;
                     buf.set_char(0, Position::from(x as i32, y as i32), Some(*ch));

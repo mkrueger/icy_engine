@@ -42,12 +42,12 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         if cmd == TUNDRA_POSITION {
             pos.y = to_u32(&bytes[o..]);
             if pos.y >= (u16::MAX) as i32 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.height)));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_buffer_height())));
             }
             o += 4;
             pos.x = to_u32(&bytes[o..]);
-            if pos.x >= result.width as i32 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump x position {} out of bounds (width is {})", pos.x, result.width)));
+            if pos.x >= result.get_buffer_width() as i32 {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump x position {} out of bounds (width is {})", pos.x, result.get_buffer_width())));
             }
 
             o += 4;
@@ -91,9 +91,9 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     let mut background = crate::Layer::new();
     background.title = "Background".to_string();
 
-    for _ in 0..result.height {
+    for _ in 0..result.get_buffer_height() {
         let mut line = crate::Line::new();
-        line.chars.resize(result.width as usize, Some(DosChar::new()));
+        line.chars.resize(result.get_buffer_width() as usize, Some(DosChar::new()));
         background.lines.push(line);
     }
 
@@ -105,7 +105,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 fn advance_pos(result: &Buffer, pos: &mut Position) -> bool
 {
     pos.x += 1;
-    if pos.x >= result.width as i32 {
+    if pos.x >= result.get_buffer_width() as i32 {
         pos.x = 0;
         pos.y += 1;
     }
@@ -127,8 +127,8 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.extend(TUNDRA_HEADER);
     let mut attr = TextAttribute::from_u8(0, buf.buffer_type);
     let mut skip_pos = None;
-    for y in 0..buf.height {
-        for x in 0..buf.width {
+    for y in 0..buf.get_buffer_height() {
+        for x in 0..buf.get_buffer_width() {
             let pos = Position::from(x as i32, y as i32);
             let ch = buf.get_char(pos);
             if ch.is_none() {
@@ -142,7 +142,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             }
 
             if let Some(pos2) = skip_pos {
-                let skip_len = (pos.x + pos.y * buf.width as i32) - (pos2.x + pos2.y * buf.width as i32);
+                let skip_len = (pos.x + pos.y * buf.get_buffer_width() as i32) - (pos2.x + pos2.y * buf.get_buffer_width() as i32);
                 if skip_len <= TND_GOTO_BLOCK_LEN  {
                     result.resize(result.len() + skip_len as usize, 0);
                 } else {
@@ -192,9 +192,9 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
     }
     if let Some(pos2) = skip_pos {
-        let pos = Position::from((buf.width - 1) as i32, (buf.height - 1) as i32);
+        let pos = Position::from((buf.get_buffer_width() - 1) as i32, (buf.get_buffer_height() - 1) as i32);
 
-        let skip_len = (pos.x + pos.y * buf.width as i32) - (pos2.x + pos2.y * buf.width as i32) + 1;
+        let skip_len = (pos.x + pos.y * buf.get_buffer_width() as i32) - (pos2.x + pos2.y * buf.get_buffer_width() as i32) + 1;
         result.resize(result.len() + skip_len as usize, 0);
     }
 
@@ -207,7 +207,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
 pub fn get_save_sauce_default_tnd(buf: &Buffer) -> (bool, String)
 {
-    if buf.width != 80 {
+    if buf.get_buffer_width() != 80 {
         return (true, "width != 80".to_string() );
     }
 

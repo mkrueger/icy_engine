@@ -43,6 +43,9 @@ pub use undo_stack::*;
 mod crc;
 pub use crc::*;
 
+mod terminal_state;
+pub use terminal_state::*;
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Size<T> 
 {
@@ -60,7 +63,6 @@ where T: PartialEq {
 impl<T> Size<T> 
 where T: Default
 {
-  
     pub fn from(width: T, height: T) -> Self
     {
         Size { width, height }

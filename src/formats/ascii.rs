@@ -8,7 +8,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 {
     let mut result = Vec::new();
     let mut pos = Position::new();
-    let height = buf.height as i32;
+    let height = buf.get_buffer_height() as i32;
 
     while pos.y < height {
         let line_length = buf.get_line_length(pos.y);
@@ -19,7 +19,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
 
         // do not end with eol
-        if pos.x < buf.width as i32 && pos.y + 1 < height {
+        if pos.x < buf.get_buffer_width() as i32 && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }
@@ -36,7 +36,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
 pub fn get_save_sauce_default_asc(buf: &Buffer) -> (bool, String)
 {
-    if buf.width != 80 {
+    if buf.get_buffer_width() != 80 {
         return (true, "width != 80".to_string() );
     }
 
@@ -71,10 +71,10 @@ mod tests {
         let mut vec = Vec::new();
         vec.resize(80, b'-');
         let buf = Buffer::from_bytes(&PathBuf::from("test.asc"), &vec).unwrap();
-        assert_eq!(1, buf.height);
+        assert_eq!(1, buf.get_buffer_height());
         vec.push(b'-');
         let buf = Buffer::from_bytes(&PathBuf::from("test.asc"), &vec).unwrap();
-        assert_eq!(2, buf.height);
+        assert_eq!(2, buf.get_buffer_height());
     }
 
 
@@ -84,7 +84,7 @@ mod tests {
         vec.resize(80, b'-');
         vec.resize(80 * 2, b' ');
         let buf = Buffer::from_bytes(&PathBuf::from("test.asc"), &vec).unwrap();
-        assert_eq!(2, buf.height);
+        assert_eq!(2, buf.get_buffer_height());
     }
 
 
@@ -95,10 +95,10 @@ mod tests {
         vec.resize(80 * 2, b' ');
 
         let buf = Buffer::from_bytes(&PathBuf::from("test.asc"), &vec).unwrap();
-        assert_eq!(2, buf.height);
+        assert_eq!(2, buf.get_buffer_height());
         let vec2 = buf.to_bytes("asc", &SaveOptions::new()).unwrap();
         let buf2 = Buffer::from_bytes(&PathBuf::from("test.asc"), &vec2).unwrap();
-        assert_eq!(2, buf2.height);
+        assert_eq!(2, buf2.get_buffer_height());
     }
 
 
@@ -106,7 +106,7 @@ mod tests {
     fn test_eol() {
         let data = b"foo\r\n";
         let buf = Buffer::from_bytes(&PathBuf::from("test.asc"), data).unwrap();
-        assert_eq!(2, buf.height);
+        assert_eq!(2, buf.get_buffer_height());
     }
 
     #[test]

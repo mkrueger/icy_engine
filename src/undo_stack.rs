@@ -75,15 +75,15 @@ impl UndoOperation for UndoReplaceLayers {
     fn undo(&self, buffer: &mut Buffer)
     {
         buffer.layers = self.old_layer.clone();
-        buffer.width = self.old_size.width;
-        buffer.height = self.old_size.height;
+        buffer.set_buffer_width(self.old_size.width);
+        buffer.set_buffer_height(self.old_size.height);
     }
 
     fn redo(&self, buffer: &mut Buffer)
     {
         buffer.layers = self.new_layer.clone();
-        buffer.width = self.new_size.width;
-        buffer.height = self.new_size.height;
+        buffer.set_buffer_width(self.new_size.width);
+        buffer.set_buffer_height(self.new_size.height);
     }
 }
 

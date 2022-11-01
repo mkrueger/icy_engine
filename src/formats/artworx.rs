@@ -15,7 +15,7 @@ use super::{ Position, TextAttribute, SaveOptions};
 
 pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool>
 {
-    result.width = 80;
+    result.set_buffer_width(80);
     result.buffer_type = BufferType::LegacyIce;
     let mut o = 0;
     let mut pos = Position::new();
@@ -39,7 +39,7 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     o += font_size;
 
     loop {
-        for _ in 0..result.width {
+        for _ in 0..result.get_buffer_width() {
             if o + 2 > file_size {
                 result.set_height_for_pos(pos);
                 return Ok(true);
@@ -63,8 +63,8 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     }
     buf.font.push_u8_data(&mut result);
 
-    for y in 0..buf.height {
-        for x in 0..buf.width {
+    for y in 0..buf.get_buffer_height() {
+        for x in 0..buf.get_buffer_width() {
             let ch = buf.get_char(Position::from(x as i32, y as i32)).unwrap_or_default();
             result.push(ch.char_code as u8);
             result.push(ch.attribute.as_u8(BufferType::LegacyIce));
@@ -78,7 +78,7 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
 pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String)
 {
-    if buf.width != 80 {
+    if buf.get_buffer_width() != 80 {
         return (true, "width != 80".to_string() );
     }
 

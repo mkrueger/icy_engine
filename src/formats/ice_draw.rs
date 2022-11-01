@@ -38,7 +38,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid bounds for idf width needs to be >=0."));
     }
 
-    result.width = x2 + 1;
+    result.set_buffer_width(x2 + 1);
     result.buffer_type = BufferType::LegacyIce;
     let data_size = file_size - FONT_SIZE - PALETTE_SIZE;
     let mut pos = Position::from(x1, y1);
@@ -88,15 +88,15 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.push(0);
     result.push(0);
     
-    let w = buf.width - 1;
+    let w = buf.get_buffer_width() - 1;
     result.push(w as u8);
     result.push((w >> 8) as u8);
 
-    let h = buf.height - 1;
+    let h = buf.get_buffer_height() - 1;
     result.push(h as u8);
     result.push((h >> 8) as u8);
 
-    let len = (buf.height * buf.width) as i32;
+    let len = (buf.get_buffer_height() * buf.get_buffer_width()) as i32;
     let mut x = 0;
     while x < len {
         let ch = buf.get_char(Position::from_index(buf, x)).unwrap_or_default();
@@ -138,7 +138,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
 pub fn get_save_sauce_default_idf(buf: &Buffer) -> (bool, String)
 {
-    if buf.width != 80 {
+    if buf.get_buffer_width() != 80 {
         return (true, "width != 80".to_string() );
     }
 

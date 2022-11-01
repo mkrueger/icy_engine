@@ -27,9 +27,9 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
     o += result.author.read(&bytes[o..]);
     o += result.group.read(&bytes[o..]);
 
-    result.width = u16::from_be_bytes(bytes[o..(o + 2)].try_into().unwrap()) as i32;
+    result.set_buffer_width(u16::from_be_bytes(bytes[o..(o + 2)].try_into().unwrap()) as i32);
     o += 2;
-    result.height = u16::from_be_bytes(bytes[o..(o + 2)].try_into().unwrap()) as i32;
+    result.set_buffer_height(u16::from_be_bytes(bytes[o..(o + 2)].try_into().unwrap()) as i32);
     o += 2;
 
     let flags = u16::from_be_bytes(bytes[o..(o + 2)].try_into().unwrap());
@@ -318,8 +318,8 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>>
     buf.title.append_to(&mut result);
     buf.author.append_to(&mut result);
     buf.group.append_to(&mut result);
-    result.extend(u16::to_be_bytes(buf.width as u16));
-    result.extend(u16::to_be_bytes(buf.height as u16));
+    result.extend(u16::to_be_bytes(buf.get_buffer_width() as u16));
+    result.extend(u16::to_be_bytes(buf.get_buffer_height() as u16));
 
     let flags = buf.buffer_type as u16;
     result.extend(u16::to_be_bytes(flags));

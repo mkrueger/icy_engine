@@ -1,4 +1,6 @@
-use std::{io, cmp::{max, min}};
+use std::{io, cmp::{max}};
+use crate::Line;
+
 use super::{Buffer, Caret, Position, DosChar};
 mod ascii_parser;
 pub use ascii_parser::*;
@@ -19,7 +21,6 @@ pub trait BufferParser {
     fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: u8) -> io::Result<Option<String>>;
 }
 
-
 fn fill_line(buf: &mut Buffer, line:i32, from: i32, to: i32) {
     for x in from..=to {
         let p = Position::from(x, line);
@@ -34,13 +35,16 @@ impl Caret {
     pub fn lf(&mut self, buf: &mut Buffer) {
         self.pos.x = 0;
         self.pos.y += 1;
-        if self.pos.y >= buf.height {
-            fill_line(buf, self.pos.y, 0, buf.width as i32);
+        if self.pos.y >= buf.get_last_editable_line() {
+            buf.scroll_down();
+            self.pos.y = buf.get_last_editable_line();
         }
+        buf.terminal_state.limit_caret_pos(buf, self);
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
     pub fn ff(&mut self, buf: &mut Buffer) {
+        buf.terminal_state.reset();
         buf.clear();
         self.pos = Position::new();
         self.is_visible = true;
@@ -53,11 +57,11 @@ impl Caret {
     }
 
     pub fn eol(&mut self, buf: &mut Buffer) {
-        self.pos.x = buf.width as i32 - 1;
+        self.pos.x = buf.get_buffer_width() as i32 - 1;
     }
 
-    pub fn home(&mut self, _buf: &mut Buffer) {
-        self.pos = Position::new();
+    pub fn home(&mut self, buf: &mut Buffer) {
+        self.pos = buf.upper_left_position();
     }
 
     /// (backspace, BS, \b, ^H), may overprint the previous character
@@ -77,25 +81,33 @@ impl Caret {
     
     pub fn left(&mut self, buf: &mut Buffer, num: i32) {
         let old_x = self.pos.x;
-        self.pos.x = max(0, self.pos.x.saturating_sub(num));
+        self.pos.x = self.pos.x.saturating_sub(num);
+        buf.terminal_state.limit_caret_pos(buf, self);
         fill_line(buf, self.pos.y, self.pos.x, old_x);
     }
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
         let old_x = self.pos.x;
-        self.pos.x = min(buf.width as i32 - 1, self.pos.x + num);
+        self.pos.x =self.pos.x + num;
+        buf.terminal_state.limit_caret_pos(buf, self);
         fill_line(buf, self.pos.y, old_x, self.pos.x);
     }
 
     pub fn up(&mut self, buf: &mut Buffer, num: i32) {
-        self.pos.y = max(buf.get_first_visible_line(), self.pos.y.saturating_sub(num));
+        self.pos.y = self.pos.y.saturating_sub(num);
+        buf.terminal_state.limit_caret_pos(buf, self);
+        if self.pos.y < buf.get_first_editable_line() {
+            buf.scroll_up();
+            self.pos.y = buf.get_first_editable_line();
+        }
     }
 
     pub fn down(&mut self, buf: &mut Buffer, num: i32) {
-        if buf.is_terminal_buffer {
-            self.pos.y = min(buf.get_first_visible_line() + buf.height - 1, self.pos.y + num);
-        } else { 
-            self.pos.y = self.pos.y + num;
+        self.pos.y = self.pos.y + num;
+        buf.terminal_state.limit_caret_pos(buf, self);
+        if self.pos.y >= buf.get_last_editable_line() {
+            buf.scroll_down();
+            self.pos.y = buf.get_last_editable_line();
         }
     }
 }
@@ -110,42 +122,85 @@ impl Buffer {
     fn print_char(&mut self, caret: &mut Caret, ch: DosChar)
     {
         self.set_char(0, caret.pos, Some(ch));
-        caret.pos.x = caret.pos.x + 1;
-        if caret.pos.x >= self.width as i32 {
-            caret.lf(self);
+        caret.pos.x += 1;
+        if caret.pos.x >= self.get_buffer_width() as i32 {
+            if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
+                caret.lf(self);
+            } else {
+                caret.pos.x -=  1;
+
+            }
+        }
+    }
+
+    fn get_buffer_last_line(&mut self) -> i32 
+    {
+        if let Some((_, end)) = self.terminal_state.margins {
+            self.get_first_visible_line() + end
+        } else {
+            max(self.terminal_state.height, self.layers[0].lines.len() as i32)
+        }
+    }
+
+    fn scroll_down(&mut self)
+    {
+        if let Some((start, end)) = self.terminal_state.margins {
+            for layer in &mut self.layers {
+                if (layer.lines.len() as i32) < start {
+                    continue;
+                }
+                layer.lines.remove(start as usize);
+                if (layer.lines.len() as i32) >= end {
+                    layer.lines.insert(end as usize, Line::new());
+                }
+            }
+        }
+    }
+
+    fn scroll_up(&mut self)
+    {
+        if let Some((start, end)) = self.terminal_state.margins {
+            for layer in &mut self.layers {
+                if (layer.lines.len() as i32) <= end {
+                    layer.lines.resize(end as usize + 1, Line::new());
+                }
+                layer.lines.remove(end as usize);
+                layer.lines.insert(start as usize, Line::new());
+            }
         }
     }
 
     fn clear_screen(&mut self, caret: &mut Caret)
     {
-        caret.pos = Position::new();
+        // TODO: how to handle margins here?
+        caret.pos = self.upper_left_position();
         self.clear();
     }
 
     fn clear_buffer_down(&mut self, y: i32) {
-        for y in y..self.height as i32 {
-            for x in 0..self.width as i32 {
+        for y in y..self.get_last_editable_line() as i32 {
+            for x in 0..self.get_buffer_width() as i32 {
                 self.set_char(0, Position::from(x, y), Some(DosChar::new()));
             }
         }
     }
 
     fn clear_buffer_up(&mut self, y: i32) {
-        for y in 0..y {
-            for x in 0..self.width as i32 {
+        for y in self.get_first_editable_line()..y {
+            for x in 0..self.get_buffer_width() as i32 {
                 self.set_char(0, Position::from(x, y), Some(DosChar::new()));
             }
         }
     }
 
     fn clear_line(&mut self, y: i32) {
-        for x in 0..self.width as i32 {
+        for x in 0..self.get_buffer_width() as i32 {
             self.set_char(0, Position::from(x, y), Some(DosChar::new()));
         }
     }
 
     fn clear_line_end(&mut self, pos: &Position) {
-        for x in pos.x..self.width as i32 {
+        for x in pos.x..self.get_buffer_width() as i32 {
             self.set_char(0, Position::from(x, pos.y), Some(DosChar::new()));
         }
     }
@@ -154,6 +209,22 @@ impl Buffer {
         for x in 0..pos.x {
             self.set_char(0, Position::from(x, pos.y), Some(DosChar::new()));
         }
+    }
+
+    fn remove_terminal_line(&mut self, line: i32) {
+        self.layers[0].remove_line(line);
+        if let Some((start, end)) = self.terminal_state.margins {
+            self.layers[0].insert_line(end, Line::new());
+        } 
+    }
+    
+    fn insert_terminal_line(&mut self, line: i32) {
+        if let Some((start, end)) = self.terminal_state.margins {
+            if end < self.layers[0].lines.len() as i32 {
+                self.layers[0].lines.remove(end as usize);
+            }
+        }
+        self.layers[0].insert_line(line, Line::new());
     }
 }
 

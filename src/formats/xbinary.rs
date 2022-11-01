@@ -34,9 +34,9 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
 
     // let eof_char = bytes[o];
     o += 1;
-    result.width = bytes[o] as i32 + ((bytes[o + 1] as i32) << 8);
+    result.set_buffer_width(bytes[o] as i32 + ((bytes[o + 1] as i32) << 8));
     o += 2;
-    result.height = bytes[o] as i32 + ((bytes[o + 1] as i32) << 8);
+    result.set_buffer_height(bytes[o] as i32 + ((bytes[o + 1] as i32) << 8));
     o += 2;
 
     let font_size = bytes[o];
@@ -88,7 +88,7 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
 fn advance_pos(result: &Buffer, pos: &mut Position) -> bool
 {
     pos.x += 1;
-    if pos.x >= result.width as i32 {
+    if pos.x >= result.get_buffer_width() as i32 {
         pos.x = 0;
         pos.y += 1;
     }
@@ -224,10 +224,10 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     result.extend_from_slice(b"XBIN");
     result.push(0x1A); // CP/M EOF char (^Z) - used by DOS as well
 
-    result.push(buf.width as u8);
-    result.push((buf.width >> 8) as u8);
-    result.push(buf.height as u8);
-    result.push((buf.height >> 8) as u8);
+    result.push(buf.get_buffer_width() as u8);
+    result.push((buf.get_buffer_width() >> 8) as u8);
+    result.push(buf.get_buffer_height() as u8);
+    result.push((buf.get_buffer_height() >> 8) as u8);
 
     let mut flags = 0;
     if buf.font.size.width != 8 || buf.font.size.height < 1 || buf.font.size.height > 32 {
@@ -272,8 +272,8 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
         CompressionLevel::Medium => compress_greedy(&mut result, buf, buf.buffer_type),
         CompressionLevel::High => compress_backtrack(&mut result, buf, buf.buffer_type),
         CompressionLevel::Off => {
-            for y in 0..buf.height {
-                for x in 0..buf.width {
+            for y in 0..buf.get_buffer_height() {
+                for x in 0..buf.get_buffer_width() {
                     let ch = buf.get_char(Position::from(x as i32, y as i32)).unwrap_or_default();
 
                     result.push(ch.char_code as u8);
@@ -295,7 +295,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = DosChar::default();
-    let len = (buffer.height * buffer.width) as i32;
+    let len = (buffer.get_buffer_height() * buffer.get_buffer_width()) as i32;
     for x in 0..len {
         let cur = buffer.get_char(Position::from_index(buffer, x)).unwrap_or_default();
 
@@ -412,7 +412,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
 }
 
 fn count_length(mut run_mode: Compression, mut run_ch: DosChar, mut end_run: Option<bool>, mut run_count: u8, buffer: &Buffer, mut x: i32) -> i32 {
-    let len = min(x + 256, (buffer.height * buffer.width) as i32 - 1);
+    let len = min(x + 256, (buffer.get_buffer_height() * buffer.get_buffer_width()) as i32 - 1);
     let mut count = 0;
     while x < len {
         let cur = buffer.get_char(Position::from_index(buffer, x)).unwrap_or_default();
@@ -514,7 +514,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = DosChar::default();
-    let len = (buffer.height * buffer.width) as i32;
+    let len = (buffer.get_buffer_height() * buffer.get_buffer_width()) as i32;
     for x in 0..len {
         let cur = buffer.get_char(Position::from_index(buffer, x)).unwrap_or_default();
 

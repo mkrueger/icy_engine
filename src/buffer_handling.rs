@@ -5,7 +5,7 @@ use std::{
 };
 use std::ffi::OsStr;
 
-use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser};
+use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState};
 
 use super::{Layer, read_xb, Position, DosChar, read_binary, Size, UndoOperation, Palette, SauceString, Line, BitFont, SaveOptions };
 
@@ -72,9 +72,7 @@ pub struct Buffer {
     pub group: SauceString<20, b' '>,
     pub comments: Vec<SauceString<64, 0>>,
 
-    pub width: i32,
-    pub height: i32,
-
+    pub terminal_state: TerminalState,
     pub buffer_type: BufferType,
     pub is_terminal_buffer: bool,
 
@@ -92,16 +90,16 @@ pub struct Buffer {
 
 impl std::fmt::Debug for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Buffer").field("file_name", &self.file_name).field("width", &self.width).field("height", &self.height).field("custom_palette", &self.palette).field("font", &self.font).field("layers", &self.layers).finish()
+        f.debug_struct("Buffer").field("file_name", &self.file_name).field("width", &self.get_buffer_width()).field("height", &self.get_buffer_height()).field("custom_palette", &self.palette).field("font", &self.font).field("layers", &self.layers).finish()
     }
 }
+
 
 impl Buffer {
     pub fn new() -> Self {
         Buffer {
             file_name: None,
-            width: 80,
-            height: 25,
+            terminal_state: TerminalState::from(80, 25),
 
             title: SauceString::new(),
             author: SauceString::new(),
@@ -122,6 +120,22 @@ impl Buffer {
         }
     }
 
+    pub fn get_buffer_width(&self) -> i32 {
+        self.terminal_state.width
+    }
+
+    pub fn get_buffer_height(&self) -> i32 {
+        self.terminal_state.height
+    }
+    
+    pub fn set_buffer_width(&mut self, width: i32)  {
+        self.terminal_state.width = width;
+    }
+
+    pub fn set_buffer_height(&mut self, height: i32) {
+        self.terminal_state.height = height;
+    }
+
     pub fn clear(&mut self) {
         self.layers[0].clear();
     }
@@ -130,17 +144,48 @@ impl Buffer {
     /// this function gives back the first visible line.
     pub fn get_first_visible_line(&self) -> i32 {
         return if self.is_terminal_buffer {
-            max(0, self.layers[0].lines.len() as i32 - self.height)
+            max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height())
         } else { 
             0 
         }
     }
 
+    pub fn get_first_editable_line(&self) -> i32 {
+        return if self.is_terminal_buffer {
+            if let Some((start, _)) = self.terminal_state.margins {
+                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height() + start + 1)
+            } else {
+                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height() + 1)
+            }
+        } else { 
+            0 
+        }
+    }
+    
+    pub fn get_last_editable_line(&self) -> i32 {
+        return if self.is_terminal_buffer {
+            if let Some((_, end)) = self.terminal_state.margins {
+                self.get_first_visible_line() + end
+            } else {
+                self.get_first_visible_line() + self.get_buffer_height()
+            }
+        } else { 
+            max(self.layers[0].lines.len() as i32, self.get_buffer_height())
+        }
+    }
+
+    pub fn upper_left_position(&self) -> Position {
+        match self.terminal_state.origin_mode {
+            crate::OriginMode::UpperLeftCorner => Position { x: 0, y: self.get_first_visible_line() },
+            crate::OriginMode::WithinMargins => Position { x: 0, y: self.get_first_editable_line() }
+        }
+    }
+
     pub fn create(width: i32, height: i32) -> Self {
         let mut res = Buffer::new();
-        res.width = width;
-        res.height = height;
-        res.layers[0].lines.resize(height as usize, Line::create(width));
+        res.set_buffer_width(width);
+        res.set_buffer_height(height);
+        res.layers[0].lines.resize(height as usize, Line::new());
         res.layers[0].is_locked = true;
 
         let mut editing_layer =Layer::new();
@@ -189,7 +234,7 @@ impl Buffer {
         cur_layer.set_char(pos, dos_char);
     }
 
-    pub fn get_char_from_layer(&mut self, layer: usize, pos: Position) -> Option<DosChar> {
+    pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> Option<DosChar> {
         if let Some(layer) = self.layers.get(layer) {
             layer.get_char(pos)
         } else {
@@ -297,12 +342,12 @@ impl Buffer {
             super::SauceFileType::PCBoard => { interpreter = CharInterpreter::Pcb;  },
             super::SauceFileType::Avatar => { interpreter = CharInterpreter::Avatar;  },
             super::SauceFileType::TundraDraw => {
-                if result.width == 0 { result.width = 80; }
+                if result.get_buffer_width() == 0 { result.set_buffer_width(80); }
                 super::read_tnd(&mut result, bytes, file_size)?;
                 return Ok(result);
             },
             super::SauceFileType::Bin => {
-                if result.width == 0 { result.width = 160; }
+                if result.get_buffer_width() == 0 { result.set_buffer_width(160); }
                 read_binary(&mut result, bytes, file_size)?;
                 return Ok(result);
             },
@@ -318,7 +363,7 @@ impl Buffer {
                 let ext = OsStr::to_str(ext).unwrap().to_lowercase();
                 match ext.as_str() {
                     "bin" => {
-                        if result.width == 0 { result.width = 160; }
+                        if result.get_buffer_width() == 0 { result.set_buffer_width(160); }
                         read_binary(&mut result, bytes, file_size)?;
                         return Ok(result);
                     }
@@ -327,7 +372,7 @@ impl Buffer {
                         return Ok(result);
                     }
                     "adf" => {
-                        if result.width == 0 { result.width = 80; }
+                        if result.get_buffer_width() == 0 { result.set_buffer_width(80); }
                         super::read_adf(&mut result, bytes, file_size)?;
                         return Ok(result);
                     }
@@ -336,7 +381,7 @@ impl Buffer {
                         return Ok(result);
                     }
                     "tnd" => {
-                        if result.width == 0 { result.width = 80; }
+                        if result.get_buffer_width() == 0 { result.set_buffer_width(80); }
                         super::read_tnd(&mut result, bytes, file_size)?;
                         return Ok(result);
                     }
@@ -350,8 +395,8 @@ impl Buffer {
             }
         }
 
-        if result.width == 0 { result.width = 80; }
-        result.height = 1;
+        if result.get_buffer_width() == 0 { result.set_buffer_width(80); }
+        result.set_buffer_height(1);
 
         let mut interpreter: Box<dyn BufferParser> = match interpreter {
             CharInterpreter::Ascii => Box::new(AsciiParser::new()),
@@ -384,7 +429,7 @@ impl Buffer {
     {
         let mut length = 0;
         let mut pos = Position::from(0, line);
-        for x in 0..(self.width as i32) {
+        for x in 0..(self.get_buffer_width() as i32) {
             pos.x = x;
             if let Some(ch) = self.get_char(pos) {
                 if x > 0 && ch.is_transparent() {
@@ -404,11 +449,7 @@ impl Buffer {
 
     pub fn set_height_for_pos(&mut self, pos: Position)
     {
-        if pos.x == 0 {
-            self.height = pos.y; 
-        } else {
-            self.height = pos.y + 1;
-        }
+        self.set_buffer_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
     }
 }
 

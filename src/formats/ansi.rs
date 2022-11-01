@@ -13,7 +13,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::DEFAULT;
     let mut pos = Position::new();
-    let height = buf.height as i32;
+    let height = buf.get_buffer_height() as i32;
     let mut first_char = true;
 
     match options.screen_preparation {
@@ -23,7 +23,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     }
 
     while pos.y < height {
-        let line_length = if options.modern_terminal_output { buf.width as i32 } else { buf.get_line_length(pos.y) };
+        let line_length = if options.modern_terminal_output { buf.get_buffer_width() as i32 } else { buf.get_line_length(pos.y) };
 
         while pos.x < line_length {
             let mut space_count = 0;
@@ -157,7 +157,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             result.extend_from_slice(b"\x1b[0m");
             result.push(10);
             first_char = true;
-        } else if pos.x < buf.width as i32 && pos.y + 1 < height {
+        } else if pos.x < buf.get_buffer_width() as i32 && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }
@@ -179,7 +179,7 @@ fn push_int(result: &mut Vec<u8>, number: usize)
 
 pub fn get_save_sauce_default_ans(buf: &Buffer) -> (bool, String)
 {
-    if buf.width != 80 {
+    if buf.get_buffer_width() != 80 {
         return (true, "width != 80".to_string() );
     }
 
@@ -410,10 +410,10 @@ mod tests {
         vec.resize(80 * 2, b' ');
 
         let buf = Buffer::from_bytes(&PathBuf::from("test.ans"), &vec).unwrap();
-        assert_eq!(2, buf.height);
+        assert_eq!(2, buf.get_buffer_height());
         let vec2 = buf.to_bytes("ans", &SaveOptions::new()).unwrap();
         let buf2 = Buffer::from_bytes(&PathBuf::from("test.ans"), &vec2).unwrap();
-        assert_eq!(2, buf2.height);
+        assert_eq!(2, buf2.get_buffer_height());
     }
 
 }

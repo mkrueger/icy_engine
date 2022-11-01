@@ -2,7 +2,7 @@
 
 use std::{io, cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, Line};
+use crate::{Position, Buffer, TextAttribute, Caret, Line, TerminalScrolling, OriginMode, AutoWrapMode};
 
 use super::{BufferParser, AsciiParser};
 
@@ -92,11 +92,22 @@ impl BufferParser for AnsiParser {
                 self.ans_code = false;
                 self.got_escape = false;
                 match ch {
+                    b'p' => { // [!p Soft Teminal Reset
+                        buf.terminal_state.reset();
+                    }
                     b'l' => {
                         if self.parsed_numbers.len() != 1 {
                             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
                         }
                         match self.parsed_numbers[0] {
+                            4 => { buf.terminal_state.scroll_state = TerminalScrolling::Fast; }
+                            6 => {
+                                /* buf.terminal_state.origin_mode = OriginMode::WithinMargins;
+
+                                    // The only BBS I know which uses that seems to be using that wrong 
+                                */ 
+                            }
+                            7 => { buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap; }
                             25 => {
                                 caret.is_visible = false;
                             }
@@ -110,6 +121,9 @@ impl BufferParser for AnsiParser {
                             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
                         }
                         match self.parsed_numbers[0] {
+                            4 => { buf.terminal_state.scroll_state = TerminalScrolling::Smooth; }
+                            6 => { buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner; }
+                            7 => { buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap; }
                             25 => {
                                 caret.is_visible = true;
                             }
@@ -127,6 +141,10 @@ impl BufferParser for AnsiParser {
             }
             match ch {
                 b'm' => { // Select Graphic Rendition 
+                    self.ans_code = false;
+                    if self.parsed_numbers.len() == 0 {
+                        caret.attr = TextAttribute::DEFAULT; // Reset or normal 
+                    } 
                     for n in &self.parsed_numbers {
                         match n {
                             0 => caret.attr = TextAttribute::DEFAULT, // Reset or normal 
@@ -160,76 +178,160 @@ impl BufferParser for AnsiParser {
                             }
                         }
                     }
-                    self.ans_code = false;
                     return Ok(None);
                 }
                 b'H' | b'f' => { // Cursor Position + Horizontal Vertical Position ('f')
+                self.ans_code = false;
                     if !self.parsed_numbers.is_empty() {
                         if self.parsed_numbers[0] > 0 { 
                             // always be in terminal mode for gotoxy
-                            caret.pos.y =  min(buf.get_first_visible_line() + buf.height - 1, max(0, buf.get_first_visible_line() + self.parsed_numbers[0] - 1));
+                            caret.pos.y =  buf.get_first_visible_line() + self.parsed_numbers[0] - 1;
                         }
                         if self.parsed_numbers.len() > 1 {
                             if self.parsed_numbers[1] > 0 {
-                                caret.pos.x =  max(0, self.parsed_numbers[1] - 1);
+                                caret.pos.x = self.parsed_numbers[1] - 1;
                             }
                         } else {
                             caret.pos.x = 0;
                         }
                     } else {
-                        caret.pos = Position::new();
+                        caret.pos = buf.upper_left_position();
                     }
-                    self.ans_code = false;
+                    buf.terminal_state.limit_caret_pos(buf, caret);
                     return Ok(None);
                 }
                 b'C' => { // Cursor Forward 
+                    self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.right(buf, 1);
                     } else {
                         caret.right(buf, self.parsed_numbers[0]);
                     }
-                    self.ans_code = false;
                     return Ok(None);
                 }
                 b'D' => { // Cursor Back 
+                    self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.left(buf, 1);
                     } else {
                         caret.left(buf, self.parsed_numbers[0]);
                     }
-                    self.ans_code = false;
                     return Ok(None);
                 }
                 b'A' => { // Cursor Up 
+                    self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.up(buf, 1);
                     } else {
                         caret.up(buf, self.parsed_numbers[0]);
                     }
-                    caret.pos.y = max(0, caret.pos.y);
-                    self.ans_code = false;
                     return Ok(None);
                 }
                 b'B' => { // Cursor Down 
+                    self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.down(buf, 1);
                     } else {
                         caret.down(buf, self.parsed_numbers[0]);
                     }
-                    self.ans_code = false;
                     return Ok(None);
                 }
                 b's' => { // Save Current Cursor Position
-                    self.saved_pos = caret.pos;
                     self.ans_code = false;
+                    self.saved_pos = caret.pos;
                     return Ok(None);
                 }
                 b'u' => { // Restore Saved Cursor Position 
-                    caret.pos = self.saved_pos;
                     self.ans_code = false;
+                    caret.pos = self.saved_pos;
                     return Ok(None);
                 }
-               
+                
+                b'd' => { // Vertical Line Position Absolute
+                    self.ans_code = false;
+                    let num  = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0] - 1
+                    } else {
+                        0
+                    };
+                    caret.pos.y =  buf.get_first_visible_line() + num;
+                    buf.terminal_state.limit_caret_pos(buf, caret);
+                    return Ok(None);
+                }
+                b'e' => { // Vertical Line Position Relative
+                    self.ans_code = false;
+                    let num  = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0]
+                    } else {
+                        1
+                    };
+                    caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
+                    buf.terminal_state.limit_caret_pos(buf, caret);
+                    return Ok(None);
+                }
+                b'\'' => { // Horizontal Line Position Absolute
+                    self.ans_code = false;
+                    let num = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0] - 1
+                    } else {
+                        0
+                    };
+                    if let Some(line) = buf.layers[0].lines.get(caret.pos.y as usize) {
+                        caret.pos.x = min(line.get_line_length() as i32 + 1, max(0, num));
+                        buf.terminal_state.limit_caret_pos(buf, caret);
+                    }
+                    return Ok(None);
+                }
+                b'a' => { // Horizontal Line Position Relative
+                    self.ans_code = false;
+                    let num = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0]
+                    } else {
+                        1
+                    };
+                    if let Some(line) = buf.layers[0].lines.get(caret.pos.y as usize) {
+                        caret.pos.x = min(line.get_line_length() as i32 + 1, caret.pos.x + num);
+                        buf.terminal_state.limit_caret_pos(buf, caret);
+                    }
+                    return Ok(None);
+                }
+                
+                b'G' => { // Cursor Horizontal Absolute
+                    self.ans_code = false;
+                    let num = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0] - 1
+                    } else {
+                        0
+                    };
+                    caret.pos.x = num;
+                    buf.terminal_state.limit_caret_pos(buf, caret);
+                    return Ok(None);
+                }
+                b'E' => { // Cursor Next Line
+                    self.ans_code = false;
+                    let num  = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0]
+                    } else {
+                        1
+                    };
+                    caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
+                    caret.pos.x = 0;
+                    buf.terminal_state.limit_caret_pos(buf, caret);
+                    return Ok(None);
+                }
+                b'F' => { // Cursor Previous Line
+                    self.ans_code = false;
+                    let num  = if !self.parsed_numbers.is_empty() {
+                        self.parsed_numbers[0]
+                    } else {
+                        1
+                    };
+                    caret.pos.y = buf.get_first_visible_line() + caret.pos.y - num;
+                    caret.pos.x = 0;
+                    buf.terminal_state.limit_caret_pos(buf, caret);
+                    return Ok(None);
+                }
+                        
                 b'n' => { // Device Status Report 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
@@ -243,7 +345,7 @@ impl BufferParser for AnsiParser {
                             return Ok(Some("\x1b[0n".to_string()));
                         },
                         6 => { // Get cursor position
-                            let s = format!("\x1b[{};{}R", min(buf.height as i32, caret.pos.y + 1), min(buf.width as i32, caret.pos.x + 1));
+                            let s = format!("\x1b[{};{}R", min(buf.get_buffer_height() as i32, caret.pos.y + 1), min(buf.get_buffer_width() as i32, caret.pos.x + 1));
                             return Ok(Some(s));
                         },
                         _ => {
@@ -264,7 +366,7 @@ impl BufferParser for AnsiParser {
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         if caret.pos.y  < buf.layers[0].lines.len() as i32 {
-                            buf.layers[0].remove_line(caret.pos.y);
+                            buf.remove_terminal_line(caret.pos.y);
                         }
                     } else {
                         if self.parsed_numbers.len() != 1 {
@@ -275,7 +377,7 @@ impl BufferParser for AnsiParser {
                                 if caret.pos.y >= buf.layers[0].lines.len() as i32 {
                                     break;
                                 }
-                                buf.layers[0].remove_line(caret.pos.y);
+                                buf.remove_terminal_line(caret.pos.y);
                             }
                         } else {
                             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid number in sequence {}", self.parsed_numbers[0])));
@@ -306,14 +408,14 @@ impl BufferParser for AnsiParser {
                 b'L' => { // Insert line 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
-                        buf.layers[0].insert_line(caret.pos.y, Line::create(buf.width));
+                        buf.insert_terminal_line(caret.pos.y);
                     } else {
                         if self.parsed_numbers.len() != 1 {
                             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid parameters sequence {}", self.parsed_numbers[0])));
                         }
                         if let Some(number) = self.parsed_numbers.get(0) {
                             for _ in 0..*number {
-                                buf.layers[0].insert_line(caret.pos.y, Line::create(buf.width));
+                                buf.insert_terminal_line(caret.pos.y);
                             }
                         } else {
                             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid number in sequence {}", self.parsed_numbers[0])));
@@ -358,6 +460,7 @@ impl BufferParser for AnsiParser {
                 }
 
                 b'K' => { // Erase in line
+                    self.ans_code = false;
                     if self.parsed_numbers.len() > 0 {
                         match self.parsed_numbers[0] {
                             0 => { 
@@ -376,7 +479,25 @@ impl BufferParser for AnsiParser {
                     } else {
                         buf.clear_line_end(&caret.pos);
                     }
+                    return Ok(None);
+                }
+                
+                b'c' => { // device attributes
                     self.ans_code = false;
+                    return Ok(Some("\x1b[?1;0c".to_string()));
+                }
+
+                b'r' => { // Set Top and Bottom Margins
+                    self.ans_code = false;
+                    if self.parsed_numbers.len() != 2 {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid set top and bottom margin sequence {}", self.current_sequence)));
+                    }
+                    let start = min(buf.get_buffer_height(), max(0, self.parsed_numbers[0] - 1));
+                    let end = min(buf.get_buffer_height(), max(0, self.parsed_numbers[1] - 1));
+                    if start > end {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("The value of the top margin must be less than the bottom margin: {}", self.current_sequence)));
+                    }
+                    buf.terminal_state.margins  = Some((start, end));
                     return Ok(None);
                 }
                 _ => {
@@ -419,11 +540,9 @@ impl BufferParser for AnsiParser {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use crate::{Buffer, Caret, AnsiParser, BufferParser, Position, TextAttribute};
+    use crate::{Buffer, Caret, AnsiParser, BufferParser, Position, TextAttribute, TerminalScrolling};
 
     fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) 
     {
@@ -436,12 +555,12 @@ mod tests {
       
         assert_eq!(25, buf.layers[0].lines.len());
         
-        run_parser(&mut buf, &mut caret, parser, input);
+        update_buffer(&mut buf, &mut caret, parser, input);
         
         (buf, caret)
     }
 
-    fn run_parser<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8])
+    fn update_buffer<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8])
     {
         for b in input {
             parser.print_char(buf,caret, *b).unwrap();
@@ -472,7 +591,7 @@ mod tests {
         for i in 0..4  {
             assert_eq!(b't' , buf.get_char(Position::from(0, i)).unwrap().char_code as u8);
         }
-        run_parser(&mut buf, &mut Caret::new(), &mut AnsiParser::new(), b"\x1b[3M");
+        update_buffer(&mut buf, &mut Caret::new(), &mut AnsiParser::new(), b"\x1b[3M");
         assert_eq!(b't' , buf.get_char(Position::from(0, 0)).unwrap().char_code as u8);
         assert_eq!(b' ' , buf.get_char(Position::from(0, 1)).unwrap().char_code as u8);
     }
@@ -480,43 +599,42 @@ mod tests {
     #[test]
     fn test_delete_character_default() {
         let (mut buf, _) = create_buffer(&mut AnsiParser::new(), b"test");
-        run_parser(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
+        update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
         assert_eq!(b'e' , buf.get_char(Position::from(0, 0)).unwrap().char_code as u8);
-        run_parser(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
+        update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
         assert_eq!(b's' , buf.get_char(Position::from(0, 0)).unwrap().char_code as u8);
-        run_parser(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
+        update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
         assert_eq!(b't' , buf.get_char(Position::from(0, 0)).unwrap().char_code as u8);
     }
 
     #[test]
     fn test_delete_n_character() {
         let (mut buf, _) = create_buffer(&mut AnsiParser::new(), b"testme");
-        run_parser(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[4P");
+        update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[4P");
         assert_eq!(b'm' , buf.get_char(Position::from(0, 0)).unwrap().char_code as u8);
     }
-
 
     #[test]
     fn test_save_cursor() {
         let (_,caret) = create_buffer(&mut AnsiParser::new(), b"\x1b7testme\x1b8");
-        assert_eq!(Position::new() , caret.get_position());
+        assert_eq!(Position::new(), caret.get_position());
     }
 
     #[test]
     fn test_reset_cursor() {
         let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"testme\x1b[1;37m");
         assert_ne!(TextAttribute::DEFAULT, caret.attr);
-        assert_ne!(Position::new() , caret.get_position());
-        run_parser(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1bc");
+        assert_ne!(Position::new(), caret.get_position());
+        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1bc");
         assert_eq!(TextAttribute::DEFAULT, caret.attr);
-        assert_eq!(Position::new() , caret.get_position());
+        assert_eq!(Position::new(), caret.get_position());
     }
 
     #[test]
     fn test_cursor_visibilty() {
         let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[?25l");
         assert_eq!(false, caret.is_visible);
-        run_parser(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1b[?25h");
+        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1b[?25h");
         assert_eq!(true, caret.is_visible);
     }
 
@@ -524,8 +642,121 @@ mod tests {
     fn test_cursor_visibilty_reset() {
         let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[?25l");
         assert_eq!(false, caret.is_visible);
-        run_parser(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x0C"); // FF
+        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x0C"); // FF
         assert_eq!(true, caret.is_visible);
     }
-    
+
+    #[test]
+    fn test_vert_line_position_absolute_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\n\n\nfoo\x1b[d");
+        assert_eq!(Position::from(3, 0) , caret.get_position());
+    }
+
+    #[test]
+    fn test_vert_line_position_absolute_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"test\x1b[5d");
+        assert_eq!(Position::from(4, 4), caret.get_position());
+    }
+
+    #[test]
+    fn test_vert_line_position_relative_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\n\n\nfoo\x1b[e");
+        assert_eq!(Position::from(3, 4) , caret.get_position());
+    }
+
+    #[test]
+    fn test_vert_line_position_relative_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\n\n\x1b[5e");
+        assert_eq!(Position::from(0, 7) , caret.get_position());
+    }
+
+    #[test]
+    fn test_horiz_line_position_absolute_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"foo\x1b['");
+        assert_eq!(Position::new(), caret.get_position());
+    }
+
+    #[test]
+    fn test_horiz_line_position_absolute_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"testfooo\x1b['\x1b[3'");
+        assert_eq!(Position::from(2, 0) , caret.get_position());
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"01234567\x1b['\x1b[100'");
+        assert_eq!(Position::from(8, 0) , caret.get_position());
+    }
+
+    #[test]
+    fn test_horiz_line_position_relative_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"testfooo\x1b['\x1b[a");
+        assert_eq!(Position::from(1, 0) , caret.get_position());
+    }
+
+    #[test]
+    fn test_horiz_line_position_relative_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"testfooo\x1b['\x1b[3a");
+        assert_eq!(Position::from(3, 0) , caret.get_position());
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"01234567\x1b['\x1b[100a");
+        assert_eq!(Position::from(8, 0) , caret.get_position());
+    }
+
+    #[test]
+    fn test_cursor_horiz_absolute_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"testfooo\x1b[G");
+        assert_eq!(Position::from(0, 0) , caret.get_position());
+    }
+
+    #[test]
+    fn test_cursor_horiz_absolute_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"testfooo\x1b['\x1b[3G");
+        assert_eq!(Position::from(2, 0) , caret.get_position());
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"01234567\x1b['\x1b[100G");
+        assert_eq!(Position::from(80, 0) , caret.get_position());
+    }
+
+    #[test]
+    fn test_cursor_next_line_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\n\n\nfoo\x1b[E");
+        assert_eq!(Position::from(0, 4) , caret.get_position());
+    }
+
+    #[test]
+    fn test_cursor_next_line_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"test\x1b[5E");
+        assert_eq!(Position::from(0, 5), caret.get_position());
+    }
+
+    #[test]
+    fn test_cursor_previous_line_default() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\n\n\nfoo\x1b[F");
+        assert_eq!(Position::from(0, 2) , caret.get_position());
+    }
+
+    #[test]
+    fn test_cursor_previous_line_n() {
+        let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\n\n\nfoo\x1b[2F");
+        assert_eq!(Position::from(0, 1), caret.get_position());
+    }
+
+    #[test]
+    fn test_set_top_and_bottom_margins() {
+        let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1b[5;10r");
+        assert_eq!(Some((4, 9)), buf.terminal_state.margins);
+    }
+
+    #[test]
+    fn test_scrolling_terminal_state() {
+        let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"");
+        assert_eq!(TerminalScrolling::Smooth, buf.terminal_state.scroll_state);
+        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1b[?4l");
+        assert_eq!(TerminalScrolling::Fast, buf.terminal_state.scroll_state);
+        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1b[?4h");
+        assert_eq!(TerminalScrolling::Smooth, buf.terminal_state.scroll_state);
+    }
+
+    #[test]
+    fn test_reset_empty_colors() {
+        let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[m\x1B[33mN\x1B[1m\x1B[33ma\x1B[m\x1B[33mCHR\x1B[1m\x1B[33mi\x1B[m\x1B[33mCHT");
+        assert_eq!(buf.get_char(Position::from(0, 0)).unwrap().attribute, buf.get_char(Position::from(2, 0)).unwrap().attribute);
+        assert_eq!(buf.get_char(Position::from(1, 0)).unwrap().attribute, buf.get_char(Position::from(5, 0)).unwrap().attribute);
+        assert_eq!(buf.get_char(Position::from(2, 0)).unwrap().attribute, buf.get_char(Position::from(8, 0)).unwrap().attribute);
+    }
 }

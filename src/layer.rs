@@ -9,10 +9,15 @@ impl Line {
     pub fn new() -> Self {
         Line { chars: Vec::new() }
     }
-    pub fn create(width : i32) -> Self {
-        let mut chars = Vec::new();
-        chars.resize(width as usize, Some(DosChar::new()));
-        Line { chars }
+
+    pub fn get_line_length(&self) -> usize {
+        let mut res = 0;
+        for i in 0..self.chars.len() {
+            if self.chars[i].is_some() {
+                res = i;
+            }
+        }
+        res
     }
 }
 
@@ -90,13 +95,13 @@ impl Layer {
     pub fn get_char(&self, pos: Position) -> Option<DosChar> {
         let pos = pos - self.offset;
         let y = pos.y as usize;
-        if self.lines.len() <= y { return None; }
-        
-        let cur_line = &self.lines[y];
-        if pos.x >= 0 && pos.x < cur_line.chars.len() as i32 {
-            let ch = cur_line.chars[pos.x as usize];
-            if ch.is_some() {
-                return ch;
+        if y < self.lines.len() {
+            let cur_line = &self.lines[y];
+            if pos.x >= 0 && pos.x < cur_line.chars.len() as i32 {
+                let ch = cur_line.chars[pos.x as usize];
+                if ch.is_some() {
+                    return ch;
+                }
             }
         }
         if self.is_transparent {
