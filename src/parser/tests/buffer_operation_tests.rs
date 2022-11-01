@@ -9,3 +9,28 @@ fn test_bs() {
         assert_eq!(TextAttribute::from_color(15, 6), buf.get_char(Position::from(i, 0)).unwrap().attribute);
     }
 }
+
+#[test]
+fn test_up() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[10;10H");
+    assert_eq!(9, caret.pos.y);
+    caret.up(&mut buf, 100);
+    assert_eq!(0, caret.pos.y);
+}
+
+#[test]
+fn test_down() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[10;10H");
+    assert_eq!(9, caret.pos.y);
+    caret.down(&mut buf, 100);
+    assert_eq!(24, caret.pos.y);
+}
+
+#[test]
+fn test_lf_beyond_terminal_height() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"");
+    for _ in 0..100 {
+        caret.lf(&mut buf);
+    }
+    assert_eq!(100, caret.pos.y);
+}

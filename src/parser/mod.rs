@@ -36,16 +36,20 @@ fn fill_line(buf: &mut Buffer, line:i32, from: i32, to: i32) {
 impl Caret {
     /// (line feed, LF, \n, ^J), moves the print head down one line, or to the left edge and down. Used as the end of line marker in most UNIX systems and variants.
     pub fn lf(&mut self, buf: &mut Buffer) {
+        let old_pos = self.pos;
         self.pos.x = 0;
         self.pos.y += 1;
-        if self.pos.y >= buf.get_last_editable_line() {
-            buf.scroll_down();
-            self.pos.y = buf.get_last_editable_line();
+        if buf.needs_scrolling() {
+            if self.pos.y >= buf.get_last_editable_line() {
+                buf.scroll_down();
+                self.pos.y = buf.get_last_editable_line();
+            }
         }
         while self.pos.y >= buf.get_real_buffer_height() {
             let i = buf.layers[0].lines.len() as i32;
             buf.layers[0].insert_line(i, Line::new());
         }
+        println!("{}->{} margin: {:?} . {}", old_pos, self.pos, buf.terminal_state.margins, buf.needs_scrolling());
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
@@ -97,7 +101,6 @@ impl Caret {
         self.pos.x = self.pos.x + num;
         buf.terminal_state.limit_caret_pos(buf, self);
         fill_line(buf, self.pos.y, old_x, self.pos.x);
-        println!("{}", self.pos);
     }
 
     pub fn up(&mut self, buf: &mut Buffer, num: i32) {
@@ -112,9 +115,11 @@ impl Caret {
     pub fn down(&mut self, buf: &mut Buffer, num: i32) {
         self.pos.y = self.pos.y + num;
         buf.terminal_state.limit_caret_pos(buf, self);
-        if self.pos.y >= buf.get_last_editable_line() {
-            buf.scroll_down();
-            self.pos.y = buf.get_last_editable_line();
+        if buf.needs_scrolling() {
+            if self.pos.y >= buf.get_last_editable_line() {
+                buf.scroll_down();
+                self.pos.y = buf.get_last_editable_line();
+            }
         }
     }
 }
@@ -151,13 +156,18 @@ impl Buffer {
 
     fn scroll_down(&mut self)
     {
+        println!("scroll!");        
         if let Some((start, end)) = self.terminal_state.margins {
             for layer in &mut self.layers {
                 if (layer.lines.len() as i32) < start {
                     continue;
                 }
-                layer.lines.remove(start as usize);
+                if layer.lines.len() as i32 > start {
+                    println!("remove {}", start);
+                    layer.lines.remove(start as usize);
+                }
                 if (layer.lines.len() as i32) >= end {
+                    println!("insert {}", end);
                     layer.lines.insert(end as usize, Line::new());
                 }
             }

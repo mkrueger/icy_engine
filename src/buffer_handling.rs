@@ -168,16 +168,20 @@ impl Buffer {
             0 
         }
     }
-    
+
+    pub fn needs_scrolling(&self) -> bool {
+        self.is_terminal_buffer && self.terminal_state.margins.is_some()
+    }
+     
     pub fn get_last_editable_line(&self) -> i32 {
         return if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.margins {
-                self.get_first_visible_line() + end
+                self.get_first_visible_line() + end - 1 
             } else {
-                self.get_first_visible_line() + self.get_buffer_height()
+                self.get_first_visible_line() + self.get_buffer_height() - 1
             }
         } else { 
-            max(self.layers[0].lines.len() as i32, self.get_buffer_height())
+            max(self.layers[0].lines.len() as i32, self.get_buffer_height() - 1)
         }
     }
 
