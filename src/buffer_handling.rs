@@ -7,7 +7,7 @@ use std::ffi::OsStr;
 
 use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState};
 
-use super::{Layer, read_xb, Position, DosChar, read_binary, Size, UndoOperation, Palette, SauceString, Line, BitFont, SaveOptions };
+use super::{Layer, read_xb, Position, DosChar, read_binary, Size, UndoOperation, Palette, SauceString, BitFont, SaveOptions };
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -127,6 +127,14 @@ impl Buffer {
     pub fn get_buffer_height(&self) -> i32 {
         self.terminal_state.height
     }
+
+    pub fn get_real_buffer_height(&self) -> i32 {
+        if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
+            len as i32
+        } else {
+            self.terminal_state.height
+        }
+    }
     
     pub fn set_buffer_width(&mut self, width: i32)  {
         self.terminal_state.width = width;
@@ -139,7 +147,6 @@ impl Buffer {
     pub fn clear(&mut self) {
         self.layers[0].clear();
     }
-
     /// terminal buffers have a viewport on the bottom of the buffer
     /// this function gives back the first visible line.
     pub fn get_first_visible_line(&self) -> i32 {
@@ -185,10 +192,10 @@ impl Buffer {
         let mut res = Buffer::new();
         res.set_buffer_width(width);
         res.set_buffer_height(height);
-        res.layers[0].lines.resize(height as usize, Line::new());
         res.layers[0].is_locked = true;
+        res.layers[0].is_transparent = false;
 
-        let mut editing_layer =Layer::new();
+        let mut editing_layer = Layer::new();
         editing_layer.title = "Editing".to_string();
         res.layers.insert(0, editing_layer);
 
@@ -432,14 +439,14 @@ impl Buffer {
         for x in 0..(self.get_buffer_width() as i32) {
             pos.x = x;
             if let Some(ch) = self.get_char(pos) {
-                if x > 0 && ch.is_transparent() {
+                /*if x > 0 && ch.is_transparent() {
                     if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
                         if prev.attribute.get_background() > 0 {
                             length = x + 1;
                         }
 
                     }
-                } else if !ch.is_transparent() {
+                } else */ if !ch.is_transparent() {
                     length = x + 1;
                 }
             }

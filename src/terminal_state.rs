@@ -58,14 +58,14 @@ impl TerminalState {
                 let first = buf.get_first_visible_line();
                 let n = min(first + self.height, max(first, caret.pos.y));
                 caret.pos.y = n;
-                caret.pos.x = min(self.width, max(0, caret.pos.x));
+                caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
             },
             crate::OriginMode::WithinMargins => { 
                 let first = buf.get_first_editable_line();
                 let height = buf.get_last_editable_line() - first;
                 let n = min(first + height, max(first, caret.pos.y));
                 caret.pos.y = n;
-                caret.pos.x = min(self.width, max(0, caret.pos.x));
+                caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
              }
         }
 

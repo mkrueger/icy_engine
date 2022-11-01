@@ -13,6 +13,9 @@ pub use petscii_parser::*;
 mod pcboard_parser;
 pub use pcboard_parser::*;
 
+#[cfg(test)]
+mod tests;
+
 pub trait BufferParser {
 
     fn from_unicode(&self, ch: char) -> u8;
@@ -39,7 +42,10 @@ impl Caret {
             buf.scroll_down();
             self.pos.y = buf.get_last_editable_line();
         }
-        buf.terminal_state.limit_caret_pos(buf, self);
+        while self.pos.y >= buf.get_real_buffer_height() {
+            let i = buf.layers[0].lines.len() as i32;
+            buf.layers[0].insert_line(i, Line::new());
+        }
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
@@ -88,9 +94,10 @@ impl Caret {
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
         let old_x = self.pos.x;
-        self.pos.x =self.pos.x + num;
+        self.pos.x = self.pos.x + num;
         buf.terminal_state.limit_caret_pos(buf, self);
         fill_line(buf, self.pos.y, old_x, self.pos.x);
+        println!("{}", self.pos);
     }
 
     pub fn up(&mut self, buf: &mut Buffer, num: i32) {
@@ -133,14 +140,14 @@ impl Buffer {
         }
     }
 
-    fn get_buffer_last_line(&mut self) -> i32 
+    /*fn get_buffer_last_line(&mut self) -> i32 
     {
         if let Some((_, end)) = self.terminal_state.margins {
             self.get_first_visible_line() + end
         } else {
             max(self.terminal_state.height, self.layers[0].lines.len() as i32)
         }
-    }
+    }*/
 
     fn scroll_down(&mut self)
     {
@@ -212,55 +219,25 @@ impl Buffer {
     }
 
     fn remove_terminal_line(&mut self, line: i32) {
+        if line >= self.layers[0].lines.len() as i32 {
+            return;
+        }
         self.layers[0].remove_line(line);
-        if let Some((start, end)) = self.terminal_state.margins {
+        if let Some((_, end)) = self.terminal_state.margins {
             self.layers[0].insert_line(end, Line::new());
         } 
     }
     
     fn insert_terminal_line(&mut self, line: i32) {
-        if let Some((start, end)) = self.terminal_state.margins {
+        if line >= self.layers[0].lines.len() as i32 {
+            self.layers[0].lines.resize(line as usize + 1, Line::new());
+        }
+
+        if let Some((_, end)) = self.terminal_state.margins {
             if end < self.layers[0].lines.len() as i32 {
                 self.layers[0].lines.remove(end as usize);
             }
         }
         self.layers[0].insert_line(line, Line::new());
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{Buffer, Caret, AnsiParser, BufferParser, Position, TextAttribute};
-
-    fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) 
-    {
-        let mut buf = Buffer::create(80, 25);
-        let mut caret  = Caret::new();
-        // remove editing layer
-        buf.layers.remove(0);
-        buf.layers[0].is_locked = false;
-        buf.layers[0].is_transparent = false;
-      
-        assert_eq!(25, buf.layers[0].lines.len());
-        
-        run_parser(&mut buf, &mut caret, parser, input);
-        
-        (buf, caret)
-    }
-
-    fn run_parser<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8])
-    {
-        for b in input {
-            parser.print_char(buf,caret, *b).unwrap();
-        }
-    }
-    
-    #[test]
-    fn test_bs() {
-        let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[1;43mtest\x08\x08\x08\x08");
-        assert_eq!(Position::new(), caret.pos);
-        for i in 0..4 {
-            assert_eq!(TextAttribute::from_color(15, 6), buf.get_char(Position::from(i, 0)).unwrap().attribute);
-        }
     }
 }
