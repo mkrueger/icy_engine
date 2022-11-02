@@ -53,7 +53,6 @@ impl AnsiParser {
                 if let Some(saved_caret) = &self.saved_cursor_opt {
                     *caret = saved_caret.clone();
                 }
-                self.saved_cursor_opt = None;
                 Ok(None)
             }
 
@@ -498,6 +497,29 @@ impl BufferParser for AnsiParser {
                         return Err(io::Error::new(io::ErrorKind::InvalidData, format!("The value of the top margin must be less than the bottom margin: {}", self.current_sequence)));
                     }
                     buf.terminal_state.margins  = Some((start, end));
+                    return Ok(None);
+                }
+                b'h' => {
+                    self.ans_code = false;
+                    if self.parsed_numbers.len() != 1 {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid h sequence {}", self.current_sequence)));
+                    }
+                    match self.parsed_numbers[0] {
+                        4 => { caret.insert_mode = true; }
+                        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown h sequence {}", self.current_sequence)))
+                    }
+                    return Ok(None);
+                }
+
+                b'l' => {
+                    self.ans_code = false;
+                    if self.parsed_numbers.len() != 1 {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid l sequence {}", self.current_sequence)));
+                    }
+                    match self.parsed_numbers[0] {
+                        4 => { caret.insert_mode = false; }
+                        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown l sequence {}", self.current_sequence)))
+                    }
                     return Ok(None);
                 }
                 _ => {

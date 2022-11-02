@@ -19,6 +19,16 @@ impl Line {
         }
         res
     }
+
+    pub fn insert_char(&mut self, index: i32, char_opt: Option<DosChar>)
+    {
+        assert!(index >= 0 , "char out of range");
+        if index > self.chars.len() as i32 {
+            self.chars.resize(index as usize, None);
+        }
+        self.chars.insert(index as usize, char_opt);
+    }
+
 }
 
 #[derive(Clone, Debug, Default)]

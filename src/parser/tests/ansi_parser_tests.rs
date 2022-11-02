@@ -274,6 +274,12 @@ fn test_save_cursor() {
 }
 
 #[test]
+fn test_save_cursor_more_times() {
+    let (_,caret) = create_buffer(&mut AnsiParser::new(), b"\x1b7testme\x1b8testme\x1b8");
+    assert_eq!(Position::new(), caret.get_position());
+}
+
+#[test]
 fn test_reset_cursor() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"testme\x1b[1;37m");
     assert_ne!(TextAttribute::DEFAULT, caret.attr);
@@ -420,4 +426,15 @@ fn test_print_char_extension() {
         update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"a\n");
     }
     assert_eq!(31, buf.layers[0].lines.len());
+}
+
+#[test]
+fn test_insert_mode() {
+    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"test\x1B[H\x1B[4lhelp\x1B[H\x1B[4hnewtest");
+    let converted = crate::convert_to_asc(&buf, &SaveOptions::new()).unwrap();
+
+    // more gentle output.
+    let b : Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
+    let converted  = String::from_utf8_lossy(b.as_slice());
+    assert_eq!("newtesthelp", converted);
 }

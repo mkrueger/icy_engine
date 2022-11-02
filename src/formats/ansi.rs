@@ -15,7 +15,6 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut pos = Position::new();
     let height = buf.get_real_buffer_height() as i32;
     let mut first_char = true;
-    println!("real height: {}", height);
     match options.screen_preparation {
         super::ScreenPreperation::None => {},
         super::ScreenPreperation::ClearScreen => { result.extend_from_slice(b"\x1b[2J"); },

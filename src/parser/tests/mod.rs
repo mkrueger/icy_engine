@@ -4,6 +4,15 @@ mod ascii_parser_tests;
 
 use crate::{Buffer, Caret, BufferParser};
 
+fn get_string_from_buffer(buf: &Buffer) -> String
+{
+    let converted = crate::convert_to_asc(&buf, &crate::SaveOptions::new()).unwrap();
+    let b : Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
+    let converted  = String::from_utf8_lossy(b.as_slice());
+
+    converted.to_string()
+}
+
 fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) 
 {
     let mut buf = Buffer::create(80, 25);

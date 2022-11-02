@@ -39,7 +39,6 @@ impl Caret {
         self.pos.x = 0;
         self.pos.y += 1;
         self.check_scrolling_on_caret_down(buf);
-      //  println!("{}->{} {}, first: {},{} last:{}", old_pos, self.pos, buf.is_terminal_buffer, buf.get_first_visible_line(), buf.get_first_editable_line(), buf.get_last_editable_line());
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
@@ -109,13 +108,13 @@ impl Caret {
         if buf.needs_scrolling() {
             while self.pos.y < buf.get_first_editable_line() {
                 buf.scroll_up();
-                self.pos.y -= 1;
+                self.pos.y += 1;
             }
         }
     }
 
     fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer) {
-        while self.pos.y >= buf.get_real_buffer_height() {
+        while self.pos.y >= buf.get_real_buffer_height() && self.pos.y < buf.get_last_editable_line() {
             let i = buf.layers[0].lines.len() as i32;
             buf.layers[0].insert_line(i, Line::new());
         }
@@ -139,6 +138,11 @@ impl Buffer {
 
     fn print_char(&mut self, caret: &mut Caret, ch: DosChar)
     {
+        if caret.insert_mode {
+            let layer = &mut self.layers[0];
+            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(DosChar::new()));
+        }
+
         self.set_char(0, caret.pos, Some(ch));
         caret.pos.x += 1;
         if caret.pos.x >= self.get_buffer_width() as i32 {
@@ -162,18 +166,12 @@ impl Buffer {
 
     fn scroll_down(&mut self)
     {
-        println!("scroll!");        
         if let Some((start, end)) = self.terminal_state.margins {
             for layer in &mut self.layers {
-                if (layer.lines.len() as i32) < start {
-                    continue;
-                }
                 if layer.lines.len() as i32 > start {
-                    println!("remove {}", start);
                     layer.lines.remove(start as usize);
                 }
                 if (layer.lines.len() as i32) >= end {
-                    println!("insert {}", end);
                     layer.lines.insert(end as usize, Line::new());
                 }
             }

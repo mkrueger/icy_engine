@@ -42,39 +42,39 @@ impl PETSCIIParser {
             b'J' => { caret.cr(buf); }, // Move to start of current line
             b'K' => { caret.eol(buf); }, // Move to end of current line
             
-            b'A' => { println!("auto insert mode unsupported."); }, // Enable auto-insert mode
-            b'C' => { println!("auto insert mode unsupported."); }, // Disable auto-insert mode
+            b'A' => { eprintln!("auto insert mode unsupported."); }, // Enable auto-insert mode
+            b'C' => { eprintln!("auto insert mode unsupported."); }, // Disable auto-insert mode
 
             b'D' => { buf.remove_terminal_line(caret.pos.y); }, // Delete current line
             b'I' => { buf.insert_terminal_line(caret.pos.y); }, // Insert line
 
-            b'Y' => { println!("Set default tab stops (8 spaces) unsupported."); }, // Set default tab stops (8 spaces)
-            b'Z' => { println!("Clear all tab stops unsupported."); }, // Clear all tab stops
+            b'Y' => { eprintln!("Set default tab stops (8 spaces) unsupported."); }, // Set default tab stops (8 spaces)
+            b'Z' => { eprintln!("Clear all tab stops unsupported."); }, // Clear all tab stops
 
-            b'L' => { println!("Enable scrolling unsupported."); }, // Enable scrolling
-            b'M' => { println!("Disable scrolling unsupported."); }, // Disable scrolling
+            b'L' => { eprintln!("Enable scrolling unsupported."); }, // Enable scrolling
+            b'M' => { eprintln!("Disable scrolling unsupported."); }, // Disable scrolling
     
-            b'V' => { println!("Scroll up unsupported."); }, // Scroll up
-            b'W' => { println!("Scroll down unsupported."); }, // Scroll down
+            b'V' => { eprintln!("Scroll up unsupported."); }, // Scroll up
+            b'W' => { eprintln!("Scroll down unsupported."); }, // Scroll down
 
-            b'G' => { println!("Enable bell unsupported."); }, // Enable bell (by CTRL G)
-            b'H' => { println!("Disable bell unsupported."); }, // Disable bell
+            b'G' => { eprintln!("Enable bell unsupported."); }, // Enable bell (by CTRL G)
+            b'H' => { eprintln!("Disable bell unsupported."); }, // Disable bell
 
-            b'E' => { println!("Set cursor to non-flashing mode unsupported."); }, // Set cursor to non-flashing mode
-            b'F' => { println!("Set cursor to flashing mode unsupported."); }, // Set cursor to flashing mode
+            b'E' => { eprintln!("Set cursor to non-flashing mode unsupported."); }, // Set cursor to non-flashing mode
+            b'F' => { eprintln!("Set cursor to flashing mode unsupported."); }, // Set cursor to flashing mode
 
-            b'B' => { println!("Set bottom of screen window at cursor position unsupported."); }, // Set bottom of screen window at cursor position
-            b'T' => { println!("Set top of screen window at cursor position unsupported."); }, // Set top of screen window at cursor position
+            b'B' => { eprintln!("Set bottom of screen window at cursor position unsupported."); }, // Set bottom of screen window at cursor position
+            b'T' => { eprintln!("Set top of screen window at cursor position unsupported."); }, // Set top of screen window at cursor position
 
-            b'X' => { println!("Swap 40/80 column display output device unsupported."); }, // Swap 40/80 column display output device
+            b'X' => { eprintln!("Swap 40/80 column display output device unsupported."); }, // Swap 40/80 column display output device
             
-            b'U' => { println!("Change to underlined cursor unsupported."); }, // Change to underlined cursor
-            b'S' => { println!("Change to block cursor unsupported."); }, // Change to block cursor
+            b'U' => { eprintln!("Change to underlined cursor unsupported."); }, // Change to underlined cursor
+            b'S' => { eprintln!("Change to block cursor unsupported."); }, // Change to block cursor
 
-            b'R' => { println!("Set screen to reverse video unsupported."); }, // Set screen to reverse video
-            b'N' => { println!("Set screen to normal (non reverse video) state unsupported."); }, // Set screen to normal (non reverse video) state
+            b'R' => { eprintln!("Set screen to reverse video unsupported."); }, // Set screen to reverse video
+            b'N' => { eprintln!("Set screen to normal (non reverse video) state unsupported."); }, // Set screen to normal (non reverse video) state
 
-            _=> { println!("Unknown C128 escape code: 0x{:02X}/{:?} ", ch, char::from_u32(ch as u32))}
+            _=> { eprintln!("Unknown C128 escape code: 0x{:02X}/{:?} ", ch, char::from_u32(ch as u32))}
         }
         return Ok(None);
     }

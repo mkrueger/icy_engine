@@ -160,9 +160,9 @@ impl Buffer {
     pub fn get_first_editable_line(&self) -> i32 {
         return if self.is_terminal_buffer {
             if let Some((start, _)) = self.terminal_state.margins {
-                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height() + start + 1)
+                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height() + start)
             } else {
-                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height() + 1)
+                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height())
             }
         } else { 
             0 
@@ -176,7 +176,7 @@ impl Buffer {
     pub fn get_last_editable_line(&self) -> i32 {
         return if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.margins {
-                self.get_first_visible_line() + end - 1 
+                self.get_first_visible_line() + end
             } else {
                 self.get_first_visible_line() + self.get_buffer_height() - 1
             }
@@ -187,8 +187,12 @@ impl Buffer {
 
     pub fn upper_left_position(&self) -> Position {
         match self.terminal_state.origin_mode {
-            crate::OriginMode::UpperLeftCorner => Position { x: 0, y: self.get_first_visible_line() },
-            crate::OriginMode::WithinMargins => Position { x: 0, y: self.get_first_editable_line() }
+            crate::OriginMode::UpperLeftCorner => {
+                Position { x: 0, y: self.get_first_visible_line() }
+            }
+            crate::OriginMode::WithinMargins => {
+                Position { x: 0, y: self.get_first_editable_line() }
+            } 
         }
     }
 
