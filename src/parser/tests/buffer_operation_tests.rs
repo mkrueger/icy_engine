@@ -1,4 +1,4 @@
-use crate::{parser::tests::create_buffer, AnsiParser, Position, TextAttribute};
+use crate::{parser::tests::{create_buffer, update_buffer}, AnsiParser, Position, TextAttribute};
 
 
 #[test]
@@ -28,9 +28,7 @@ fn test_down() {
 
 #[test]
 fn test_lf_beyond_terminal_height() {
-    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"");
-    for _ in 0..100 {
-        caret.lf(&mut buf);
-    }
-    assert_eq!(100, caret.pos.y);
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[0;1;34mArea\x1B[0;1;30m.....\x1B[0;1;34m: \x1B[0;1mUploads\r\n\x1B[17;1H\x1B[0;1;34mCommand \x1B[0;1;30m-> D\r\n\x1B[18;1H\r\n\x1B[19;1H\x1B[0;1;31mDownload queued files? \x1B[0;1;36m\x1B[0;1;34m\x1B[0;1;34;44m Y\x1B[0;1;44mes \x1B[0;1;34;44m\x1B[0;1;34m N\x1B[0;1mo \r\n\x1B[20;1H\r\n\x1B[21;1H\x1B[0m\x1B[36mFiles in Batch \x1B[0;1;36m\x1B[0;1;30m-> \x1B[0;1;33m1\r\n\x1B[22;1H\x1B[0m\x1B[36mBatch Size     \x1B[0;1;36m\x1B[0;1;30m-> \x1B[0;1;32m75,988\r\n\x1B[23;1H\x1B[0m\x1B[36mEstimated Time \x1B[0;1;36m\x1B[0;1;30m-> \x1B[0;1;36m0 min 19 seconds\r\n\x1B[24;1H\r\n\x1B[25;1H\x1B[0;1;33mAvailable Protocols:\r\x1B[0m\n\x1B[1;33m\x1B[25;1H\r\x1B[0m\n\x1B[1;33m\x1B[25;1H[\x1B[0;1mY\x1B[0;1;33m] Ymodem\r\x1B[0m\n\x1B[1;33m\x1B[25;1H[\x1B[0;1mG\x1B[0;1;33m] Ymodem-G\r\x1B[0m\n\x1B[1;33m\x1B[25;1H[\x1B[0;1mZ\x1B[0;1;33m] Zmodem\r\x1B[0m\n\x1B[1;33m\x1B[25;1H[\x1B[0;1m8\x1B[0;1;33m] Zmodem 8K\r\x1B[0m\n\x1B[1;33m\x1B[25;1H\r\x1B[0m\n\x1B[1;33m\x1B[25;1HSelect Protocol [\x1B[0;1mQ/Quit\x1B[0;1;33m]: ");
+    //(x: 0, y: 16)
+    assert_eq!(31, caret.pos.y);
 }
