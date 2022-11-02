@@ -36,7 +36,6 @@ fn fill_line(buf: &mut Buffer, line:i32, from: i32, to: i32) {
 impl Caret {
     /// (line feed, LF, \n, ^J), moves the print head down one line, or to the left edge and down. Used as the end of line marker in most UNIX systems and variants.
     pub fn lf(&mut self, buf: &mut Buffer) {
-        let old_pos = self.pos;
         self.pos.x = 0;
         self.pos.y += 1;
         self.check_scrolling_on_caret_down(buf);
@@ -246,9 +245,6 @@ impl Buffer {
     }
     
     fn insert_terminal_line(&mut self, line: i32) {
-        if line >= self.layers[0].lines.len() as i32 {
-            self.layers[0].lines.resize(line as usize + 1, Line::new());
-        }
 
         if let Some((_, end)) = self.terminal_state.margins {
             if end < self.layers[0].lines.len() as i32 {

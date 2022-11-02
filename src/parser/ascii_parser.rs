@@ -1,5 +1,5 @@
 use std::io;
-use crate::{Buffer, Caret};
+use crate::{Buffer, Caret, TextAttribute};
 use super::BufferParser;
 pub struct AsciiParser {
 }
@@ -27,6 +27,9 @@ impl BufferParser for AsciiParser {
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
         match ch {
+            0x00 | 0xFF => {
+                caret.attr = TextAttribute::DEFAULT;
+            }
             LF => caret.lf(buf),
             FF => caret.ff(buf),
             CR => caret.cr(buf),

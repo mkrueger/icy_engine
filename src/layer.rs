@@ -125,7 +125,10 @@ impl Layer {
         if self.is_locked || !self.is_visible {
             return;
         }
-        assert!(!(index < 0 || index > self.lines.len() as i32), "line out of range");
+        assert!(index >= 0 , "line out of range");
+        if index > self.lines.len() as i32 {
+            self.lines.resize(index as usize, Line::new());
+        }
         self.lines.insert(index as usize, line);
     }
 
@@ -134,5 +137,27 @@ impl Layer {
         let tmp = self.get_char(pos1);
         self.set_char(pos1, self.get_char(pos2));
         self.set_char(pos2, tmp);
+    }
+}
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use crate::{Layer, Line, DosChar, TextAttribute};
+
+    #[test]
+    fn test_insert_line() {
+        let mut layer = Layer::new();
+        let mut line = Line::new();
+        line.chars.push(Some(DosChar::from(b'a' as u16, TextAttribute::default())));
+        layer.insert_line(10, line);
+
+        assert_eq!(b'a' as u16, layer.lines[10].chars[0].unwrap().char_code);
+        assert_eq!(11, layer.lines.len());
+        
+        layer.insert_line(11, Line::new());
+        assert_eq!(12, layer.lines.len());
     }
 }
