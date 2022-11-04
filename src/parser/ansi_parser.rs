@@ -60,6 +60,16 @@ impl AnsiParser {
                 caret.ff(buf);
                 Ok(None)
             }
+
+            b'D' => { // Prev Line
+                caret.prev_line(buf);
+                Ok(None)
+            }
+            b'E' => { // Next Line
+                caret.next_line(buf);
+                Ok(None)
+            }
+            
             _ => {
                 Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown escape char 0x{:x}('{:?}')", ch, char::from_u32(ch as u32))))
             }
@@ -101,10 +111,7 @@ impl BufferParser for AnsiParser {
                         match self.parsed_numbers[0] {
                             4 => { buf.terminal_state.scroll_state = TerminalScrolling::Fast; }
                             6 => {
-                                /* buf.terminal_state.origin_mode = OriginMode::WithinMargins;
-
-                                    // The only BBS I know which uses that seems to be using that wrong 
-                                */ 
+                               //  buf.terminal_state.origin_mode = OriginMode::WithinMargins;
                             }
                             7 => { buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap; }
                             25 => {
@@ -491,10 +498,13 @@ impl BufferParser for AnsiParser {
                     if self.parsed_numbers.len() != 2 {
                         return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid set top and bottom margin sequence {}", self.current_sequence)));
                     }
-                    let start = min(buf.get_buffer_height(), max(0, self.parsed_numbers[0] - 1));
-                    let end = min(buf.get_buffer_height(), max(0, self.parsed_numbers[1] - 1));
+                    let start = self.parsed_numbers[0] - 1;
+                    let end = self.parsed_numbers[1] - 1;
+
                     if start > end {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("The value of the top margin must be less than the bottom margin: {}", self.current_sequence)));
+                        // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
+                        buf.terminal_state.margins  = None;
+                        return Ok(None);
                     }
                     buf.terminal_state.margins  = Some((start, end));
                     return Ok(None);

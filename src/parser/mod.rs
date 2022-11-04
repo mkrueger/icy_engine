@@ -38,7 +38,7 @@ impl Caret {
     pub fn lf(&mut self, buf: &mut Buffer) {
         self.pos.x = 0;
         self.pos.y += 1;
-        self.check_scrolling_on_caret_down(buf);
+        self.check_scrolling_on_caret_down(buf, false);
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
@@ -94,18 +94,30 @@ impl Caret {
 
     pub fn up(&mut self, buf: &mut Buffer, num: i32) {
         self.pos.y = self.pos.y.saturating_sub(num);
-        self.check_scrolling_on_caret_up(buf);
+        self.check_scrolling_on_caret_up(buf, false);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
     pub fn down(&mut self, buf: &mut Buffer, num: i32) {
         self.pos.y = self.pos.y + num;
-        self.check_scrolling_on_caret_down(buf);
+        self.check_scrolling_on_caret_down(buf, false);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
-    fn check_scrolling_on_caret_up(&mut self, buf: &mut Buffer) {
-        if buf.needs_scrolling() {
+    pub fn prev_line(&mut self, buf: &mut Buffer) {
+        self.pos.y = self.pos.y.saturating_sub(1);
+        self.check_scrolling_on_caret_up(buf, true);
+        buf.terminal_state.limit_caret_pos(buf, self);
+    }
+
+    pub fn next_line(&mut self, buf: &mut Buffer) {
+        self.pos.y = self.pos.y + 1;
+        self.check_scrolling_on_caret_down(buf, true);
+        buf.terminal_state.limit_caret_pos(buf, self);
+    }
+
+    fn check_scrolling_on_caret_up(&mut self, buf: &mut Buffer, force: bool) {
+        if buf.needs_scrolling() || force {
             while self.pos.y < buf.get_first_editable_line() {
                 buf.scroll_up();
                 self.pos.y += 1;
@@ -113,12 +125,8 @@ impl Caret {
         }
     }
 
-    fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer) {
-        while self.pos.y >= buf.get_real_buffer_height() && self.pos.y < buf.get_last_editable_line() {
-            let i = buf.layers[0].lines.len() as i32;
-            buf.layers[0].insert_line(i, Line::new());
-        }
-        if buf.needs_scrolling() {
+    fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer, force: bool) {
+        if buf.needs_scrolling() || force {
             while self.pos.y > buf.get_last_editable_line() {
                 buf.scroll_down();
                 self.pos.y -= 1;
@@ -166,28 +174,28 @@ impl Buffer {
 
     fn scroll_down(&mut self)
     {
-        if let Some((start, end)) = self.terminal_state.margins {
-            for layer in &mut self.layers {
-                if layer.lines.len() as i32 > start {
-                    layer.lines.remove(start as usize);
-                }
-                if (layer.lines.len() as i32) >= end {
-                    layer.lines.insert(end as usize, Line::new());
-                }
+        let start = self.get_first_editable_line();
+        let end = self.get_last_editable_line();
+        for layer in &mut self.layers {
+            if layer.lines.len() as i32 > start {
+                layer.lines.remove(start as usize);
+            }
+            if (layer.lines.len() as i32) >= end {
+                layer.lines.insert(end as usize, Line::new());
             }
         }
     }
 
     fn scroll_up(&mut self)
     {
-        if let Some((start, end)) = self.terminal_state.margins {
-            for layer in &mut self.layers {
-                if (layer.lines.len() as i32) <= end {
-                    layer.lines.resize(end as usize + 1, Line::new());
-                }
-                layer.lines.remove(end as usize);
-                layer.lines.insert(start as usize, Line::new());
+        let start = self.get_first_editable_line();
+        let end = self.get_last_editable_line();
+        for layer in &mut self.layers {
+            if (layer.lines.len() as i32) <= end {
+                layer.lines.resize(end as usize + 1, Line::new());
             }
+            layer.lines.remove(end as usize);
+            layer.lines.insert(start as usize, Line::new());
         }
     }
 

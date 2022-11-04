@@ -438,3 +438,19 @@ fn test_insert_mode() {
     let converted  = String::from_utf8_lossy(b.as_slice());
     assert_eq!("newtesthelp", converted);
 }
+
+#[test]
+fn test_prev_line() {
+    let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"test\x1BD\x1BD\x1BD");
+    assert_eq!(Position::from(4, 0) , caret.get_position());
+    let ch = buf.get_char(Position::from(0, 3)).unwrap_or_default();
+    assert_eq!(b't', ch.char_code as u8);
+}
+
+#[test]
+fn test_next_line() {
+    let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[25;1Htest\x1BE\x1BE\x1BE");
+    assert_eq!(Position::from(4, 24) , caret.get_position());
+    let ch = buf.get_char(Position::from(0, 24 - 3)).unwrap_or_default();
+    assert_eq!(b't', ch.char_code as u8);
+}

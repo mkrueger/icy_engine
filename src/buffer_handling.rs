@@ -158,15 +158,12 @@ impl Buffer {
     }
 
     pub fn get_first_editable_line(&self) -> i32 {
-        return if self.is_terminal_buffer {
+        if self.is_terminal_buffer {
             if let Some((start, _)) = self.terminal_state.margins {
-                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height() + start)
-            } else {
-                max(0, self.layers[0].lines.len() as i32 - self.get_buffer_height())
+                return self.get_first_visible_line() + start;
             }
-        } else { 
-            0 
         }
+        self.get_first_visible_line()
     }
 
     pub fn needs_scrolling(&self) -> bool {
