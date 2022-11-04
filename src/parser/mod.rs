@@ -38,6 +38,10 @@ impl Caret {
     pub fn lf(&mut self, buf: &mut Buffer) {
         self.pos.x = 0;
         self.pos.y += 1;
+        while self.pos.y >= buf.layers[0].lines.len() as i32 {
+            let len = buf.layers[0].lines.len();
+            buf.layers[0].lines.insert(len, Line::new());
+        }
         self.check_scrolling_on_caret_down(buf, false);
     }
     
@@ -153,7 +157,7 @@ impl Buffer {
 
         self.set_char(0, caret.pos, Some(ch));
         caret.pos.x += 1;
-        if caret.pos.x >= self.get_buffer_width() as i32 {
+        if caret.pos.x > self.get_buffer_width() as i32 {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
                 caret.lf(self);
             } else {
@@ -201,8 +205,7 @@ impl Buffer {
 
     fn clear_screen(&mut self, caret: &mut Caret)
     {
-        // TODO: how to handle margins here?
-        caret.pos = self.upper_left_position();
+        caret.pos = Position::new();
         self.clear();
     }
 
