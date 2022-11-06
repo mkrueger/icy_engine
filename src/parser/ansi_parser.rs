@@ -61,10 +61,15 @@ impl AnsiParser {
                 Ok(None)
             }
 
-            b'D' => { // Prev Line
-                caret.prev_line(buf);
+            b'D' => { // Index
+                caret.index(buf);
                 Ok(None)
             }
+            b'M' => { // Reverse Index
+                caret.reverse_index(buf);
+                Ok(None)
+            }
+            
             b'E' => { // Next Line
                 caret.next_line(buf);
                 Ok(None)
@@ -162,7 +167,14 @@ impl BufferParser for AnsiParser {
                             }  else  {
                                 caret.attr.set_is_blinking(true);  // Slow blink 
                             }
-                            7 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Negative image not supported: {}", self.current_sequence))),
+                            7 =>  {
+                                let fg = caret.attr.get_foreground();
+                                caret.attr.set_foreground(caret.attr.get_background());
+                                caret.attr.set_background(fg);
+
+
+                            }
+                            //return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Negative image not supported: {}", self.current_sequence))),
                             8 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invisible image not supported: {}", self.current_sequence))),
                             10 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("ASCII char set (SCO only) not supported: {}", self.current_sequence))),
                             11 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Map 00-7F not supported: {}", self.current_sequence))),

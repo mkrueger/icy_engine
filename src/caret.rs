@@ -57,6 +57,11 @@ impl Caret {
         self.pos = Position::from(x, y);
     }
 
+    pub fn set_attr(&mut self, attr: TextAttribute)
+    {
+        self.attr = attr;
+    }
+
     pub(super) fn set_foreground(&mut self, color: u8) 
     {
         self.attr.set_foreground(color);

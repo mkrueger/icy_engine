@@ -36,13 +36,19 @@ fn fill_line(buf: &mut Buffer, line:i32, from: i32, to: i32) {
 impl Caret {
     /// (line feed, LF, \n, ^J), moves the print head down one line, or to the left edge and down. Used as the end of line marker in most UNIX systems and variants.
     pub fn lf(&mut self, buf: &mut Buffer) {
+        let was_ooe = self.pos.y > buf.get_last_editable_line();
         self.pos.x = 0;
         self.pos.y += 1;
         while self.pos.y >= buf.layers[0].lines.len() as i32 {
             let len = buf.layers[0].lines.len();
             buf.layers[0].lines.insert(len, Line::new());
         }
-        self.check_scrolling_on_caret_down(buf, false);
+        println!(" {} was ooe: {}", self.pos, was_ooe);
+        if was_ooe {
+            buf.terminal_state.limit_caret_pos(buf, self);
+        } else {
+            self.check_scrolling_on_caret_down(buf, false);
+        }
     }
     
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
@@ -108,7 +114,15 @@ impl Caret {
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
-    pub fn prev_line(&mut self, buf: &mut Buffer) {
+    /// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up.
+    pub fn index(&mut self, buf: &mut Buffer) {
+        self.pos.y = self.pos.y + 1;
+        self.check_scrolling_on_caret_down(buf, true);
+        buf.terminal_state.limit_caret_pos(buf, self);
+    }
+    
+    /// Moves the cursor up one line in the same column. If the cursor is at the top margin, the page scrolls down.
+    pub fn reverse_index(&mut self, buf: &mut Buffer) {
         self.pos.y = self.pos.y.saturating_sub(1);
         self.check_scrolling_on_caret_up(buf, true);
         buf.terminal_state.limit_caret_pos(buf, self);
@@ -116,6 +130,7 @@ impl Caret {
 
     pub fn next_line(&mut self, buf: &mut Buffer) {
         self.pos.y = self.pos.y + 1;
+        self.pos.x = 0;
         self.check_scrolling_on_caret_down(buf, true);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
