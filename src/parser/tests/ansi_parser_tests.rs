@@ -90,7 +90,7 @@ fn test_char_missing_bug() {
 
 #[test]
 fn test_caret_forward() {
-    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[70Ctest_me\x1B[20CF");
+    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[70Ctest_me\x1B[2CF");
     let ch = buf.get_char(Position::from(79, 0)).unwrap_or_default();
     assert_eq!('F', char::from_u32(ch.char_code as u32).unwrap());
 }
@@ -98,8 +98,6 @@ fn test_caret_forward() {
 #[test]
 fn test_caret_forward_at_eol() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[75CTEST_\x1B[2CF");
-    println!("{}", get_string_from_buffer(&buf));
-    
     let ch = buf.get_char(Position::from(2, 1)).unwrap_or_default();
     assert_eq!(b'F', ch.char_code as u8);
 }
@@ -107,7 +105,7 @@ fn test_caret_forward_at_eol() {
 #[test]
 fn test_char0_bug() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x00A");
-    let ch = buf.get_char(Position::from(1, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::from(0, 0)).unwrap_or_default();
     assert_eq!(b'A', ch.char_code as u8);
 }
 
@@ -225,13 +223,13 @@ fn test_linebreak_bug() {
 #[test]
 fn test_insert_line_default() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1b[L");
-    assert_eq!(2, buf.layers[0].lines.len());
+    assert_eq!(1, buf.layers[0].lines.len());
 }
 
 #[test]
 fn test_insert_n_line() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1b[10L");
-    assert_eq!(11, buf.layers[0].lines.len());
+    assert_eq!(10, buf.layers[0].lines.len());
 }
 
 #[test]
@@ -442,8 +440,15 @@ fn test_insert_mode() {
 }
 
 #[test]
-fn test_prev_line() {
+fn test_index_line() {
     let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"test\x1BD\x1BD\x1BD");
+    assert_eq!(Position::from(4, 3) , caret.get_position());
+}
+
+
+#[test]
+fn test_reverse_index_line() {
+    let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"test\x1BM\x1BM\x1BM");
     assert_eq!(Position::from(4, 0) , caret.get_position());
     let ch = buf.get_char(Position::from(0, 3)).unwrap_or_default();
     assert_eq!(b't', ch.char_code as u8);
@@ -452,7 +457,7 @@ fn test_prev_line() {
 #[test]
 fn test_next_line() {
     let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[25;1Htest\x1BE\x1BE\x1BE");
-    assert_eq!(Position::from(4, 24) , caret.get_position());
+    assert_eq!(Position::from(0, 24) , caret.get_position());
     let ch = buf.get_char(Position::from(0, 24 - 3)).unwrap_or_default();
     assert_eq!(b't', ch.char_code as u8);
 }

@@ -1,4 +1,4 @@
-use std::{io, cmp::{max}};
+use std::{io, cmp::{max}, backtrace::Backtrace};
 use crate::Line;
 
 use super::{Buffer, Caret, Position, DosChar};
@@ -138,7 +138,7 @@ impl Caret {
 
     fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer, force: bool) {
         if buf.needs_scrolling() || force {
-            while self.pos.y >= buf.get_last_editable_line() {
+            if self.pos.y > buf.get_last_editable_line() {
                 buf.scroll_down();
                 self.pos.y -= 1;
             }
@@ -164,12 +164,11 @@ impl Buffer {
 
         self.set_char(0, caret.pos, Some(ch));
         caret.pos.x += 1;
-        if caret.pos.x > self.get_buffer_width() as i32 {
+        if caret.pos.x >= self.get_buffer_width() as i32 {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
                 caret.lf(self);
             } else {
                 caret.pos.x -=  1;
-
             }
         }
     }
@@ -187,6 +186,8 @@ impl Buffer {
     {
         let start = self.get_first_editable_line();
         let end = self.get_last_editable_line();
+        //println!("scroll down {}-{}", start, end);
+        //println!("{}", Backtrace::force_capture());
         for layer in &mut self.layers {
             if layer.lines.len() as i32 > start {
                 layer.lines.remove(start as usize);

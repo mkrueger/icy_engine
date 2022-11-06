@@ -18,7 +18,7 @@ fn test_ascii(data: &[u8])
 #[test]
 fn test_full_line_height() {
     let mut vec = Vec::new();
-    vec.resize(80, b'-');
+    vec.resize(79, b'-');
     let (mut buf, mut caret) = create_buffer(&mut AsciiParser::new(), &vec);
     assert_eq!(1, buf.get_real_buffer_height());
     vec.push(b'-');
@@ -29,8 +29,8 @@ fn test_full_line_height() {
 #[test]
 fn test_emptylastline_height() {
     let mut vec = Vec::new();
-    vec.resize(80, b'-');
-    vec.resize(80 * 2, b' ');
+    vec.resize(79, b'-');
+    vec.resize(79 * 2, b' ');
     let (buf, _) = create_buffer(&mut AsciiParser::new(), &vec);
     assert_eq!(2, buf.get_real_buffer_height());
 }

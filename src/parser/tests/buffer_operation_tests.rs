@@ -52,24 +52,6 @@ fn test_margin_scroll_up() {
 }
 
 #[test]
-fn test_margin_scroll_down() {
-    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[1;25r");
-    assert_eq!(0, buf.get_real_buffer_height());
-    for i in 0..24 {
-        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), format!("{}",i + 1).as_bytes());
-        caret.lf(&mut buf);
-    }
-    update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"25");
-    assert_eq!(25, buf.get_real_buffer_height());
-    assert_eq!(b'1' as u16, buf.get_char(Position::from(0, 0)).unwrap().char_code);
-
-    caret.down(&mut buf, 5);
-    assert_eq!(25, buf.get_real_buffer_height());
-    assert_eq!(b'6' as u16, buf.get_char(Position::from(0, 0)).unwrap().char_code);
-    assert_eq!(b'5' as u16, buf.get_char(Position::from(1, 19)).unwrap().char_code);
-}
-
-#[test]
 fn test_margin_scroll_down_bug() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"1\x1b[5;19r\x1b[17;1Hfoo\nbar");
 
@@ -105,7 +87,7 @@ fn test_clear_screen_reset() {
 #[test]
 fn test_margins_scroll_down() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\n\n\n\x1B[4;8rTEST\r\nt1\r\nt2\r\nt3\r\nt4\r\nt5\r\nt6\r\nt7\r\nt8\r\nt9\r\nt10\r\nt11");
-    assert_eq!("TEST\r\nt1\r\nt2\r\nt8\r\nt9\r\nt10\r\nt11\r\n", get_string_from_buffer(&buf));
+    assert_eq!("TEST\r\nt1\r\nt2\r\nt7\r\nt8\r\nt9\r\nt10\r\nt11\r\n", get_string_from_buffer(&buf));
 }
 
 #[test]
@@ -113,3 +95,21 @@ fn test_margins_edit_outofarea() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\n\n\n\x1B[4;8r\x1B[4;1H1\r\n2\r\n3\r\n4\x1B[9;1H1\r\n2\r\n3\r\n4");
     assert_eq!("\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n\r\n1\r\n2\r\n3\r\n4", get_string_from_buffer(&buf));
 }
+
+#[test]
+fn test_margins_scrolling() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\x1B[5;19r\x1B[19H1\x1B[19H\r\n2\x1B[19H\r\n3\x1B[19H\r\n4\x1B[19H\r\n5\x1B[19H\r\n");
+    assert_eq!("\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n5\r\n\r\n", get_string_from_buffer(&buf));
+}
+
+#[test]
+fn test_margins_scrolling2() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\x1B[5;19r\x1B[5;1H");
+
+    for i in 5..19 {
+        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), format!("{}\n\r", i).as_bytes());
+    }
+
+    assert_eq!("\r\n\r\n\r\n\r\n5\r\n6\r\n7\r\n8\r\n9\r\n10\r\n11\r\n12\r\n13\r\n14\r\n15\r\n16\r\n17\r\n18\r\n", get_string_from_buffer(&buf));
+}
+

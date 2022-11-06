@@ -94,7 +94,6 @@ impl std::fmt::Debug for Buffer {
     }
 }
 
-
 impl Buffer {
     pub fn new() -> Self {
         Buffer {

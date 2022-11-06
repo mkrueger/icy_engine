@@ -167,12 +167,10 @@ impl BufferParser for AnsiParser {
                             }  else  {
                                 caret.attr.set_is_blinking(true);  // Slow blink 
                             }
-                            7 =>  {
+                            7 => {
                                 let fg = caret.attr.get_foreground();
                                 caret.attr.set_foreground(caret.attr.get_background());
                                 caret.attr.set_background(fg);
-
-
                             }
                             //return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Negative image not supported: {}", self.current_sequence))),
                             8 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invisible image not supported: {}", self.current_sequence))),
