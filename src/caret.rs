@@ -47,6 +47,16 @@ impl Caret {
         self.pos
     }
 
+    pub fn set_position(&mut self, pos: Position)
+    {
+        self.pos = pos
+    }
+
+    pub fn set_position_xy(&mut self, x: i32, y: i32)
+    {
+        self.pos = Position::from(x, y);
+    }
+
     pub(super) fn set_foreground(&mut self, color: u8) 
     {
         self.attr.set_foreground(color);
