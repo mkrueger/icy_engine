@@ -1,4 +1,4 @@
-use crate::{parser::tests::{create_buffer, update_buffer}, AnsiParser, Position, TextAttribute};
+use crate::{parser::tests::{create_buffer, update_buffer, get_string_from_buffer}, AnsiParser, Position, TextAttribute};
 
 #[test]
 fn test_bs() {
@@ -100,4 +100,16 @@ fn test_clear_screen_reset() {
     buf.clear_screen(&mut caret);
     assert_eq!(Position::new(), caret.pos);
     assert_eq!(0, buf.get_first_visible_line());
+}
+
+#[test]
+fn test_margins_scroll_down() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\n\n\n\x1B[4;8rTEST\r\nt1\r\nt2\r\nt3\r\nt4\r\nt5\r\nt6\r\nt7\r\nt8\r\nt9\r\nt10\r\nt11");
+    assert_eq!("TEST\r\nt1\r\nt2\r\nt8\r\nt9\r\nt10\r\nt11\r\n", get_string_from_buffer(&buf));
+}
+
+#[test]
+fn test_margins_edit_outofarea() {
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\n\n\n\x1B[4;8r\x1B[4;1H1\r\n2\r\n3\r\n4\x1B[9;1H1\r\n2\r\n3\r\n4");
+    assert_eq!("\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n\r\n1\r\n2\r\n3\r\n4", get_string_from_buffer(&buf));
 }

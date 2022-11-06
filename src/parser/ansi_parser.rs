@@ -1,6 +1,6 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
 
-use std::{io, cmp::{max, min}};
+use std::{io, cmp::{max, min}, sync::Arc};
 
 use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode};
 
@@ -518,6 +518,7 @@ impl BufferParser for AnsiParser {
                         buf.terminal_state.margins  = None;
                         return Ok(None);
                     }
+                    caret.pos = buf.upper_left_position();
                     buf.terminal_state.margins  = Some((start, end));
                     return Ok(None);
                 }

@@ -24,15 +24,6 @@ pub trait BufferParser {
     fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: u8) -> io::Result<Option<String>>;
 }
 
-fn fill_line(buf: &mut Buffer, line:i32, from: i32, to: i32) {
-    for x in from..=to {
-        let p = Position::from(x, line);
-        if buf.get_char(p).is_none() {
-            buf.set_char( 0, p, Some(DosChar::new()));
-        }
-    }
-}
-
 impl Caret {
     /// (line feed, LF, \n, ^J), moves the print head down one line, or to the left edge and down. Used as the end of line marker in most UNIX systems and variants.
     pub fn lf(&mut self, buf: &mut Buffer) {
@@ -43,7 +34,6 @@ impl Caret {
             let len = buf.layers[0].lines.len();
             buf.layers[0].lines.insert(len, Line::new());
         }
-        println!(" {} was ooe: {}", self.pos, was_ooe);
         if was_ooe {
             buf.terminal_state.limit_caret_pos(buf, self);
         } else {
@@ -92,14 +82,16 @@ impl Caret {
         let old_x = self.pos.x;
         self.pos.x = self.pos.x.saturating_sub(num);
         buf.terminal_state.limit_caret_pos(buf, self);
-        fill_line(buf, self.pos.y, self.pos.x, old_x);
     }
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
         let old_x = self.pos.x;
         self.pos.x = self.pos.x + num;
+        if self.pos.x > buf.get_buffer_width() && self.pos.y < buf.get_last_editable_line() {
+            self.pos.y += self.pos.x / buf.get_buffer_width();
+            self.pos.x %= buf.get_buffer_width();
+        }
         buf.terminal_state.limit_caret_pos(buf, self);
-        fill_line(buf, self.pos.y, old_x, self.pos.x);
     }
 
     pub fn up(&mut self, buf: &mut Buffer, num: i32) {
@@ -146,7 +138,7 @@ impl Caret {
 
     fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer, force: bool) {
         if buf.needs_scrolling() || force {
-            while self.pos.y > buf.get_last_editable_line() {
+            while self.pos.y >= buf.get_last_editable_line() {
                 buf.scroll_down();
                 self.pos.y -= 1;
             }
