@@ -1,4 +1,4 @@
-use std::{io, cmp::{max}, backtrace::Backtrace};
+use std::{io, cmp::{max}};
 use crate::Line;
 
 use super::{Buffer, Caret, Position, DosChar};
@@ -12,6 +12,8 @@ mod petscii_parser;
 pub use petscii_parser::*;
 mod pcboard_parser;
 pub use pcboard_parser::*;
+mod atascii_parser;
+pub use atascii_parser::*;
 
 #[cfg(test)]
 mod tests;
@@ -77,15 +79,22 @@ impl Caret {
             }
         }
     }
+
+    pub fn ins(&mut self, buf: &mut Buffer) {
+        if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
+            let i = self.pos.x as usize ;
+            if i < line.chars.len(){ 
+                line.chars.insert(i, Some(DosChar::from(b' ' as u16, self.attr)));
+            }
+        }
+    }
     
     pub fn left(&mut self, buf: &mut Buffer, num: i32) {
-        let old_x = self.pos.x;
         self.pos.x = self.pos.x.saturating_sub(num);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
-        let old_x = self.pos.x;
         self.pos.x = self.pos.x + num;
         if self.pos.x > buf.get_buffer_width() && self.pos.y < buf.get_last_editable_line() {
             self.pos.y += self.pos.x / buf.get_buffer_width();

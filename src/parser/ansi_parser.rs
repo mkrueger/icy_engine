@@ -1,6 +1,6 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
 
-use std::{io, cmp::{max, min}, sync::Arc};
+use std::{io, cmp::{max, min}};
 
 use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode};
 
