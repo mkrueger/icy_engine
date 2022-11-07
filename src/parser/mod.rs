@@ -227,7 +227,7 @@ impl Buffer {
     }
 
     fn clear_buffer_down(&mut self, y: i32) {
-        for y in y..self.get_last_editable_line() as i32 {
+        for y in y..self.get_last_visible_line() as i32 {
             for x in 0..self.get_buffer_width() as i32 {
                 self.set_char(0, Position::from(x, y), Some(DosChar::new()));
             }
@@ -235,7 +235,7 @@ impl Buffer {
     }
 
     fn clear_buffer_up(&mut self, y: i32) {
-        for y in self.get_first_editable_line()..y {
+        for y in self.get_first_visible_line()..y {
             for x in 0..self.get_buffer_width() as i32 {
                 self.set_char(0, Position::from(x, y), Some(DosChar::new()));
             }

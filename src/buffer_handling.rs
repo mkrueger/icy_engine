@@ -156,6 +156,10 @@ impl Buffer {
         }
     }
 
+    pub fn get_last_visible_line(&self) -> i32 {
+        self.get_first_visible_line() + self.get_buffer_height()
+    }
+
     pub fn get_first_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
             if let Some((start, _)) = self.terminal_state.margins {
@@ -164,7 +168,7 @@ impl Buffer {
         }
         self.get_first_visible_line()
     }
-
+    
     pub fn needs_scrolling(&self) -> bool {
         self.is_terminal_buffer && self.terminal_state.margins.is_some()
     }
