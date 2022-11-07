@@ -543,6 +543,23 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
+                b'~' => {
+                    self.ans_code = false;
+                    if self.parsed_numbers.len() != 1 {
+                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid ~ sequence {}", self.current_sequence)));
+                    }
+                    match self.parsed_numbers[0] {
+                        1 => { caret.pos.x = 0; } // home
+                        2 => { caret.ins(buf); } // home
+                        3 => { caret.del(buf); }
+                        4 => { caret.eol(buf); }
+                        5 => {} // pg up 
+                        6 => {} // pg dn
+                        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown l sequence {}", self.current_sequence)))
+                    }
+                    return Ok(None);
+                }
+
                 _ => {
                     if (0x40..=0x7E).contains(&ch) {
                         // unknown control sequence, terminate reading

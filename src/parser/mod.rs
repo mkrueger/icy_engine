@@ -68,7 +68,10 @@ impl Caret {
     /// (backspace, BS, \b, ^H), may overprint the previous character
     pub fn bs(&mut self, buf: &mut Buffer) {
         self.pos.x = max(0, self.pos.x - 1);
-        buf.set_char(0, self.pos, Some(DosChar::from(b' ' as u16, self.attr)));
+        let chars = &mut buf.layers[0].lines[self.pos.y as usize].chars;
+        if self.pos.x < chars.len() as i32 {
+            chars.remove(self.pos.x as usize);
+        }
     }
 
     pub fn del(&mut self, buf: &mut Buffer) {
