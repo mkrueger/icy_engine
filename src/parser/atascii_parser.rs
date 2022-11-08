@@ -1,5 +1,5 @@
 use std::io;
-use crate::{Buffer, Caret, AsciiParser};
+use crate::{Buffer, Caret};
 use super::BufferParser;
 
 pub struct AtasciiParser {
@@ -14,21 +14,23 @@ impl AtasciiParser {
     }
 }
 
-const ATASCII_CR: u8 = 155;
-
 impl BufferParser for AtasciiParser {
     fn from_unicode(&self, ch: char) -> u8
     {
-        if ch == '\r' {
-            return ATASCII_CR;
+        if let Some(tch) = UNICODE_TO_ATARI.get(&ch) {
+            *tch
+        } else {
+            ch as u8
         }
-         ch as u8
     }
 
     fn to_unicode(&self, ch: u16) -> char
     {
-        // TODO
-        AsciiParser::new().to_unicode(ch)
+        if ch < ATARI_TO_UNICODE.len() as u16 {
+            ATARI_TO_UNICODE[ch as usize]
+        } else {
+            char::from_u32(ch as u32).unwrap()
+        }
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
@@ -63,3 +65,32 @@ impl BufferParser for AtasciiParser {
         Ok(None)
     }
 }
+
+lazy_static::lazy_static!{
+    static ref UNICODE_TO_ATARI: std::collections::HashMap<char,u8> = {
+        let mut res = std::collections::HashMap::new();
+        for a in 0..128 { 
+            res.insert(ATARI_TO_UNICODE[a], a as u8);
+        }
+        res
+    };
+}
+
+pub const ATARI_TO_UNICODE: [char; 256] = [
+    '♥', '├', '🮇', '┘', '┤', '┐', '╱', '╲', '◢', '▗', '◣', '▝', '▘', '🮂', '▂', '▖', 
+    '♣', '┌', '─', '┼', '•', '▄', '▎', '┬', '┴', '▌', '└', '␛', '↑', '↓', '←', '→', 
+    ' ', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', 
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', 
+    '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_', 
+    '♦', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '♠', '|', '🢰','◀', '▶', 
+    '♥', '├', '▊', '┘', '┤', '┐', '╱', '╲', '◤', '▛', '◥', '▙', '▟', '▆', '▂', '▜', 
+    '♣', '┌', '─', '┼', '•', '▀', '▎', '┬', '┴', '▐', '└', '\x08', '↑', '↓', '←', '→', 
+    '█', '!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', 
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ':', ';', '<', '=', '>', '?', 
+    '@', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 
+    'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '[', '\\', ']', '^', '_', 
+    '♦', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 
+    'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '♠', '-', '🢰', '◀', '▶'
+];
