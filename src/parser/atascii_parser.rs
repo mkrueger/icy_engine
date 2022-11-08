@@ -1,5 +1,5 @@
 use std::io;
-use crate::{Buffer, Caret};
+use crate::{Buffer, Caret, AsciiParser};
 use super::BufferParser;
 
 pub struct AtasciiParser {
@@ -23,6 +23,12 @@ impl BufferParser for AtasciiParser {
             return ATASCII_CR;
         }
          ch as u8
+    }
+
+    fn to_unicode(&self, ch: u16) -> char
+    {
+        // TODO
+        AsciiParser::new().to_unicode(ch)
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {

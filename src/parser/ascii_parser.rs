@@ -25,6 +25,11 @@ impl BufferParser for AsciiParser {
         }
     }
 
+    fn to_unicode(&self, ch: u16) -> char
+    {
+        CP437_TO_UNICODE[ch as usize]
+    }
+
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
         match ch {
             0x00 | 0xFF => {

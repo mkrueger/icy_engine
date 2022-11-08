@@ -87,6 +87,11 @@ impl BufferParser for AnsiParser {
     {
         self.ascii_parser.from_unicode(ch)
     }
+    
+    fn to_unicode(&self, ch: u16) -> char
+    {
+        self.ascii_parser.to_unicode(ch)
+    }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>>
     {

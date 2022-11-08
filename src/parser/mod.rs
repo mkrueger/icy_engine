@@ -21,6 +21,7 @@ mod tests;
 pub trait BufferParser {
 
     fn from_unicode(&self, ch: char) -> u8;
+    fn to_unicode(&self, ch: u16) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
     fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: u8) -> io::Result<Option<String>>;

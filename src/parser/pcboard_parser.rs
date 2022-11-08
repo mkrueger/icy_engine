@@ -31,6 +31,11 @@ impl BufferParser for PCBoardParser {
         self.ansi_parser.from_unicode(ch)
     }
 
+    fn to_unicode(&self, ch: u16) -> char
+    {
+        self.ansi_parser.to_unicode(ch)
+    }
+    
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
         if self.pcb_color {
             self.pcb_pos += 1;

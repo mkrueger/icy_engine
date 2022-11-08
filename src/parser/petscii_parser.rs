@@ -1,5 +1,5 @@
 use std::io;
-use crate::{Caret, DosChar, Position};
+use crate::{Caret, DosChar, Position, AsciiParser};
 use super::{Buffer, BufferParser};
 
 #[allow(clippy::struct_excessive_bools)]
@@ -123,6 +123,12 @@ impl BufferParser for PETSCIIParser {
         } else {
             ch
         }
+    }
+
+    fn to_unicode(&self, ch: u16) -> char
+    {
+        // TODO
+        AsciiParser::new().to_unicode(ch)
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
