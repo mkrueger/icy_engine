@@ -1,4 +1,4 @@
-use crate::{SaveOptions, AsciiParser, parser::tests::{create_buffer, update_buffer}, convert_to_asc};
+use crate::{SaveOptions, AsciiParser, parser::tests::{create_buffer, update_buffer}, convert_to_asc, Position};
 
 fn test_ascii(data: &[u8])
 {
@@ -18,19 +18,19 @@ fn test_ascii(data: &[u8])
 #[test]
 fn test_full_line_height() {
     let mut vec = Vec::new();
-    vec.resize(79, b'-');
+    vec.resize(80, b'-');
     let (mut buf, mut caret) = create_buffer(&mut AsciiParser::new(), &vec);
     assert_eq!(1, buf.get_real_buffer_height());
     vec.push(b'-');
     update_buffer(&mut buf, &mut caret, &mut AsciiParser::new(), &vec);
-    assert_eq!(2, buf.get_real_buffer_height());
+    assert_eq!(3, buf.get_real_buffer_height());
 }
 
 #[test]
 fn test_emptylastline_height() {
     let mut vec = Vec::new();
-    vec.resize(79, b'-');
-    vec.resize(79 * 2, b' ');
+    vec.resize(80, b'-');
+    vec.resize(80 * 2, b' ');
     let (buf, _) = create_buffer(&mut AsciiParser::new(), &vec);
     assert_eq!(2, buf.get_real_buffer_height());
 }
@@ -74,3 +74,14 @@ fn test_eol_start() {
     let data = b"\r\n2ndline";
     test_ascii(data);
 }
+
+#[test]
+fn test_eol_line_break() {
+    let (mut buf, mut caret) = create_buffer(&mut AsciiParser::new(), b"################################################################################\r\n");
+    assert_eq!(Position::from(0, 1), caret.pos);
+
+    update_buffer(&mut buf, &mut caret, &mut AsciiParser::new(), b"#");
+    assert_eq!(Position::from(1, 1), caret.pos);
+    assert_eq!(b'#', buf.get_char(Position::from(0, 1)).unwrap().char_code as u8);
+}
+

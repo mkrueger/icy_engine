@@ -171,9 +171,6 @@ impl Buffer {
             let layer = &mut self.layers[0];
             layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(DosChar::new()));
         }
-
-        self.set_char(0, caret.pos, Some(ch));
-        caret.pos.x += 1;
         if caret.pos.x >= self.get_buffer_width() as i32 {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
                 caret.lf(self);
@@ -181,6 +178,10 @@ impl Buffer {
                 caret.pos.x -=  1;
             }
         }
+
+        self.set_char(0, caret.pos, Some(ch));
+
+        caret.pos.x += 1;
     }
 
     /*fn get_buffer_last_line(&mut self) -> i32 

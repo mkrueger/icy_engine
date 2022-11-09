@@ -90,7 +90,6 @@ impl Layer {
         if pos.x < 0 || pos.y < 0 || self.is_locked || !self.is_visible {
             return;
         }
-
         if pos.y >= self.lines.len() as i32 {
             self.lines.resize(pos.y as usize + 1, Line::new());
         }
