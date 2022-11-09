@@ -36,14 +36,30 @@ const CRC16_CCITT_TABLE:[u16;256] = [
 pub fn get_crc16(block: &[u8]) -> u16 {
     let mut crc= 0;
     for b in block {
-       crc = (crc << 8) as u16 ^ CRC16_CCITT_TABLE[(((crc >> 8) as u8) ^ b) as usize];
+        crc = update_crc16(crc, *b);
     }
     crc
 }
 
 pub fn update_crc16(crc: u16, b: u8) -> u16 {
-    (crc << 8) as u16 ^ CRC16_CCITT_TABLE[(((crc >> 8) as u8) ^ b) as usize]
+    (crc << 8) ^ CRC16_CCITT_TABLE[(((crc >> 8) as u8) ^ b) as usize]
 }
+
+fn buggy_update(crc: u16, b: u8) -> u16 {
+    CRC16_CCITT_TABLE[(crc >> 8) as usize] ^ (crc << 8) ^  (b as u16)
+}
+
+pub fn get_crc16_buggy(buf: &[u8], zcrc: u8) -> u16 {
+    let mut crc = 0;
+    for x in buf {
+        crc = buggy_update(crc, *x);
+    }
+    crc = buggy_update(crc, zcrc);
+    crc = buggy_update(buggy_update(crc, 0), 0);
+    crc
+}
+
+
 
 static CRC32_TABLE:[u32;256] = [
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
