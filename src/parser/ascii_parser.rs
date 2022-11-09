@@ -39,6 +39,7 @@ impl BufferParser for AsciiParser {
             FF => caret.ff(buf),
             CR => caret.cr(buf),
             BS => caret.bs(buf),
+            127 => caret.del(buf),
             _ => buf.print_value(caret, ch as u16)
         }
         Ok(None)
