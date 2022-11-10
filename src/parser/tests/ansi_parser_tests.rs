@@ -52,25 +52,25 @@ fn test_ansi_30() {
 fn test_bg_colorrsequence() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[1;30m1\x1B[0;34m2\x1B[33m3\x1B[1;41m4\x1B[40m5\x1B[43m6\x1B[40m7");
     let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
-    assert_eq!(b'1', ch.ch as u8);
+    assert_eq!('1', ch.ch);
     assert_eq!(8, ch.attribute.as_u8(BufferType::LegacyDos));
     let ch = buf.get_char(Position::new(1, 0)).unwrap_or_default();
-    assert_eq!(b'2', ch.ch as u8);
+    assert_eq!('2', ch.ch);
     assert_eq!(1, ch.attribute.as_u8(BufferType::LegacyDos));
     let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
-    assert_eq!(b'3', ch.ch as u8);
+    assert_eq!('3', ch.ch);
     assert_eq!(6, ch.attribute.as_u8(BufferType::LegacyDos));
     let ch = buf.get_char(Position::new(3, 0)).unwrap_or_default();
-    assert_eq!(b'4', ch.ch as u8);
+    assert_eq!('4', ch.ch);
     assert_eq!(14 + (4 << 4), ch.attribute.as_u8(BufferType::LegacyDos));
     let ch = buf.get_char(Position::new(4, 0)).unwrap_or_default();
-    assert_eq!(b'5', ch.ch as u8);
+    assert_eq!('5', ch.ch);
     assert_eq!(14, ch.attribute.as_u8(BufferType::LegacyDos));
     let ch = buf.get_char(Position::new(5, 0)).unwrap_or_default();
-    assert_eq!(b'6', ch.ch as u8);
+    assert_eq!('6', ch.ch);
     assert_eq!(14 + (6 << 4), ch.attribute.as_u8(BufferType::LegacyDos));
     let ch = buf.get_char(Position::new(6, 0)).unwrap_or_default();
-    assert_eq!(b'7', ch.ch as u8);
+    assert_eq!('7', ch.ch);
     assert_eq!(14, ch.attribute.as_u8(BufferType::LegacyDos));
 }
 #[test]

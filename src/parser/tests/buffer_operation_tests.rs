@@ -122,10 +122,6 @@ fn test_margins_clear_line_bug() {
     assert_eq!('0', buf.get_char(Position::new(0, 2)).unwrap().ch);
 }
 
-
-
-
-
 #[test]
 fn test_clear_buffer_down() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\x1B[5;19r\x1B[25;1H1\x1B[1;1H");

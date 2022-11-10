@@ -189,7 +189,7 @@ impl BufferParser for AnsiParser {
                             // set foreaground color
                             30..=37 => caret.attr.set_foreground(COLOR_OFFSETS[*n as usize - 30]),
                             // set background color
-                            40..=47 => caret.attr.set_foreground(COLOR_OFFSETS[*n as usize - 40]),
+                            40..=47 => caret.attr.set_background(COLOR_OFFSETS[*n as usize - 40]),
                             _ => { 
                                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsupported ANSI graphic code {} in seq {}", n, self.current_sequence)));
                             }

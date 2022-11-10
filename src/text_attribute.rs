@@ -66,7 +66,10 @@ impl TextAttribute
 
     pub fn from_color(fg: u8, bg: u8) -> Self
     {
-        TextAttribute { foreground_color: fg, background_color: bg, ..Default::default() }
+        let mut res = TextAttribute { foreground_color: fg & 0x7, background_color: bg & 0x7, ..Default::default() };
+        res.set_is_bold((fg & 0b1000) != 0);
+        res.set_is_blinking((bg & 0b1000) != 0);
+        res
     }
 
     pub fn as_u8(self, buffer_type: BufferType) -> u8
@@ -218,6 +221,6 @@ impl TextAttribute
 
 impl PartialEq for TextAttribute {
     fn eq(&self, other: &TextAttribute) -> bool {
-        self.foreground_color == other.foreground_color && self.background_color == other.background_color
+        self.foreground_color == other.foreground_color && self.background_color == other.background_color && self.attr == other.attr
     }
 }
