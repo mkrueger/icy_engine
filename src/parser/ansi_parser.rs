@@ -1,6 +1,5 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
 
-use core::num;
 use std::{cmp::{max, min}};
 
 use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError};
@@ -241,7 +240,7 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
-                'b' => { // Cursor Down 
+                'B' => { // Cursor Down 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.down(buf, 1);
