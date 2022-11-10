@@ -1,12 +1,29 @@
 use super::BufferType;
 
+mod attribute {
+    pub const NONE:u8      = 0;
+    pub const BOLD:u8      = 0b0000_0001;   // n = 1
+    pub const FAINT:u8     = 0b0000_0010;  // n = 2
+    pub const ITALIC:u8    = 0b0000_0100;  // n = 2
+    pub const BLINK:u8     = 0b0000_1000;  // n = 5
 
-#[derive(Clone, Copy, Debug, Default)]
+    pub const UNDERLINE:u8       = 0b0001_0000;  // n = 4 
+    pub const DOUBLE_UNDERLINE:u8 = 0b0011_0000;  // n = 21
+    pub const CONCEAL:u8         = 0b0100_0000;  // n = 21
+    pub const CROSSED_OUT:u8      = 0b1000_0000;  // n = 9
+}
+
+#[derive(Clone, Copy, Debug)]
 pub struct TextAttribute {
     foreground_color: u8,
     background_color: u8,
-    blink: bool,
-    is_underline: bool
+    attr: u8
+}
+
+impl Default for TextAttribute {
+    fn default() -> Self {
+        Self { foreground_color: 7, background_color: 0, attr: attribute::NONE }
+    }
 }
 
 impl std::fmt::Display for TextAttribute {
@@ -17,8 +34,6 @@ impl std::fmt::Display for TextAttribute {
 
 impl TextAttribute
 {
-    pub const DEFAULT : TextAttribute = TextAttribute{ foreground_color: 7, background_color: 0, blink: false, is_underline: false };
-
     pub fn from_u8(attr: u8, buffer_type: BufferType) -> Self
     {
         let mut blink = false;
@@ -29,23 +44,29 @@ impl TextAttribute
             (attr >> 4) & 0b0111
         };
 
+        let mut bold = false;
         let foreground_color = if buffer_type.use_extended_font() {
             attr & 0b0111
         } else {
-            attr & 0b1111
+            bold = attr & 0b1000 != 0;
+            attr & 0b0111
         };
 
-        TextAttribute {
+        let mut attr = TextAttribute {
             foreground_color,
             background_color,
-            blink,
-            is_underline: false
-        }
+            ..Default::default()
+        };
+
+        attr.set_is_bold(bold);
+        attr.set_is_blinking(blink);
+
+        return attr;
     }
 
     pub fn from_color(fg: u8, bg: u8) -> Self
     {
-        TextAttribute { foreground_color: fg, background_color: bg, blink: false, is_underline: false }
+        TextAttribute { foreground_color: fg, background_color: bg, ..Default::default() }
     }
 
     pub fn as_u8(self, buffer_type: BufferType) -> u8
@@ -53,73 +74,17 @@ impl TextAttribute
         let fg = if buffer_type.use_extended_font() {
             self.foreground_color & 0b_0111
         } else {
-            self.foreground_color & 0b_1111
+            self.foreground_color & 0b_0111 | if self.is_bold() { 0b_1000 } else { 0 }
         };
 
-        let bg = if buffer_type.use_blink() {
-            self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 }
-        } else {
-            self.background_color & 0b_0111
-        };
-
+        let bg = self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 };
         fg | bg << 4
     }
 
-    pub fn is_bold(self) -> bool
-    {
-        self.foreground_color < 16 && (self.foreground_color & 0b1000) != 0
-    }
-
-    pub fn set_foreground_bold(&mut self, is_bold: bool)
-    {
-        if self.foreground_color < 16  {
-            if is_bold {
-                self.foreground_color |= 0b0000_1000;
-            } else {
-                self.foreground_color &= 0b1111_0111;
-            }
-        }
-    }
-
-    pub fn set_background_bold(&mut self, is_bold: bool)
-    {
-        if self.background_color < 16  {
-            if is_bold {
-                self.background_color |= 0b0000_1000;
-            } else {
-                self.background_color &= 0b1111_0111;
-            }
-        }
-    }
-
-    pub fn is_blinking(self) -> bool
-    {
-        self.blink
-    }
-
-    pub fn set_is_blinking(&mut self, is_blink: bool)
-    {
-        self.blink = is_blink;
-    }
-
-    pub fn get_is_underlined(self) -> bool
-    {
-        self.is_underline
-    }
-
-    pub fn set_is_underlined(&mut self, is_underline: bool)
-    {
-        self.is_underline = is_underline;
-    }
 
     pub fn get_foreground(self) -> u8
     {
         self.foreground_color
-    }
-
-    pub fn get_foreground_without_bold(self) -> u8
-    {
-        self.foreground_color & 0b0000_0111
     }
 
     pub fn set_foreground(&mut self, color: u8) 
@@ -127,36 +92,128 @@ impl TextAttribute
         self.foreground_color = color;
     }
 
-    pub fn set_foreground_without_bold(&mut self, color: u8) 
-    {
-        assert!(color < 0b1000);
-        if self.foreground_color < 16  {
-            self.foreground_color = (0b1000 & self.foreground_color) | color;
-        }
-    }
-
-    pub fn set_background_without_bold(&mut self, color: u8) 
-    {
-        assert!(color < 0b1000);
-        if self.background_color < 16  {
-            self.background_color = (0b1000 & self.background_color) | color;
-        }
-    }
-
     pub fn get_background(self) -> u8
     {
         self.background_color
-    }
-
-    pub fn get_background_low(self) -> u8
-    {
-        self.background_color % 8
     }
 
     pub fn set_background(&mut self, color: u8) 
     {
         self.background_color = color;
     }
+
+    pub fn is_bold(self) -> bool
+    {
+        (self.attr & attribute::BOLD) == attribute::BOLD
+    }
+
+    pub fn set_is_bold(&mut self, is_bold: bool)
+    {
+        if is_bold {
+            self.attr = attribute::BOLD;
+        } else {
+            self.attr &= !attribute::BOLD;
+        }
+    }
+
+    pub fn is_faint(self) -> bool
+    {
+        (self.attr & attribute::FAINT) == attribute::FAINT
+    }
+
+    pub fn set_is_faint(&mut self, is_faint: bool)
+    {
+        if is_faint {
+            self.attr = attribute::FAINT;
+        } else {
+            self.attr &= !attribute::FAINT;
+        }
+    }
+
+    pub fn is_italic(self) -> bool
+    {
+        (self.attr & attribute::ITALIC) == attribute::ITALIC
+    }
+
+    pub fn set_is_italic(&mut self, is_italic: bool)
+    {
+        if is_italic {
+            self.attr = attribute::ITALIC;
+        } else {
+            self.attr &= !attribute::ITALIC;
+        }
+    }
+
+    pub fn is_blinking(self) -> bool
+    {
+        (self.attr & attribute::BLINK) == attribute::BLINK
+    }
+
+    pub fn set_is_blinking(&mut self, is_blink: bool)
+    {
+        if is_blink {
+            self.attr = attribute::BLINK;
+        } else {
+            self.attr &= !attribute::BLINK;
+        }
+    }
+
+    pub fn is_crossed_out(self) -> bool
+    {
+        (self.attr & attribute::CROSSED_OUT) == attribute::CROSSED_OUT
+    }
+
+    pub fn set_is_crossed_out(&mut self, is_crossed_out: bool)
+    {
+        if is_crossed_out {
+            self.attr = attribute::CROSSED_OUT;
+        } else {
+            self.attr &= !attribute::CROSSED_OUT;
+        }
+    }
+
+    pub fn is_underlined(self) -> bool
+    {
+        (self.attr & attribute::UNDERLINE) == attribute::UNDERLINE
+    }
+
+    pub fn set_is_underlined(&mut self, is_underline: bool)
+    {
+        if is_underline {
+            self.attr = attribute::UNDERLINE;
+        } else {
+            self.attr &= !attribute::UNDERLINE;
+        }
+    }
+
+    pub fn is_double_underlined(self) -> bool
+    {
+        (self.attr & attribute::DOUBLE_UNDERLINE) == attribute::DOUBLE_UNDERLINE
+    }
+
+    pub fn set_is_double_underlined(&mut self, is_double_underline: bool)
+    {
+        if is_double_underline {
+            self.attr = attribute::DOUBLE_UNDERLINE;
+        } else {
+            self.attr &= !attribute::DOUBLE_UNDERLINE;
+        }
+    }
+
+    pub fn is_concealed(self) -> bool
+    {
+        (self.attr & attribute::CONCEAL) == attribute::CONCEAL
+    }
+
+    pub fn set_is_concealed(&mut self, is_concealed: bool)
+    {
+        if is_concealed {
+            self.attr = attribute::CONCEAL;
+        } else {
+            self.attr &= !attribute::CONCEAL;
+        }
+    }
+
 }
 
 impl PartialEq for TextAttribute {

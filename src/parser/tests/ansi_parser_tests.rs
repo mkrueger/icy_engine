@@ -283,10 +283,10 @@ fn test_save_cursor_more_times() {
 #[test]
 fn test_reset_cursor() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"testme\x1b[1;37m");
-    assert_ne!(TextAttribute::DEFAULT, caret.attr);
+    assert_ne!(TextAttribute::default(), caret.attr);
     assert_ne!(Position::default(), caret.get_position());
     update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1bc");
-    assert_eq!(TextAttribute::DEFAULT, caret.attr);
+    assert_eq!(TextAttribute::default(), caret.attr);
     assert_eq!(Position::default(), caret.get_position());
 }
 

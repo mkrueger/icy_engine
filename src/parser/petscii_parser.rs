@@ -115,17 +115,16 @@ const LIGHT_BLUE:u8 = 0x0e;
 const GREY3:u8 = 0x0f;
 
 impl BufferParser for PETSCIIParser {
-    fn from_unicode(&self, ch: char) -> u8
+    fn from_unicode(&self, ch: char) -> char
     {
-        let ch = ch as u8;
-        if let Some(tch) = UNICODE_TO_PETSCII.get(&ch) {
-            *tch
+        if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
+            char::from_u32(*tch as u32).unwrap()
         } else {
             ch
         }
     }
 
-    fn to_unicode(&self, ch: u16) -> char
+    fn to_unicode(&self, ch: char) -> char
     {
         // TODO
         AsciiParser::new().to_unicode(ch)

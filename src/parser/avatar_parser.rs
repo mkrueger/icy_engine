@@ -52,12 +52,12 @@ impl AvatarParser {
 }
 
 impl BufferParser for AvatarParser {
-    fn from_unicode(&self, ch: char) -> u8
+    fn from_unicode(&self, ch: char) -> char
     {
         self.ascii_parser.from_unicode(ch)
     }
     
-    fn to_unicode(&self, ch: u16) -> char
+    fn to_unicode(&self, ch: char) -> char
     {
         self.ascii_parser.to_unicode(ch)
     }

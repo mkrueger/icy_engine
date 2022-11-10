@@ -26,12 +26,12 @@ impl PCBoardParser {
 }
 
 impl BufferParser for PCBoardParser {
-    fn from_unicode(&self, ch: char) -> u8
+    fn from_unicode(&self, ch: char) -> char
     {
         self.ansi_parser.from_unicode(ch)
     }
 
-    fn to_unicode(&self, ch: u16) -> char
+    fn to_unicode(&self, ch: char) -> char
     {
         self.ansi_parser.to_unicode(ch)
     }

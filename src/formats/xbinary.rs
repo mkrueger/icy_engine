@@ -184,7 +184,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
 fn decode_char(char_code: u8, attr: u8, buffer_type: BufferType) -> AttributedChar {
     let mut attribute = TextAttribute::from_u8(attr, buffer_type);
     if buffer_type.use_extended_font() && (attr & 0b_1000) != 0 {
-        attribute.set_foreground(attribute.get_foreground_without_bold());
+        attribute.set_foreground(attribute.get_foreground());
         AttributedChar::from(char::from_u32(char_code as u32 | 1 << 9).unwrap(), attribute)
     } else {
         AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)

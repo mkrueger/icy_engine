@@ -14,7 +14,7 @@ impl Caret {
     pub fn new() -> Self {
         Self {
             pos: Position::default(),
-            attr: TextAttribute::DEFAULT,
+            attr: TextAttribute::default(),
             is_visible: true,
             insert_mode: false
         }
@@ -23,7 +23,7 @@ impl Caret {
     pub fn from(pos: Position) -> Self {
         Self {
             pos,
-            attr: TextAttribute::DEFAULT,
+            attr: TextAttribute::default(),
             is_visible: true,
             insert_mode: false
         }
@@ -31,7 +31,7 @@ impl Caret {
     pub fn from_xy(x: i32, y: i32) -> Self {
         Self {
             pos: Position { x, y },
-            attr: TextAttribute::DEFAULT,
+            attr: TextAttribute::default(),
             is_visible: true,
             insert_mode: false
         }
@@ -83,7 +83,7 @@ impl Default for Caret {
     fn default() -> Self {
         Self {
             pos: Position::default(),
-            attr: TextAttribute::DEFAULT,
+            attr: TextAttribute::default(),
             is_visible: true,
             insert_mode: Default::default()
         }

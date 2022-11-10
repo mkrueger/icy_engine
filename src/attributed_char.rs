@@ -17,7 +17,7 @@ impl AttributedChar {
     pub fn new() -> Self {
         AttributedChar {
             ch: ' ',
-            attribute: super::TextAttribute::DEFAULT,
+            attribute: super::TextAttribute::default(),
             font_page: 0
         }
     }   

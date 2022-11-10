@@ -20,8 +20,8 @@ mod tests;
 
 pub trait BufferParser {
 
-    fn from_unicode(&self, ch: char) -> u8;
-    fn to_unicode(&self, ch: u16) -> char;
+    fn from_unicode(&self, ch: char) -> char;
+    fn to_unicode(&self, ch: char) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
     fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: u8) -> io::Result<Option<String>>;
@@ -50,7 +50,7 @@ impl Caret {
         buf.clear();
         self.pos = Position::default();
         self.is_visible = true;
-        self.attr = super::TextAttribute::DEFAULT;
+        self.attr = super::TextAttribute::default();
     }
 
     /// (carriage return, CR, \r, ^M), moves the printing position to the start of the line.

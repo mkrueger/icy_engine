@@ -11,7 +11,7 @@ const BG_TABLE: [&[u8;2];8] = [ b"40", b"44", b"42", b"46", b"41", b"45", b"43",
 pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
 {
     let mut result = Vec::new();
-    let mut last_attr = TextAttribute::DEFAULT;
+    let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
     let height = buf.get_real_buffer_height() as i32;
     let mut first_char = true;
@@ -84,7 +84,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                         }
                     } else if (last_attr.is_bold() || first_char) && !cur_attr.is_bold()  {
                         result.push(b'0');
-                        last_attr = TextAttribute::DEFAULT;
+                        last_attr = TextAttribute::default();
                         first_char = false; // attribute set.
                         wrote_part = true;
                     }
@@ -104,23 +104,23 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                         if cur_attr.is_bold() || first_char {
                             result.extend_from_slice(b";1");
                         }
-                        last_attr = TextAttribute::DEFAULT;
+                        last_attr = TextAttribute::default();
                         wrote_part = true;
                     }
 
                     // color changes
-                    if last_attr.get_foreground_without_bold() != cur_attr.get_foreground_without_bold() {
+                    if last_attr.get_foreground() != cur_attr.get_foreground() {
                         if wrote_part {
                             result.push(b';');
                         }
-                        result.extend_from_slice(FG_TABLE[cur_attr.get_foreground_without_bold() as usize]);
+                        result.extend_from_slice(FG_TABLE[cur_attr.get_foreground() as usize]);
                         wrote_part = true;
                     }
-                    if last_attr.get_background_low() != cur_attr.get_background_low() {
+                    if last_attr.get_background() != cur_attr.get_background() {
                     if wrote_part {
                         result.push(b';');
                     }
-                    result.extend_from_slice(BG_TABLE[cur_attr.get_background_low() as usize]);
+                    result.extend_from_slice(BG_TABLE[cur_attr.get_background() as usize]);
                 }
                     result.push(b'm');
                 }

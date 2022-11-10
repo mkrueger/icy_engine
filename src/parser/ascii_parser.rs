@@ -16,16 +16,16 @@ const BS: u8 = 0x08;
 const FF: u8 = 0x0C;
 
 impl BufferParser for AsciiParser {
-    fn from_unicode(&self, ch: char) -> u8
+    fn from_unicode(&self, ch: char) -> char
     {
         if let Some(tch) = UNICODE_TO_CP437.get(&ch) {
             *tch
         } else {
-            ch as u8
+            ch 
         }
     }
 
-    fn to_unicode(&self, ch: u16) -> char
+    fn to_unicode(&self, ch: char) -> char
     {
         CP437_TO_UNICODE[ch as usize]
     }
@@ -33,7 +33,7 @@ impl BufferParser for AsciiParser {
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
         match ch {
             0x00 | 0xFF => {
-                caret.attr = TextAttribute::DEFAULT;
+                caret.attr = TextAttribute::default();
             }
             LF => caret.lf(buf),
             FF => caret.ff(buf),
@@ -47,10 +47,10 @@ impl BufferParser for AsciiParser {
 }
 
 lazy_static::lazy_static!{
-    static ref UNICODE_TO_CP437: std::collections::HashMap<char,u8> = {
+    static ref UNICODE_TO_CP437: std::collections::HashMap<char,char> = {
         let mut res = std::collections::HashMap::new();
         for a in 0..256 { 
-            res.insert(CP437_TO_UNICODE[a], a as u8);
+            res.insert(CP437_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
         }
         res
     };

@@ -83,12 +83,12 @@ impl AnsiParser {
 }
 
 impl BufferParser for AnsiParser {
-    fn from_unicode(&self, ch: char) -> u8
+    fn from_unicode(&self, ch: char) -> char
     {
         self.ascii_parser.from_unicode(ch)
     }
     
-    fn to_unicode(&self, ch: u16) -> char
+    fn to_unicode(&self, ch: char) -> char
     {
         self.ascii_parser.to_unicode(ch)
     }
@@ -159,41 +159,37 @@ impl BufferParser for AnsiParser {
                 b'm' => { // Select Graphic Rendition 
                     self.ans_code = false;
                     if self.parsed_numbers.len() == 0 {
-                        caret.attr = TextAttribute::DEFAULT; // Reset or normal 
+                        caret.attr = TextAttribute::default(); // Reset or normal 
                     } 
                     for n in &self.parsed_numbers {
                         match n {
-                            0 => caret.attr = TextAttribute::DEFAULT, // Reset or normal 
-                            1 => caret.attr.set_foreground_bold(true),    // Bold or increased intensity 
+                            0 => caret.attr = TextAttribute::default(), // Reset or normal 
+                            1 => caret.attr.set_is_bold(true),
+                            2 => caret.attr.set_is_faint(true),
+                            3 => caret.attr.set_is_italic(true),
                             4 => caret.attr.set_is_underlined(true), 
-                            24 =>caret.attr.set_is_underlined(false),
-                            5 => if buf.buffer_type.use_ice_colors() { 
-                                caret.attr.set_background_bold(true);
-                            }  else  {
-                                caret.attr.set_is_blinking(true);  // Slow blink 
-                            }
+                            5 | 6 => caret.attr.set_is_blinking(true),
                             7 => {
                                 let fg = caret.attr.get_foreground();
                                 caret.attr.set_foreground(caret.attr.get_background());
                                 caret.attr.set_background(fg);
                             }
-                            //return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Negative image not supported: {}", self.current_sequence))),
-                            8 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invisible image not supported: {}", self.current_sequence))),
+                            8 => caret.attr.set_is_concealed(true),
+                            9 => caret.attr.set_is_crossed_out(true),
                             10 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("ASCII char set (SCO only) not supported: {}", self.current_sequence))),
-                            11 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Map 00-7F not supported: {}", self.current_sequence))),
-                            12 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Map 80-FF not supported: {}", self.current_sequence))),
-                            22 => caret.attr.set_foreground_bold(false),    // Bold off
-                            25 => if buf.buffer_type.use_ice_colors() {  // blink off
-                                caret.attr.set_background_bold(false);
-                            }  else  {
-                                caret.attr.set_is_blinking(false);
-                            }
+                            11..=19 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Map 00-7F not supported: {}", self.current_sequence))),
+                            21 => { caret.attr.set_is_double_underlined(true) },
+                            22 => { caret.attr.set_is_bold(false); caret.attr.set_is_faint(false) },
+                            23 => caret.attr.set_is_italic(false),
+                            24 => caret.attr.set_is_underlined(false),
+                            25 => caret.attr.set_is_blinking(false),
                             27 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Negative image off not supported: {}", self.current_sequence))),
-                            28 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invisible image off not supported: {}", self.current_sequence))),
+                            28 => caret.attr.set_is_concealed(false),
+                            29 => caret.attr.set_is_crossed_out(false),
                             // set foreaground color
-                            30..=37 => caret.attr.set_foreground_without_bold(COLOR_OFFSETS[*n as usize - 30]),
+                            30..=37 => caret.attr.set_foreground(COLOR_OFFSETS[*n as usize - 30]),
                             // set background color
-                            40..=47 => caret.attr.set_background_without_bold(COLOR_OFFSETS[*n as usize - 40]),
+                            40..=47 => caret.attr.set_foreground(COLOR_OFFSETS[*n as usize - 40]),
                             _ => { 
                                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsupported ANSI graphic code {} in seq {}", n, self.current_sequence)));
                             }

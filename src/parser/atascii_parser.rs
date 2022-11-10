@@ -15,21 +15,21 @@ impl AtasciiParser {
 }
 
 impl BufferParser for AtasciiParser {
-    fn from_unicode(&self, ch: char) -> u8
+    fn from_unicode(&self, ch: char) -> char
     {
         if let Some(tch) = UNICODE_TO_ATARI.get(&ch) {
             *tch
         } else {
-            ch as u8
+            ch 
         }
     }
 
-    fn to_unicode(&self, ch: u16) -> char
+    fn to_unicode(&self, ch: char) -> char
     {
-        if ch < ATARI_TO_UNICODE.len() as u16 {
+        if (ch as usize) < ATARI_TO_UNICODE.len() {
             ATARI_TO_UNICODE[ch as usize]
         } else {
-            char::from_u32(ch as u32).unwrap()
+            ch
         }
     }
 
@@ -67,10 +67,10 @@ impl BufferParser for AtasciiParser {
 }
 
 lazy_static::lazy_static!{
-    static ref UNICODE_TO_ATARI: std::collections::HashMap<char,u8> = {
+    static ref UNICODE_TO_ATARI: std::collections::HashMap<char, char> = {
         let mut res = std::collections::HashMap::new();
         for a in 0..128 { 
-            res.insert(ATARI_TO_UNICODE[a], a as u8);
+            res.insert(ATARI_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
         }
         res
     };

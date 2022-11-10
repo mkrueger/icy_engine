@@ -224,7 +224,7 @@ impl Buffer {
         std::mem::replace( &mut self.overlay_layer, None)
     }
 
-    pub fn get_font_scanline(&self, ext_font: bool, ch: u8, y: usize) -> u32
+    pub fn get_font_scanline(&self, ext_font: bool, ch: char, y: usize) -> u32
     {
         if ext_font {
             if let Some(ext) = &self.extended_font {

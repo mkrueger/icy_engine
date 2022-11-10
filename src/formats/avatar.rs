@@ -25,7 +25,7 @@ pub enum AvtReadState {
 pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
 {
     let mut result = Vec::new();
-    let mut last_attr = TextAttribute::DEFAULT;
+    let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
     let height = buf.get_buffer_height() as i32;
     let mut first_char = true;
