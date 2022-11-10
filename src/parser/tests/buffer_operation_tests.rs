@@ -113,6 +113,18 @@ fn test_margins_scrolling2() {
     assert_eq!("\r\n\r\n\r\n\r\n5\r\n6\r\n7\r\n8\r\n9\r\n10\r\n11\r\n12\r\n13\r\n14\r\n15\r\n16\r\n17\r\n18\r\n", get_string_from_buffer(&buf));
 }
 
+#[test]
+fn test_margins_clear_line_bug() {
+    // insertion of the last 'e' character clears the 2nd line
+    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2;21r\x1B[4l\x1B[2H\x1B[20L\r\n\x1B[4h\x1B[2H0123456789012345678901234567890123456789012345678901234567890123456789012345678\n\x1B[L\x1B[79D0123456789012345678901234567890123456789012345678901234567890123456789012345678\x1B[A\x1B[D\x1B[D\x1B[D\x1B[D\x1B[D\x1B[P");
+    assert_eq!(b'0' as u16, buf.get_char(Position::from(0, 2)).unwrap().char_code);
+    update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"e");
+    assert_eq!(b'0' as u16, buf.get_char(Position::from(0, 2)).unwrap().char_code);
+}
+
+
+
+
 
 #[test]
 fn test_clear_buffer_down() {
