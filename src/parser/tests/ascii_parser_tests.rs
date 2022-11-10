@@ -78,10 +78,10 @@ fn test_eol_start() {
 #[test]
 fn test_eol_line_break() {
     let (mut buf, mut caret) = create_buffer(&mut AsciiParser::new(), b"################################################################################\r\n");
-    assert_eq!(Position::from(0, 1), caret.pos);
+    assert_eq!(Position::new(0, 1), caret.pos);
 
     update_buffer(&mut buf, &mut caret, &mut AsciiParser::new(), b"#");
-    assert_eq!(Position::from(1, 1), caret.pos);
-    assert_eq!(b'#', buf.get_char(Position::from(0, 1)).unwrap().char_code as u8);
+    assert_eq!(Position::new(1, 1), caret.pos);
+    assert_eq!(b'#', buf.get_char(Position::new(0, 1)).unwrap().ch as u8);
 }
 

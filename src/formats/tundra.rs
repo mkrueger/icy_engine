@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, DosChar, BufferType};
+use crate::{Buffer, AttributedChar, BufferType};
 use super::{ Position, TextAttribute, SaveOptions};
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
@@ -33,7 +33,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     result.palette.get_color(0, 0, 0);
     result.buffer_type = BufferType::NoLimits;
 
-    let mut pos = Position::new();
+    let mut pos = Position::default();
     let mut attr = TextAttribute::from_u8(0, result.buffer_type);
 
     while o < file_size {
@@ -80,7 +80,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             }
             cmd = ch;
         }
-        result.set_char(0, pos, Some(DosChar::from(cmd as u16, attr)));
+        result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(cmd as u32).unwrap(), attr)));
         advance_pos(result, &mut pos);
     }
     result.set_height_for_pos(pos);
@@ -93,7 +93,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
     for _ in 0..result.get_buffer_height() {
         let mut line = crate::Line::new();
-        line.chars.resize(result.get_buffer_width() as usize, Some(DosChar::new()));
+        line.chars.resize(result.get_buffer_width() as usize, Some(AttributedChar::new()));
         background.lines.push(line);
     }
 
@@ -129,7 +129,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut skip_pos = None;
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {
-            let pos = Position::from(x as i32, y as i32);
+            let pos = Position::new(x as i32, y as i32);
             let ch = buf.get_char(pos);
             if ch.is_none() {
                 if skip_pos.is_none() { skip_pos = Some(pos) }
@@ -158,7 +158,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 if attr.get_background() != ch.attribute.get_background() { cmd |= TUNDRA_COLOR_BACKGROUND }
 
                 result.push(cmd);
-                result.push(ch.char_code as u8);
+                result.push(ch.ch as u8);
                 if attr.get_foreground() != ch.attribute.get_foreground() { 
                     let rgb = buf.palette.colors[ch.attribute.get_foreground() as usize].get_rgb();
                     result.push(0); 
@@ -176,10 +176,10 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 attr = ch.attribute;
                 continue;
             }
-            if ch.char_code >= 1 && ch.char_code <= 6 {
+            if ch.ch as u16 >= 1 && ch.ch as u16 <= 6 {
                 // fake color change
                 result.push(2);
-                result.push(ch.char_code as u8);
+                result.push(ch.ch as u8);
 
                 let rgb = buf.palette.colors[attr.get_foreground() as usize].get_rgb();
                 result.push(0); 
@@ -188,11 +188,11 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 result.push(rgb.2); 
                 continue;
             }
-            result.push(ch.char_code as u8);
+            result.push(ch.ch as u8);
         }
     }
     if let Some(pos2) = skip_pos {
-        let pos = Position::from((buf.get_buffer_width() - 1) as i32, (buf.get_buffer_height() - 1) as i32);
+        let pos = Position::new((buf.get_buffer_width() - 1) as i32, (buf.get_buffer_height() - 1) as i32);
 
         let skip_len = (pos.x + pos.y * buf.get_buffer_width() as i32) - (pos2.x + pos2.y * buf.get_buffer_width() as i32) + 1;
         result.resize(result.len() + skip_len as usize, 0);

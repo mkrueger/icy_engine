@@ -102,7 +102,6 @@ impl TextAttribute
         self.blink = is_blink;
     }
 
-
     pub fn get_is_underlined(self) -> bool
     {
         self.is_underline

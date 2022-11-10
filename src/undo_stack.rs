@@ -1,4 +1,4 @@
-use super::{Buffer, DosChar, Position, Layer, Size};
+use super::{Buffer, AttributedChar, Position, Layer, Size};
 
 pub trait UndoOperation {
     fn undo(&self, buffer: &mut Buffer);
@@ -8,8 +8,8 @@ pub trait UndoOperation {
 pub struct UndoSetChar {
     pub pos: Position,
     pub layer: usize,
-    pub old: Option<DosChar>,
-    pub new: Option<DosChar>
+    pub old: Option<AttributedChar>,
+    pub new: Option<AttributedChar>
 }
 
 impl UndoOperation for UndoSetChar {

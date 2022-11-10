@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, Position, SauceString, Color, BitFont, Layer, DosChar, TextAttribute, BitFontType, BufferType, crc};
+use crate::{Buffer, Position, SauceString, Color, BitFont, Layer, AttributedChar, TextAttribute, BitFontType, BufferType, crc};
 const MDF_HEADER: &[u8] = b"MDf";
 const MDF_VERSION: u16 = 0;
 const ID_SIZE: usize = 4;
@@ -146,7 +146,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                     is_locked: false,
                     is_position_locked: false,
                     is_transparent: false,
-                    offset: Position::from(x, y),
+                    offset: Position::new(x, y),
                     lines: Vec::new(),
                 };
                 let mut i = 0;
@@ -169,7 +169,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                                 let char_code = read_char(bytes, &mut o, result.buffer_type.use_extended_font());
                                 let attribute = decode_attribute(bytes, &mut o, attr_mode, result.buffer_type);
                                 let pos = Position { x: i % (width as i32) , y: i / (width as i32)};
-                                layer.set_char(pos, Some(DosChar::from(char_code, attribute)));
+                                layer.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
                                 len -= 1;
                                 i += 1;
                             }
@@ -220,7 +220,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                     let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                     let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
                     let pos = Position { x: i % (width as i32), y: i / (width as i32)};
-                    result.set_char(pos, Some(DosChar::from(char_code, attribute)));
+                    result.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
                     i += 1;
                 }
             }
@@ -229,7 +229,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                 for _ in 0..repeat_counter {
                     let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
                     let pos = Position { x: i % (width as i32), y: i / (width as i32)};
-                    result.set_char(pos, Some(DosChar::from(char_code, attribute)));
+                    result.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
                     i += 1;
                 }
             }
@@ -238,7 +238,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                 for _ in 0..repeat_counter {
                     let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                     let pos = Position { x: i % (width as i32), y: i / (width as i32)};
-                    result.set_char(pos, Some(DosChar::from(char_code, attribute)));
+                    result.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
                     i += 1;
                 }
             }
@@ -246,7 +246,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                 let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                 let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
                 
-                let rep_ch = Some(DosChar::from(char_code, attribute));
+                let rep_ch = Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute));
 
                 for _ in 0..repeat_counter {
                     let pos = Position { x: i % (width as i32) , y: i / (width as i32)};
@@ -412,9 +412,9 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>>
                         while rle_count > 0 {
                             let ch = layer.get_char(Position { x: i % (width as i32) , y: i / (width as i32)}).unwrap();
                             if buf.extended_font.is_some() {
-                                result.push((ch.char_code >> 8) as u8);
+                                result.push(((ch.ch as u16) >> 8) as u8);
                             }
-                            write_char(&mut result, ch.char_code, buf.buffer_type);
+                            write_char(&mut result, ch.ch as u16, buf.buffer_type);
                             encode_attribte(&mut result, ch, attr_mode, buf.buffer_type);
                             i += 1;
                             rle_count -= 1;
@@ -448,7 +448,7 @@ fn push_font(result: &mut Vec<u8>, font: &BitFont) {
     }
 }
 
-fn encode_attribte(result: &mut Vec<u8>, ch: DosChar, attr_mode: u16, buffer_type: BufferType) {
+fn encode_attribte(result: &mut Vec<u8>, ch: AttributedChar, attr_mode: u16, buffer_type: BufferType) {
     match attr_mode { 
         ATTR_MODE_U8 => { result.push(ch.attribute.as_u8(buffer_type)); }
         ATTR_MODE_255 => {
@@ -489,7 +489,7 @@ fn compress_greedy(result: &mut Vec<u8>, layer: &Layer, i: i32, rle_count: i32, 
     let mut run_mode = Compression::Off;
     let mut run_count = 0;
     let mut run_buf = Vec::new();
-    let mut run_ch = DosChar::default();
+    let mut run_ch = AttributedChar::default();
     let len = i + rle_count;
     for x in i..len {
         let cur = layer.get_char(Position { x: x % (width as i32) , y: x / (width as i32)}).unwrap();
@@ -497,7 +497,7 @@ fn compress_greedy(result: &mut Vec<u8>, layer: &Layer, i: i32, rle_count: i32, 
         let next = if x < len - 1 {
             layer.get_char(Position { x: (x + 1) % (width as i32) , y: (x + 1) / (width as i32)}).unwrap()
         } else {
-            DosChar::default()
+            AttributedChar::default()
         };
 
         if run_count > 0 {
@@ -512,12 +512,12 @@ fn compress_greedy(result: &mut Vec<u8>, layer: &Layer, i: i32, rle_count: i32, 
                         }
                         else if x < len - 2 {
                             let next2 = layer.get_char(Position { x: (x + 2) % (width as i32) , y: (x + 2) / (width as i32)}).unwrap();
-                            end_run = cur.char_code == next.char_code && cur.char_code == next2.char_code ||
+                            end_run = cur.ch == next.ch && cur.ch == next2.ch ||
                                       cur.attribute == next.attribute && cur.attribute == next2.attribute;
                         }
                     }
                     Compression::Char => {
-                        if cur.char_code != run_ch.char_code {
+                        if cur.ch != run_ch.ch {
                             end_run = true;
                         } else if x < len - 3 {
                             let next2 = layer.get_char(Position { x: (x + 2) % (width as i32) , y: (x + 2) / (width as i32)}).unwrap();
@@ -550,14 +550,14 @@ fn compress_greedy(result: &mut Vec<u8>, layer: &Layer, i: i32, rle_count: i32, 
         if run_count > 0 {
             match run_mode {
                 Compression::Off => {
-                    write_char( &mut run_buf, cur.char_code, buffer_type);
+                    write_char( &mut run_buf, cur.ch as u16, buffer_type);
                     encode_attribte(&mut run_buf, cur, attr_mode, buffer_type);
                 }
                 Compression::Char => {
                     encode_attribte(&mut run_buf, cur, attr_mode,  buffer_type);
                 }
                 Compression::Attr => {
-                    write_char( &mut run_buf, cur.char_code, buffer_type);
+                    write_char( &mut run_buf, cur.ch as u16, buffer_type);
                 }
                 Compression::Full => {
                     // nothing
@@ -571,7 +571,7 @@ fn compress_greedy(result: &mut Vec<u8>, layer: &Layer, i: i32, rle_count: i32, 
                 if cur == next {
                     run_mode = Compression::Full;
                 }
-                else if cur.char_code == next.char_code {
+                else if cur.ch == next.ch {
                     run_mode = Compression::Char;
                 }
                 else if cur.attribute == next.attribute {
@@ -587,11 +587,11 @@ fn compress_greedy(result: &mut Vec<u8>, layer: &Layer, i: i32, rle_count: i32, 
 
             if let Compression::Attr = run_mode { 
                 encode_attribte(&mut run_buf, cur, attr_mode, buffer_type);
-                write_char( &mut run_buf, cur.char_code, buffer_type);
+                write_char( &mut run_buf, cur.ch as u16, buffer_type);
             }
             else
             {
-                write_char( &mut run_buf, cur.char_code, buffer_type);
+                write_char( &mut run_buf, cur.ch as u16, buffer_type);
                 encode_attribte(&mut run_buf, cur, attr_mode, buffer_type);
             }
 

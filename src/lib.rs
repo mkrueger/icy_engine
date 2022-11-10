@@ -1,20 +1,25 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::too_many_lines, clippy::cast_lossless, clippy::cast_precision_loss)]
-
+#![allow(soft_unstable)]
+#![feature(test)]
+extern crate test;
 mod text_attribute;
 pub use text_attribute::*;
 
-mod dos_char;
-pub use dos_char::*;
+mod attributed_char;
+pub use attributed_char::*;
 
 mod layer;
 pub use layer::*;
 
+mod line;
+pub use line::*;
+
 mod position;
 pub use position::*;
 
-mod buffer_handling;
-pub use  buffer_handling::*;
+mod buffer;
+pub use  buffer::*;
 
 mod palette_handling;
 pub use palette_handling::*;

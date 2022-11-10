@@ -1,12 +1,12 @@
 use std::io;
 
-use crate::{Buffer, DosChar};
+use crate::{Buffer, AttributedChar};
 use super::{ Position, TextAttribute, SaveOptions};
 
 pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool>
 {
     let mut o = 0;
-    let mut pos = Position::new();
+    let mut pos = Position::default();
     loop {
         for _ in 0..result.get_buffer_width() {
             if o >= file_size {
@@ -18,7 +18,7 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
                 return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "invalid file - needs to be % 2 == 0"));
             }
 
-            result.set_char(0, pos, Some(DosChar::from(bytes[o] as u16, TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
+            result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
             pos.x += 1;
             o += 2;
         }
@@ -33,8 +33,8 @@ pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<
 
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {
-            let ch = buf.get_char(Position::from(x as i32, y as i32)).unwrap_or_default();
-            result.push(ch.char_code as u8);
+            let ch = buf.get_char(Position::new(x as i32, y as i32)).unwrap_or_default();
+            result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(buf.buffer_type));
         }
     }

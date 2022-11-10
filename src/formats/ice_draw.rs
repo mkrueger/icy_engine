@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, DosChar, BitFont, Size, Palette, BufferType};
+use crate::{Buffer, AttributedChar, BitFont, Size, Palette, BufferType};
 use super::{ Position, TextAttribute, SaveOptions};
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -41,7 +41,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     result.set_buffer_width(x2 + 1);
     result.buffer_type = BufferType::LegacyIce;
     let data_size = file_size - FONT_SIZE - PALETTE_SIZE;
-    let mut pos = Position::from(x1, y1);
+    let mut pos = Position::new(x1, y1);
 
     while o + 1 < data_size {
         let mut rle_count = 1;
@@ -61,7 +61,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             o += 1;
         }
         while rle_count > 0 {
-            result.set_char(0, pos, Some(DosChar::from(char_code as u16, TextAttribute::from_u8(attr, result.buffer_type))));
+            result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), TextAttribute::from_u8(attr, result.buffer_type))));
             advance_pos(x1, x2, &mut pos);
             rle_count -= 1;
         }
@@ -107,7 +107,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             }
             rle_count += 1;
         }
-        if rle_count > 3 || ch.char_code == 1 {
+        if rle_count > 3 || ch.ch == '\x01' {
             result.push(1);
             result.push(0);
 
@@ -116,7 +116,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         } else {
             rle_count = 1;
         }
-        result.push(ch.char_code as u8);
+        result.push(ch.ch as u8);
         result.push(ch.attribute.as_u8(BufferType::LegacyIce));
 
         x += rle_count;

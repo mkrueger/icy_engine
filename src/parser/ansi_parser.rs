@@ -28,7 +28,7 @@ impl AnsiParser {
             ascii_parser: AsciiParser::new(),
             ans_code: false,
             got_escape: false,
-            saved_pos: Position::new(),
+            saved_pos: Position::default(),
             parsed_numbers: Vec::new(),
             current_sequence: String::new(),
             saved_cursor_opt: None,

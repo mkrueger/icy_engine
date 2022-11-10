@@ -1,35 +1,6 @@
-use super::{DosChar, Position};
+use crate::Line;
 
-#[derive(Clone, Debug, Default)]
-pub struct Line {
-    pub chars: Vec<Option<DosChar>>,
-}
-
-impl Line {
-    pub fn new() -> Self {
-        Line { chars: Vec::new() }
-    }
-
-    pub fn get_line_length(&self) -> usize {
-        let mut res = 0;
-        for i in 0..self.chars.len() {
-            if self.chars[i].is_some() {
-                res = i;
-            }
-        }
-        res
-    }
-
-    pub fn insert_char(&mut self, index: i32, char_opt: Option<DosChar>)
-    {
-        assert!(index >= 0 , "char out of range");
-        if index > self.chars.len() as i32 {
-            self.chars.resize(index as usize, None);
-        }
-        self.chars.insert(index as usize, char_opt);
-    }
-
-}
+use super::{AttributedChar, Position};
 
 #[derive(Clone, Debug, Default)]
 pub struct Layer {
@@ -52,7 +23,7 @@ impl Layer {
             is_position_locked: false,
             is_transparent: true,
             lines: Vec::new(),
-            offset: Position::new(),
+            offset: Position::default(),
         }
     }
 
@@ -74,7 +45,7 @@ impl Layer {
             for x in 0..line.chars.len() {
                 let ch = line.chars[x];
                 if ch.is_some() {
-                    self.set_char(Position::from(x as i32, y as i32), ch);
+                    self.set_char(Position::new(x as i32, y as i32), ch);
                 }
             }
         }
@@ -85,7 +56,7 @@ impl Layer {
         self.lines.clear();
     }
 
-    pub fn set_char(&mut self, pos: Position, dos_char: Option<DosChar>) {
+    pub fn set_char(&mut self, pos: Position, dos_char: Option<AttributedChar>) {
         let pos = pos - self.offset;
         if pos.x < 0 || pos.y < 0 || self.is_locked || !self.is_visible {
             return;
@@ -93,30 +64,23 @@ impl Layer {
         if pos.y >= self.lines.len() as i32 {
             self.lines.resize(pos.y as usize + 1, Line::new());
         }
-
         let cur_line = &mut self.lines[pos.y as usize];
-        if pos.x >= cur_line.chars.len() as i32 {
-            cur_line.chars.resize(pos.x as usize + 1, None);
-        }
-        cur_line.chars[pos.x as usize] = dos_char;
+        cur_line.set_char(pos.x, dos_char);
     }
 
-    pub fn get_char(&self, pos: Position) -> Option<DosChar> {
+    pub fn get_char(&self, pos: Position) -> Option<AttributedChar> {
         let pos = pos - self.offset;
         let y = pos.y as usize;
         if y < self.lines.len() {
             let cur_line = &self.lines[y];
-            if pos.x >= 0 && pos.x < cur_line.chars.len() as i32 {
-                let ch = cur_line.chars[pos.x as usize];
-                if ch.is_some() {
-                    return ch;
-                }
+            if let Some(Some(ch)) = cur_line.chars.get(pos.x as usize)  {
+                return Some(*ch);
             }
         }
         if self.is_transparent {
             None
         } else {
-            Some(DosChar::default())
+            Some(AttributedChar::default())
         }
     }
 
@@ -149,21 +113,49 @@ impl Layer {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
-    use crate::{Layer, Line, DosChar, TextAttribute};
+    use crate::{Layer, Line, AttributedChar, TextAttribute, Position};
+
+    #[test]
+    fn test_get_char() {
+        let mut layer = Layer::new();
+        let mut line = Line::new();
+        line.set_char(10, Some(AttributedChar::from('a', TextAttribute::default())));
+
+        layer.insert_line(0, line);
+
+        assert_eq!(None, layer.get_char(Position::new(-1, -1)));
+        assert_eq!(None, layer.get_char(Position::new(1000, 1000)));
+        assert_eq!('a', layer.get_char(Position::new(10, 0)).unwrap().ch);
+        assert_eq!(None, layer.get_char(Position::new(9, 0)));
+        assert_eq!(None, layer.get_char(Position::new(11, 0)));
+    }
+
+    #[test]
+    fn test_get_char_intransparent() {
+        let mut layer = Layer::new();
+        layer.is_transparent = false;
+        let mut line = Line::new();
+        line.set_char(10, Some(AttributedChar::from('a', TextAttribute::default())));
+
+        layer.insert_line(0, line);
+
+        assert_eq!(AttributedChar::default(), layer.get_char(Position::new(-1, -1)).unwrap());
+        assert_eq!(AttributedChar::default(), layer.get_char(Position::new(1000, 1000)).unwrap());
+        assert_eq!('a', layer.get_char(Position::new(10, 0)).unwrap().ch);
+        assert_eq!(AttributedChar::default(), layer.get_char(Position::new(9, 0)).unwrap());
+        assert_eq!(AttributedChar::default(), layer.get_char(Position::new(11, 0)).unwrap());
+    }
 
     #[test]
     fn test_insert_line() {
         let mut layer = Layer::new();
         let mut line = Line::new();
-        line.chars.push(Some(DosChar::from(b'a' as u16, TextAttribute::default())));
+        line.chars.push(Some(AttributedChar::from('a', TextAttribute::default())));
         layer.insert_line(10, line);
 
-        assert_eq!(b'a' as u16, layer.lines[10].chars[0].unwrap().char_code);
+        assert_eq!('a', layer.lines[10].chars[0].unwrap().ch);
         assert_eq!(11, layer.lines.len());
         
         layer.insert_line(11, Line::new());

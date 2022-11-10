@@ -12,7 +12,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::DEFAULT;
-    let mut pos = Position::new();
+    let mut pos = Position::default();
     let height = buf.get_real_buffer_height() as i32;
     let mut first_char = true;
     match options.screen_preparation {
@@ -31,7 +31,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             
             // doesn't work well with unix terminal - background color needs to be painted.
             if !options.modern_terminal_output { 
-                while (ch.char_code == b' ' as u16 || ch.char_code == 0) && ch.attribute.get_background() == 0 && pos.x < line_length {
+                while (ch.ch == ' ' || ch.ch == '\0') && ch.attribute.get_background() == 0 && pos.x < line_length {
                     space_count += 1;
                     pos.x += 1;                     
                     ch = buf.get_char(pos).unwrap_or_default();
@@ -140,14 +140,14 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 continue;
             }
             if options.modern_terminal_output {
-                if ch.char_code == 0 {
+                if ch.ch == '\0' {
                     result.push(b' ');
                 } else {
-                    let uni_ch = crate::CP437_TO_UNICODE[ch.char_code as usize].to_string();
+                    let uni_ch = crate::CP437_TO_UNICODE[ch.ch as usize].to_string();
                     result.extend(uni_ch.as_bytes());
                 }
             } else {
-                result.push(if ch.char_code == 0 { b' ' } else { ch.char_code as u8 });
+                result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
             }
             pos.x += 1;
         }

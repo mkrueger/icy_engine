@@ -1,7 +1,7 @@
 use std::{io, cmp::{max}};
 use crate::Line;
 
-use super::{Buffer, Caret, Position, DosChar};
+use super::{Buffer, Caret, Position, AttributedChar};
 mod ascii_parser;
 pub use ascii_parser::*;
 mod ansi_parser;
@@ -48,7 +48,7 @@ impl Caret {
     pub fn ff(&mut self, buf: &mut Buffer) {
         buf.terminal_state.reset();
         buf.clear();
-        self.pos = Position::new();
+        self.pos = Position::default();
         self.is_visible = true;
         self.attr = super::TextAttribute::DEFAULT;
     }
@@ -69,7 +69,7 @@ impl Caret {
     /// (backspace, BS, \b, ^H), may overprint the previous character
     pub fn bs(&mut self, buf: &mut Buffer) {
         self.pos.x = max(0, self.pos.x - 1);
-        buf.set_char(0, self.pos, Some(DosChar::from(b' ' as u16, self.attr)));
+        buf.set_char(0, self.pos, Some(AttributedChar::from(' ', self.attr)));
     }
 
     pub fn del(&mut self, buf: &mut Buffer) {
@@ -85,7 +85,7 @@ impl Caret {
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
             let i = self.pos.x as usize ;
             if i < line.chars.len(){ 
-                line.chars.insert(i, Some(DosChar::from(b' ' as u16, self.attr)));
+                line.chars.insert(i, Some(AttributedChar::from(' ', self.attr)));
             }
         }
     }
@@ -157,22 +157,20 @@ impl Caret {
 }
 
 impl Buffer {
-
-
     fn print_value(&mut self, caret: &mut Caret, ch: u16)
     {
-        let ch = DosChar::from(ch, caret.attr);
+        let ch = AttributedChar::from(char::from_u32(ch as u32).unwrap(), caret.attr);
         self.print_char(caret, ch);
     }
 
-    fn print_char(&mut self, caret: &mut Caret, ch: DosChar)
+    fn print_char(&mut self, caret: &mut Caret, ch: AttributedChar)
     {
         if caret.insert_mode {
             let layer = &mut self.layers[0];
             if layer.lines.len() < caret.pos.y as usize + 1 {
                 layer.lines.resize(caret.pos.y as usize + 1, Line::new());
             }
-            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(DosChar::new()));
+            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(AttributedChar::new()));
         }
         if caret.pos.x >= self.get_buffer_width() as i32 {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
@@ -227,14 +225,14 @@ impl Buffer {
 
     fn clear_screen(&mut self, caret: &mut Caret)
     {
-        caret.pos = Position::new();
+        caret.pos = Position::default();
         self.clear();
     }
 
     fn clear_buffer_down(&mut self, y: i32) {
         for y in y..self.get_last_visible_line() as i32 {
             for x in 0..self.get_buffer_width() as i32 {
-                self.set_char(0, Position::from(x, y), Some(DosChar::new()));
+                self.set_char(0, Position::new(x, y), Some(AttributedChar::new()));
             }
         }
     }
@@ -242,26 +240,26 @@ impl Buffer {
     fn clear_buffer_up(&mut self, y: i32) {
         for y in self.get_first_visible_line()..y {
             for x in 0..self.get_buffer_width() as i32 {
-                self.set_char(0, Position::from(x, y), Some(DosChar::new()));
+                self.set_char(0, Position::new(x, y), Some(AttributedChar::new()));
             }
         }
     }
 
     fn clear_line(&mut self, y: i32) {
         for x in 0..self.get_buffer_width() as i32 {
-            self.set_char(0, Position::from(x, y), Some(DosChar::new()));
+            self.set_char(0, Position::new(x, y), Some(AttributedChar::new()));
         }
     }
 
     fn clear_line_end(&mut self, pos: &Position) {
         for x in pos.x..self.get_buffer_width() as i32 {
-            self.set_char(0, Position::from(x, pos.y), Some(DosChar::new()));
+            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::new()));
         }
     }
 
     fn clear_line_start(&mut self, pos: &Position) {
         for x in 0..pos.x {
-            self.set_char(0, Position::from(x, pos.y), Some(DosChar::new()));
+            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::new()));
         }
     }
 

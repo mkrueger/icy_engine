@@ -7,14 +7,14 @@ use super::SaveOptions;
 pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
 {
     let mut result = Vec::new();
-    let mut pos = Position::new();
+    let mut pos = Position::default();
     let height = buf.get_real_buffer_height() as i32;
 
     while pos.y < height {
         let line_length = buf.get_line_length(pos.y);
         while pos.x < line_length {
             let ch = buf.get_char(pos).unwrap_or_default();
-            result.push(if ch.char_code == 0 { b' ' } else { ch.char_code as u8});
+            result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8});
             pos.x += 1;
         }
 

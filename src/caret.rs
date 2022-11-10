@@ -13,7 +13,7 @@ impl Caret {
 
     pub fn new() -> Self {
         Self {
-            pos: Position::new(),
+            pos: Position::default(),
             attr: TextAttribute::DEFAULT,
             is_visible: true,
             insert_mode: false
@@ -54,7 +54,7 @@ impl Caret {
 
     pub fn set_position_xy(&mut self, x: i32, y: i32)
     {
-        self.pos = Position::from(x, y);
+        self.pos = Position::new(x, y);
     }
 
     pub fn set_attr(&mut self, attr: TextAttribute)

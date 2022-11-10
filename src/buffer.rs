@@ -7,7 +7,7 @@ use std::ffi::OsStr;
 
 use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState};
 
-use super::{Layer, read_xb, Position, DosChar, read_binary, Size, UndoOperation, Palette, SauceString, BitFont, SaveOptions };
+use super::{Layer, read_xb, Position, AttributedChar, read_binary, Size, UndoOperation, Palette, SauceString, BitFont, SaveOptions };
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -242,14 +242,14 @@ impl Buffer {
         self.font.size
     }
 
-    pub fn set_char(&mut self, layer: usize, pos: Position, dos_char: Option<DosChar>) {
+    pub fn set_char(&mut self, layer: usize, pos: Position, dos_char: Option<AttributedChar>) {
         if layer >= self.layers.len() { return; }
 
         let cur_layer  = &mut self.layers[layer];
         cur_layer.set_char(pos, dos_char);
     }
 
-    pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> Option<DosChar> {
+    pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> Option<AttributedChar> {
         if let Some(layer) = self.layers.get(layer) {
             layer.get_char(pos)
         } else {
@@ -257,7 +257,7 @@ impl Buffer {
         }
     }
 
-    pub fn get_char(&self, pos: Position) ->  Option<DosChar> {
+    pub fn get_char(&self, pos: Position) ->  Option<AttributedChar> {
         if let Some(overlay) = &self.overlay_layer  {
             let ch = overlay.get_char(pos);
             if ch.is_some() {
@@ -443,7 +443,7 @@ impl Buffer {
     pub fn get_line_length(&self, line: i32) -> i32
     {
         let mut length = 0;
-        let mut pos = Position::from(0, line);
+        let mut pos = Position::new(0, line);
         for x in 0..(self.get_buffer_width() as i32) {
             pos.x = x;
             if let Some(ch) = self.get_char(pos) {

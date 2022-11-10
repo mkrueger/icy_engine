@@ -23,10 +23,7 @@ impl std::fmt::Display for Position {
 }
 
 impl Position {
-    pub fn new() -> Self {
-        Position { x: 0, y: 0 }
-    }
-    pub fn from(x: i32, y: i32) -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
         Position { x, y }
     }
     
@@ -47,7 +44,7 @@ impl Position {
 
 impl Default for Position {
     fn default() -> Self {
-        Self::new()
+        Self::new(0, 0)
     }
 }
 

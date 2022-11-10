@@ -1,5 +1,5 @@
 use std::io;
-use crate::{Caret, DosChar, Position, AsciiParser};
+use crate::{Caret, AttributedChar, Position, AsciiParser};
 use super::{Buffer, BufferParser};
 
 #[allow(clippy::struct_excessive_bools)]
@@ -87,9 +87,9 @@ impl PETSCIIParser {
         self.shift_mode = shift_mode;
         for y in 0..buf.get_buffer_height() {
             for x in 0..buf.get_buffer_width() {
-                if let Some(ch) = &mut buf.get_char(Position::from(x as i32, y as i32)) {
-                    ch.ext_font = shift_mode;
-                    buf.set_char(0, Position::from(x as i32, y as i32), Some(*ch));
+                if let Some(ch) = &mut buf.get_char(Position::new(x as i32, y as i32)) {
+                    ch.set_font_page(if shift_mode { 1 } else { 0 });
+                    buf.set_char(0, Position::new(x as i32, y as i32), Some(*ch));
                 }
             }
         }
@@ -196,8 +196,8 @@ impl BufferParser for PETSCIIParser {
                         return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown control code 0x{:X}", ch)));
                     }
                 };
-                let mut ch = DosChar::from(self.handle_reverse_mode(tch) as u16, caret.attr);
-                ch.ext_font = self.shift_mode;
+                let mut ch = AttributedChar::from(char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(), caret.attr);
+                ch.set_font_page(if self.shift_mode { 1 } else { 0 });
                 buf.print_char(caret, ch);
             }
         }

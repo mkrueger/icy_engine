@@ -11,7 +11,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::DEFAULT;
-    let mut pos = Position::new();
+    let mut pos = Position::default();
     let height = buf.get_buffer_height() as i32;
     let mut first_char = true;
 
@@ -33,7 +33,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 last_attr = ch.attribute;
             }
 
-            result.push(if ch.char_code == 0 { b' ' } else { ch.char_code as u8 });
+            result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
             first_char = false;
             pos.x += 1;
         }
