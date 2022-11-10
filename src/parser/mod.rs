@@ -169,6 +169,7 @@ impl Buffer {
     {
         if caret.insert_mode {
             let layer = &mut self.layers[0];
+            layer.lines.resize(caret.pos.y as usize + 1, Line::new());
             layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(DosChar::new()));
         }
         if caret.pos.x >= self.get_buffer_width() as i32 {
