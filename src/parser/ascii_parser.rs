@@ -1,5 +1,4 @@
-use std::io;
-use crate::{Buffer, Caret, TextAttribute};
+use crate::{Buffer, Caret, TextAttribute, EngineResult};
 use super::BufferParser;
 pub struct AsciiParser {
 }
@@ -10,10 +9,10 @@ impl AsciiParser {
     }
 }
 
-const LF: u8 = b'\n';
-const CR: u8 = b'\r';
-const BS: u8 = 0x08;
-const FF: u8 = 0x0C;
+const LF: char = '\n';
+const CR: char = '\r';
+const BS: char = '\x08';
+const FF: char = '\x0C';
 
 impl BufferParser for AsciiParser {
     fn from_unicode(&self, ch: char) -> char
@@ -27,19 +26,22 @@ impl BufferParser for AsciiParser {
 
     fn to_unicode(&self, ch: char) -> char
     {
-        CP437_TO_UNICODE[ch as usize]
+        match CP437_TO_UNICODE.get(ch as usize) {
+            Some(out_ch) => *out_ch,
+            _ => ch
+        }
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
         match ch {
-            0x00 | 0xFF => {
+            '\x00' | '\u{00FF}' => {
                 caret.attr = TextAttribute::default();
             }
             LF => caret.lf(buf),
             FF => caret.ff(buf),
             CR => caret.cr(buf),
             BS => caret.bs(buf),
-            127 => caret.del(buf),
+            '\x7F' => caret.del(buf),
             _ => buf.print_value(caret, ch as u16)
         }
         Ok(None)

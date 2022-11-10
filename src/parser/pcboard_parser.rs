@@ -1,8 +1,6 @@
-use std::{io};
-use crate::{Buffer, Caret,  AnsiParser, TextAttribute};
+use crate::{Buffer, Caret,  AnsiParser, TextAttribute, EngineResult};
 use super::BufferParser;
 
-#[allow(clippy::struct_excessive_bools)]
 pub struct PCBoardParser {
     ansi_parser: AnsiParser,
 
@@ -36,7 +34,7 @@ impl BufferParser for PCBoardParser {
         self.ansi_parser.to_unicode(ch)
     }
     
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
         if self.pcb_color {
             self.pcb_pos += 1;
             if self.pcb_pos < 3 {
@@ -59,10 +57,10 @@ impl BufferParser for PCBoardParser {
         
         if self.pcb_code {
             match ch {
-                b'@' => {
+                '@' => {
                     self.pcb_code = false;
                 }
-                b'X' => {
+                'X' => {
                     self.pcb_color = true;
                     self.pcb_pos = 0;
                 }
@@ -71,7 +69,7 @@ impl BufferParser for PCBoardParser {
             return Ok(None);
         }
         match ch {
-            b'@' => {
+            '@' => {
                 self.pcb_code = true;
                 Ok(None)
             }
@@ -80,15 +78,15 @@ impl BufferParser for PCBoardParser {
     }
 }
 
-fn conv_ch(ch: u8) -> u8 {
-    if (b'0'..=b'9').contains(&ch) {
-        return ch - b'0';
+fn conv_ch(ch: char) -> u8 {
+    if ('0'..='9').contains(&ch) {
+        return ch as u8 - b'0';
     }
-    if (b'a'..=b'f').contains(&ch) {
-        return 10 + ch - b'a';
+    if ('a'..='f').contains(&ch) {
+        return 10 + ch as u8 - b'a';
     }
-    if (b'A'..=b'F').contains(&ch) {
-        return 10 + ch - b'A';
+    if ('A'..='F').contains(&ch) {
+        return 10 + ch as u8 - b'A';
     }
     0
 }

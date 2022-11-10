@@ -6,7 +6,7 @@ use crate::{Buffer, Caret, BufferParser};
 
 fn get_string_from_buffer(buf: &Buffer) -> String
 {
-    let converted = crate::convert_to_asc(&buf, &crate::SaveOptions::new()).unwrap();
+    let converted = crate::convert_to_asc(&buf, &crate::SaveOptions::new()).unwrap(); // test code
     let b : Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
     let converted  = String::from_utf8_lossy(b.as_slice());
 
@@ -31,6 +31,8 @@ fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Care
 fn update_buffer<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8])
 {
     for b in input {
-        parser.print_char(buf,caret, *b).unwrap();
+        if let Some(ch) = char::from_u32(*b as u32) {
+            parser.print_char(buf,caret, ch).unwrap(); // test code
+        }
     }
 }

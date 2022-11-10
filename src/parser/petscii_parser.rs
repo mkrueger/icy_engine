@@ -1,8 +1,6 @@
-use std::io;
-use crate::{Caret, AttributedChar, Position, AsciiParser};
+use crate::{Caret, AttributedChar, Position, AsciiParser, EngineResult, ParserError};
 use super::{Buffer, BufferParser};
 
-#[allow(clippy::struct_excessive_bools)]
 pub struct PETSCIIParser {
     underline_mode: bool,
     reverse_mode: bool,
@@ -30,7 +28,7 @@ impl PETSCIIParser {
         }
     }
 
-    pub fn handle_c128_escapes(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    pub fn handle_c128_escapes(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<Option<String>> {
         self.got_esc = false;
             
         match ch {
@@ -118,7 +116,11 @@ impl BufferParser for PETSCIIParser {
     fn from_unicode(&self, ch: char) -> char
     {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
-            char::from_u32(*tch as u32).unwrap()
+            if let Some(out_ch) = char::from_u32(*tch as u32) {
+                out_ch
+            } else {
+                ch
+            }
         } else {
             ch
         }
@@ -130,8 +132,8 @@ impl BufferParser for PETSCIIParser {
         AsciiParser::new().to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
-
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+        let ch = ch as u8;
         if self.got_esc {
             return self.handle_c128_escapes(buf, caret, ch);
         }
@@ -175,7 +177,7 @@ impl BufferParser for PETSCIIParser {
             0x9F => caret.set_foreground(CYAN),
             0xFF => buf.print_value(caret, 94), // PI character
             _ => {
-                let tch = match ch {
+                let tch = match ch  {
                     0x20..=0x3F => {
                         ch
                     }
@@ -192,7 +194,7 @@ impl BufferParser for PETSCIIParser {
                         ch - 0x80
                     }
                     _ => {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown control code 0x{:X}", ch)));
+                        return Err(Box::new(ParserError::UnsupportedControlCode(ch as u32)));
                     }
                 };
                 let mut ch = AttributedChar::from(char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(), caret.attr);

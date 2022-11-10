@@ -2,15 +2,15 @@ use super::BufferType;
 
 mod attribute {
     pub const NONE:u8      = 0;
-    pub const BOLD:u8      = 0b0000_0001;   // n = 1
-    pub const FAINT:u8     = 0b0000_0010;  // n = 2
-    pub const ITALIC:u8    = 0b0000_0100;  // n = 2
-    pub const BLINK:u8     = 0b0000_1000;  // n = 5
+    pub const BOLD:u8      = 0b0000_0001;
+    pub const FAINT:u8     = 0b0000_0010;
+    pub const ITALIC:u8    = 0b0000_0100;
+    pub const BLINK:u8     = 0b0000_1000;
 
-    pub const UNDERLINE:u8       = 0b0001_0000;  // n = 4 
-    pub const DOUBLE_UNDERLINE:u8 = 0b0011_0000;  // n = 21
-    pub const CONCEAL:u8         = 0b0100_0000;  // n = 21
-    pub const CROSSED_OUT:u8      = 0b1000_0000;  // n = 9
+    pub const UNDERLINE:u8        = 0b0001_0000; 
+    pub const DOUBLE_UNDERLINE:u8 = 0b0011_0000;
+    pub const CONCEAL:u8          = 0b0100_0000;
+    pub const CROSSED_OUT:u8      = 0b1000_0000;
 }
 
 #[derive(Clone, Copy, Debug)]

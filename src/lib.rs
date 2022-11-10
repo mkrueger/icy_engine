@@ -1,6 +1,8 @@
 #![warn(clippy::all, clippy::pedantic)]
 #![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::too_many_lines, clippy::cast_lossless, clippy::cast_precision_loss)]
 mod text_attribute;
+use std::error::Error;
+
 pub use text_attribute::*;
 
 mod attributed_char;
@@ -47,6 +49,8 @@ pub use crc::*;
 
 mod terminal_state;
 pub use terminal_state::*;
+
+pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Size<T> 

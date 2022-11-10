@@ -5,7 +5,7 @@ use std::{
 };
 use std::ffi::OsStr;
 
-use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState};
+use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState, EngineResult};
 
 use super::{Layer, read_xb, Position, AttributedChar, read_binary, Size, UndoOperation, Palette, SauceString, BitFont, SaveOptions };
 
@@ -275,7 +275,7 @@ impl Buffer {
         None
     }
 
-    pub fn load_buffer(file_name: &Path) -> io::Result<Buffer> {
+    pub fn load_buffer(file_name: &Path) -> EngineResult<Buffer> {
         let mut f = File::open(file_name)?;
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes)?;
@@ -332,7 +332,7 @@ impl Buffer {
         self.font.name.to_string() != super::DEFAULT_FONT_NAME && self.font.name.to_string() != super::ALT_DEFAULT_FONT_NAME
     }
      
-    pub fn from_bytes(file_name: &Path, bytes: &[u8]) -> io::Result<Buffer> {
+    pub fn from_bytes(file_name: &Path, bytes: &[u8]) -> EngineResult<Buffer> {
         let mut result = Buffer::new();
         result.file_name = Some(file_name.to_path_buf());
         let ext = file_name.extension();
@@ -423,7 +423,7 @@ impl Buffer {
 
         let mut caret = Caret::new();
         for b in bytes.iter().take(file_size) {
-            interpreter.as_mut().print_char(&mut result, &mut caret, *b)?;
+            interpreter.as_mut().print_char(&mut result, &mut caret, char::from_u32(*b as u32).unwrap())?;
         }
         Ok(result)
     }

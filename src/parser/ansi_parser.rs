@@ -1,8 +1,9 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
 
-use std::{io, cmp::{max, min}};
+use core::num;
+use std::{cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode};
+use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError};
 
 use super::{BufferParser, AsciiParser};
 
@@ -17,8 +18,8 @@ pub struct AnsiParser {
     in_custom_command: bool
 }
 
-const ANSI_CSI: u8 = b'[';
-const ANSI_ESC: u8 = 27;
+const ANSI_CSI: char = '[';
+const ANSI_ESC: char = '\x1B';
 
 const COLOR_OFFSETS : [u8; 8] = [ 0, 4, 2, 6, 1, 5, 3, 7 ];
 
@@ -36,47 +37,47 @@ impl AnsiParser {
         }
     }
 
-    fn start_sequence(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    fn start_sequence(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
         self.got_escape = false;
         match ch {
             ANSI_CSI => {
-                self.current_sequence.push(char::from_u32(ch as u32).unwrap());
+                self.current_sequence.push('[');
                 self.ans_code = true;
                 self.parsed_numbers.clear();
                 Ok(None)
             }
-            b'7' => {
+            '7' => {
                 self.saved_cursor_opt = Some(caret.clone());
                 Ok(None)
             }
-            b'8' => {
+            '8' => {
                 if let Some(saved_caret) = &self.saved_cursor_opt {
                     *caret = saved_caret.clone();
                 }
                 Ok(None)
             }
 
-            b'c' => { // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
+            'c' => { // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
                 caret.ff(buf);
                 Ok(None)
             }
 
-            b'D' => { // Index
+            'D' => { // Index
                 caret.index(buf);
                 Ok(None)
             }
-            b'M' => { // Reverse Index
+            'M' => { // Reverse Index
                 caret.reverse_index(buf);
                 Ok(None)
             }
             
-            b'E' => { // Next Line
+            'E' => { // Next Line
                 caret.next_line(buf);
                 Ok(None)
             }
             
             _ => {
-                Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown escape char 0x{:x}('{:?}')", ch, char::from_u32(ch as u32))))
+                Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
             }
         }
     }
@@ -93,7 +94,7 @@ impl BufferParser for AnsiParser {
         self.ascii_parser.to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>>
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>>
     {
         if self.got_escape {
             return self.start_sequence(buf, caret, ch);
@@ -103,60 +104,56 @@ impl BufferParser for AnsiParser {
             if let Some(ch) = char::from_u32(ch as u32) {
                 self.current_sequence.push(ch);
             } else {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Can't convert char {}", ch)));
+                return Err(Box::new(ParserError::InvalidChar('\0')));
             }
 
-            if self.in_custom_command && !(ch >= b'0' && ch <= b'9') {
+            if self.in_custom_command && !(ch >= '0' && ch <= '9') {
                 self.in_custom_command  = false; 
                 self.ans_code = false;
                 self.got_escape = false;
                 match ch {
-                    b'p' => { // [!p Soft Teminal Reset
+                    'p' => { // [!p Soft Teminal Reset
                         buf.terminal_state.reset();
                     }
-                    b'l' => {
+                    'l' => {
                         if self.parsed_numbers.len() != 1 {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
-                        match self.parsed_numbers[0] {
-                            4 => { buf.terminal_state.scroll_state = TerminalScrolling::Fast; }
-                            6 => {
+                        match self.parsed_numbers.get(0) {
+                            Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Fast,
+                            Some(6) => {
                                //  buf.terminal_state.origin_mode = OriginMode::WithinMargins;
                             }
-                            7 => { buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap; }
-                            25 => {
-                                caret.is_visible = false;
-                            }
+                            Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap,
+                            Some(25) => caret.is_visible = false,
                             _ => { 
-                                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                             }
                         } 
                     }
-                    b'h' => {
+                    'h' => {
                         if self.parsed_numbers.len() != 1 {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
-                        match self.parsed_numbers[0] {
-                            4 => { buf.terminal_state.scroll_state = TerminalScrolling::Smooth; }
-                            6 => { buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner; }
-                            7 => { buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap; }
-                            25 => {
-                                caret.is_visible = true;
-                            }
+                        match self.parsed_numbers.get(0) {
+                            Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
+                            Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
+                            Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
+                            Some(25) => caret.is_visible = true,
                             _ => { 
-                                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                             }
                         } 
                     }
                     _ => {
                         // error in control sequence, terminate reading
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsuppored custom command: {}, {:?}!", self.current_sequence, char::from_u32(ch as u32))));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
                 }
                 return Ok(None);
             }
             match ch {
-                b'm' => { // Select Graphic Rendition 
+                'm' => { // Select Graphic Rendition 
                     self.ans_code = false;
                     if self.parsed_numbers.len() == 0 {
                         caret.attr = TextAttribute::default(); // Reset or normal 
@@ -176,14 +173,14 @@ impl BufferParser for AnsiParser {
                             }
                             8 => caret.attr.set_is_concealed(true),
                             9 => caret.attr.set_is_crossed_out(true),
-                            10 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("ASCII char set (SCO only) not supported: {}", self.current_sequence))),
-                            11..=19 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Map 00-7F not supported: {}", self.current_sequence))),
+                            10 => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
+                            11..=19 => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
                             21 => { caret.attr.set_is_double_underlined(true) },
                             22 => { caret.attr.set_is_bold(false); caret.attr.set_is_faint(false) },
                             23 => caret.attr.set_is_italic(false),
                             24 => caret.attr.set_is_underlined(false),
                             25 => caret.attr.set_is_blinking(false),
-                            27 => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Negative image off not supported: {}", self.current_sequence))),
+                            27 => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
                             28 => caret.attr.set_is_concealed(false),
                             29 => caret.attr.set_is_crossed_out(false),
                             // set foreaground color
@@ -191,13 +188,13 @@ impl BufferParser for AnsiParser {
                             // set background color
                             40..=47 => caret.attr.set_background(COLOR_OFFSETS[*n as usize - 40]),
                             _ => { 
-                                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsupported ANSI graphic code {} in seq {}", n, self.current_sequence)));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                             }
                         }
                     }
                     return Ok(None);
                 }
-                b'H' | b'f' => { // Cursor Position + Horizontal Vertical Position ('f')
+                'H' | 'f' => { // Cursor Position + Horizontal Vertical Position ('f')
                 self.ans_code = false;
                     if !self.parsed_numbers.is_empty() {
                         if self.parsed_numbers[0] > 0 { 
@@ -217,7 +214,7 @@ impl BufferParser for AnsiParser {
                     buf.terminal_state.limit_caret_pos(buf, caret);
                     return Ok(None);
                 }
-                b'C' => { // Cursor Forward 
+                'C' => { // Cursor Forward 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.right(buf, 1);
@@ -226,7 +223,7 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
-                b'D' => { // Cursor Back 
+                'D' => { // Cursor Back 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.left(buf, 1);
@@ -235,7 +232,7 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
-                b'A' => { // Cursor Up 
+                'A' => { // Cursor Up 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.up(buf, 1);
@@ -244,7 +241,7 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
-                b'B' => { // Cursor Down 
+                'b' => { // Cursor Down 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.down(buf, 1);
@@ -253,95 +250,97 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
-                b's' => { // Save Current Cursor Position
+                's' => { // Save Current Cursor Position
                     self.ans_code = false;
                     self.saved_pos = caret.pos;
                     return Ok(None);
                 }
-                b'u' => { // Restore Saved Cursor Position 
+                'u' => { // Restore Saved Cursor Position 
                     self.ans_code = false;
                     caret.pos = self.saved_pos;
                     return Ok(None);
                 }
                 
-                b'd' => { // Vertical Line Position Absolute
+                'd' => { // Vertical Line Position Absolute
                     self.ans_code = false;
-                    let num  = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0] - 1
-                    } else {
-                        0
+                    let num  = match self.parsed_numbers.get(0) { 
+                        Some(n) => n - 1,
+                        _ => 0
                     };
                     caret.pos.y =  buf.get_first_visible_line() + num;
                     buf.terminal_state.limit_caret_pos(buf, caret);
                     return Ok(None);
                 }
-                b'e' => { // Vertical Line Position Relative
+                'e' => { // Vertical Line Position Relative
                     self.ans_code = false;
-                    let num  = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0]
-                    } else {
-                        1
+                    let num  = match self.parsed_numbers.get(0) { 
+                        Some(n) => *n,
+                        _ => 1
                     };
                     caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                     buf.terminal_state.limit_caret_pos(buf, caret);
                     return Ok(None);
                 }
-                b'\'' => { // Horizontal Line Position Absolute
+                '\'' => { // Horizontal Line Position Absolute
                     self.ans_code = false;
-                    let num = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0] - 1
-                    } else {
-                        0
+                    let num = match self.parsed_numbers.get(0) { 
+                        Some(n) => n - 1,
+                        _ => 0
                     };
-                    if let Some(line) = buf.layers[0].lines.get(caret.pos.y as usize) {
-                        caret.pos.x = min(line.get_line_length() as i32 + 1, max(0, num));
-                        buf.terminal_state.limit_caret_pos(buf, caret);
+                    if let Some(layer) = &buf.layers.get(0) {
+                        if let Some(line) = layer.lines.get(caret.pos.y as usize) {
+                            caret.pos.x = min(line.get_line_length() as i32 + 1, max(0, num));
+                            buf.terminal_state.limit_caret_pos(buf, caret);
+                        }
+                    } else {
+                        return Err(Box::new(ParserError::InvalidBuffer));
                     }
                     return Ok(None);
                 }
-                b'a' => { // Horizontal Line Position Relative
+                'a' => { // Horizontal Line Position Relative
                     self.ans_code = false;
-                    let num = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0]
-                    } else {
-                        1
+                    let num = match self.parsed_numbers.get(0) { 
+                        Some(n) => *n,
+                        _ => 1
                     };
-                    if let Some(line) = buf.layers[0].lines.get(caret.pos.y as usize) {
-                        caret.pos.x = min(line.get_line_length() as i32 + 1, caret.pos.x + num);
-                        buf.terminal_state.limit_caret_pos(buf, caret);
+                    if let Some(layer) = &buf.layers.get(0) {
+                        if let Some(line) = layer.lines.get(caret.pos.y as usize) {
+                            caret.pos.x = min(line.get_line_length() as i32 + 1, caret.pos.x + num);
+                            buf.terminal_state.limit_caret_pos(buf, caret);
+                        }
+                    } else {
+                        return Err(Box::new(ParserError::InvalidBuffer));
                     }
+
                     return Ok(None);
                 }
                 
-                b'G' => { // Cursor Horizontal Absolute
+                'G' => { // Cursor Horizontal Absolute
                     self.ans_code = false;
-                    let num = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0] - 1
-                    } else {
-                        0
+                    let num = match self.parsed_numbers.get(0) { 
+                        Some(n) => n - 1,
+                        _ => 0
                     };
                     caret.pos.x = num;
                     buf.terminal_state.limit_caret_pos(buf, caret);
                     return Ok(None);
                 }
-                b'E' => { // Cursor Next Line
+                'E' => { // Cursor Next Line
                     self.ans_code = false;
-                    let num  = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0]
-                    } else {
-                        1
+                    let num  = match self.parsed_numbers.get(0) { 
+                        Some(n) => *n,
+                        _ => 1
                     };
                     caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                     caret.pos.x = 0;
                     buf.terminal_state.limit_caret_pos(buf, caret);
                     return Ok(None);
                 }
-                b'F' => { // Cursor Previous Line
+                'F' => { // Cursor Previous Line
                     self.ans_code = false;
-                    let num  = if !self.parsed_numbers.is_empty() {
-                        self.parsed_numbers[0]
-                    } else {
-                        1
+                    let num  = match self.parsed_numbers.get(0) { 
+                        Some(n) => *n,
+                        _ => 1
                     };
                     caret.pos.y = buf.get_first_visible_line() + caret.pos.y - num;
                     caret.pos.x = 0;
@@ -349,13 +348,13 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                         
-                b'n' => { // Device Status Report 
+                'n' => { // Device Status Report 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("empty number")));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
                     if self.parsed_numbers.len() != 1 {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("too many 'n' params in ANSI escape sequence: {}", self.parsed_numbers.len())));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
                     match self.parsed_numbers[0] {
                         5 => { // Device status report
@@ -366,7 +365,7 @@ impl BufferParser for AnsiParser {
                             return Ok(Some(s));
                         },
                         _ => {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ANSI n sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
                 }
@@ -379,69 +378,76 @@ impl BufferParser for AnsiParser {
                     Delete Column 	  CSI Pn ' ~
 */
 
-                b'M' => { // Delete Line
+                'M' => { // Delete Line
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
-                        if caret.pos.y  < buf.layers[0].lines.len() as i32 {
-                            buf.remove_terminal_line(caret.pos.y);
-                        }
-                    } else {
-                        if self.parsed_numbers.len() != 1 {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid parameters sequence {}", self.parsed_numbers[0])));
-                        }
-                        if let Some(number) = self.parsed_numbers.get(0) {
-                            for _ in 0..*number {
-                                if caret.pos.y >= buf.layers[0].lines.len() as i32 {
-                                    break;
-                                }
+                        if let Some(layer) = buf.layers.get(0) {
+                            if caret.pos.y  < layer.lines.len() as i32 {
                                 buf.remove_terminal_line(caret.pos.y);
                             }
                         } else {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid number in sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::InvalidBuffer));
+                        }
+                    } else {
+                        if self.parsed_numbers.len() != 1 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        }
+                        if let Some(number) =self.parsed_numbers.get(0) {
+                            let mut number = *number;
+                            if let Some(layer) = buf.layers.get(0) {
+                                number = min(number, layer.lines.len() as i32 - caret.pos.y);
+                            } else {
+                                return Err(Box::new(ParserError::InvalidBuffer));
+                            }
+                            for _ in 0..number {
+                                buf.remove_terminal_line(caret.pos.y);
+                            }
+                        } else {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
                     return Ok(None);
                 }
                 
-                b'P' => { // Delete character
+                'P' => { // Delete character
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         caret.del(buf);
                     } else {
                         if self.parsed_numbers.len() != 1 {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid parameters sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                         if let Some(number) = self.parsed_numbers.get(0) {
                             for _ in 0..*number {
                                 caret.del(buf);
                             }
                         } else {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid number in sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
                     return Ok(None);
                 }
 
-                b'L' => { // Insert line 
+                'L' => { // Insert line 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         buf.insert_terminal_line(caret.pos.y);
                     } else {
                         if self.parsed_numbers.len() != 1 {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid parameters sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                         if let Some(number) = self.parsed_numbers.get(0) {
                             for _ in 0..*number {
                                 buf.insert_terminal_line(caret.pos.y);
                             }
                         } else {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid number in sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
                     return Ok(None);
                 }
                 
-                b'J' => { // Erase in Display 
+                'J' => { // Erase in Display 
                     self.ans_code = false;
                     if self.parsed_numbers.is_empty() {
                         buf.clear_buffer_down(caret.pos.y);
@@ -461,22 +467,22 @@ impl BufferParser for AnsiParser {
                                 } 
                                 _ => {
                                     buf.clear_buffer_down(caret.pos.y);
-                                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ANSI J sequence {} in {}", self.parsed_numbers[0], self.current_sequence)));
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                                 }
                             }
                         } else {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid number in sequence {}", self.parsed_numbers[0])));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
                     return Ok(None);
                 }
                 
-                b'?' => { // read custom command
+                '?' => { // read custom command
                     self.in_custom_command = true;
                     return Ok(None);
                 }
 
-                b'K' => { // Erase in line
+                'K' => { // Erase in line
                     self.ans_code = false;
                     if self.parsed_numbers.len() > 0 {
                         match self.parsed_numbers[0] {
@@ -490,7 +496,7 @@ impl BufferParser for AnsiParser {
                                 buf.clear_line(caret.pos.y);
                             },
                             _ => {
-                                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown ANSI K sequence {}", self.parsed_numbers[0])));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                             }
                         }
                     } else {
@@ -499,15 +505,15 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 
-                b'c' => { // device attributes
+                'c' => { // device attributes
                     self.ans_code = false;
                     return Ok(Some("\x1b[?1;0c".to_string()));
                 }
 
-                b'r' => { // Set Top and Bottom Margins
+                'r' => { // Set Top and Bottom Margins
                     self.ans_code = false;
                     if self.parsed_numbers.len() != 2 {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid set top and bottom margin sequence {}", self.current_sequence)));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
                     let start = self.parsed_numbers[0] - 1;
                     let end = self.parsed_numbers[1] - 1;
@@ -521,68 +527,68 @@ impl BufferParser for AnsiParser {
                     buf.terminal_state.margins  = Some((start, end));
                     return Ok(None);
                 }
-                b'h' => {
+                'h' => {
                     self.ans_code = false;
                     if self.parsed_numbers.len() != 1 {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid h sequence {}", self.current_sequence)));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
-                    match self.parsed_numbers[0] {
-                        4 => { caret.insert_mode = true; }
-                        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown h sequence {}", self.current_sequence)))
+                    match self.parsed_numbers.get(0) {
+                        Some(4) => { caret.insert_mode = true; }
+                        _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
                     }
                     return Ok(None);
                 }
 
-                b'l' => {
+                'l' => {
                     self.ans_code = false;
                     if self.parsed_numbers.len() != 1 {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid l sequence {}", self.current_sequence)));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
-                    match self.parsed_numbers[0] {
-                        4 => { caret.insert_mode = false; }
-                        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown l sequence {}", self.current_sequence)))
+                    match self.parsed_numbers.get(0)  {
+                        Some(4) => { caret.insert_mode = false; }
+                        _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
                     }
                     return Ok(None);
                 }
-                b'~' => {
+                '~' => {
                     self.ans_code = false;
                     if self.parsed_numbers.len() != 1 {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid ~ sequence {}", self.current_sequence)));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
-                    match self.parsed_numbers[0] {
-                        1 => { caret.pos.x = 0; } // home
-                        2 => { caret.ins(buf); } // home
-                        3 => { caret.del(buf); }
-                        4 => { caret.eol(buf); }
-                        5 => {} // pg up 
-                        6 => {} // pg dn
-                        _ => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unknown l sequence {}", self.current_sequence)))
+                    match self.parsed_numbers.get(0) {
+                        Some(1) => { caret.pos.x = 0; } // home
+                        Some(2) => { caret.ins(buf); } // home
+                        Some(3) => { caret.del(buf); }
+                        Some(4) => { caret.eol(buf); }
+                        Some(5) => {} // pg up 
+                        Some(6) => {} // pg dn
+                        _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
                     }
                     return Ok(None);
                 }
 
                 _ => {
-                    if (0x40..=0x7E).contains(&ch) {
+                    if ('\x40'..='\x7E').contains(&ch) {
                         // unknown control sequence, terminate reading
                         self.ans_code = false;
                         self.got_escape = false;
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unknown control sequence {}/char:{:?} in {}", ch, char::from_u32(ch as u32), self.current_sequence)));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
     
-                    if (b'0'..=b'9').contains(&ch) {
-                        if self.parsed_numbers.is_empty() {
-                            self.parsed_numbers.push(0);
-                        }
-                        let d = self.parsed_numbers.pop().unwrap();
-                        self.parsed_numbers.push(d * 10 + (ch - b'0') as i32);
-                    } else if ch == b';' {
+                    if ('0'..='9').contains(&ch) {
+                        let d = match self.parsed_numbers.pop() {
+                            Some(number) => number,
+                            _ => 0
+                        };
+                        self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    } else if ch == ';' {
                         self.parsed_numbers.push(0);
                         return Ok(None);
                     } else {
                         self.ans_code = false;
                         self.got_escape = false;
                         // error in control sequence, terminate reading
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("error in ANSI control sequence: {}, {}!", self.current_sequence, ch)));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
                     return Ok(None);
                 }

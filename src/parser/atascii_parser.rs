@@ -1,5 +1,4 @@
-use std::io;
-use crate::{Buffer, Caret};
+use crate::{Buffer, Caret, EngineResult};
 use super::BufferParser;
 
 pub struct AtasciiParser {
@@ -17,23 +16,21 @@ impl AtasciiParser {
 impl BufferParser for AtasciiParser {
     fn from_unicode(&self, ch: char) -> char
     {
-        if let Some(tch) = UNICODE_TO_ATARI.get(&ch) {
-            *tch
-        } else {
-            ch 
+        match UNICODE_TO_ATARI.get(&ch) {
+            Some(out_ch) => *out_ch,
+            _ => ch
         }
     }
 
     fn to_unicode(&self, ch: char) -> char
     {
-        if (ch as usize) < ATARI_TO_UNICODE.len() {
-            ATARI_TO_UNICODE[ch as usize]
-        } else {
-            ch
+        match ATARI_TO_UNICODE.get(ch as usize) {
+            Some(out_ch) => *out_ch,
+            _ => ch
         }
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
 
         if self.got_escape {
             self.got_escape = false;
@@ -42,22 +39,22 @@ impl BufferParser for AtasciiParser {
         }
 
         match ch {
-            0x1C => caret.up(buf, 1),
-            0x1D => caret.down(buf, 1),
-            0x1E => caret.left(buf, 1),
-            0x1F => caret.right(buf, 1),
-            0x7D => buf.clear_screen(caret),
-            0x7E => caret.bs(buf),
-            0x7F => { /* TAB TODO */ },
-            0x9B => caret.lf(buf),
-            0x9C => buf.remove_terminal_line(caret.pos.y),
-            0x9D => buf.insert_terminal_line(caret.pos.y),
-            0x9E => { /* clear TAB stops TODO */ },
-            0x9F => { /* set TAB stops TODO */ },
-            0xFD => { /* Buzzer TODO */ },
-            0xFE => caret.del(buf),
-            0xFF => caret.ins(buf),
-            0x1B => {
+            '\x1C' => caret.up(buf, 1),
+            '\x1D' => caret.down(buf, 1),
+            '\x1E' => caret.left(buf, 1),
+            '\x1F' => caret.right(buf, 1),
+            '\x7D' => buf.clear_screen(caret),
+            '\x7E' => caret.bs(buf),
+            '\x7F' => { /* TAB TODO */ },
+            '\u{009B}' => caret.lf(buf),
+            '\u{009C}' => buf.remove_terminal_line(caret.pos.y),
+            '\u{009D}' => buf.insert_terminal_line(caret.pos.y),
+            '\u{009E}' => { /* clear TAB stops TODO */ },
+            '\u{009F}' => { /* set TAB stops TODO */ },
+            '\u{00FD}' => { /* Buzzer TODO */ },
+            '\u{00FE}' => caret.del(buf),
+            '\u{00FF}' => caret.ins(buf),
+            '\x1B' => {
                 self.got_escape = true;
             }
             _ => buf.print_value(caret, ch as u16)
@@ -70,7 +67,9 @@ lazy_static::lazy_static!{
     static ref UNICODE_TO_ATARI: std::collections::HashMap<char, char> = {
         let mut res = std::collections::HashMap::new();
         for a in 0..128 { 
-            res.insert(ATARI_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
+            if let Some(ch) = char::from_u32(a as u32) {
+                res.insert(ATARI_TO_UNICODE[a], ch);
+            }
         }
         res
     };

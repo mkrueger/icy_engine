@@ -1,5 +1,5 @@
-use std::{io, cmp::{max, min}};
-use crate::{Buffer, Caret, AsciiParser, AnsiParser, TextAttribute};
+use std::{ cmp::{max, min}};
+use crate::{Buffer, Caret, AsciiParser, AnsiParser, TextAttribute, EngineResult, ParserError};
 use super::BufferParser;
 
 enum AvtReadState {
@@ -11,12 +11,12 @@ enum AvtReadState {
 }
 
 /// Starts Avatar command
-const AVT_CMD: u8 = 22;
+const AVT_CMD: char = '\x16';
 /// clear the current window and set current attribute to default.
-const AVT_CLR: u8 = 12;
+const AVT_CLR: char = '\x0C';
 ///  Read two bytes from the modem. Send the first one to the screen as many times as the binary value
 ///  of the second one. This is the exception where the two bytes may have their high bit set. Do not reset it here!
-const AVT_REP: u8 = 25;
+const AVT_REP: char = '\x19';
 
 pub struct AvatarParser {
     ascii_parser: AsciiParser,
@@ -26,7 +26,7 @@ pub struct AvatarParser {
 
     avt_state: AvtReadState,
     avatar_state: i32,
-    avt_repeat_char: u8
+    avt_repeat_char: char
 }
 
 impl AvatarParser {
@@ -38,11 +38,11 @@ impl AvatarParser {
 
             avatar_state: 0,
             avt_state: AvtReadState::Chars,
-            avt_repeat_char: 0
+            avt_repeat_char: ' '
         }
     }
 
-    fn print_fallback(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    fn print_fallback(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
         if self.use_ansi_parser {
             self.ansi_parser.print_char(buf, caret, ch)
         } else {
@@ -62,7 +62,7 @@ impl BufferParser for AvatarParser {
         self.ascii_parser.to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> io::Result<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
         match self.avt_state {
             AvtReadState::Chars => {
                 match ch {
@@ -79,7 +79,7 @@ impl BufferParser for AvatarParser {
                 return Ok(None);
             }
             AvtReadState::ReadCommand => {
-                match ch {
+                match ch as u16 {
                     1 => {
                         self.avt_state = AvtReadState::ReadColor;
                         return Ok(None);
@@ -101,7 +101,7 @@ impl BufferParser for AvatarParser {
                         caret.pos.x = min(79, caret.pos.x + 1);
                     }           
                     7 => {
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, "todo: avt cleareol."));
+                        return Err(Box::new(ParserError::Description("todo: avt cleareol")));
                     } 
                     8 =>  {
                         self.avt_state = AvtReadState::MoveCursor;
@@ -111,7 +111,7 @@ impl BufferParser for AvatarParser {
                     // TODO implement commands from FSC0025.txt & FSC0037.txt
                     _ => {
                         self.avt_state = AvtReadState::Chars;
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("unsupported avatar command 0x{:02X}", ch)));
+                        return Err(Box::new(ParserError::Description("unsupported avatar command")));
                     }
                 }
                 self.avt_state = AvtReadState::Chars;
@@ -126,7 +126,7 @@ impl BufferParser for AvatarParser {
                     }
                     2 => {
                         self.avatar_state = 3;
-                        let repeat_count = ch;
+                        let repeat_count = ch as usize;
                         for _ in 0..repeat_count {
                             self.ascii_parser.print_char(buf, caret, self.avt_repeat_char)?;
                         }
@@ -135,12 +135,12 @@ impl BufferParser for AvatarParser {
                     }
                     _ => { 
                         self.avt_state = AvtReadState::Chars;
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, "error in reading avt state"));
+                        return Err(Box::new(ParserError::Description("error in reading avt state")));
                     }
                 }
             }
             AvtReadState::ReadColor => {
-                caret.attr = TextAttribute::from_u8(ch, buf.buffer_type);
+                caret.attr = TextAttribute::from_u8(ch as u8, buf.buffer_type);
                 self.avt_state = AvtReadState::Chars;
                 return Ok(None);
             }
@@ -159,7 +159,7 @@ impl BufferParser for AvatarParser {
                         return Ok(None);
                     }
                     _ => { 
-                        return Err(io::Error::new(io::ErrorKind::InvalidData, "error in reading avt avt_gotoxy"));
+                        return Err(Box::new(ParserError::Description("error in reading avt avt_gotoxy")));
                     }
                 }
             }

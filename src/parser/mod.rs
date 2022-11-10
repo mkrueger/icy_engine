@@ -1,5 +1,5 @@
-use std::{io, cmp::{max}};
-use crate::Line;
+use std::{ cmp::{max}};
+use crate::{Line, EngineResult};
 
 use super::{Buffer, Caret, Position, AttributedChar};
 mod ascii_parser;
@@ -14,17 +14,18 @@ mod pcboard_parser;
 pub use pcboard_parser::*;
 mod atascii_parser;
 pub use atascii_parser::*;
+mod parser_errors;
+pub use parser_errors::*;
 
 #[cfg(test)]
 mod tests;
 
 pub trait BufferParser {
-
     fn from_unicode(&self, ch: char) -> char;
     fn to_unicode(&self, ch: char) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
-    fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: u8) -> io::Result<Option<String>>;
+    fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: char) -> EngineResult<Option<String>>;
 }
 
 impl Caret {
