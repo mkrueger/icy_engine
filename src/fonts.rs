@@ -124,6 +124,7 @@ impl BitFont {
     pub fn from_name(font_name: &str) -> Option<Self>
     {
         if let Some(data) = get_font_data(font_name) {
+            println!("switched font to {}", font_name);
             Some(BitFont {
                 name: SauceString::from(font_name), 
                 size: len_to_size(data.len()),

@@ -5,8 +5,10 @@ pub enum ParserError {
     InvalidChar(char),
     InvalidBuffer,
     UnsupportedEscapeSequence(String),
+    UnsupportedCustomCommand(i32),
     Description(&'static str),
-    UnsupportedControlCode(u32)
+    UnsupportedControlCode(u32),
+    UnsupportedFont(i32)
 }
 
 impl std::fmt::Display for ParserError {
@@ -16,6 +18,8 @@ impl std::fmt::Display for ParserError {
             ParserError::UnsupportedEscapeSequence(seq) => write!(f, "unsupported escape sequence {}", seq),
             ParserError::Description(str) => write!(f, "{}", str),
             ParserError::UnsupportedControlCode(code) => write!(f, "unsupported control code {}", *code),
+            ParserError::UnsupportedCustomCommand(code) => write!(f, "unsupported custom ansi command: {}", *code),
+            ParserError::UnsupportedFont(code) => write!(f, "font {} not supported", *code),
             ParserError::InvalidBuffer => write!(f, "output buffer is invalid"),
         }
     }

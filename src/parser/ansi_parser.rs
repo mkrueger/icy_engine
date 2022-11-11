@@ -2,7 +2,7 @@
 
 use std::{cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError};
+use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont};
 
 use super::{BufferParser, AsciiParser};
 
@@ -10,6 +10,8 @@ pub struct AnsiParser {
     ascii_parser: AsciiParser,
     got_escape: bool,
     ans_code: bool,
+    font_select_start: bool,
+
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
     parsed_numbers: Vec<i32>,
@@ -22,11 +24,61 @@ const ANSI_ESC: char = '\x1B';
 
 const COLOR_OFFSETS : [u8; 8] = [ 0, 4, 2, 6, 1, 5, 3, 7 ];
 
+// TODO: Get missing fonts https://github.com/lattera/freebsd/tree/master/share/syscons/fonts
+pub static ANSI_FONT_NAMES: [&str;43] = [
+    "IBM VGA", // Codepage 437 English
+    "IBM VGA 855", // Codepage 1251 Cyrillic
+    "IBM VGA 866", // Maybe wrong: Russian koi8-r
+    "IBM VGA 850", // ISO-8859-2 Central European
+    "IBM VGA 775", // ISO-8859-4 Baltic wide
+    "IBM VGA 866", // Codepage 866 (c) Russian
+    "IBM VGA 857", // ISO-8859-9 Turkish
+    "IBM VGA", // Unsupported:  haik8 codepage
+    "IBM VGA 862", // ISO-8859-8 Hebrew
+    "IBM VGA", // Unsupported: Ukrainian font koi8-u
+    "IBM VGA", // Unsupported: ISO-8859-15 West European, (thin)
+    "IBM VGA", // Unsupported: ISO-8859-4 Baltic (VGA 9bit mapped)
+    "IBM VGA", // Unsupported: Russian koi8-r (b)
+    "IBM VGA", // Unsupported: ISO-8859-4 Baltic wide
+    "IBM VGA", // Unsupported: ISO-8859-5 Cyrillic
+    "IBM VGA", // Unsupported: ARMSCII-8 Character set
+    "IBM VGA", // Unsupported: ISO-8859-15 West European
+    "IBM VGA 850", // Codepage 850 Multilingual Latin I, (thin)
+    "IBM VGA 850", // Codepage 850 Multilingual Latin I
+    "IBM VGA", // Unsupported: Codepage 885 Norwegian, (thin)
+    "IBM VGA", // Unsupported: Codepage 1251 Cyrillic
+    "IBM VGA", // Unsupported: ISO-8859-7 Greek
+    "IBM VGA", // Unsupported: Russian koi8-r (c)
+    "IBM VGA", // Unsupported: ISO-8859-4 Baltic
+    "IBM VGA", // Unsupported: ISO-8859-1 West European
+    "IBM VGA 866", // Codepage 866 Russian
+    "IBM VGA", // Unsupported: Codepage 437 English, (thin)
+    "IBM VGA", // Unsupported: Codepage 866 (b) Russian
+    "IBM VGA", // Unsupported: Codepage 885 Norwegian
+    "IBM VGA", // Unsupported: Ukrainian font cp866u
+    "IBM VGA", // Unsupported: ISO-8859-1 West European, (thin)
+    "IBM VGA", // Unsupported: Codepage 1131 Belarusian, (swiss)
+    "C64 PETSCII shifted", // Commodore 64 (UPPER)
+    "C64 PETSCII unshifted", // Commodore 64 (Lower)
+    "C64 PETSCII shifted", // Commodore 128 (UPPER)
+    "C64 PETSCII unshifted", // Commodore 128 (Lower)
+    "Atari ATASCII", // Atari
+    "Amiga P0T-NOoDLE", // P0T NOoDLE (Amiga)
+    "Amiga mOsOul", // mO'sOul (Amiga)
+    "Amiga MicroKnight+", // MicroKnight Plus (Amiga)
+    "Amiga Topaz 1+", // Topaz Plus (Amiga)
+    "Amiga MicroKnight", // MicroKnight (Amiga)
+    "Amiga Topaz 1", // Topaz (Amiga)
+];
+
+
 impl AnsiParser {
     pub fn new() -> Self {
         AnsiParser {
             ascii_parser: AsciiParser::new(),
             ans_code: false,
+            font_select_start: false,
+
             got_escape: false,
             saved_pos: Position::default(),
             parsed_numbers: Vec::new(),
@@ -34,6 +86,12 @@ impl AnsiParser {
             saved_cursor_opt: None,
             in_custom_command: false
         }
+    }
+    
+    fn end_sequence(&mut self)
+    {
+        self.ans_code = false;
+        self.font_select_start= false;
     }
 
     fn start_sequence(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
@@ -108,7 +166,7 @@ impl BufferParser for AnsiParser {
 
             if self.in_custom_command && !(ch >= '0' && ch <= '9') {
                 self.in_custom_command  = false; 
-                self.ans_code = false;
+                self.end_sequence();
                 self.got_escape = false;
                 match ch {
                     'p' => { // [!p Soft Teminal Reset
@@ -139,9 +197,10 @@ impl BufferParser for AnsiParser {
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
                             Some(25) => caret.is_visible = true,
-                            _ => { 
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            Some(cmd) => { 
+                                return Err(Box::new(ParserError::UnsupportedCustomCommand(*cmd)));
                             }
+                            None => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
                         } 
                     }
                     _ => {
@@ -153,7 +212,7 @@ impl BufferParser for AnsiParser {
             }
             match ch {
                 'm' => { // Select Graphic Rendition 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.len() == 0 {
                         caret.attr = TextAttribute::default(); // Reset or normal 
                     } 
@@ -161,8 +220,8 @@ impl BufferParser for AnsiParser {
                         match n {
                             0 => caret.attr = TextAttribute::default(), // Reset or normal 
                             1 => caret.attr.set_is_bold(true),
-                            2 => caret.attr.set_is_faint(true),
-                            3 => caret.attr.set_is_italic(true),
+                            2 => { caret.attr.set_is_faint(true); println!("set faint!")},  
+                            3 => { caret.attr.set_is_italic(true); println!("set italic!")},  
                             4 => caret.attr.set_is_underlined(true), 
                             5 | 6 => caret.attr.set_is_blinking(true),
                             7 => {
@@ -170,7 +229,7 @@ impl BufferParser for AnsiParser {
                                 caret.attr.set_foreground(caret.attr.get_background());
                                 caret.attr.set_background(fg);
                             }
-                            8 => caret.attr.set_is_concealed(true),
+                            8 => { caret.attr.set_is_concealed(true); println!("set conceal!") },
                             9 => caret.attr.set_is_crossed_out(true),
                             10 => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
                             11..=19 => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
@@ -194,9 +253,9 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'H' | 'f' => { // Cursor Position + Horizontal Vertical Position ('f')
-                self.ans_code = false;
-                    if !self.parsed_numbers.is_empty() {
-                        if self.parsed_numbers[0] > 0 { 
+                self.end_sequence();
+                if !self.parsed_numbers.is_empty() {
+                    if self.parsed_numbers[0] > 0 { 
                             // always be in terminal mode for gotoxy
                             caret.pos.y =  buf.get_first_visible_line() + self.parsed_numbers[0] - 1;
                         }
@@ -214,7 +273,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'C' => { // Cursor Forward 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         caret.right(buf, 1);
                     } else {
@@ -223,7 +282,28 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'D' => { // Cursor Back 
-                    self.ans_code = false;
+                    if self.font_select_start {
+                        self.end_sequence();
+                        if self.parsed_numbers.len() != 2 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        }
+
+                        if let Some(nr) = self.parsed_numbers.get(1) {
+                            if *nr >= (ANSI_FONT_NAMES.len() as i32) {
+                                return Err(Box::new(ParserError::UnsupportedFont(*nr)));
+                            }
+                            if let Some(font) =BitFont::from_name(&ANSI_FONT_NAMES[*nr as usize]) {
+                                buf.font = font;
+                            } else {
+                                return Err(Box::new(ParserError::UnsupportedFont(*nr)));
+                            }
+                        }
+
+                        return Ok(None);
+                    }
+                    self.end_sequence();
+
+
                     if self.parsed_numbers.is_empty() {
                         caret.left(buf, 1);
                     } else {
@@ -232,7 +312,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'A' => { // Cursor Up 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         caret.up(buf, 1);
                     } else {
@@ -241,7 +321,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'B' => { // Cursor Down 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         caret.down(buf, 1);
                     } else {
@@ -250,18 +330,18 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 's' => { // Save Current Cursor Position
-                    self.ans_code = false;
+                    self.end_sequence();
                     self.saved_pos = caret.pos;
                     return Ok(None);
                 }
                 'u' => { // Restore Saved Cursor Position 
-                    self.ans_code = false;
+                    self.end_sequence();
                     caret.pos = self.saved_pos;
                     return Ok(None);
                 }
                 
                 'd' => { // Vertical Line Position Absolute
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num  = match self.parsed_numbers.get(0) { 
                         Some(n) => n - 1,
                         _ => 0
@@ -271,7 +351,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'e' => { // Vertical Line Position Relative
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num  = match self.parsed_numbers.get(0) { 
                         Some(n) => *n,
                         _ => 1
@@ -281,7 +361,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 '\'' => { // Horizontal Line Position Absolute
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num = match self.parsed_numbers.get(0) { 
                         Some(n) => n - 1,
                         _ => 0
@@ -297,7 +377,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'a' => { // Horizontal Line Position Relative
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num = match self.parsed_numbers.get(0) { 
                         Some(n) => *n,
                         _ => 1
@@ -315,7 +395,7 @@ impl BufferParser for AnsiParser {
                 }
                 
                 'G' => { // Cursor Horizontal Absolute
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num = match self.parsed_numbers.get(0) { 
                         Some(n) => n - 1,
                         _ => 0
@@ -325,7 +405,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'E' => { // Cursor Next Line
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num  = match self.parsed_numbers.get(0) { 
                         Some(n) => *n,
                         _ => 1
@@ -336,7 +416,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'F' => { // Cursor Previous Line
-                    self.ans_code = false;
+                    self.end_sequence();
                     let num  = match self.parsed_numbers.get(0) { 
                         Some(n) => *n,
                         _ => 1
@@ -348,7 +428,7 @@ impl BufferParser for AnsiParser {
                 }
                         
                 'n' => { // Device Status Report 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
@@ -378,7 +458,7 @@ impl BufferParser for AnsiParser {
 */
 
                 'M' => { // Delete Line
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         if let Some(layer) = buf.layers.get(0) {
                             if caret.pos.y  < layer.lines.len() as i32 {
@@ -409,7 +489,7 @@ impl BufferParser for AnsiParser {
                 }
                 
                 'P' => { // Delete character
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         caret.del(buf);
                     } else {
@@ -428,7 +508,7 @@ impl BufferParser for AnsiParser {
                 }
 
                 'L' => { // Insert line 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         buf.insert_terminal_line(caret.pos.y);
                     } else {
@@ -447,7 +527,7 @@ impl BufferParser for AnsiParser {
                 }
                 
                 'J' => { // Erase in Display 
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.is_empty() {
                         buf.clear_buffer_down(caret.pos.y);
                     } else {
@@ -482,7 +562,7 @@ impl BufferParser for AnsiParser {
                 }
 
                 'K' => { // Erase in line
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.len() > 0 {
                         match self.parsed_numbers[0] {
                             0 => { 
@@ -505,12 +585,12 @@ impl BufferParser for AnsiParser {
                 }
                 
                 'c' => { // device attributes
-                    self.ans_code = false;
+                    self.end_sequence();
                     return Ok(Some("\x1b[?1;0c".to_string()));
                 }
 
                 'r' => { // Set Top and Bottom Margins
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.len() != 2 {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
@@ -527,7 +607,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 'h' => {
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.len() != 1 {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
@@ -539,7 +619,7 @@ impl BufferParser for AnsiParser {
                 }
 
                 'l' => {
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.len() != 1 {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
@@ -550,7 +630,7 @@ impl BufferParser for AnsiParser {
                     return Ok(None);
                 }
                 '~' => {
-                    self.ans_code = false;
+                    self.end_sequence();
                     if self.parsed_numbers.len() != 1 {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
@@ -565,11 +645,14 @@ impl BufferParser for AnsiParser {
                     }
                     return Ok(None);
                 }
-
+                ' ' => {
+                    self.font_select_start = true;
+                    return Ok(None);
+                }
                 _ => {
                     if ('\x40'..='\x7E').contains(&ch) {
                         // unknown control sequence, terminate reading
-                        self.ans_code = false;
+                        self.end_sequence();
                         self.got_escape = false;
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
@@ -584,7 +667,7 @@ impl BufferParser for AnsiParser {
                         self.parsed_numbers.push(0);
                         return Ok(None);
                     } else {
-                        self.ans_code = false;
+                        self.end_sequence();
                         self.got_escape = false;
                         // error in control sequence, terminate reading
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
@@ -597,7 +680,7 @@ impl BufferParser for AnsiParser {
         if ch == ANSI_ESC {
             self.current_sequence.clear();
             self.current_sequence.push_str("<ESC>");
-            self.ans_code = false;
+            self.end_sequence();
             self.got_escape = true;
             return Ok(None)
         } 
