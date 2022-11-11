@@ -73,7 +73,7 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
         result.font = BitFont::create_8(SauceString::new(), 8, font_size, &bytes[o..(o+font_length)]);
         o += font_length;
         if extended_char_mode {
-            result.extended_font = Some(BitFont::create_8(SauceString::new(), 8, font_size, &bytes[o..(o+font_length)]));
+            result.extended_fonts.push(BitFont::create_8(SauceString::new(), 8, font_size, &bytes[o..(o+font_length)]));
             o += font_length;
         }
     }
@@ -235,7 +235,7 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     }
 
     result.push(buf.font.size.height as u8);
-    if !buf.font.is_default() || buf.extended_font.is_some() {
+    if !buf.font.is_default() || buf.extended_fonts.len() > 0 {
         flags |= FLAG_FONT;
     }
 
@@ -263,7 +263,7 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     if flags & FLAG_FONT == FLAG_FONT {
         buf.font.push_u8_data(&mut result);
         if flags & FLAG_512CHAR_MODE == FLAG_512CHAR_MODE {
-            if let Some(font) = &buf.extended_font {
+            if let Some(font) = &buf.extended_fonts.get(0) {
                 font.push_u8_data(&mut result);
             }
         }

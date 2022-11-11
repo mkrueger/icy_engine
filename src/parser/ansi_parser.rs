@@ -2,7 +2,7 @@
 
 use std::{cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont};
+use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar};
 
 use super::{BufferParser, AsciiParser};
 
@@ -12,6 +12,7 @@ pub struct AnsiParser {
     ans_code: bool,
     font_select_start: bool,
 
+    current_font_page: usize,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
     parsed_numbers: Vec<i32>,
@@ -79,6 +80,7 @@ impl AnsiParser {
             ans_code: false,
             font_select_start: false,
 
+            current_font_page: 0,
             got_escape: false,
             saved_pos: Position::default(),
             parsed_numbers: Vec::new(),
@@ -293,12 +295,22 @@ impl BufferParser for AnsiParser {
                                 return Err(Box::new(ParserError::UnsupportedFont(*nr)));
                             }
                             if let Some(font) =BitFont::from_name(&ANSI_FONT_NAMES[*nr as usize]) {
-                                buf.font = font;
+                                if buf.font.name == font.name {
+                                    self.current_font_page = 0;
+                                    return Ok(None);
+                                }
+                                for i in 0..buf.extended_fonts.len() {
+                                    if buf.extended_fonts[i].name == font.name {
+                                        self.current_font_page = i + 1;
+                                        return Ok(None);
+                                    }
+                                }
+                                buf.extended_fonts.push(font);
+                                self.current_font_page = buf.extended_fonts.len();
                             } else {
                                 return Err(Box::new(ParserError::UnsupportedFont(*nr)));
                             }
                         }
-
                         return Ok(None);
                     }
                     self.end_sequence();
@@ -685,6 +697,22 @@ impl BufferParser for AnsiParser {
             return Ok(None)
         } 
         
-        self.ascii_parser.print_char(buf, caret, ch) 
+        match ch {
+            '\x00' | '\u{00FF}' => {
+                caret.attr = TextAttribute::default();
+            }
+            LF => caret.lf(buf),
+            FF => caret.ff(buf),
+            CR => caret.cr(buf),
+            BS => caret.bs(buf),
+            '\x7F' => caret.del(buf),
+            _ => {
+                let mut ch = AttributedChar::from(char::from_u32(ch as u32).unwrap(), caret.attr);
+                ch.set_font_page(self.current_font_page);
+                buf.print_char(caret, ch);
+            }
+        }
+
+        Ok(None)
     }
 }

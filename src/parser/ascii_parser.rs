@@ -1,4 +1,4 @@
-use crate::{Buffer, Caret, TextAttribute, EngineResult};
+use crate::{Buffer, Caret, TextAttribute, EngineResult, LF, FF, CR, BS};
 use super::BufferParser;
 pub struct AsciiParser {
 }
@@ -8,11 +8,6 @@ impl AsciiParser {
         Self { }
     }
 }
-
-const LF: char = '\n';
-const CR: char = '\r';
-const BS: char = '\x08';
-const FF: char = '\x0C';
 
 impl BufferParser for AsciiParser {
     fn from_unicode(&self, ch: char) -> char

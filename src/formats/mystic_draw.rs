@@ -87,7 +87,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                 if font_num == 0 {
                     result.font = BitFont::from_name(&font_name.to_string()).unwrap_or_default();
                 } else {
-                    result.extended_font = Some(BitFont::from_name(&font_name.to_string()).unwrap_or_default());
+                    result.extended_fonts.push(BitFont::from_name(&font_name.to_string()).unwrap_or_default());
                 }
 
                 font_num += 1;
@@ -118,7 +118,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                 if font_num == 0 {
                     result.font = BitFont::create_32(font_name, width, height, &data);
                 } else {
-                    result.extended_font = Some(BitFont::create_32(font_name, width, height, &data));
+                    result.extended_fonts.push(BitFont::create_32(font_name, width, height, &data));
                 }
                 font_num += 1;
 
@@ -348,7 +348,7 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>>
 
     push_font(&mut result, &buf.font);
 
-    if let Some(ext_font) = &buf.extended_font {
+    if let Some(ext_font) = &buf.extended_fonts.get(0) {
         push_font(&mut result, ext_font);
     }
 
@@ -411,7 +411,7 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>>
                     } else {
                         while rle_count > 0 {
                             let ch = layer.get_char(Position { x: i % (width as i32) , y: i / (width as i32)}).unwrap();
-                            if buf.extended_font.is_some() {
+                            if buf.extended_fonts.len() > 0 {
                                 result.push(((ch.ch as u16) >> 8) as u8);
                             }
                             write_char(&mut result, ch.ch as u16, buf.buffer_type);

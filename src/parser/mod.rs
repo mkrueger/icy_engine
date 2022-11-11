@@ -20,6 +20,11 @@ pub use parser_errors::*;
 #[cfg(test)]
 mod tests;
 
+pub const LF: char = '\n';
+pub const CR: char = '\r';
+pub const BS: char = '\x08';
+pub const FF: char = '\x0C';
+
 pub trait BufferParser {
     fn from_unicode(&self, ch: char) -> char;
     fn to_unicode(&self, ch: char) -> char;

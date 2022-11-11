@@ -80,7 +80,7 @@ pub struct Buffer {
     pub overlay_layer: Option<Layer>,
 
     pub font: BitFont,
-    pub extended_font: Option<BitFont>,
+    pub extended_fonts: Vec<BitFont>,
     
     pub layers: Vec<Layer>,
 
@@ -110,7 +110,7 @@ impl Buffer {
             palette: Palette::new(),
 
             font: BitFont::default(),
-            extended_font: None,
+            extended_fonts: Vec::new(),
             overlay_layer: None,
             layers: vec!(Layer::new()),
             file_name_changed: Box::new(|| {}),
@@ -224,10 +224,10 @@ impl Buffer {
         std::mem::replace( &mut self.overlay_layer, None)
     }
 
-    pub fn get_font_scanline(&self, ext_font: bool, ch: char, y: usize) -> u32
+    pub fn get_font_scanline(&self, font_page: usize, ch: char, y: usize) -> u32
     {
-        if ext_font {
-            if let Some(ext) = &self.extended_font {
+        if font_page > 0 {
+            if let Some(ext) = &self.extended_fonts.get(font_page - 1) {
                 ext.get_scanline(ch, y)
             } else {
                 self.font.get_scanline(ch, y)
