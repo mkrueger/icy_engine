@@ -92,6 +92,11 @@ fn update_slow(prev: u32, buf: &[u8]) -> u32 {
     !crc
 }
 
+
+pub fn update_crc32(crc: u32, b: u8) -> u32 {
+    (crc >> 8) ^ CRC32_TABLE[0][(b ^ crc as u8) as usize]
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{crc::get_crc16};
