@@ -1,8 +1,16 @@
+use std::fmt::Display;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Color {
     r: u8,
     g: u8,
     b: u8
+}
+
+impl Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{Color: r={:02X}, g={:02X}, b{:02X}}}", self.r, self.g, self.b)
+    }
 }
 
 impl Color {
@@ -15,7 +23,6 @@ impl Color {
             self.g as f64 / 255_f64,
             self.b as f64 / 255_f64
         )
-
     }
     
     pub fn get_rgb_f32(self) -> (f32, f32, f32) {
@@ -175,6 +182,7 @@ impl Palette {
         Palette { colors: DOS_DEFAULT_PALETTE.to_vec() }
     }
 
+
     pub fn len(&self) -> u32 {
         self.colors.len() as u32
     }
@@ -198,7 +206,33 @@ impl Palette {
         true
     }
 
-    pub fn get_color(&mut self, r: u8, g: u8, b: u8) -> u8 {
+    pub fn set_color_rgb(&mut self, number: usize, r: u8, g: u8, b: u8) {
+        if self.colors.len() <= number {
+            self.colors.resize(number + 1, Color::default());
+        }
+        self.colors[number] = Color { r, g, b };
+    }
+
+    pub fn set_color_hsl(&mut self, number: usize, h: f32, s: f32, l: f32) {
+        if self.colors.len() <= number {
+            self.colors.resize(number + 1, Color::default());
+        }
+
+        let (r, g, b) = if l == 0.0 { 
+            (0, 0, 0)
+        } else if s == 0.0 {
+            let l = (l * 255.0) as u8;
+            (l, l, l)
+        } else {
+            let temp2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
+            let temp1 = 2.0 * l - temp2;
+            (convert_vector (temp2, temp1, h + 1.0 / 3.0), convert_vector (temp2, temp1, h), convert_vector (temp2, temp1, h - 1.0 / 3.0))
+        };
+
+        self.colors[number] = Color { r, g, b };
+    }
+
+    pub fn insert_color(&mut self, r: u8, g: u8, b: u8) -> u8 {
 
         for i in 0..self.colors.len() {
             let col = self.colors[i];
@@ -289,6 +323,25 @@ impl Palette {
         }
         res
     }
+}
+
+fn convert_vector(temp2: f32, temp1: f32, mut x: f32) -> u8
+{
+    if x < 0.0 {
+        x += 1.0;
+    }
+    if x > 1.0 {
+        x -= 1.0;
+    }
+    let v = if 6.0 * x < 1.0 {
+        temp1 + (temp2 - temp1) * x * 6.0
+    } else if 2.0 * x < 1.0 {
+        temp2
+    } else if 3.0 * x < 2.0 {
+        temp1 + (temp2 - temp1) * ((2.0 / 3.0) - x) * 6.0
+    } else { temp1 };
+
+    (v * 255.0) as u8
 }
 
 impl Default for Palette {

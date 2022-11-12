@@ -1,4 +1,4 @@
-use crate::Line;
+use crate::{Line, Sixel};
 
 use super::{AttributedChar, Position};
 
@@ -12,6 +12,8 @@ pub struct Layer {
 
     pub offset: Position,
     pub lines: Vec<Line>,
+
+    pub sixels: Vec<Sixel>
 }
 
 impl Layer {
@@ -23,6 +25,7 @@ impl Layer {
             is_position_locked: false,
             is_transparent: true,
             lines: Vec::new(),
+            sixels: Vec::new(),
             offset: Position::default(),
         }
     }

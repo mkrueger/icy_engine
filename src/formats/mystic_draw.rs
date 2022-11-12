@@ -143,11 +143,9 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                 let mut layer = Layer {
                     title,
                     is_visible: true,
-                    is_locked: false,
-                    is_position_locked: false,
                     is_transparent: false,
                     offset: Position::new(x, y),
-                    lines: Vec::new(),
+                    ..Default::default()
                 };
                 let mut i = 0;
                 if width > 0 {

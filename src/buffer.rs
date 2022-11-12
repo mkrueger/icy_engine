@@ -145,6 +145,7 @@ impl Buffer {
 
     pub fn clear(&mut self) {
         self.layers[0].clear();
+        self.layers[0].sixels.clear();
     }
     /// terminal buffers have a viewport on the bottom of the buffer
     /// this function gives back the first visible line.

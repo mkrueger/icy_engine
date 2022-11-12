@@ -29,8 +29,26 @@ pub struct TerminalState {
     pub origin_mode: OriginMode,
     pub scroll_state: TerminalScrolling,
     pub auto_wrap_mode: AutoWrapMode,
-    pub margins: Option<(i32, i32)>
+    pub margins: Option<(i32, i32)>,
+    pub mouse_mode: MouseMode
 }
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum MouseMode
+{
+    Default,
+    Highlight,
+    X10,
+    ButtonEvents,
+    AnyEvents,
+    FocusEvent,
+    AlternateScroll,
+    ExtendedMode,
+    SGRExtendedMode,
+    URXVTExtendedMode,
+    PixelPosition,
+}
+
 
 impl TerminalState {
     pub fn from(width: i32, height:i32) -> Self {
@@ -40,6 +58,7 @@ impl TerminalState {
             scroll_state: TerminalScrolling::Smooth,
             origin_mode: OriginMode::UpperLeftCorner,
             auto_wrap_mode: AutoWrapMode::AutoWrap, 
+            mouse_mode: MouseMode::Default,
             margins: None
         }
     }

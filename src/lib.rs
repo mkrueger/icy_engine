@@ -50,6 +50,9 @@ pub use crc::*;
 mod terminal_state;
 pub use terminal_state::*;
 
+mod sixel;
+pub use sixel::*;
+
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Copy, Clone, Debug, Default)]

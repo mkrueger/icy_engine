@@ -8,7 +8,14 @@ pub enum ParserError {
     UnsupportedCustomCommand(i32),
     Description(&'static str),
     UnsupportedControlCode(u32),
-    UnsupportedFont(i32)
+    UnsupportedFont(i32),
+    UnexpectedSixelEnd(char),
+    InvalidColorInSixelSequence,
+    NumberMissingInSixelRepeat,
+    InvalidSixelChar(char),
+    UnsupportedSixelColorformat(i32),
+    ErrorInSixelEngine(&'static str),
+    InvalidPictureSize
 }
 
 impl std::fmt::Display for ParserError {
@@ -20,7 +27,14 @@ impl std::fmt::Display for ParserError {
             ParserError::UnsupportedControlCode(code) => write!(f, "unsupported control code {}", *code),
             ParserError::UnsupportedCustomCommand(code) => write!(f, "unsupported custom ansi command: {}", *code),
             ParserError::UnsupportedFont(code) => write!(f, "font {} not supported", *code),
+            ParserError::UnexpectedSixelEnd(ch) => write!(f, "sixel sequence ended with <esc>{} expected '\\'", ch),
             ParserError::InvalidBuffer => write!(f, "output buffer is invalid"),
+            ParserError::InvalidColorInSixelSequence => write!(f, "invalid color in sixel sequence"),
+            ParserError::NumberMissingInSixelRepeat => write!(f, "sixel repeat sequence is missing number"),
+            ParserError::InvalidSixelChar(ch) => write!(f, "{} invalid in sixel data", ch),
+            ParserError::UnsupportedSixelColorformat(i) => write!(f, "{} invalid color format in sixel data", i),
+            ParserError::ErrorInSixelEngine(err) => write!(f, "sixel engine error: {}", err),
+            ParserError::InvalidPictureSize => write!(f, "invalid sixel picture size description"),
         }
     }
 }
