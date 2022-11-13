@@ -2,7 +2,7 @@
 
 use std::{cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel};
+use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus};
 
 use super::{BufferParser, AsciiParser};
 
@@ -92,7 +92,6 @@ pub static ANSI_FONT_NAMES: [&str;43] = [
     "Amiga Topaz 1", // Topaz (Amiga)
 ];
 
-
 impl AnsiParser {
     pub fn new() -> Self {
         AnsiParser {
@@ -162,10 +161,14 @@ impl AnsiParser {
 
     fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
         if ch < '?'  {
+            if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+                sixel.read_status = SixelReadStatus::Error;
+            }
             return Err(Box::new(ParserError::InvalidSixelChar(ch)));
         }
         let mask = ch as u8 - b'?';
         if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+            sixel.len += 1;
             let fg_color = Some(self.current_sixel_palette.colors[(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()]);
             let offset = self.sixel_cursor.x as usize;
             if sixel.picture.len() <= offset {
@@ -173,7 +176,6 @@ impl AnsiParser {
             }
 
             if let Some(cur_line) = sixel.picture.get_mut(offset) { 
-
                 let line_offset = self.sixel_cursor.y as usize * 6;
                 if cur_line.len() < line_offset + 6 {
                     cur_line.resize(line_offset + 6, None);
@@ -186,10 +188,12 @@ impl AnsiParser {
                 }
             } else {
                 self.state = AnsiState::Default;
+                sixel.read_status = SixelReadStatus::Error;
                 return Err(Box::new(ParserError::ErrorInSixelEngine("current line out of bounds")));
             }
 
             self.sixel_cursor.x += 1;
+            sixel.read_status = SixelReadStatus::Position(self.sixel_cursor.x, self.sixel_cursor.y);
         }
         Ok(())
     }
@@ -280,6 +284,9 @@ impl BufferParser for AnsiParser {
                         } else {
                             self.state = AnsiState::Default;
                             self.current_sequence.push(ch);
+                            if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+                                sixel.read_status = SixelReadStatus::Error;
+                            }
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
@@ -288,6 +295,9 @@ impl BufferParser for AnsiParser {
             AnsiState::ReadSixel(state) => {
                 match state {
                     SixelState::EndSequence => {
+                        if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+                            sixel.read_status = SixelReadStatus::Finished;
+                        }
                         if ch == '\\' {
                             self.state = AnsiState::Default;
                         } else {
@@ -328,7 +338,12 @@ impl BufferParser for AnsiParser {
                                             self.parsed_numbers[3] as f32 / 100.0,
                                         );
                                     }
-                                    n => return Err(Box::new(ParserError::UnsupportedSixelColorformat(n)))
+                                    n => {
+                                        if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+                                            sixel.read_status = SixelReadStatus::Error;
+                                        }
+                                        return Err(Box::new(ParserError::UnsupportedSixelColorformat(n)));
+                                    }
                                 }
                             }
                             self.read_sixel_data(buf, ch)?;
@@ -346,6 +361,9 @@ impl BufferParser for AnsiParser {
                         } else {
                             if self.parsed_numbers.len() != 4 {
                                 self.state = AnsiState::ReadSixel(SixelState::Read);
+                                if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+                                    sixel.read_status = SixelReadStatus::Error;
+                                }
                                 return Err(Box::new(ParserError::InvalidPictureSize));
                             }
                             if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
@@ -381,6 +399,9 @@ impl BufferParser for AnsiParser {
                                 }
                             } else {
                                 self.state = AnsiState::Default;
+                                if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
+                                    sixel.read_status = SixelReadStatus::Error;
+                                }
                                 return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
                             }
                             self.state = AnsiState::ReadSixel(SixelState::Read);
