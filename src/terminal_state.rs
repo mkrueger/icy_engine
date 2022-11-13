@@ -30,7 +30,8 @@ pub struct TerminalState {
     pub scroll_state: TerminalScrolling,
     pub auto_wrap_mode: AutoWrapMode,
     pub margins: Option<(i32, i32)>,
-    pub mouse_mode: MouseMode
+    pub mouse_mode: MouseMode,
+    use_ice: bool
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -49,7 +50,6 @@ pub enum MouseMode
     PixelPosition,
 }
 
-
 impl TerminalState {
     pub fn from(width: i32, height:i32) -> Self {
         Self {
@@ -59,7 +59,8 @@ impl TerminalState {
             origin_mode: OriginMode::UpperLeftCorner,
             auto_wrap_mode: AutoWrapMode::AutoWrap, 
             mouse_mode: MouseMode::Default,
-            margins: None
+            margins: None,
+            use_ice: false
         }
     }
 
@@ -68,6 +69,13 @@ impl TerminalState {
         self.origin_mode = OriginMode::UpperLeftCorner;
         self.scroll_state = TerminalScrolling::Smooth;
         self.auto_wrap_mode = AutoWrapMode::AutoWrap;
+    }
+
+    pub fn use_ice_colors(&self) -> bool {
+        self.use_ice
+    }
+    pub fn set_use_ice_colors(&mut self, use_ice: bool) {
+        self.use_ice = use_ice;
     }
 
     pub fn limit_caret_pos(&self, buf: &Buffer, caret: &mut Caret) {

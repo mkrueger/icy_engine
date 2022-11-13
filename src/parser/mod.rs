@@ -1,4 +1,4 @@
-use std::{ cmp::{max}};
+use std::{ cmp::{max, min}};
 use crate::{Line, EngineResult};
 
 use super::{Buffer, Caret, Position, AttributedChar};
@@ -89,9 +89,24 @@ impl Caret {
 
     pub fn ins(&mut self, buf: &mut Buffer) {
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
-            let i = self.pos.x as usize ;
+            let i = self.pos.x as usize;
             if i < line.chars.len(){ 
                 line.chars.insert(i, Some(AttributedChar::from(' ', self.attr)));
+            }
+        }
+    }
+
+    pub fn erase_charcter(&mut self, buf: &mut Buffer, number: i32) {
+        
+        let mut i = self.pos.x as usize;
+        let number = min(buf.get_buffer_width() - i as i32, number);
+        if number <= 0 {
+            return;
+        }
+        if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
+            for _ in 0..number  {
+                line.set_char(i as i32, Some(AttributedChar::from(' ', self.attr)));
+                i += 1;
             }
         }
     }

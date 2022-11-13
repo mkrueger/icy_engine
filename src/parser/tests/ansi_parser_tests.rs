@@ -452,7 +452,7 @@ fn test_reverse_index_line() {
     let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"test\x1BM\x1BM\x1BM");
     assert_eq!(Position::new(4, 0) , caret.get_position());
     let ch = buf.get_char(Position::new(0, 3)).unwrap_or_default();
-    assert_eq!(b't', ch.ch as u8);
+    assert_eq!('t', ch.ch);
 }
 
 #[test]
@@ -460,5 +460,23 @@ fn test_next_line() {
     let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[25;1Htest\x1BE\x1BE\x1BE");
     assert_eq!(Position::new(0, 24) , caret.get_position());
     let ch = buf.get_char(Position::new(0, 24 - 3)).unwrap_or_default();
-    assert_eq!(b't', ch.ch as u8);
+    assert_eq!('t', ch.ch);
+}
+
+#[test]
+fn test_insert_character() {
+    let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"foo\x1B[1;1H\x1B[5@");
+    assert_eq!(Position::new(0, 0), caret.get_position());
+    let ch = buf.get_char(Position::new(5, 0)).unwrap_or_default();
+    assert_eq!('f', ch.ch);
+}
+
+#[test]
+fn test_erase_character() {
+    let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"foobar\x1B[1;1H\x1B[3X");
+    assert_eq!(Position::new(0, 0), caret.get_position());
+    assert_eq!(' ', buf.get_char(Position::new(0, 0)).unwrap().ch);
+    assert_eq!(' ', buf.get_char(Position::new(1, 0)).unwrap().ch);
+    assert_eq!(' ', buf.get_char(Position::new(2, 0)).unwrap().ch);
+    assert_eq!('b', buf.get_char(Position::new(3, 0)).unwrap().ch);
 }
