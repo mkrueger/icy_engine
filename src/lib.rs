@@ -84,3 +84,12 @@ pub struct Rectangle
     pub start: Position,
     pub size: Size<i32>
 }
+
+impl Rectangle {
+    pub fn lower_right(&self) -> Position {
+        Position { x: self.start.x + self.size.width, y: self.start.y + self.size.height }
+    }
+    pub fn contains(&self, other: Rectangle) -> bool {
+        self.start <= other.start && self.lower_right() <= other.lower_right()
+    }
+}

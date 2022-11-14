@@ -1,6 +1,6 @@
-use crate::{Color, Position};
+use crate::{Color, Position, Rectangle, Size};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SixelReadStatus {
     NotStarted,
     Finished,
@@ -34,6 +34,10 @@ impl Sixel {
             read_status: Default::default(),
             len: 0
         }
+    }
+
+    pub fn get_rect(&self) -> Rectangle {
+        Rectangle { start: self.position, size: Size::from(self.width() as i32, self.height() as i32) }
     }
 
     pub fn width(&self) -> u32 {

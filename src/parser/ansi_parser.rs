@@ -160,41 +160,32 @@ impl AnsiParser {
     }
 
     fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
+        let sixel = &mut buf.layers[0].sixels[self.current_sixel];
         if ch < '?'  {
-            if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                sixel.read_status = SixelReadStatus::Error;
-            }
+            sixel.read_status = SixelReadStatus::Error;
             return Err(Box::new(ParserError::InvalidSixelChar(ch)));
         }
         let mask = ch as u8 - b'?';
-        if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-            sixel.len += 1;
-            let fg_color = Some(self.current_sixel_palette.colors[(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()]);
-            let offset = self.sixel_cursor.x as usize;
-            if sixel.picture.len() <= offset {
-                sixel.picture.resize(offset + 1, Vec::new());
-            }
 
-            if let Some(cur_line) = sixel.picture.get_mut(offset) { 
-                let line_offset = self.sixel_cursor.y as usize * 6;
-                if cur_line.len() < line_offset + 6 {
-                    cur_line.resize(line_offset + 6, None);
-                }
-                
-                for i in 0..6 {
-                    if mask & (1 << i) != 0 {  
-                        cur_line[line_offset + i] = fg_color;
-                    }
-                }
-            } else {
-                self.state = AnsiState::Default;
-                sixel.read_status = SixelReadStatus::Error;
-                return Err(Box::new(ParserError::ErrorInSixelEngine("current line out of bounds")));
-            }
-
-            self.sixel_cursor.x += 1;
-            sixel.read_status = SixelReadStatus::Position(self.sixel_cursor.x, self.sixel_cursor.y);
+        sixel.len += 1;
+        let fg_color = Some(self.current_sixel_palette.colors[(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()]);
+        let offset = self.sixel_cursor.x as usize;
+        if sixel.picture.len() <= offset {
+            sixel.picture.resize(offset + 1, Vec::new());
         }
+        let cur_line = &mut sixel.picture[offset];
+        let line_offset = self.sixel_cursor.y as usize * 6;
+        if cur_line.len() < line_offset + 6 {
+            cur_line.resize(line_offset + 6, None);
+        }
+        
+        for i in 0..6 {
+            if mask & (1 << i) != 0 {  
+                cur_line[line_offset + i] = fg_color;
+            }
+        }
+        self.sixel_cursor.x += 1;
+        sixel.read_status = SixelReadStatus::Position(self.sixel_cursor.x, self.sixel_cursor.y);
         Ok(())
     }
 
@@ -284,9 +275,7 @@ impl BufferParser for AnsiParser {
                         } else {
                             self.state = AnsiState::Default;
                             self.current_sequence.push(ch);
-                            if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                                sixel.read_status = SixelReadStatus::Error;
-                            }
+                            buf.layers[0].sixels[self.current_sixel].read_status = SixelReadStatus::Error;
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                         }
                     }
@@ -295,9 +284,24 @@ impl BufferParser for AnsiParser {
             AnsiState::ReadSixel(state) => {
                 match state {
                     SixelState::EndSequence => {
-                        if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                            sixel.read_status = SixelReadStatus::Finished;
+                        let layer = &mut buf.layers[0];
+                        let sixel = &mut layer.sixels[self.current_sixel];
+                        sixel.read_status = SixelReadStatus::Finished;
+
+                        // remove sixels that are shadowed by that
+                        let cur_rect = sixel.get_rect();
+                        let mut i = layer.sixels.len() - 1;
+                        loop {
+                            let other_rect = layer.sixels[i].get_rect();
+                            if cur_rect.contains(other_rect) {
+                                layer.sixels.remove(i);
+                            }
+                            if i == 0 {
+                                break;
+                            }
+                            i -= 1;
                         }
+                        
                         if ch == '\\' {
                             self.state = AnsiState::Default;
                         } else {
@@ -339,9 +343,8 @@ impl BufferParser for AnsiParser {
                                         );
                                     }
                                     n => {
-                                        if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                                            sixel.read_status = SixelReadStatus::Error;
-                                        }
+                                        let sixel = &mut buf.layers[0].sixels[self.current_sixel];
+                                        sixel.read_status = SixelReadStatus::Error;
                                         return Err(Box::new(ParserError::UnsupportedSixelColorformat(n)));
                                     }
                                 }
@@ -359,25 +362,22 @@ impl BufferParser for AnsiParser {
                         } else if ch == ';' {
                             self.parsed_numbers.push(0);
                         } else {
+                            let sixel = &mut buf.layers[0].sixels[self.current_sixel];
                             if self.parsed_numbers.len() != 4 {
                                 self.state = AnsiState::ReadSixel(SixelState::Read);
-                                if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                                    sixel.read_status = SixelReadStatus::Error;
-                                }
+                                sixel.read_status = SixelReadStatus::Error;
                                 return Err(Box::new(ParserError::InvalidPictureSize));
                             }
-                            if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                                unsafe {
-                                    let width = *self.parsed_numbers.get_unchecked(2);
-                                    let height = *self.parsed_numbers.get_unchecked(3);
+                            unsafe {
+                                let width = *self.parsed_numbers.get_unchecked(2);
+                                let height = *self.parsed_numbers.get_unchecked(3);
 
-                                    if (sixel.picture.len() as i32) < width {
-                                        sixel.picture.resize(width as usize, Vec::new())
-                                    }
-                                    for row in &mut sixel.picture {
-                                        if (row.len() as i32) < height {
-                                            row.resize(height as usize, None);
-                                        }
+                                if (sixel.picture.len() as i32) < width {
+                                    sixel.picture.resize(width as usize, Vec::new())
+                                }
+                                for row in &mut sixel.picture {
+                                    if (row.len() as i32) < height {
+                                        row.resize(height as usize, None);
                                     }
                                 }
                             }
@@ -399,9 +399,8 @@ impl BufferParser for AnsiParser {
                                 }
                             } else {
                                 self.state = AnsiState::Default;
-                                if let Some(sixel) = buf.layers[0].sixels.get_mut(self.current_sixel) {
-                                    sixel.read_status = SixelReadStatus::Error;
-                                }
+                                let sixel = &mut buf.layers[0].sixels[self.current_sixel];
+                                sixel.read_status = SixelReadStatus::Error;
                                 return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
                             }
                             self.state = AnsiState::ReadSixel(SixelState::Read);
