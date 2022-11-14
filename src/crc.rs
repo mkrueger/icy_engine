@@ -62,7 +62,7 @@ pub fn get_crc16_buggy(buf: &[u8], zcrc: u8) -> u16 {
 pub fn get_crc32(buf: &[u8]) -> u32 {
     let mut crc = 0xFFFFFFFF;
     let mut buf = buf;
-    while buf.len() >= 8 {
+    while buf.len() >= 16 {
         crc = CRC32_TABLE[0x0][buf[0xf] as usize]
             ^ CRC32_TABLE[0x1][buf[0xe] as usize]
             ^ CRC32_TABLE[0x2][buf[0xd] as usize]
