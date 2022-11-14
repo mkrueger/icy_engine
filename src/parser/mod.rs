@@ -75,7 +75,7 @@ impl Caret {
     /// (backspace, BS, \b, ^H), may overprint the previous character
     pub fn bs(&mut self, buf: &mut Buffer) {
         self.pos.x = max(0, self.pos.x - 1);
-        buf.set_char(0, self.pos, Some(AttributedChar::from(' ', self.attr)));
+        buf.set_char(0, self.pos, Some(AttributedChar::new(' ', self.attr)));
     }
 
     pub fn del(&mut self, buf: &mut Buffer) {
@@ -91,7 +91,7 @@ impl Caret {
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
             let i = self.pos.x as usize;
             if i < line.chars.len(){ 
-                line.chars.insert(i, Some(AttributedChar::from(' ', self.attr)));
+                line.chars.insert(i, Some(AttributedChar::new(' ', self.attr)));
             }
         }
     }
@@ -105,7 +105,7 @@ impl Caret {
         }
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
             for _ in 0..number  {
-                line.set_char(i as i32, Some(AttributedChar::from(' ', self.attr)));
+                line.set_char(i as i32, Some(AttributedChar::new(' ', self.attr)));
                 i += 1;
             }
         }
@@ -180,7 +180,7 @@ impl Caret {
 impl Buffer {
     fn print_value(&mut self, caret: &mut Caret, ch: u16)
     {
-        let ch = AttributedChar::from(char::from_u32(ch as u32).unwrap(), caret.attr);
+        let ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
         self.print_char(caret, ch);
     }
 
@@ -191,7 +191,7 @@ impl Buffer {
             if layer.lines.len() < caret.pos.y as usize + 1 {
                 layer.lines.resize(caret.pos.y as usize + 1, Line::new());
             }
-            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(AttributedChar::new()));
+            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(AttributedChar::default()));
         }
         if caret.pos.x >= self.get_buffer_width() as i32 {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
@@ -253,7 +253,7 @@ impl Buffer {
     fn clear_buffer_down(&mut self, y: i32) {
         for y in y..self.get_last_visible_line() as i32 {
             for x in 0..self.get_buffer_width() as i32 {
-                self.set_char(0, Position::new(x, y), Some(AttributedChar::new()));
+                self.set_char(0, Position::new(x, y), Some(AttributedChar::default()));
             }
         }
     }
@@ -261,26 +261,26 @@ impl Buffer {
     fn clear_buffer_up(&mut self, y: i32) {
         for y in self.get_first_visible_line()..y {
             for x in 0..self.get_buffer_width() as i32 {
-                self.set_char(0, Position::new(x, y), Some(AttributedChar::new()));
+                self.set_char(0, Position::new(x, y), Some(AttributedChar::default()));
             }
         }
     }
 
     fn clear_line(&mut self, y: i32) {
         for x in 0..self.get_buffer_width() as i32 {
-            self.set_char(0, Position::new(x, y), Some(AttributedChar::new()));
+            self.set_char(0, Position::new(x, y), Some(AttributedChar::default()));
         }
     }
 
     fn clear_line_end(&mut self, pos: &Position) {
         for x in pos.x..self.get_buffer_width() as i32 {
-            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::new()));
+            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::default()));
         }
     }
 
     fn clear_line_start(&mut self, pos: &Position) {
         for x in 0..pos.x {
-            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::new()));
+            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::default()));
         }
     }
 

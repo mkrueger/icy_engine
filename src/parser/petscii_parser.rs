@@ -197,7 +197,7 @@ impl BufferParser for PETSCIIParser {
                         return Err(Box::new(ParserError::UnsupportedControlCode(ch as u32)));
                     }
                 };
-                let mut ch = AttributedChar::from(char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(), caret.attr);
+                let mut ch = AttributedChar::new(char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(), caret.attr);
                 ch.set_font_page(if self.shift_mode { 1 } else { 0 });
                 buf.print_char(caret, ch);
             }

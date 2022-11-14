@@ -80,7 +80,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             }
             cmd = ch;
         }
-        result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(cmd as u32).unwrap(), attr)));
+        result.set_char(0, pos, Some(AttributedChar::new(char::from_u32(cmd as u32).unwrap(), attr)));
         advance_pos(result, &mut pos);
     }
     result.set_height_for_pos(pos);
@@ -93,7 +93,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
     for _ in 0..result.get_buffer_height() {
         let mut line = crate::Line::new();
-        line.chars.resize(result.get_buffer_width() as usize, Some(AttributedChar::new()));
+        line.chars.resize(result.get_buffer_width() as usize, Some(AttributedChar::default()));
         background.lines.push(line);
     }
 

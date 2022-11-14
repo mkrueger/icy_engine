@@ -288,19 +288,22 @@ impl BufferParser for AnsiParser {
                         let sixel = &mut layer.sixels[self.current_sixel];
                         sixel.read_status = SixelReadStatus::Finished;
 
-                        // remove sixels that are shadowed by that
-                        let cur_rect = sixel.get_rect();
-                        let mut i = layer.sixels.len() - 1;
-                        loop {
-                            let other_rect = layer.sixels[i].get_rect();
-                            if cur_rect.contains(other_rect) {
-                                layer.sixels.remove(i);
+                        // remove sixels that are shadowed by the new one 
+                        /*if self.current_sixel > 0 {
+                            let cur_rect = sixel.get_rect();
+                            let mut i = self.current_sixel - 1;
+                            loop {
+                                let other_rect = layer.sixels[i].get_rect();
+                                if cur_rect.contains(other_rect) {
+                                    layer.sixels.remove(i);
+                                    println!("remove sixel! {} {:?}", layer.sixels.len(), layer.sixels[0].read_status);
+                                }
+                                if i == 0 {
+                                    break;
+                                }
+                                i -= 1;
                             }
-                            if i == 0 {
-                                break;
-                            }
-                            i -= 1;
-                        }
+                        }*/
                         
                         if ch == '\\' {
                             self.state = AnsiState::Default;
@@ -945,7 +948,7 @@ impl BufferParser for AnsiParser {
                     BS => caret.bs(buf),
                     '\x7F' => caret.del(buf),
                     _ => {
-                        let mut ch = AttributedChar::from(char::from_u32(ch as u32).unwrap(), caret.attr);
+                        let mut ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
                         ch.set_font_page(self.current_font_page);
                         buf.print_char(caret, ch);
                     }
@@ -961,7 +964,10 @@ impl BufferParser for AnsiParser {
 impl AnsiParser {
     fn read_sixel_data(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
         match ch {
-            ANSI_ESC => self.state = AnsiState::ReadSixel(SixelState::EndSequence),
+            ANSI_ESC => {
+                self.state = AnsiState::ReadSixel(SixelState::EndSequence)
+            },
+
             '#' =>  {
                 self.parsed_numbers.clear();
                 self.state = AnsiState::ReadSixel(SixelState::ReadColor);

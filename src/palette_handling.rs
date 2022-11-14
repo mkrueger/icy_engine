@@ -33,6 +33,7 @@ impl Color {
         )
     }
     
+    #[inline(always)] 
     pub fn get_rgb(self) -> (u8, u8, u8) {
         (self.r, self.g, self.b)
     }

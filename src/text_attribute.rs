@@ -84,27 +84,31 @@ impl TextAttribute
         fg | bg << 4
     }
 
-
+    #[inline(always)] 
     pub fn get_foreground(self) -> u8
     {
         self.foreground_color
     }
 
+    #[inline(always)] 
     pub fn set_foreground(&mut self, color: u8) 
     {
         self.foreground_color = color;
     }
 
+    #[inline(always)] 
     pub fn get_background(self) -> u8
     {
         self.background_color
     }
 
+    #[inline(always)] 
     pub fn set_background(&mut self, color: u8) 
     {
         self.background_color = color;
     }
 
+    #[inline(always)] 
     pub fn is_bold(self) -> bool
     {
         (self.attr & attribute::BOLD) == attribute::BOLD
@@ -119,6 +123,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_faint(self) -> bool
     {
         (self.attr & attribute::FAINT) == attribute::FAINT
@@ -133,6 +138,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_italic(self) -> bool
     {
         (self.attr & attribute::ITALIC) == attribute::ITALIC
@@ -147,6 +153,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_blinking(self) -> bool
     {
         (self.attr & attribute::BLINK) == attribute::BLINK
@@ -161,6 +168,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_crossed_out(self) -> bool
     {
         (self.attr & attribute::CROSSED_OUT) == attribute::CROSSED_OUT
@@ -175,6 +183,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_underlined(self) -> bool
     {
         (self.attr & attribute::UNDERLINE) == attribute::UNDERLINE
@@ -189,6 +198,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_double_underlined(self) -> bool
     {
         (self.attr & attribute::DOUBLE_UNDERLINE) == attribute::DOUBLE_UNDERLINE
@@ -203,6 +213,7 @@ impl TextAttribute
         }
     }
 
+    #[inline(always)] 
     pub fn is_concealed(self) -> bool
     {
         (self.attr & attribute::CONCEAL) == attribute::CONCEAL

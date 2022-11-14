@@ -9,20 +9,16 @@ pub struct AttributedChar {
 
 impl Default for AttributedChar {
     fn default() -> Self {
-        AttributedChar::new()
-    }
-}
-
-impl AttributedChar {
-    pub fn new() -> Self {
         AttributedChar {
             ch: ' ',
             attribute: super::TextAttribute::default(),
             font_page: 0
         }
-    }   
-    
-    pub fn from(ch: char, attribute: TextAttribute) -> Self {
+    }
+}
+
+impl AttributedChar {
+    pub fn new(ch: char, attribute: TextAttribute) -> Self {
         AttributedChar {
             ch,
             attribute,
@@ -30,10 +26,12 @@ impl AttributedChar {
         }
     }
 
+    #[inline(always)] 
     pub fn is_transparent(self) -> bool {
         (self.ch == '\0' || self.ch == ' ') && self.attribute.get_background() == 0
     }
 
+    #[inline(always)] 
     pub fn get_font_page(&self) -> usize {
         self.font_page
     }

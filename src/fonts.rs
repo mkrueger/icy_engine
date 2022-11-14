@@ -14,7 +14,6 @@ pub struct BitFont {
     pub name: SauceString<22, 0>,
     pub size: Size<u8>,
     font_type: BitFontType,
-    data_32: Option<Vec<u32>>,
     data_8: Vec<u8>
 }
 
@@ -80,23 +79,7 @@ impl BitFont {
 
     pub fn push_u8_data(&self, vec: &mut Vec<u8>)
     {
-        if let Some(data_u32) = &self.data_32 {
-            let v: Vec<u8> = data_u32.iter().map(|x| *x as u8).collect();
-            vec.extend(v);
-        } else {
-            vec.extend(&self.data_8);
-        }
-    }
-
-    pub fn create_32(name: SauceString<22, 0>, width: u8, height: u8, data: &[u32]) -> Self
-    {
-        BitFont {
-            name, 
-            size: Size::from(width, height),
-            font_type: BitFontType::Custom,
-            data_32: Some(data.to_vec()),
-            data_8: Vec::new()
-        }
+        vec.extend(&self.data_8);
     }
 
     pub fn create_8(name: SauceString<22, 0>, width: u8, height: u8, data: &[u8]) -> Self
@@ -105,7 +88,6 @@ impl BitFont {
             name, 
             size: Size::from(width, height),
             font_type: BitFontType::Custom,
-            data_32: None,
             data_8: data.to_vec()
         }
     }
@@ -116,7 +98,6 @@ impl BitFont {
             name: SauceString::EMPTY, 
             size: Size::from(width, height),
             font_type: BitFontType::Custom,
-            data_32: None,
             data_8: data.to_vec()
         }
     }
@@ -129,7 +110,6 @@ impl BitFont {
                 name: SauceString::from(font_name), 
                 size: len_to_size(data.len()),
                 font_type: BitFontType::BuiltIn,
-                data_32: None,
                 data_8: data.to_vec()
             })
         } else {
@@ -170,14 +150,11 @@ impl BitFont {
         }*/
     }
 
-    pub fn get_scanline(&self, ch: char, y: usize) -> u32
+    pub fn get_scanline(&self, ch: char, y: usize) -> u8
     {
-        if let Some(data_32) = &self.data_32 {
-            data_32[ch as usize * self.size.height as usize + y]
-        } else {
-            self.data_8[ch as usize * self.size.height as usize + y] as u32
-        }
+        self.data_8[ch as usize * self.size.height as usize + y]
     }
+
     pub fn import(path: &Path) -> io::Result<String>
     {
         let file_name = path.file_name();

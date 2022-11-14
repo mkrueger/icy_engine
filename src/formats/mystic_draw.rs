@@ -116,12 +116,13 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                     }
                 }
                 if font_num == 0 {
-                    result.font = BitFont::create_32(font_name, width, height, &data);
+                    todo!();
+                   //  result.font = BitFont::create_32(font_name, width, height, &data);
                 } else {
-                    result.extended_fonts.push(BitFont::create_32(font_name, width, height, &data));
+                    todo!();
+//                    result.extended_fonts.push(BitFont::create_32(font_name, width, height, &data));
                 }
-                font_num += 1;
-
+                // font_num += 1;
             } 
             BLK_LAYER => {
                 let title_len = u16::from_be_bytes(bytes[o..(o + 2)].try_into().unwrap()) as usize;
@@ -167,7 +168,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                                 let char_code = read_char(bytes, &mut o, result.buffer_type.use_extended_font());
                                 let attribute = decode_attribute(bytes, &mut o, attr_mode, result.buffer_type);
                                 let pos = Position { x: i % (width as i32) , y: i / (width as i32)};
-                                layer.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
+                                layer.set_char(pos, Some(AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)));
                                 len -= 1;
                                 i += 1;
                             }
@@ -218,7 +219,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                     let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                     let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
                     let pos = Position { x: i % (width as i32), y: i / (width as i32)};
-                    result.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
+                    result.set_char(pos, Some(AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)));
                     i += 1;
                 }
             }
@@ -227,7 +228,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                 for _ in 0..repeat_counter {
                     let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
                     let pos = Position { x: i % (width as i32), y: i / (width as i32)};
-                    result.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
+                    result.set_char(pos, Some(AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)));
                     i += 1;
                 }
             }
@@ -236,7 +237,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                 for _ in 0..repeat_counter {
                     let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                     let pos = Position { x: i % (width as i32), y: i / (width as i32)};
-                    result.set_char(pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute)));
+                    result.set_char(pos, Some(AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)));
                     i += 1;
                 }
             }
@@ -244,7 +245,7 @@ fn decompress(result: &mut Layer, bytes: &[u8], o: &mut usize, mut i: i32, len: 
                 let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                 let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
                 
-                let rep_ch = Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), attribute));
+                let rep_ch = Some(AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute));
 
                 for _ in 0..repeat_counter {
                     let pos = Position { x: i % (width as i32) , y: i / (width as i32)};

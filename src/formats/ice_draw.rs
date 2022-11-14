@@ -61,7 +61,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             o += 1;
         }
         while rle_count > 0 {
-            result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(char_code as u32).unwrap(), TextAttribute::from_u8(attr, result.buffer_type))));
+            result.set_char(0, pos, Some(AttributedChar::new(char::from_u32(char_code as u32).unwrap(), TextAttribute::from_u8(attr, result.buffer_type))));
             advance_pos(x1, x2, &mut pos);
             rle_count -= 1;
         }

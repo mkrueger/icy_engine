@@ -18,7 +18,7 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
                 return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "invalid file - needs to be % 2 == 0"));
             }
 
-            result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
+            result.set_char(0, pos, Some(AttributedChar::new(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
             pos.x += 1;
             o += 2;
         }

@@ -44,7 +44,7 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
                 result.set_height_for_pos(pos);
                 return Ok(true);
             }
-            result.set_char(0, pos, Some(AttributedChar::from(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
+            result.set_char(0, pos, Some(AttributedChar::new(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
             pos.x += 1;
             o += 2;
         }

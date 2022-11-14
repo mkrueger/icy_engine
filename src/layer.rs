@@ -124,7 +124,7 @@ mod tests {
     fn test_get_char() {
         let mut layer = Layer::new();
         let mut line = Line::new();
-        line.set_char(10, Some(AttributedChar::from('a', TextAttribute::default())));
+        line.set_char(10, Some(AttributedChar::new('a', TextAttribute::default())));
 
         layer.insert_line(0, line);
 
@@ -140,7 +140,7 @@ mod tests {
         let mut layer = Layer::new();
         layer.is_transparent = false;
         let mut line = Line::new();
-        line.set_char(10, Some(AttributedChar::from('a', TextAttribute::default())));
+        line.set_char(10, Some(AttributedChar::new('a', TextAttribute::default())));
 
         layer.insert_line(0, line);
 
@@ -155,7 +155,7 @@ mod tests {
     fn test_insert_line() {
         let mut layer = Layer::new();
         let mut line = Line::new();
-        line.chars.push(Some(AttributedChar::from('a', TextAttribute::default())));
+        line.chars.push(Some(AttributedChar::new('a', TextAttribute::default())));
         layer.insert_line(10, line);
 
         assert_eq!('a', layer.lines[10].chars[0].unwrap().ch);
