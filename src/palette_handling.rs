@@ -437,6 +437,26 @@ pub const XTERM_256_PALETTE: [Color; 256] = [
     Color { r: 0xee, g: 0xee, b: 0xee },
 ];
 
+pub const VIEWDATA_PALETTE: [Color; 16] = [
+    Color { r: 0x00, g: 0x00, b: 0x00 }, // black
+    Color { r: 0xFF, g: 0x00, b: 0x00 }, // red
+    Color { r: 0x00, g: 0xFF, b: 0x00 }, // green
+    Color { r: 0xFF, g: 0xFF, b: 0x00 }, // yellow
+    Color { r: 0x00, g: 0x00, b: 0xFF }, // blue
+    Color { r: 0xFF, g: 0x00, b: 0xFF }, // magenta
+    Color { r: 0x00, g: 0xFF, b: 0xFF }, // cyan
+    Color { r: 0xFF, g: 0xFF, b: 0xFF }, // white
+
+    Color { r: 0x00, g: 0x00, b: 0x00 }, // black
+    Color { r: 0xFF, g: 0x00, b: 0x00 }, // red
+    Color { r: 0x00, g: 0xFF, b: 0x00 }, // green
+    Color { r: 0xFF, g: 0xFF, b: 0x00 }, // yellow
+    Color { r: 0x00, g: 0x00, b: 0xFF }, // blue
+    Color { r: 0xFF, g: 0x00, b: 0xFF }, // magenta
+    Color { r: 0x00, g: 0xFF, b: 0xFF }, // cyan
+    Color { r: 0xFF, g: 0xFF, b: 0xFF }, // white
+];
+
 impl Palette {
     pub fn new() -> Self {
         Palette { colors: DOS_DEFAULT_PALETTE.to_vec() }

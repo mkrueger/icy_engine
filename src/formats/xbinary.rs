@@ -261,10 +261,10 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     }
 
     if flags & FLAG_FONT == FLAG_FONT {
-        buf.font.push_u8_data(&mut result);
+        buf.font.convert_to_u8_data(&mut result);
         if flags & FLAG_512CHAR_MODE == FLAG_512CHAR_MODE {
             if let Some(font) = &buf.extended_fonts.get(0) {
-                font.push_u8_data(&mut result);
+                font.convert_to_u8_data(&mut result);
             }
         }
     }

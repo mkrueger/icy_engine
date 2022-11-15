@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, Position, SauceString, Color, BitFont, Layer, AttributedChar, TextAttribute, BitFontType, BufferType, crc};
+use crate::{Buffer, Position, SauceString, Color, BitFont, Layer, AttributedChar, TextAttribute, BitFontType, BufferType, crc, DEFAULT_FONT_NAME};
 const MDF_HEADER: &[u8] = b"MDf";
 const MDF_VERSION: u16 = 0;
 const ID_SIZE: usize = 4;
@@ -79,15 +79,17 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
             BLK_FONT_NAME => {
                 let mut font_name: SauceString<22, 0> = SauceString::new();
                 o += font_name.read(&bytes[o..]);
-                let font =  BitFont::from_name(&font_name.to_string());
-
-                if font.is_none() {
-                    eprintln!("Font {} can't be found. Falling back to default.", font_name);
-                }
+                let font = match BitFont::from_name(&font_name.to_string()) {
+                    Ok(font) => font,
+                    Err(err) => {
+                        eprintln!("Font {} can't be found ({}). Falling back to default.", font_name, err);
+                        BitFont::from_name(DEFAULT_FONT_NAME).unwrap()
+                    }       
+                };
                 if font_num == 0 {
-                    result.font = BitFont::from_name(&font_name.to_string()).unwrap_or_default();
+                    result.font = font;
                 } else {
-                    result.extended_fonts.push(BitFont::from_name(&font_name.to_string()).unwrap_or_default());
+                    result.extended_fonts.push(font);
                 }
 
                 font_num += 1;
@@ -443,7 +445,7 @@ fn push_font(result: &mut Vec<u8>, font: &BitFont) {
         result.push(font.size.width as u8);
         result.push(font.size.height as u8);
         result.push(0);
-        font.push_u8_data(result);
+        font.convert_to_u8_data(result);
     }
 }
 

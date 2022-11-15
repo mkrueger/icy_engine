@@ -72,7 +72,7 @@ where T: PartialEq {
 impl<T> Size<T> 
 where T: Default
 {
-    pub fn from(width: T, height: T) -> Self
+    pub fn new(width: T, height: T) -> Self
     {
         Size { width, height }
     }

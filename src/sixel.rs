@@ -37,7 +37,7 @@ impl Sixel {
     }
 
     pub fn get_rect(&self) -> Rectangle {
-        Rectangle { start: self.position, size: Size::from(self.width() as i32, self.height() as i32) }
+        Rectangle { start: self.position, size: Size::new(self.width() as i32, self.height() as i32) }
     }
 
     pub fn width(&self) -> u32 {

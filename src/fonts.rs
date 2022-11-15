@@ -1,4 +1,6 @@
-use std::{io::{self}, path::Path};
+use std::{io::{self}, path::Path, collections::{HashMap}, fmt::Display, error::Error};
+use crate::EngineResult;
+
 use super::{SauceString, Size};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -9,12 +11,34 @@ pub enum BitFontType {
 }
 
 #[derive(Debug, Clone)]
+pub struct Glyph {
+    pub data: Vec<u8>
+}
+
+impl Display for Glyph {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut s = String::new();
+        for b in &self.data {
+            for i in 0..8 {
+                if *b & (128 >> i) != 0 {
+                    s.push('#');
+                } else {
+                    s.push('-');
+                }
+            }
+            s.push('\n');
+        }
+        write!(f, "{}---", s)
+    }
+}
+
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct BitFont {
     pub name: SauceString<22, 0>,
     pub size: Size<u8>,
     font_type: BitFontType,
-    data_8: Vec<u8>
+    glyphs: HashMap<char, Glyph>
 }
 
 impl Default for BitFont {
@@ -77,43 +101,87 @@ impl BitFont {
         self.name.to_string() == DEFAULT_FONT_NAME || self.name.to_string() == ALT_DEFAULT_FONT_NAME 
     }
 
-    pub fn push_u8_data(&self, vec: &mut Vec<u8>)
+    pub fn set_glyphs_from_u8_data(&mut self, data: &[u8])
     {
-        vec.extend(&self.data_8);
+        for ch in 0..256 {
+            let o = ch as usize * self.size.height as usize;
+            let glyph = Glyph { data: data[o..(o + self.size.height as usize)].into() };
+            self.glyphs.insert(unsafe { char::from_u32_unchecked(ch) }, glyph);
+        }
+    }
+
+    pub fn convert_to_u8_data(&self, data: &mut [u8]) {
+        for ch in 0..256 {
+            if let Some(glyph) = self.get_glyph(unsafe { char::from_u32_unchecked(ch) }) {
+                let o = ch as usize * self.size.height as usize;
+                data[o..].copy_from_slice(&glyph.data);
+            }
+        }
+    }
+
+    pub fn get_glyph(&self, ch: char) -> Option<&Glyph>
+    {
+        self.glyphs.get(&ch)
     }
 
     pub fn create_8(name: SauceString<22, 0>, width: u8, height: u8, data: &[u8]) -> Self
     {
-        BitFont {
+        let mut r = BitFont {
             name, 
-            size: Size::from(width, height),
+            size: Size::new(width, height),
             font_type: BitFontType::Custom,
-            data_8: data.to_vec()
-        }
+            glyphs: HashMap::new()
+        };
+        r.set_glyphs_from_u8_data(data);
+
+        r
     }
+
 
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self
     {
-        BitFont {
+        let mut r = BitFont {
             name: SauceString::EMPTY, 
-            size: Size::from(width, height),
+            size: Size::new(width, height),
             font_type: BitFontType::Custom,
-            data_8: data.to_vec()
-        }
+            glyphs: HashMap::new()
+        };
+        r.set_glyphs_from_u8_data(data);
+        r
     }
 
-    pub fn from_name(font_name: &str) -> Option<Self>
+
+    pub fn from_name(font_name: &str) -> EngineResult<Self>
     {
         if let Some(data) = get_font_data(font_name) {
-            println!("switched font to {}", font_name);
-            Some(BitFont {
+            let magic = u32::from_le_bytes(data[0..4].try_into().unwrap());
+            if magic != 0x864ab572 {
+                return Err(Box::new(FontError::MagicNumberMismatch));
+            }
+            let version = u32::from_le_bytes(data[4..8].try_into().unwrap());
+            if version != 0 {
+                return Err(Box::new(FontError::UnsupportedVersion(version)));
+            }
+            let headersize = u32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
+            let flags = u32::from_le_bytes(data[12..16].try_into().unwrap());
+            let length = u32::from_le_bytes(data[16..20].try_into().unwrap()) as usize;
+            let charsize = u32::from_le_bytes(data[20..24].try_into().unwrap()) as usize;
+            if length * charsize + headersize != data.len() {
+                return Err(Box::new(FontError::LengthMismatch(data.len(), length * charsize + headersize)));
+            }
+            let height = u32::from_le_bytes(data[24..28].try_into().unwrap());
+            let width = u32::from_le_bytes(data[28..32].try_into().unwrap());
+
+            let mut r = BitFont {
                 name: SauceString::from(font_name), 
-                size: len_to_size(data.len()),
+                size: Size::new(width as u8, height as u8),
                 font_type: BitFontType::BuiltIn,
-                data_8: data.to_vec()
-            })
+                glyphs: HashMap::new()
+            };
+            r.set_glyphs_from_u8_data(&data[headersize..]);
+            Ok(r)
         } else {
-            None
+            return Err(Box::new(FontError::FontNotFound));
         }
         
         /* else {
@@ -150,11 +218,6 @@ impl BitFont {
         }*/
     }
 
-    pub fn get_scanline(&self, ch: char, y: usize) -> u8
-    {
-        self.data_8[ch as usize * self.size.height as usize + y]
-    }
-
     pub fn import(path: &Path) -> io::Result<String>
     {
         let file_name = path.file_name();
@@ -183,85 +246,86 @@ impl BitFont {
     }
 }
 
-const IBM_CP437_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP437.F08");
-const IBM_CP437_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP437.F14");
-const IBM_CP437_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP437.F16");
-const IBM_CP437_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP437.F19");
+const IBM_CP437_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf");
+const IBM_CP437_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
+const IBM_CP437_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
+const IBM_CP437_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA25G.psf");
+/*
+const IBM_CP737_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP737_8.psf");
+const IBM_CP737_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP737_14.psf");
+const IBM_CP737_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP737.psf");
 
-const IBM_CP737_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP737.F08");
-const IBM_CP737_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP737.F14");
-const IBM_CP737_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP737.F16");
+const IBM_CP775_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP775_8.psf");
+const IBM_CP775_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP775_14.psf");
+const IBM_CP775_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP775.psf");
 
-const IBM_CP775_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP775.F08");
-const IBM_CP775_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP775.F14");
-const IBM_CP775_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP775.F16");
+const IBM_CP850_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP850_8.psf");
+const IBM_CP850_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP850_14.psf");
+const IBM_CP850_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP850.psf");
+const IBM_CP850_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP850_19.psf");
 
-const IBM_CP850_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP850.F08");
-const IBM_CP850_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP850.F14");
-const IBM_CP850_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP850.F16");
-const IBM_CP850_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP850.F19");
+const IBM_CP852_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP852_8.psf");
+const IBM_CP852_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP852_14.psf");
+const IBM_CP852_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP852.psf");
+const IBM_CP852_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP852_19.psf");
 
-const IBM_CP852_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP852.F08");
-const IBM_CP852_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP852.F14");
-const IBM_CP852_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP852.F16");
-const IBM_CP852_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP852.F19");
+const IBM_CP855_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP855_8.psf");
+const IBM_CP855_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP855_14.psf");
+const IBM_CP855_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP855.psf");
 
-const IBM_CP855_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP855.F08");
-const IBM_CP855_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP855.F14");
-const IBM_CP855_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP855.F16");
+const IBM_CP857_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP857_8.psf");
+const IBM_CP857_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP857_14.psf");
+const IBM_CP857_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP857.psf");
 
-const IBM_CP857_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP857.F08");
-const IBM_CP857_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP857.F14");
-const IBM_CP857_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP857.F16");
+const IBM_CP860_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP860_8.psf");
+const IBM_CP860_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP860_14.psf");
+const IBM_CP860_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP860.psf");
+const IBM_CP860_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP860_19.psf");
 
-const IBM_CP860_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP860.F08");
-const IBM_CP860_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP860.F14");
-const IBM_CP860_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP860.F16");
-const IBM_CP860_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP860.F19");
+const IBM_CP861_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP861_8.psf");
+const IBM_CP861_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP861_14.psf");
+const IBM_CP861_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP861.psf");
+const IBM_CP861_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP861_19.psf");
 
-const IBM_CP861_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP861.F08");
-const IBM_CP861_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP861.F14");
-const IBM_CP861_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP861.F16");
-const IBM_CP861_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP861.F19");
+const IBM_CP862_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP862_8.psf");
+const IBM_CP862_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP862_14.psf");
+const IBM_CP862_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP862.psf");
 
-const IBM_CP862_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP862.F08");
-const IBM_CP862_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP862.F14");
-const IBM_CP862_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP862.F16");
+const IBM_CP863_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP863_8.psf");
+const IBM_CP863_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP863_14.psf");
+const IBM_CP863_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP863.psf");
+const IBM_CP863_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP863_19.psf");
 
-const IBM_CP863_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP863.F08");
-const IBM_CP863_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP863.F14");
-const IBM_CP863_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP863.F16");
-const IBM_CP863_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP863.F19");
+const IBM_CP864_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP864_8.psf");
+const IBM_CP864_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP864_14.psf");
+const IBM_CP864_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP864.psf");
 
-const IBM_CP864_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP864.F08");
-const IBM_CP864_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP864.F14");
-const IBM_CP864_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP864.F16");
+const IBM_CP865_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP865_8.psf");
+const IBM_CP865_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP865_14.psf");
+const IBM_CP865_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP865.psf");
+const IBM_CP865_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP865_19.psf");
 
-const IBM_CP865_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP865.F08");
-const IBM_CP865_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP865.F14");
-const IBM_CP865_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP865.F16");
-const IBM_CP865_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP865.F19");
+const IBM_CP866_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP866_8.psf");
+const IBM_CP866_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP866_14.psf");
+const IBM_CP866_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP866.psf");
 
-const IBM_CP866_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP866.F08");
-const IBM_CP866_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP866.F14");
-const IBM_CP866_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP866.F16");
+const IBM_CP869_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP869_8.psf");
+const IBM_CP869_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP869_14.psf");
+const IBM_CP869_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP869.psf");*/
 
-const IBM_CP869_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP869.F08");
-const IBM_CP869_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP869.F14");
-const IBM_CP869_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP869.F16");
+const AMIGA_TOPAZ_1 : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 1.psf");
+const AMIGA_TOPAZ_1P : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 1+.psf");
+const AMIGA_TOPAZ_2 : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 2.psf");
+const AMIGA_TOPAZ_2P : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 2+.psf");
+const AMIGA_P0T_NOODLE : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga P0T-NOoDLE.psf");
+const AMIGA_MICROKNIGHT : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga MicroKnight.psf");
+const AMIGA_MICROKNIGHTP : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga MicroKnight+.psf");
+const AMIGA_MOSOUL : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga mOsOul.psf");
 
-const AMIGA_TOPAZ_1 : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 1.F16");
-const AMIGA_TOPAZ_1P : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 1+.F16");
-const AMIGA_TOPAZ_2 : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 2.F16");
-const AMIGA_TOPAZ_2P : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 2+.F16");
-const AMIGA_P0T_NOODLE : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga P0T-NOoDLE.F16");
-const AMIGA_MICROKNIGHT : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga MicroKnight.F16");
-const AMIGA_MICROKNIGHTP : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga MicroKnight+.F16");
-const AMIGA_MOSOUL : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga mOsOul.F16");
-
-const C64_PETSCII_SHIFTED : &[u8] = include_bytes!("../data/fonts/C64/C64 PETSCII shifted.F08");
-const C64_PETSCII_UNSHIFTED : &[u8] = include_bytes!("../data/fonts/C64/C64 PETSCII unshifted.F08");
-const ATARI_ATASCII : &[u8] = include_bytes!("../data/fonts/Atari/Atari ATASCII.F08");
+const C64_PETSCII_SHIFTED : &[u8] = include_bytes!("../data/fonts/C64 PETSCII shifted.psf");
+const C64_PETSCII_UNSHIFTED : &[u8] = include_bytes!("../data/fonts/C64 PETSCII unshifted.psf");
+const ATARI_ATASCII : &[u8] = include_bytes!("../data/fonts/Atari ATASCII.psf");
+const VIEWDATA : &[u8] = include_bytes!("../data/fonts/saa5050.psf");
 
 pub const DEFAULT_FONT_NAME: &str = "IBM VGA";
 pub const ALT_DEFAULT_FONT_NAME: &str = "IBM VGA 437";
@@ -458,20 +522,9 @@ pub const SUPPORTED_FONTS: [&str;91] = [
     "Atari ATASCII",
 ];
 
-fn len_to_size(len: usize) -> Size<u8>
-{
-    // only some variants are supported.
-    match len / 256 {
-        8 => Size::from(8, 8),
-        14 => Size::from(8, 14),
-        16 => Size::from(8, 16),
-        19 => Size::from(8, 19),
-        _ => panic!("unknown font")
-    }
-}
 
 #[allow(clippy::match_same_arms)]
-fn get_font_data(font_name: &str) -> Option<&[u8]>
+pub fn get_font_data(font_name: &str) -> Option<&[u8]>
 {
     match font_name {
         "IBM VGA" | "IBM VGA 437" => Some(IBM_CP437_F16),
@@ -480,6 +533,7 @@ fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM EGA" | "IBM EGA 437" => Some(IBM_CP437_F14),
         "IBM EGA43" | "IBM EGA43 437"=> Some(IBM_CP437_F08),
 
+        /*
 /* 
         "IBM VGA 720" => Some(IBM_CP720_F16),
         "IBM VGA50 720" => Some(IBM_CP720_F08),
@@ -583,7 +637,7 @@ fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM EGA 869" => Some(IBM_CP869_F14),
         "IBM EGA43 869" => Some(IBM_CP869_F08),
 
-/*        "IBM VGA 872" => Some(IBM_CP872_F16),
+        "IBM VGA 872" => Some(IBM_CP872_F16),
         "IBM VGA50 872" => Some(IBM_CP872_F08),
         "IBM VGA25G 872" => Some(IBM_CP872_F19),
         "IBM EGA 872" => Some(IBM_CP872_F14),
@@ -599,13 +653,13 @@ fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM VGA50 MAZ" => Some(IBM_CP667_F08),
         "IBM VGA25G MAZ" => Some(IBM_CP667_F19),
         "IBM EGA MAZ" => Some(IBM_CP667_F14),
-        "IBM EGA43 MAZ" => Some(IBM_CP667_F08),*/
+        "IBM EGA43 MAZ" => Some(IBM_CP667_F08),
 
         "IBM VGA MIK" => Some(IBM_CP866_F16),
         "IBM VGA50 MIK" => Some(IBM_CP866_F08),
 //        "IBM VGA25G MIK" => Some(IBM_CP866_F19),
         "IBM EGA MIK" => Some(IBM_CP866_F14),
-        "IBM EGA43 MIK" => Some(IBM_CP866_F08),
+        "IBM EGA43 MIK" => Some(IBM_CP866_F08),*/
 
 /*         "IBM VGA 667" => Some(IBM_CP667_F16),
         "IBM VGA50 667" => Some(IBM_CP667_F08),
@@ -651,6 +705,40 @@ fn get_font_data(font_name: &str) -> Option<&[u8]>
         "C64 PETSCII shifted" => Some(C64_PETSCII_UNSHIFTED),
 
         "Atari ATASCII" => Some(ATARI_ATASCII),
+        "Viewdata" => Some(VIEWDATA),
         _ => None
+    }
+}
+
+
+#[derive(Debug, Clone)]
+pub enum FontError {
+    FontNotFound,
+    MagicNumberMismatch,
+    UnsupportedVersion(u32),
+    LengthMismatch(usize, usize)
+}
+impl std::fmt::Display for FontError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FontError::FontNotFound => write!(f, "font not found."),
+            FontError::MagicNumberMismatch => write!(f, "not a valid .psf file."),
+            FontError::UnsupportedVersion(ver) =>  write!(f, "version {} not supported", ver),
+            FontError::LengthMismatch(actual, calculated) =>  write!(f, "length should be {} was {}", calculated, actual),
+        }
+    }
+}
+
+impl Error for FontError {
+    fn description(&self) -> &str {
+        "use std::display"
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
     }
 }

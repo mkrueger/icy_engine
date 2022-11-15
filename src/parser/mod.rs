@@ -2,6 +2,10 @@ use std::{ cmp::{max, min}};
 use crate::{Line, EngineResult};
 
 use super::{Buffer, Caret, Position, AttributedChar};
+
+mod parser_errors;
+pub use parser_errors::*;
+
 mod ascii_parser;
 pub use ascii_parser::*;
 mod ansi_parser;
@@ -14,8 +18,8 @@ mod pcboard_parser;
 pub use pcboard_parser::*;
 mod atascii_parser;
 pub use atascii_parser::*;
-mod parser_errors;
-pub use parser_errors::*;
+mod viewdata_parser;
+pub use viewdata_parser::*;
 
 #[cfg(test)]
 mod tests;

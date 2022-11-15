@@ -3,23 +3,30 @@ use std::backtrace::Backtrace;
 use super::BufferType;
 
 mod attribute {
-    pub const NONE:u8      = 0;
-    pub const BOLD:u8      = 0b0000_0001;
-    pub const FAINT:u8     = 0b0000_0010;
-    pub const ITALIC:u8    = 0b0000_0100;
-    pub const BLINK:u8     = 0b0000_1000;
+    pub const NONE:u16      = 0;
+    pub const BOLD:u16      = 0b0000_0000_0000_0001;
+    pub const FAINT:u16     = 0b0000_0000_0000_0010;
+    pub const ITALIC:u16    = 0b0000_0000_0000_0100;
+    pub const BLINK:u16     = 0b0000_0000_0000_1000;
 
-    pub const UNDERLINE:u8        = 0b0001_0000; 
-    pub const DOUBLE_UNDERLINE:u8 = 0b0011_0000;
-    pub const CONCEAL:u8          = 0b0100_0000;
-    pub const CROSSED_OUT:u8      = 0b1000_0000;
+    pub const UNDERLINE:u16        = 0b0000_0000_0001_0000; 
+    pub const DOUBLE_UNDERLINE:u16 = 0b0000_0000_0011_0000;
+    pub const CONCEAL:u16          = 0b0000_0000_0100_0000;
+    pub const CROSSED_OUT:u16      = 0b0000_0000_1000_0000;
+    pub const DOUBLE_HEIGHT:u16    = 0b0000_0001_0000_0000;
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy)]
 pub struct TextAttribute {
     foreground_color: u32,
     background_color: u32,
-    attr: u8
+    attr: u16
+}
+
+impl std::fmt::Debug for TextAttribute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TextAttribute").field("foreground_color", &self.foreground_color).field("background_color", &self.background_color).field("attr", &format!("{:08b}", self.attr)).finish()
+    }
 }
 
 impl Default for TextAttribute {
@@ -107,7 +114,6 @@ impl TextAttribute
     #[inline(always)] 
     pub fn set_background(&mut self, color: u32) 
     {
-        println!("set bg to  {} {}", color, Backtrace::force_capture());
         self.background_color = color;
     }
 
@@ -120,7 +126,7 @@ impl TextAttribute
     pub fn set_is_bold(&mut self, is_bold: bool)
     {
         if is_bold {
-            self.attr = attribute::BOLD;
+            self.attr |= attribute::BOLD;
         } else {
             self.attr &= !attribute::BOLD;
         }
@@ -135,7 +141,7 @@ impl TextAttribute
     pub fn set_is_faint(&mut self, is_faint: bool)
     {
         if is_faint {
-            self.attr = attribute::FAINT;
+            self.attr |= attribute::FAINT;
         } else {
             self.attr &= !attribute::FAINT;
         }
@@ -150,7 +156,7 @@ impl TextAttribute
     pub fn set_is_italic(&mut self, is_italic: bool)
     {
         if is_italic {
-            self.attr = attribute::ITALIC;
+            self.attr |= attribute::ITALIC;
         } else {
             self.attr &= !attribute::ITALIC;
         }
@@ -165,9 +171,24 @@ impl TextAttribute
     pub fn set_is_blinking(&mut self, is_blink: bool)
     {
         if is_blink {
-            self.attr = attribute::BLINK;
+            self.attr |= attribute::BLINK;
         } else {
             self.attr &= !attribute::BLINK;
+        }
+    }
+
+    #[inline(always)] 
+    pub fn is_double_height(self) -> bool
+    {
+        (self.attr & attribute::DOUBLE_HEIGHT) == attribute::DOUBLE_HEIGHT
+    }
+
+    pub fn set_is_double_height(&mut self, is_double_height: bool)
+    {
+        if is_double_height {
+            self.attr |= attribute::DOUBLE_HEIGHT;
+        } else {
+            self.attr &= !attribute::DOUBLE_HEIGHT;
         }
     }
 
@@ -180,7 +201,7 @@ impl TextAttribute
     pub fn set_is_crossed_out(&mut self, is_crossed_out: bool)
     {
         if is_crossed_out {
-            self.attr = attribute::CROSSED_OUT;
+            self.attr |= attribute::CROSSED_OUT;
         } else {
             self.attr &= !attribute::CROSSED_OUT;
         }
@@ -195,7 +216,7 @@ impl TextAttribute
     pub fn set_is_underlined(&mut self, is_underline: bool)
     {
         if is_underline {
-            self.attr = attribute::UNDERLINE;
+            self.attr |= attribute::UNDERLINE;
         } else {
             self.attr &= !attribute::UNDERLINE;
         }
@@ -210,7 +231,7 @@ impl TextAttribute
     pub fn set_is_double_underlined(&mut self, is_double_underline: bool)
     {
         if is_double_underline {
-            self.attr = attribute::DOUBLE_UNDERLINE;
+            self.attr |= attribute::DOUBLE_UNDERLINE;
         } else {
             self.attr &= !attribute::DOUBLE_UNDERLINE;
         }
@@ -225,10 +246,14 @@ impl TextAttribute
     pub fn set_is_concealed(&mut self, is_concealed: bool)
     {
         if is_concealed {
-            self.attr = attribute::CONCEAL;
+            self.attr |= attribute::CONCEAL;
         } else {
             self.attr &= !attribute::CONCEAL;
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.attr = 0;
     }
 
 }

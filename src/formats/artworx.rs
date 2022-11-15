@@ -58,10 +58,10 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut result = vec![1]; // version
 
     result.extend(buf.palette.to_ega_palette());
-    if buf.get_font_dimensions() != Size::from(8, 16) {
+    if buf.get_font_dimensions() != Size::new(8, 16) {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Only 8x16 fonts are supported by adf."));
     }
-    buf.font.push_u8_data(&mut result);
+    buf.font.convert_to_u8_data(&mut result);
 
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {

@@ -252,21 +252,24 @@ impl BufferParser for AnsiParser {
                             if *nr >= (ANSI_FONT_NAMES.len() as i32) {
                                 return Err(Box::new(ParserError::UnsupportedFont(*nr)));
                             }
-                            if let Some(font) =BitFont::from_name(&ANSI_FONT_NAMES[*nr as usize]) {
-                                if buf.font.name == font.name {
-                                    self.current_font_page = 0;
-                                } else {
-                                    for i in 0..buf.extended_fonts.len() {
-                                        if buf.extended_fonts[i].name == font.name {
-                                            self.current_font_page = i + 1;
-                                            return Ok(None);
+                            match BitFont::from_name(&ANSI_FONT_NAMES[*nr as usize]) {
+                                Ok(font) => {
+                                    if buf.font.name == font.name {
+                                        self.current_font_page = 0;
+                                    } else {
+                                        for i in 0..buf.extended_fonts.len() {
+                                            if buf.extended_fonts[i].name == font.name {
+                                                self.current_font_page = i + 1;
+                                                return Ok(None);
+                                            }
                                         }
+                                        buf.extended_fonts.push(font);
+                                        self.current_font_page = buf.extended_fonts.len();
                                     }
-                                    buf.extended_fonts.push(font);
-                                    self.current_font_page = buf.extended_fonts.len();
+                                } 
+                                Err(err) => {
+                                    return Err(err);
                                 }
-                            } else {
-                                return Err(Box::new(ParserError::UnsupportedFont(*nr)));
                             }
                         }
                     }
@@ -539,8 +542,8 @@ impl BufferParser for AnsiParser {
                             match n {
                                 0 => caret.attr = TextAttribute::default(), // Reset or normal 
                                 1 => caret.attr.set_is_bold(true),
-                                2 => { caret.attr.set_is_faint(true); println!("set faint!")},  
-                                3 => { caret.attr.set_is_italic(true); println!("set italic!")},  
+                                2 => { caret.attr.set_is_faint(true); },  
+                                3 => { caret.attr.set_is_italic(true); },  
                                 4 => caret.attr.set_is_underlined(true), 
                                 5 | 6 => caret.attr.set_is_blinking(true),
                                 7 => {
@@ -548,7 +551,7 @@ impl BufferParser for AnsiParser {
                                     caret.attr.set_foreground(caret.attr.get_background());
                                     caret.attr.set_background(fg);
                                 }
-                                8 => { caret.attr.set_is_concealed(true); println!("set conceal!") },
+                                8 => { caret.attr.set_is_concealed(true); },
                                 9 => caret.attr.set_is_crossed_out(true),
                                 10 => self.current_font_page = 0, // Primary (default) font 
                                 11..=19 => { /* ignore alternate fonts for now */  } //return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),

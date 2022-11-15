@@ -123,10 +123,10 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     }
 
     // font
-    if buf.get_font_dimensions() != Size::from(8, 16) {
+    if buf.get_font_dimensions() != Size::new(8, 16) {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Only 8x16 fonts are supported by adf."));
     }
-    buf.font.push_u8_data(&mut result);
+    buf.font.convert_to_u8_data(&mut result);
 
     // palette
     result.extend(buf.palette.to_16color_vec());

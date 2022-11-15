@@ -5,7 +5,7 @@ use std::{
 };
 use std::ffi::OsStr;
 
-use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState, EngineResult};
+use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState, EngineResult, Glyph};
 
 use super::{Layer, read_xb, Position, AttributedChar, read_binary, Size, UndoOperation, Palette, SauceString, BitFont, SaveOptions };
 
@@ -225,17 +225,14 @@ impl Buffer {
         std::mem::replace( &mut self.overlay_layer, None)
     }
 
-    pub fn get_font_scanline(&self, font_page: usize, ch: char, y: usize) -> u8
+    pub fn get_glyph(&self, ch: &AttributedChar) -> Option<&Glyph>
     {
-        if font_page > 0 {
-            if let Some(ext) = &self.extended_fonts.get(font_page - 1) {
-                ext.get_scanline(ch, y)
-            } else {
-                self.font.get_scanline(ch, y)
+        if ch.get_font_page() > 0 {
+            if let Some(ext) = &self.extended_fonts.get(ch.get_font_page() - 1) {
+                return ext.get_glyph(ch.ch);
             }
-        } else {
-            self.font.get_scanline(ch, y)
         }
+        self.font.get_glyph(ch.ch)
     }
 
     pub fn get_font_dimensions(&self) -> Size<u8>
