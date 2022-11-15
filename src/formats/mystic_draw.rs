@@ -451,8 +451,8 @@ fn encode_attribte(result: &mut Vec<u8>, ch: AttributedChar, attr_mode: u16, buf
     match attr_mode { 
         ATTR_MODE_U8 => { result.push(ch.attribute.as_u8(buffer_type)); }
         ATTR_MODE_255 => {
-            result.push(ch.attribute.get_foreground());
-            result.push(ch.attribute.get_background());
+            result.push(ch.attribute.get_foreground() as u8);
+            result.push(ch.attribute.get_background() as u8);
         }
         ATTR_MODE_U16 => {
             result.extend(u16::to_be_bytes(ch.attribute.get_foreground() as u16));

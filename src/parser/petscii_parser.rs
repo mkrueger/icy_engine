@@ -95,22 +95,22 @@ impl PETSCIIParser {
 }
 
 
-const BLACK:u8 = 0x00;
-const WHITE:u8 = 0x01;
-const RED:u8 = 0x02;
-const CYAN:u8 = 0x03;
-const PURPLE:u8 = 0x04;
-const GREEN:u8 = 0x05;
-const BLUE:u8 = 0x06;
-const YELLOW:u8 = 0x07;
-const ORANGE:u8 = 0x08;
-const BROWN:u8 = 0x09;
-const PINK:u8 = 0x0a;
-const GREY1:u8 = 0x0b;
-const GREY2:u8 = 0x0c;
-const LIGHT_GREEN:u8 = 0x0d;
-const LIGHT_BLUE:u8 = 0x0e;
-const GREY3:u8 = 0x0f;
+const BLACK:u32 = 0x00;
+const WHITE:u32 = 0x01;
+const RED:u32 = 0x02;
+const CYAN:u32 = 0x03;
+const PURPLE:u32 = 0x04;
+const GREEN:u32 = 0x05;
+const BLUE:u32 = 0x06;
+const YELLOW:u32 = 0x07;
+const ORANGE:u32 = 0x08;
+const BROWN:u32 = 0x09;
+const PINK:u32 = 0x0a;
+const GREY1:u32 = 0x0b;
+const GREY2:u32 = 0x0c;
+const LIGHT_GREEN:u32 = 0x0d;
+const LIGHT_BLUE:u32 = 0x0e;
+const GREY3:u32 = 0x0f;
 
 impl BufferParser for PETSCIIParser {
     fn from_unicode(&self, ch: char) -> char

@@ -62,7 +62,7 @@ impl Caret {
         self.attr = attr;
     }
 
-    pub(super) fn set_foreground(&mut self, color: u8) 
+    pub(super) fn set_foreground(&mut self, color: u32) 
     {
         self.attr.set_foreground(color);
     }

@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use super::BufferType;
 
 mod attribute {
@@ -15,8 +17,8 @@ mod attribute {
 
 #[derive(Clone, Copy, Debug)]
 pub struct TextAttribute {
-    foreground_color: u8,
-    background_color: u8,
+    foreground_color: u32,
+    background_color: u32,
     attr: u8
 }
 
@@ -42,7 +44,7 @@ impl TextAttribute
         } else {
             blink = attr & 0b1000_0000 != 0;
             (attr >> 4) & 0b0111
-        };
+        } as u32;
 
         let mut bold = false;
         let foreground_color = if buffer_type.use_extended_font() {
@@ -50,7 +52,7 @@ impl TextAttribute
         } else {
             bold = attr & 0b1000 != 0;
             attr & 0b0111
-        };
+        } as u32;
 
         let mut attr = TextAttribute {
             foreground_color,
@@ -66,7 +68,7 @@ impl TextAttribute
 
     pub fn from_color(fg: u8, bg: u8) -> Self
     {
-        let mut res = TextAttribute { foreground_color: fg & 0x7, background_color: bg & 0x7, ..Default::default() };
+        let mut res = TextAttribute { foreground_color: fg as u32 & 0x7, background_color: bg as u32 & 0x7, ..Default::default() };
         res.set_is_bold((fg & 0b1000) != 0);
         res.set_is_blinking((bg & 0b1000) != 0);
         res
@@ -81,30 +83,31 @@ impl TextAttribute
         };
 
         let bg = self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 };
-        fg | bg << 4
+        (fg | bg << 4) as u8
     }
 
     #[inline(always)] 
-    pub fn get_foreground(self) -> u8
+    pub fn get_foreground(self) -> u32
     {
         self.foreground_color
     }
 
     #[inline(always)] 
-    pub fn set_foreground(&mut self, color: u8) 
+    pub fn set_foreground(&mut self, color: u32) 
     {
         self.foreground_color = color;
     }
 
     #[inline(always)] 
-    pub fn get_background(self) -> u8
+    pub fn get_background(self) -> u32
     {
         self.background_color
     }
 
     #[inline(always)] 
-    pub fn set_background(&mut self, color: u8) 
+    pub fn set_background(&mut self, color: u32) 
     {
+        println!("set bg to  {} {}", color, Backtrace::force_capture());
         self.background_color = color;
     }
 

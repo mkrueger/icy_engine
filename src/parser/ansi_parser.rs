@@ -2,7 +2,7 @@
 
 use std::{cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus};
+use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus, XTERM_256_PALETTE};
 
 use super::{BufferParser, AsciiParser};
 
@@ -189,6 +189,42 @@ impl AnsiParser {
         Ok(())
     }
 
+    fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
+        if *i + 1 >= self.parsed_numbers.len() {
+            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+        }
+        match self.parsed_numbers[*i + 1] {
+            5 => { // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
+                if *i + 3 > self.parsed_numbers.len() {
+                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                }
+                let color = self.parsed_numbers[*i + 2];
+                *i += 3;
+                if color >= 0 && color <= 255 {
+                    let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize]);
+                    Ok(color)
+                } else {
+                    Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                }
+            }
+            2 => { // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
+                if *i + 5 > self.parsed_numbers.len() {
+                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                }
+                let r = self.parsed_numbers[*i + 2];
+                let g = self.parsed_numbers[*i + 3];
+                let b = self.parsed_numbers[*i + 4];
+                *i += 5;
+                if r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255 {
+                    let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
+                    Ok(color)
+                } else { 
+                    Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                }
+            }
+            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+        }
+    }
 }
 
 impl BufferParser for AnsiParser {
@@ -497,7 +533,9 @@ impl BufferParser for AnsiParser {
                         if self.parsed_numbers.len() == 0 {
                             caret.attr = TextAttribute::default(); // Reset or normal 
                         } 
-                        for n in &self.parsed_numbers {
+                        let mut i = 0;
+                        while i < self.parsed_numbers.len() {
+                            let n = self.parsed_numbers[i];
                             match n {
                                 0 => caret.attr = TextAttribute::default(), // Reset or normal 
                                 1 => caret.attr.set_is_bold(true),
@@ -523,15 +561,22 @@ impl BufferParser for AnsiParser {
                                 28 => caret.attr.set_is_concealed(false),
                                 29 => caret.attr.set_is_crossed_out(false),
                                 // set foreaground color
-                                30..=37 => caret.attr.set_foreground(COLOR_OFFSETS[*n as usize - 30]),
+                                30..=37 => caret.attr.set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
+                                38 => {
+                                    caret.attr.set_foreground(self.parse_extended_colors(buf, &mut i)?);
+                                }
                                 39 => caret.attr.set_foreground(7), // Set foreground color to default, ECMA-48 3rd 
                                 // set background color
-                                40..=47 => caret.attr.set_background(COLOR_OFFSETS[*n as usize - 40]),
+                                40..=47 => caret.attr.set_background(COLOR_OFFSETS[n as usize - 40] as u32),
+                                48 => {
+                                    caret.attr.set_background(self.parse_extended_colors(buf, &mut i)?);
+                                }
                                 49 => caret.attr.set_background(0), // Set background color to default, ECMA-48 3rd
                                 _ => { 
                                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                                 }
                             }
+                            i += 1;
                         }
                     }
                     'H' | 'f' => { // Cursor Position + Horizontal Vertical Position ('f')
@@ -960,6 +1005,7 @@ impl BufferParser for AnsiParser {
     }
 
 }
+
 
 impl AnsiParser {
     fn read_sixel_data(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {

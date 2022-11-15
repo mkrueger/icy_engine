@@ -30,7 +30,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     o += TUNDRA_HEADER.len();
 
     result.palette.clear();
-    result.palette.insert_color(0, 0, 0);
+    result.palette.insert_color_rgb(0, 0, 0);
     result.buffer_type = BufferType::NoLimits;
 
     let mut pos = Position::default();
@@ -66,7 +66,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
                 o += 1;
                 let b = bytes[o];
                 o += 1;
-                attr.set_foreground(result.palette.insert_color(r, g, b));
+                attr.set_foreground(result.palette.insert_color_rgb(r, g, b));
             }
             if cmd & TUNDRA_COLOR_BACKGROUND  != 0 {
                 o += 1;
@@ -76,7 +76,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
                 o += 1;
                 let b = bytes[o];
                 o += 1;
-                attr.set_background(result.palette.insert_color(r, g, b));
+                attr.set_background(result.palette.insert_color_rgb(r, g, b));
             }
             cmd = ch;
         }

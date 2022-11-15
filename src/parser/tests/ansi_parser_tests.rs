@@ -1,4 +1,4 @@
-use crate::{ Caret, AnsiParser, Position, TextAttribute, TerminalScrolling, parser::tests::{create_buffer, update_buffer}, BufferType, convert_to_ans, SaveOptions};
+use crate::{ Caret, AnsiParser, Position, TextAttribute, TerminalScrolling, parser::tests::{create_buffer, update_buffer}, BufferType, convert_to_ans, SaveOptions, XTERM_256_PALETTE, Color};
 
 #[test]
 fn test_ansi_sequence() {
@@ -479,4 +479,22 @@ fn test_erase_character() {
     assert_eq!(' ', buf.get_char(Position::new(1, 0)).unwrap().ch);
     assert_eq!(' ', buf.get_char(Position::new(2, 0)).unwrap().ch);
     assert_eq!('b', buf.get_char(Position::new(3, 0)).unwrap().ch);
+}
+
+#[test]
+fn test_xterm_256_colors() {
+    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[38;5;232m\x1B[48;5;42mf");
+    let fg = buf.get_char(Position::new(0, 0)).unwrap().attribute.get_foreground();
+    let bg = buf.get_char(Position::new(0, 0)).unwrap().attribute.get_background();
+    assert_eq!(XTERM_256_PALETTE[232], buf.palette.colors[fg as usize]);
+    assert_eq!(XTERM_256_PALETTE[42], buf.palette.colors[bg as usize]);
+}
+
+#[test]
+fn test_xterm_24bit_colors() {
+    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[38;2;12;13;14m\x1B[48;2;55;54;19mf");
+    let fg = buf.get_char(Position::new(0, 0)).unwrap().attribute.get_foreground();
+    let bg = buf.get_char(Position::new(0, 0)).unwrap().attribute.get_background();
+    assert_eq!(Color::new(12, 13, 14), buf.palette.colors[fg as usize]);
+    assert_eq!(Color::new(55, 54, 19), buf.palette.colors[bg as usize]);
 }
