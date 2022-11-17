@@ -313,18 +313,18 @@ const IBM_CP869_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP869_8.psf");
 const IBM_CP869_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP869_14.psf");
 const IBM_CP869_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP869.psf");*/
 
-const AMIGA_TOPAZ_1 : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 1.psf");
-const AMIGA_TOPAZ_1P : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 1+.psf");
-const AMIGA_TOPAZ_2 : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 2.psf");
-const AMIGA_TOPAZ_2P : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga Topaz 2+.psf");
-const AMIGA_P0T_NOODLE : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga P0T-NOoDLE.psf");
-const AMIGA_MICROKNIGHT : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga MicroKnight.psf");
-const AMIGA_MICROKNIGHTP : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga MicroKnight+.psf");
-const AMIGA_MOSOUL : &[u8] = include_bytes!("../data/fonts/Amiga/Amiga mOsOul.psf");
+const AMIGA_TOPAZ_1 : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1.psf");
+const AMIGA_TOPAZ_1P : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1+.psf");
+const AMIGA_TOPAZ_2 : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz2.psf");
+const AMIGA_TOPAZ_2P : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz2+.psf");
+const AMIGA_P0T_NOODLE : &[u8] = include_bytes!("../data/fonts/Amiga/P0T-NOoDLE.psf");
+const AMIGA_MICROKNIGHT : &[u8] = include_bytes!("../data/fonts/Amiga/MicroKnight.psf");
+const AMIGA_MICROKNIGHTP : &[u8] = include_bytes!("../data/fonts/Amiga/MicroKnight+.psf");
+const AMIGA_MOSOUL : &[u8] = include_bytes!("../data/fonts/Amiga/mOsOul.psf");
 
-const C64_PETSCII_SHIFTED : &[u8] = include_bytes!("../data/fonts/C64 PETSCII shifted.psf");
-const C64_PETSCII_UNSHIFTED : &[u8] = include_bytes!("../data/fonts/C64 PETSCII unshifted.psf");
-const ATARI_ATASCII : &[u8] = include_bytes!("../data/fonts/Atari ATASCII.psf");
+const C64_PETSCII_UNSHIFTED : &[u8] = include_bytes!("../data/fonts/C64_PETSCII_unshifted.psf");
+const C64_PETSCII_SHIFTED : &[u8] = include_bytes!("../data/fonts/C64_PETSCII_shifted.psf");
+const ATARI_ATASCII : &[u8] = include_bytes!("../data/fonts/Atari_ATASCII.psf");
 const VIEWDATA : &[u8] = include_bytes!("../data/fonts/saa5050.psf");
 
 pub const DEFAULT_FONT_NAME: &str = "IBM VGA";
