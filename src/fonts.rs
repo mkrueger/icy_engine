@@ -701,8 +701,8 @@ pub fn get_font_data(font_name: &str) -> Option<&[u8]>
         "Amiga MicroKnight+" => Some(AMIGA_MICROKNIGHTP),
         "Amiga mOsOul" => Some(AMIGA_MOSOUL),
 
-        "C64 PETSCII unshifted" => Some(C64_PETSCII_SHIFTED),
-        "C64 PETSCII shifted" => Some(C64_PETSCII_UNSHIFTED),
+        "C64 PETSCII unshifted" => Some(C64_PETSCII_UNSHIFTED),
+        "C64 PETSCII shifted" => Some(C64_PETSCII_SHIFTED),
 
         "Atari ATASCII" => Some(ATARI_ATASCII),
         "Viewdata" => Some(VIEWDATA),
