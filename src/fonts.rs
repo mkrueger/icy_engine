@@ -163,7 +163,7 @@ impl BitFont {
                 return Err(Box::new(FontError::UnsupportedVersion(version)));
             }
             let headersize = u32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
-            let flags = u32::from_le_bytes(data[12..16].try_into().unwrap());
+            // let flags = u32::from_le_bytes(data[12..16].try_into().unwrap());
             let length = u32::from_le_bytes(data[16..20].try_into().unwrap()) as usize;
             let charsize = u32::from_le_bytes(data[20..24].try_into().unwrap()) as usize;
             if length * charsize + headersize != data.len() {
@@ -246,73 +246,73 @@ impl BitFont {
     }
 }
 
-const IBM_CP437_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf");
-const IBM_CP437_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
-const IBM_CP437_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
-const IBM_CP437_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA25G.psf");
+const IBM_CP437_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf");
+const IBM_CP437_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
+const IBM_CP437_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
+const IBM_CP437_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA25G.psf");
 
-const IBM_CP737_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA50.psf");
-const IBM_CP737_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp737/EGA.psf");
-const IBM_CP737_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA.psf");
+const IBM_CP737_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA50.psf");
+const IBM_CP737_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp737/EGA.psf");
+const IBM_CP737_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA.psf");
 
 
-const IBM_CP775_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA50.psf");
-const IBM_CP775_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp775/EGA.psf");
-const IBM_CP775_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA.psf");
+const IBM_CP775_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA50.psf");
+const IBM_CP775_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp775/EGA.psf");
+const IBM_CP775_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA.psf");
 
-const IBM_CP850_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA50.psf");
-const IBM_CP850_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp850/EGA.psf");
-const IBM_CP850_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA.psf");
-const IBM_CP850_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA25G.psf");
+const IBM_CP850_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA50.psf");
+const IBM_CP850_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/EGA.psf");
+const IBM_CP850_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA.psf");
+const IBM_CP850_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA25G.psf");
 
-const IBM_CP852_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA50.psf");
-const IBM_CP852_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp852/EGA.psf");
-const IBM_CP852_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA.psf");
-const IBM_CP852_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA25G.psf");
+const IBM_CP852_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA50.psf");
+const IBM_CP852_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp852/EGA.psf");
+const IBM_CP852_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA.psf");
+const IBM_CP852_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA25G.psf");
 
-const IBM_CP855_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA50.psf");
-const IBM_CP855_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp855/EGA.psf");
-const IBM_CP855_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA.psf");
+const IBM_CP855_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA50.psf");
+const IBM_CP855_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp855/EGA.psf");
+const IBM_CP855_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA.psf");
 
-const IBM_CP857_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA50.psf");
-const IBM_CP857_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp857/EGA.psf");
-const IBM_CP857_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA.psf");
+const IBM_CP857_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA50.psf");
+const IBM_CP857_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp857/EGA.psf");
+const IBM_CP857_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA.psf");
 
-const IBM_CP860_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA50.psf");
-const IBM_CP860_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp860/EGA.psf");
-const IBM_CP860_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA.psf");
-const IBM_CP860_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA25G.psf");
+const IBM_CP860_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA50.psf");
+const IBM_CP860_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp860/EGA.psf");
+const IBM_CP860_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA.psf");
+const IBM_CP860_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA25G.psf");
 
-const IBM_CP861_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA50.psf");
-const IBM_CP861_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp861/EGA.psf");
-const IBM_CP861_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA.psf");
-const IBM_CP861_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA25G.psf");
+const IBM_CP861_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA50.psf");
+const IBM_CP861_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp861/EGA.psf");
+const IBM_CP861_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA.psf");
+const IBM_CP861_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA25G.psf");
 
-const IBM_CP862_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA50.psf");
-const IBM_CP862_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp862/EGA.psf");
-const IBM_CP862_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA.psf");
+const IBM_CP862_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA50.psf");
+const IBM_CP862_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp862/EGA.psf");
+const IBM_CP862_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA.psf");
 
-const IBM_CP863_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA50.psf");
-const IBM_CP863_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp863/EGA.psf");
-const IBM_CP863_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA.psf");
-const IBM_CP863_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA25G.psf");
+const IBM_CP863_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA50.psf");
+const IBM_CP863_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp863/EGA.psf");
+const IBM_CP863_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA.psf");
+const IBM_CP863_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA25G.psf");
 
-const IBM_CP864_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA50.psf");
-const IBM_CP864_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp864/EGA.psf");
-const IBM_CP864_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA.psf");
+const IBM_CP864_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA50.psf");
+const IBM_CP864_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp864/EGA.psf");
+const IBM_CP864_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA.psf");
 
-const IBM_CP865_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA50.psf");
-const IBM_CP865_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp865/EGA.psf");
-const IBM_CP865_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA.psf");
-const IBM_CP865_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA25G.psf");
+const IBM_CP865_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA50.psf");
+const IBM_CP865_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp865/EGA.psf");
+const IBM_CP865_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA.psf");
+const IBM_CP865_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA25G.psf");
 
-const IBM_CP866_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA50.psf");
-const IBM_CP866_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp866/EGA.psf");
-const IBM_CP866_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA.psf");
+const IBM_CP866_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA50.psf");
+const IBM_CP866_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp866/EGA.psf");
+const IBM_CP866_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA.psf");
 
-const IBM_CP869_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA50.psf");
-const IBM_CP869_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp869/EGA.psf");
-const IBM_CP869_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA.psf");
+const IBM_CP869_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA50.psf");
+const IBM_CP869_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp869/EGA.psf");
+const IBM_CP869_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA.psf");
 
 const AMIGA_TOPAZ_1 : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1.psf");
 const AMIGA_TOPAZ_1P : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1+.psf");
@@ -528,170 +528,170 @@ pub const SUPPORTED_FONTS: [&str;91] = [
 pub fn get_font_data(font_name: &str) -> Option<&[u8]>
 {
     match font_name {
-        "IBM VGA" | "IBM VGA 437" => Some(IBM_CP437_F16),
-        "IBM VGA50" | "IBM VGA50 437" => Some(IBM_CP437_F08),
-        "IBM VGA25G"| "IBM VGA25G 437"  => Some(IBM_CP437_F19),
-        "IBM EGA" | "IBM EGA 437" => Some(IBM_CP437_F14),
-        "IBM EGA43" | "IBM EGA43 437"=> Some(IBM_CP437_F08),
+        "IBM VGA" | "IBM VGA 437" => Some(IBM_CP437_VGA),
+        "IBM VGA50" | "IBM VGA50 437" => Some(IBM_CP437_VGA50),
+        "IBM VGA25G"| "IBM VGA25G 437"  => Some(IBM_CP437_VGA25G),
+        "IBM EGA" | "IBM EGA 437" => Some(IBM_CP437_EGA),
+        "IBM EGA43" | "IBM EGA43 437"=> Some(IBM_CP437_VGA50),
 
         /*
 
-        "IBM VGA 720" => Some(IBM_CP720_F16),
-        "IBM VGA50 720" => Some(IBM_CP720_F08),
-        "IBM VGA25G 720" => Some(IBM_CP720_F19),
-        "IBM EGA 720" => Some(IBM_CP720_F14),
-        "IBM EGA43 720" => Some(IBM_CP720_F08),*/
+        "IBM VGA 720" => Some(IBM_CP720_VGA),
+        "IBM VGA50 720" => Some(IBM_CP720_VGA50),
+        "IBM VGA25G 720" => Some(IBM_CP720_VGA25G),
+        "IBM EGA 720" => Some(IBM_CP720_EGA),
+        "IBM EGA43 720" => Some(IBM_CP720_VGA50),*/
 
-        "IBM VGA 737" => Some(IBM_CP737_F16),
-        "IBM VGA50 737" => Some(IBM_CP737_F08),
-//        "IBM VGA25G 737" => Some(IBM_CP737_F19),
-        "IBM EGA 737" => Some(IBM_CP737_F14),
-        "IBM EGA43 737" => Some(IBM_CP737_F08),
+        "IBM VGA 737" => Some(IBM_CP737_VGA),
+        "IBM VGA50 737" => Some(IBM_CP737_VGA50),
+//        "IBM VGA25G 737" => Some(IBM_CP737_VGA25G),
+        "IBM EGA 737" => Some(IBM_CP737_EGA),
+        "IBM EGA43 737" => Some(IBM_CP737_VGA50),
 
-        "IBM VGA 775" => Some(IBM_CP775_F16),
-        "IBM VGA50 775" => Some(IBM_CP775_F08),
-//        "IBM VGA25G 775" => Some(IBM_CP775_F19),
-        "IBM EGA 775" => Some(IBM_CP775_F14),
-        "IBM EGA43 775" => Some(IBM_CP775_F08),
+        "IBM VGA 775" => Some(IBM_CP775_VGA),
+        "IBM VGA50 775" => Some(IBM_CP775_VGA50),
+//        "IBM VGA25G 775" => Some(IBM_CP775_VGA25G),
+        "IBM EGA 775" => Some(IBM_CP775_EGA),
+        "IBM EGA43 775" => Some(IBM_CP775_VGA50),
 
-/*         "IBM VGA 819" => Some(IBM_CP819_F16),
-        "IBM VGA50 819" => Some(IBM_CP819_F08),
-        "IBM VGA25G 819" => Some(IBM_CP819_F19),
-        "IBM EGA 819" => Some(IBM_CP819_F14),
-        "IBM EGA43 819" => Some(IBM_CP819_F08),*/
+/*         "IBM VGA 819" => Some(IBM_CP819_VGA),
+        "IBM VGA50 819" => Some(IBM_CP819_VGA50),
+        "IBM VGA25G 819" => Some(IBM_CP819_VGA25G),
+        "IBM EGA 819" => Some(IBM_CP819_EGA),
+        "IBM EGA43 819" => Some(IBM_CP819_VGA50),*/
 
-        "IBM VGA 850" => Some(IBM_CP850_F16),
-        "IBM VGA50 850" => Some(IBM_CP850_F08),
-        "IBM VGA25G 850" => Some(IBM_CP850_F19),
-        "IBM EGA 850" => Some(IBM_CP850_F14),
-        "IBM EGA43 850" => Some(IBM_CP850_F08),
+        "IBM VGA 850" => Some(IBM_CP850_VGA),
+        "IBM VGA50 850" => Some(IBM_CP850_VGA50),
+        "IBM VGA25G 850" => Some(IBM_CP850_VGA25G),
+        "IBM EGA 850" => Some(IBM_CP850_EGA),
+        "IBM EGA43 850" => Some(IBM_CP850_VGA50),
 
-        "IBM VGA 852" => Some(IBM_CP852_F16),
-        "IBM VGA50 852" => Some(IBM_CP852_F08),
-        "IBM VGA25G 852" => Some(IBM_CP852_F19),
-        "IBM EGA 852" => Some(IBM_CP852_F14),
-        "IBM EGA43 852" => Some(IBM_CP852_F08),
+        "IBM VGA 852" => Some(IBM_CP852_VGA),
+        "IBM VGA50 852" => Some(IBM_CP852_VGA50),
+        "IBM VGA25G 852" => Some(IBM_CP852_VGA25G),
+        "IBM EGA 852" => Some(IBM_CP852_EGA),
+        "IBM EGA43 852" => Some(IBM_CP852_VGA50),
 
-        "IBM VGA 855" => Some(IBM_CP855_F16),
-        "IBM VGA50 855" => Some(IBM_CP855_F08),
-//        "IBM VGA25G 855" => Some(IBM_CP855_F19),
-        "IBM EGA 855" => Some(IBM_CP855_F14),
-        "IBM EGA43 855" => Some(IBM_CP855_F08),
+        "IBM VGA 855" => Some(IBM_CP855_VGA),
+        "IBM VGA50 855" => Some(IBM_CP855_VGA50),
+//        "IBM VGA25G 855" => Some(IBM_CP855_VGA25G),
+        "IBM EGA 855" => Some(IBM_CP855_EGA),
+        "IBM EGA43 855" => Some(IBM_CP855_VGA50),
 
-        "IBM VGA 857" => Some(IBM_CP857_F16),
-        "IBM VGA50 857" => Some(IBM_CP857_F08),
-//        "IBM VGA25G 857" => Some(IBM_CP857_F19),
-        "IBM EGA 857" => Some(IBM_CP857_F14),
-        "IBM EGA43 857" => Some(IBM_CP857_F08),/*
+        "IBM VGA 857" => Some(IBM_CP857_VGA),
+        "IBM VGA50 857" => Some(IBM_CP857_VGA50),
+//        "IBM VGA25G 857" => Some(IBM_CP857_VGA25G),
+        "IBM EGA 857" => Some(IBM_CP857_EGA),
+        "IBM EGA43 857" => Some(IBM_CP857_VGA50),/*
 
-        "IBM VGA 858" => Some(IBM_CP858_F16),
-        "IBM VGA50 858" => Some(IBM_CP858_F08),
-        "IBM VGA25G 858" => Some(IBM_CP858_F19),
-        "IBM EGA 858" => Some(IBM_CP858_F14),
-        "IBM EGA43 858" => Some(IBM_CP858_F08),*/
+        "IBM VGA 858" => Some(IBM_CP858_VGA),
+        "IBM VGA50 858" => Some(IBM_CP858_VGA50),
+        "IBM VGA25G 858" => Some(IBM_CP858_VGA25G),
+        "IBM EGA 858" => Some(IBM_CP858_EGA),
+        "IBM EGA43 858" => Some(IBM_CP858_VGA50),*/
 
-        "IBM VGA 860" => Some(IBM_CP860_F16),
-        "IBM VGA50 860" => Some(IBM_CP860_F08),
-        "IBM VGA25G 860" => Some(IBM_CP860_F19),
-        "IBM EGA 860" => Some(IBM_CP860_F14),
-        "IBM EGA43 860" => Some(IBM_CP860_F08),
+        "IBM VGA 860" => Some(IBM_CP860_VGA),
+        "IBM VGA50 860" => Some(IBM_CP860_VGA50),
+        "IBM VGA25G 860" => Some(IBM_CP860_VGA25G),
+        "IBM EGA 860" => Some(IBM_CP860_EGA),
+        "IBM EGA43 860" => Some(IBM_CP860_VGA50),
 
-        "IBM VGA 861" => Some(IBM_CP861_F16),
-        "IBM VGA50 861" => Some(IBM_CP861_F08),
-        "IBM VGA25G 861" => Some(IBM_CP861_F19),
-        "IBM EGA 861" => Some(IBM_CP861_F14),
-        "IBM EGA43 861" => Some(IBM_CP861_F08),
+        "IBM VGA 861" => Some(IBM_CP861_VGA),
+        "IBM VGA50 861" => Some(IBM_CP861_VGA50),
+        "IBM VGA25G 861" => Some(IBM_CP861_VGA25G),
+        "IBM EGA 861" => Some(IBM_CP861_EGA),
+        "IBM EGA43 861" => Some(IBM_CP861_VGA50),
 
-        "IBM VGA 862" => Some(IBM_CP862_F16),
-        "IBM VGA50 862" => Some(IBM_CP862_F08),
-//        "IBM VGA25G 862" => Some(IBM_CP862_F19),
-        "IBM EGA 862" => Some(IBM_CP862_F14),
-        "IBM EGA43 862" => Some(IBM_CP862_F08),
+        "IBM VGA 862" => Some(IBM_CP862_VGA),
+        "IBM VGA50 862" => Some(IBM_CP862_VGA50),
+//        "IBM VGA25G 862" => Some(IBM_CP862_VGA25G),
+        "IBM EGA 862" => Some(IBM_CP862_EGA),
+        "IBM EGA43 862" => Some(IBM_CP862_VGA50),
 
-        "IBM VGA 863" => Some(IBM_CP863_F16),
-        "IBM VGA50 863" => Some(IBM_CP863_F08),
-        "IBM VGA25G 863" => Some(IBM_CP863_F19),
-        "IBM EGA 863" => Some(IBM_CP863_F14),
-        "IBM EGA43 863" => Some(IBM_CP863_F08),
+        "IBM VGA 863" => Some(IBM_CP863_VGA),
+        "IBM VGA50 863" => Some(IBM_CP863_VGA50),
+        "IBM VGA25G 863" => Some(IBM_CP863_VGA25G),
+        "IBM EGA 863" => Some(IBM_CP863_EGA),
+        "IBM EGA43 863" => Some(IBM_CP863_VGA50),
 
-        "IBM VGA 864" => Some(IBM_CP864_F16),
-        "IBM VGA50 864" => Some(IBM_CP864_F08),
-//        "IBM VGA25G 864" => Some(IBM_CP864_F19),
-        "IBM EGA 864" => Some(IBM_CP864_F14),
-        "IBM EGA43 864" => Some(IBM_CP864_F08),
+        "IBM VGA 864" => Some(IBM_CP864_VGA),
+        "IBM VGA50 864" => Some(IBM_CP864_VGA50),
+//        "IBM VGA25G 864" => Some(IBM_CP864_VGA25G),
+        "IBM EGA 864" => Some(IBM_CP864_EGA),
+        "IBM EGA43 864" => Some(IBM_CP864_VGA50),
 
-        "IBM VGA 865" => Some(IBM_CP865_F16),
-        "IBM VGA50 865" => Some(IBM_CP865_F08),
-        "IBM VGA25G 865" => Some(IBM_CP865_F19),
-        "IBM EGA 865" => Some(IBM_CP865_F14),
-        "IBM EGA43 865" => Some(IBM_CP865_F08),
+        "IBM VGA 865" => Some(IBM_CP865_VGA),
+        "IBM VGA50 865" => Some(IBM_CP865_VGA50),
+        "IBM VGA25G 865" => Some(IBM_CP865_VGA25G),
+        "IBM EGA 865" => Some(IBM_CP865_EGA),
+        "IBM EGA43 865" => Some(IBM_CP865_VGA50),
 
-        "IBM VGA 866" => Some(IBM_CP866_F16),
-        "IBM VGA50 866" => Some(IBM_CP866_F08),
-//        "IBM VGA25G 866" => Some(IBM_CP866_F19),
-        "IBM EGA 866" => Some(IBM_CP866_F14),
-        "IBM EGA43 866" => Some(IBM_CP866_F08),
+        "IBM VGA 866" => Some(IBM_CP866_VGA),
+        "IBM VGA50 866" => Some(IBM_CP866_VGA50),
+//        "IBM VGA25G 866" => Some(IBM_CP866_VGA25G),
+        "IBM EGA 866" => Some(IBM_CP866_EGA),
+        "IBM EGA43 866" => Some(IBM_CP866_VGA50),
 
-        "IBM VGA 869" => Some(IBM_CP869_F16),
-        "IBM VGA50 869" => Some(IBM_CP869_F08),
-//        "IBM VGA25G 869" => Some(IBM_CP869_F19),
-        "IBM EGA 869" => Some(IBM_CP869_F14),
-        "IBM EGA43 869" => Some(IBM_CP869_F08),
+        "IBM VGA 869" => Some(IBM_CP869_VGA),
+        "IBM VGA50 869" => Some(IBM_CP869_VGA50),
+//        "IBM VGA25G 869" => Some(IBM_CP869_VGA25G),
+        "IBM EGA 869" => Some(IBM_CP869_EGA),
+        "IBM EGA43 869" => Some(IBM_CP869_VGA50),
 
-        /*"IBM VGA 872" => Some(IBM_CP872_F16),
-        "IBM VGA50 872" => Some(IBM_CP872_F08),
-        "IBM VGA25G 872" => Some(IBM_CP872_F19),
-        "IBM EGA 872" => Some(IBM_CP872_F14),
-        "IBM EGA43 872" => Some(IBM_CP872_F08),
+        /*"IBM VGA 872" => Some(IBM_CP872_VGA),
+        "IBM VGA50 872" => Some(IBM_CP872_VGA50),
+        "IBM VGA25G 872" => Some(IBM_CP872_VGA25G),
+        "IBM EGA 872" => Some(IBM_CP872_EGA),
+        "IBM EGA43 872" => Some(IBM_CP872_VGA50),
 
-        "IBM VGA KAM" => Some(IBM_CP867_F16),
-        "IBM VGA50 KAM" => Some(IBM_CP867_F08),
-        "IBM VGA25G KAM" => Some(IBM_CP867_F19),
-        "IBM EGA KAM" => Some(IBM_CP867_F14),
-        "IBM EGA43 KAM" => Some(IBM_CP867_F08),
+        "IBM VGA KAM" => Some(IBM_CP867_VGA),
+        "IBM VGA50 KAM" => Some(IBM_CP867_VGA50),
+        "IBM VGA25G KAM" => Some(IBM_CP867_VGA25G),
+        "IBM EGA KAM" => Some(IBM_CP867_EGA),
+        "IBM EGA43 KAM" => Some(IBM_CP867_VGA50),
 
-        "IBM VGA MAZ" => Some(IBM_CP667_F16),
-        "IBM VGA50 MAZ" => Some(IBM_CP667_F08),
-        "IBM VGA25G MAZ" => Some(IBM_CP667_F19),
-        "IBM EGA MAZ" => Some(IBM_CP667_F14),
-        "IBM EGA43 MAZ" => Some(IBM_CP667_F08),
+        "IBM VGA MAZ" => Some(IBM_CP667_VGA),
+        "IBM VGA50 MAZ" => Some(IBM_CP667_VGA50),
+        "IBM VGA25G MAZ" => Some(IBM_CP667_VGA25G),
+        "IBM EGA MAZ" => Some(IBM_CP667_EGA),
+        "IBM EGA43 MAZ" => Some(IBM_CP667_VGA50),
 
-        "IBM VGA MIK" => Some(IBM_CP866_F16),
-        "IBM VGA50 MIK" => Some(IBM_CP866_F08),
-//        "IBM VGA25G MIK" => Some(IBM_CP866_F19),
-        "IBM EGA MIK" => Some(IBM_CP866_F14),
-        "IBM EGA43 MIK" => Some(IBM_CP866_F08),
+        "IBM VGA MIK" => Some(IBM_CP866_VGA),
+        "IBM VGA50 MIK" => Some(IBM_CP866_VGA50),
+//        "IBM VGA25G MIK" => Some(IBM_CP866_VGA25G),
+        "IBM EGA MIK" => Some(IBM_CP866_EGA),
+        "IBM EGA43 MIK" => Some(IBM_CP866_VGA50),
 
-/*         "IBM VGA 667" => Some(IBM_CP667_F16),
-        "IBM VGA50 667" => Some(IBM_CP667_F08),
-        "IBM VGA25G 667" => Some(IBM_CP667_F19),
-        "IBM EGA 667" => Some(IBM_CP667_F14),
-        "IBM EGA43 667" => Some(IBM_CP667_F08),
+/*         "IBM VGA 667" => Some(IBM_CP667_VGA),
+        "IBM VGA50 667" => Some(IBM_CP667_VGA50),
+        "IBM VGA25G 667" => Some(IBM_CP667_VGA25G),
+        "IBM EGA 667" => Some(IBM_CP667_EGA),
+        "IBM EGA43 667" => Some(IBM_CP667_VGA50),
 
-        "IBM VGA 790" => Some(IBM_CP790_F16),
-        "IBM VGA50 790" => Some(IBM_CP790_F08),
-        "IBM VGA25G 790" => Some(IBM_CP790_F19),
-        "IBM EGA 790" => Some(IBM_CP790_F14),
-        "IBM EGA43 790" => Some(IBM_CP790_F08),*/
+        "IBM VGA 790" => Some(IBM_CP790_VGA),
+        "IBM VGA50 790" => Some(IBM_CP790_VGA50),
+        "IBM VGA25G 790" => Some(IBM_CP790_VGA25G),
+        "IBM EGA 790" => Some(IBM_CP790_EGA),
+        "IBM EGA43 790" => Some(IBM_CP790_VGA50),*/
 
      
-        "IBM VGA 867" => Some(IBM_CP867_F16),
-        "IBM VGA50 867" => Some(IBM_CP867_F08),
-        "IBM VGA25G 867" => Some(IBM_CP867_F19),
-        "IBM EGA 867" => Some(IBM_CP867_F14),
-        "IBM EGA43 867" => Some(IBM_CP867_F08),
+        "IBM VGA 867" => Some(IBM_CP867_VGA),
+        "IBM VGA50 867" => Some(IBM_CP867_VGA50),
+        "IBM VGA25G 867" => Some(IBM_CP867_VGA25G),
+        "IBM EGA 867" => Some(IBM_CP867_EGA),
+        "IBM EGA43 867" => Some(IBM_CP867_VGA50),
 
-        "IBM VGA 895" => Some(IBM_CP895_F16),
-        "IBM VGA50 895" => Some(IBM_CP895_F08),
-        "IBM VGA25G 895" => Some(IBM_CP895_F19),
-        "IBM EGA 895" => Some(IBM_CP895_F14),
-        "IBM EGA43 895" => Some(IBM_CP895_F08),
+        "IBM VGA 895" => Some(IBM_CP895_VGA),
+        "IBM VGA50 895" => Some(IBM_CP895_VGA50),
+        "IBM VGA25G 895" => Some(IBM_CP895_VGA25G),
+        "IBM EGA 895" => Some(IBM_CP895_EGA),
+        "IBM EGA43 895" => Some(IBM_CP895_VGA50),
 
-        "IBM VGA 991" => Some(IBM_CP991_F16),
-        "IBM VGA50 991" => Some(IBM_CP991_F08),
-        "IBM VGA25G 991" => Some(IBM_CP991_F19),
-        "IBM EGA 991" => Some(IBM_CP991_F14),
-        "IBM EGA43 991" => Some(IBM_CP991_F08),*/
+        "IBM VGA 991" => Some(IBM_CP991_VGA),
+        "IBM VGA50 991" => Some(IBM_CP991_VGA50),
+        "IBM VGA25G 991" => Some(IBM_CP991_VGA25G),
+        "IBM EGA 991" => Some(IBM_CP991_EGA),
+        "IBM EGA43 991" => Some(IBM_CP991_VGA50),*/
 
         "Amiga Topaz 1" => Some(AMIGA_TOPAZ_1),
         "Amiga Topaz 1+" => Some(AMIGA_TOPAZ_1P),
