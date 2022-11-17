@@ -68,7 +68,6 @@ impl BufferParser for ViewdataParser {
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
         let mut ch = ch as u8;
 
-        println!("{:08b}", ch);
         if self.got_esc {
             self.got_esc = false;
 
@@ -78,8 +77,8 @@ impl BufferParser for ViewdataParser {
             if caret.get_position().x >= buf.get_buffer_width() {
                 self.reset_on_row_change(caret);
             }
-            buf.layers[0].set_char(Position::default(), Some(AttributedChar::new(control_character, TextAttribute::default())));
 
+            caret.attr.set_is_concealed(false); 
             match ch {
                 b'A'..=b'G' => {// Alpha Red, Green, Yellow, Blue, Magenta, Cyan, Whita 
                     self.is_in_graphic_mode = false;
@@ -89,11 +88,11 @@ impl BufferParser for ViewdataParser {
                     self.is_in_graphic_mode = true;
                     caret.attr.set_foreground(1 + (ch - b'Q') as u32);
                 },
-                b'H' => { caret.attr.set_is_concealed(false); caret.attr.set_is_blinking(true);  },
+                b'H' => { caret.attr.set_is_blinking(true);  },
                 b'I' => { caret.attr.set_is_blinking(false); },
                 
                 b'L' => { caret.attr.set_is_double_height(false); },
-                b'M' => { caret.attr.set_is_concealed(false); caret.attr.set_is_double_height(true); },
+                b'M' => { caret.attr.set_is_double_height(true); },
 
                 b'X' => { caret.attr.set_is_concealed(true) },
                 b'Y' => self.is_contiguous = true,
@@ -202,7 +201,6 @@ impl BufferParser for ViewdataParser {
                     self.reset_on_row_change(caret);
                 }
     
-                buf.layers[0].set_char(Position::default(), Some(AttributedChar::new(ch, TextAttribute::default())));
             }
         }
         Ok(None)
