@@ -250,68 +250,69 @@ const IBM_CP437_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf")
 const IBM_CP437_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
 const IBM_CP437_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
 const IBM_CP437_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA25G.psf");
-/*
-const IBM_CP737_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP737_8.psf");
-const IBM_CP737_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP737_14.psf");
-const IBM_CP737_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP737.psf");
 
-const IBM_CP775_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP775_8.psf");
-const IBM_CP775_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP775_14.psf");
-const IBM_CP775_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP775.psf");
+const IBM_CP737_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA50.psf");
+const IBM_CP737_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp737/EGA.psf");
+const IBM_CP737_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA.psf");
 
-const IBM_CP850_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP850_8.psf");
-const IBM_CP850_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP850_14.psf");
-const IBM_CP850_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP850.psf");
-const IBM_CP850_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP850_19.psf");
 
-const IBM_CP852_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP852_8.psf");
-const IBM_CP852_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP852_14.psf");
-const IBM_CP852_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP852.psf");
-const IBM_CP852_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP852_19.psf");
+const IBM_CP775_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA50.psf");
+const IBM_CP775_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp775/EGA.psf");
+const IBM_CP775_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA.psf");
 
-const IBM_CP855_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP855_8.psf");
-const IBM_CP855_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP855_14.psf");
-const IBM_CP855_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP855.psf");
+const IBM_CP850_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA50.psf");
+const IBM_CP850_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp850/EGA.psf");
+const IBM_CP850_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA.psf");
+const IBM_CP850_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA25G.psf");
 
-const IBM_CP857_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP857_8.psf");
-const IBM_CP857_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP857_14.psf");
-const IBM_CP857_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP857.psf");
+const IBM_CP852_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA50.psf");
+const IBM_CP852_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp852/EGA.psf");
+const IBM_CP852_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA.psf");
+const IBM_CP852_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA25G.psf");
 
-const IBM_CP860_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP860_8.psf");
-const IBM_CP860_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP860_14.psf");
-const IBM_CP860_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP860.psf");
-const IBM_CP860_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP860_19.psf");
+const IBM_CP855_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA50.psf");
+const IBM_CP855_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp855/EGA.psf");
+const IBM_CP855_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA.psf");
 
-const IBM_CP861_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP861_8.psf");
-const IBM_CP861_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP861_14.psf");
-const IBM_CP861_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP861.psf");
-const IBM_CP861_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP861_19.psf");
+const IBM_CP857_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA50.psf");
+const IBM_CP857_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp857/EGA.psf");
+const IBM_CP857_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA.psf");
 
-const IBM_CP862_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP862_8.psf");
-const IBM_CP862_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP862_14.psf");
-const IBM_CP862_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP862.psf");
+const IBM_CP860_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA50.psf");
+const IBM_CP860_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp860/EGA.psf");
+const IBM_CP860_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA.psf");
+const IBM_CP860_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA25G.psf");
 
-const IBM_CP863_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP863_8.psf");
-const IBM_CP863_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP863_14.psf");
-const IBM_CP863_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP863.psf");
-const IBM_CP863_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP863_19.psf");
+const IBM_CP861_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA50.psf");
+const IBM_CP861_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp861/EGA.psf");
+const IBM_CP861_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA.psf");
+const IBM_CP861_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA25G.psf");
 
-const IBM_CP864_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP864_8.psf");
-const IBM_CP864_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP864_14.psf");
-const IBM_CP864_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP864.psf");
+const IBM_CP862_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA50.psf");
+const IBM_CP862_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp862/EGA.psf");
+const IBM_CP862_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA.psf");
 
-const IBM_CP865_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP865_8.psf");
-const IBM_CP865_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP865_14.psf");
-const IBM_CP865_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP865.psf");
-const IBM_CP865_F19: &[u8] = include_bytes!("../data/fonts/IBM/CP865_19.psf");
+const IBM_CP863_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA50.psf");
+const IBM_CP863_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp863/EGA.psf");
+const IBM_CP863_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA.psf");
+const IBM_CP863_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA25G.psf");
 
-const IBM_CP866_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP866_8.psf");
-const IBM_CP866_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP866_14.psf");
-const IBM_CP866_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP866.psf");
+const IBM_CP864_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA50.psf");
+const IBM_CP864_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp864/EGA.psf");
+const IBM_CP864_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA.psf");
 
-const IBM_CP869_F08: &[u8] = include_bytes!("../data/fonts/IBM/CP869_8.psf");
-const IBM_CP869_F14: &[u8] = include_bytes!("../data/fonts/IBM/CP869_14.psf");
-const IBM_CP869_F16: &[u8] = include_bytes!("../data/fonts/IBM/CP869.psf");*/
+const IBM_CP865_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA50.psf");
+const IBM_CP865_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp865/EGA.psf");
+const IBM_CP865_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA.psf");
+const IBM_CP865_F19: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA25G.psf");
+
+const IBM_CP866_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA50.psf");
+const IBM_CP866_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp866/EGA.psf");
+const IBM_CP866_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA.psf");
+
+const IBM_CP869_F08: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA50.psf");
+const IBM_CP869_F14: &[u8] = include_bytes!("../data/fonts/IBM/cp869/EGA.psf");
+const IBM_CP869_F16: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA.psf");
 
 const AMIGA_TOPAZ_1 : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1.psf");
 const AMIGA_TOPAZ_1P : &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1+.psf");
@@ -534,7 +535,7 @@ pub fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM EGA43" | "IBM EGA43 437"=> Some(IBM_CP437_F08),
 
         /*
-/* 
+
         "IBM VGA 720" => Some(IBM_CP720_F16),
         "IBM VGA50 720" => Some(IBM_CP720_F08),
         "IBM VGA25G 720" => Some(IBM_CP720_F19),
@@ -637,7 +638,7 @@ pub fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM EGA 869" => Some(IBM_CP869_F14),
         "IBM EGA43 869" => Some(IBM_CP869_F08),
 
-        "IBM VGA 872" => Some(IBM_CP872_F16),
+        /*"IBM VGA 872" => Some(IBM_CP872_F16),
         "IBM VGA50 872" => Some(IBM_CP872_F08),
         "IBM VGA25G 872" => Some(IBM_CP872_F19),
         "IBM EGA 872" => Some(IBM_CP872_F14),
@@ -659,7 +660,7 @@ pub fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM VGA50 MIK" => Some(IBM_CP866_F08),
 //        "IBM VGA25G MIK" => Some(IBM_CP866_F19),
         "IBM EGA MIK" => Some(IBM_CP866_F14),
-        "IBM EGA43 MIK" => Some(IBM_CP866_F08),*/
+        "IBM EGA43 MIK" => Some(IBM_CP866_F08),
 
 /*         "IBM VGA 667" => Some(IBM_CP667_F16),
         "IBM VGA50 667" => Some(IBM_CP667_F08),
@@ -673,7 +674,7 @@ pub fn get_font_data(font_name: &str) -> Option<&[u8]>
         "IBM EGA 790" => Some(IBM_CP790_F14),
         "IBM EGA43 790" => Some(IBM_CP790_F08),*/
 
-        /*
+     
         "IBM VGA 867" => Some(IBM_CP867_F16),
         "IBM VGA50 867" => Some(IBM_CP867_F08),
         "IBM VGA25G 867" => Some(IBM_CP867_F19),
