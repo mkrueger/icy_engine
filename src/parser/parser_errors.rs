@@ -15,7 +15,9 @@ pub enum ParserError {
     InvalidSixelChar(char),
     UnsupportedSixelColorformat(i32),
     ErrorInSixelEngine(&'static str),
-    InvalidPictureSize
+    InvalidPictureSize,
+
+    InvalidRipAnsiQuery(i32)
 }
 
 impl std::fmt::Display for ParserError {
@@ -35,6 +37,7 @@ impl std::fmt::Display for ParserError {
             ParserError::UnsupportedSixelColorformat(i) => write!(f, "{} invalid color format in sixel data", i),
             ParserError::ErrorInSixelEngine(err) => write!(f, "sixel engine error: {}", err),
             ParserError::InvalidPictureSize => write!(f, "invalid sixel picture size description"),
+            ParserError::InvalidRipAnsiQuery(i) => write!(f, "invalid rip ansi query <esc>[{}!", i),
         }
     }
 }

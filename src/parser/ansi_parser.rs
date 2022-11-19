@@ -20,17 +20,17 @@ pub enum AnsiState {
     ReadSequence,
     ReadCustomCommand,
     StartFontSelector,
-    StartSixelSequence,
+    GotDCS,
     ReadSixel(SixelState)
 }
 
 pub struct AnsiParser {
     ascii_parser: AsciiParser,
-    state: AnsiState,
+    pub (crate) state: AnsiState,
     current_font_page: usize,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
-    parsed_numbers: Vec<i32>,
+    pub (crate) parsed_numbers: Vec<i32>,
 
     current_sixel: usize,
     sixel_cursor: Position,
@@ -148,8 +148,8 @@ impl AnsiParser {
                 Ok(None)
             }
 
-            'P' => { // start sixel
-                self.state = AnsiState::StartSixelSequence;
+            'P' => { // DCS
+                self.state = AnsiState::GotDCS;
                 Ok(None)
             }
             
@@ -279,7 +279,7 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
-            AnsiState::StartSixelSequence => {
+            AnsiState::GotDCS => {
                 match ch {
                     'q' => {
                         let aspect_ratio = 
@@ -749,7 +749,7 @@ impl BufferParser for AnsiParser {
                     */
                     
                     
-                    'X' => { // Insert Character
+                    'X' => { // Erase character
                         self.state = AnsiState::Default;
 
                         if let Some(number) = self.parsed_numbers.get(0) {
@@ -761,7 +761,7 @@ impl BufferParser for AnsiParser {
                             }
                         }
                     }
-                    '@' => { // Insert Character
+                    '@' => { // Insert character
                         self.state = AnsiState::Default;
 
                         if let Some(number) = self.parsed_numbers.get(0) {
@@ -775,7 +775,7 @@ impl BufferParser for AnsiParser {
                             }
                         }
                     }
-                    'M' => { // Delete Line
+                    'M' => { // Delete line
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             if let Some(layer) = buf.layers.get(0) {

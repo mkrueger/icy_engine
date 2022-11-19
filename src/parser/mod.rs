@@ -20,6 +20,8 @@ mod atascii_parser;
 pub use atascii_parser::*;
 mod viewdata_parser;
 pub use viewdata_parser::*;
+mod rip_parser;
+pub use rip_parser::*;
 
 #[cfg(test)]
 mod tests;
