@@ -583,15 +583,15 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     'H' | 'f' => { // Cursor Position + Horizontal Vertical Position ('f')
-                    self.state = AnsiState::Default;
-                    if !self.parsed_numbers.is_empty() {
-                        if self.parsed_numbers[0] > 0 { 
+                        self.state = AnsiState::Default;
+                        if !self.parsed_numbers.is_empty() {
+                            if self.parsed_numbers[0] >= 0 { 
                                 // always be in terminal mode for gotoxy
-                                caret.pos.y =  buf.get_first_visible_line() + self.parsed_numbers[0] - 1;
+                                caret.pos.y =  buf.get_first_visible_line() + max(0, self.parsed_numbers[0] - 1);
                             }
                             if self.parsed_numbers.len() > 1 {
-                                if self.parsed_numbers[1] > 0 {
-                                    caret.pos.x = self.parsed_numbers[1] - 1;
+                                if self.parsed_numbers[1] >= 0 {
+                                    caret.pos.x = max(0, self.parsed_numbers[1] - 1);
                                 }
                             } else {
                                 caret.pos.x = 0;

@@ -498,3 +498,15 @@ fn test_xterm_24bit_colors() {
     assert_eq!(Color::new(12, 13, 14), buf.palette.colors[fg as usize]);
     assert_eq!(Color::new(55, 54, 19), buf.palette.colors[bg as usize]);
 }
+
+#[test]
+fn test_cursor_position_with0() {
+    let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[10;10H\x1B[24;0H");
+    assert_eq!(Position::new(0, 23), caret.get_position());
+    let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[10;10H\x1B[24;1H");
+    assert_eq!(Position::new(0, 23), caret.get_position());
+    let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[10;10H\x1B[0;10H");
+    assert_eq!(Position::new(9, 0), caret.get_position());
+    let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[10;10H\x1B[1;10H");
+    assert_eq!(Position::new(9, 0), caret.get_position());
+}
