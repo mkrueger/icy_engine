@@ -18,7 +18,7 @@ pub struct RipParser {
 
     text_window: Option<Rectangle>,
     viewport: Option<Rectangle>,
-    current_write_mode: RipWriteMode
+    _current_write_mode: RipWriteMode
 }
 
 impl RipParser {
@@ -29,7 +29,7 @@ impl RipParser {
             state: RipState::Default,
             text_window: None,
             viewport: None,
-            current_write_mode: RipWriteMode::Normal
+            _current_write_mode: RipWriteMode::Normal
         }
     }
 

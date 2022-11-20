@@ -7,7 +7,7 @@ use std::ffi::OsStr;
 
 use crate::{AnsiParser, AvatarParser, PCBoardParser, AsciiParser, BufferParser, Caret, PETSCIIParser, TerminalState, EngineResult, Glyph};
 
-use super::{Layer, read_xb, Position, AttributedChar, read_binary, Size, UndoOperation, Palette, SauceString, BitFont, SaveOptions };
+use super::{Layer, read_xb, Position, AttributedChar, read_binary, Size, Palette, SauceString, BitFont, SaveOptions };
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -65,7 +65,7 @@ impl BufferType {
 
 pub struct Buffer {
     pub file_name: Option<PathBuf>,
-    pub file_name_changed: Box<dyn Fn ()>,
+    //pub file_name_changed: Box<dyn Fn ()>,
 
     pub title: SauceString<35, b' '>,
     pub author: SauceString<20, b' '>,
@@ -83,8 +83,8 @@ pub struct Buffer {
     
     pub layers: Vec<Layer>,
 
-    pub undo_stack: Vec<Box<dyn UndoOperation>>,
-    pub redo_stack: Vec<Box<dyn UndoOperation>>,
+    // pub undo_stack: Vec<Box<dyn UndoOperation>>,
+    // pub redo_stack: Vec<Box<dyn UndoOperation>>,
 }
 
 impl std::fmt::Debug for Buffer {
@@ -111,9 +111,9 @@ impl Buffer {
             font_table: vec![BitFont::default()],
             overlay_layer: None,
             layers: vec!(Layer::new()),
-            file_name_changed: Box::new(|| {}),
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new()
+           // file_name_changed: Box::new(|| {}),
+           // undo_stack: Vec::new(),
+           // redo_stack: Vec::new()
         }
     }
 
@@ -249,6 +249,10 @@ impl Buffer {
         } else {
             None
         }
+    }
+
+    pub fn get_char_xy(&self, x: i32, y: i32) ->  Option<AttributedChar> {
+        self.get_char(Position::new(x, y))
     }
 
     pub fn get_char(&self, pos: Position) ->  Option<AttributedChar> {

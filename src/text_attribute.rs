@@ -18,7 +18,7 @@ mod attribute {
 pub struct TextAttribute {
     foreground_color: u32,
     background_color: u32,
-    attr: u16
+    pub attr: u16
 }
 
 impl std::fmt::Debug for TextAttribute {

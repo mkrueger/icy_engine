@@ -23,6 +23,7 @@ impl std::fmt::Display for Position {
 }
 
 impl Position {
+
     pub fn new(x: i32, y: i32) -> Self {
         Position { x, y }
     }
