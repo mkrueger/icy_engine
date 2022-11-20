@@ -141,7 +141,7 @@ impl BufferParser for ViewdataParser {
                         caret.lf(buf);
                     }
                 }*/
-                caret.lf(buf);
+                caret.down(buf, 1);
                 self.reset_on_row_change(caret);
             } 
             0b000_1011 => caret.up(buf, 1), // 11 / 0x0B
