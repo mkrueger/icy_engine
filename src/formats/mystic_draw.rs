@@ -87,10 +87,9 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool>
                     }       
                 };
                 if font_num == 0 {
-                    result.font = font;
-                } else {
-                    result.extended_fonts.push(font);
+                    result.font_table.clear();
                 }
+                result.font_table.push(font);
 
                 font_num += 1;
             }
@@ -347,9 +346,9 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>>
         }
     }
 
-    push_font(&mut result, &buf.font);
+    push_font(&mut result, &buf.font_table[0]);
 
-    if let Some(ext_font) = &buf.extended_fonts.get(0) {
+    if let Some(ext_font) = &buf.font_table.get(1) {
         push_font(&mut result, ext_font);
     }
 
@@ -412,7 +411,7 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>>
                     } else {
                         while rle_count > 0 {
                             let ch = layer.get_char(Position { x: i % (width as i32) , y: i / (width as i32)}).unwrap();
-                            if buf.extended_fonts.len() > 0 {
+                            if buf.font_table.len() > 0 {
                                 result.push(((ch.ch as u16) >> 8) as u8);
                             }
                             write_char(&mut result, ch.ch as u16, buf.buffer_type);

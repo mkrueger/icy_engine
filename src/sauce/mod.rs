@@ -2,7 +2,7 @@
 
 use std::io;
 
-use crate::{BufferType, BitFont, CP437_TO_UNICODE, Size, EngineResult};
+use crate::{BufferType, CP437_TO_UNICODE, Size, EngineResult};
 
 use super::Buffer;
 
@@ -451,7 +451,7 @@ impl Buffer {
                 } else { 
                     self.buffer_type = BufferType::LegacyDos;
                 }
-                self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+               // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
             }
             SauceDataType::XBin => {
                 self.set_buffer_width(t_info1);
@@ -471,7 +471,7 @@ impl Buffer {
                         } else { 
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                        self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                       // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_ANSI => {
                         self.set_buffer_width(t_info1);
@@ -483,7 +483,7 @@ impl Buffer {
                         } else { 
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                        self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                       // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
                         self.set_buffer_width(t_info1);
@@ -495,7 +495,7 @@ impl Buffer {
                         } else { 
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                        self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                      //  self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_PCBOARD => {
                         self.set_buffer_width(t_info1);
@@ -595,7 +595,7 @@ impl Buffer {
         let t_info3 = 0;
         let t_info4 = 0;
         let mut t_flags = 0;
-        let mut t_info_str = &self.font.name;
+        let mut t_info_str = &self.font_table[0].name;
 
         match sauce_file_type {
             SauceFileType::Ascii => {

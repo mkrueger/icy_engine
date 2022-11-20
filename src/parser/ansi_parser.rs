@@ -254,17 +254,17 @@ impl BufferParser for AnsiParser {
                             }
                             match BitFont::from_name(&ANSI_FONT_NAMES[*nr as usize]) {
                                 Ok(font) => {
-                                    if buf.font.name == font.name {
+                                    if buf.font_table[0].name == font.name {
                                         self.current_font_page = 0;
                                     } else {
-                                        for i in 0..buf.extended_fonts.len() {
-                                            if buf.extended_fonts[i].name == font.name {
+                                        for i in 0..buf.font_table.len() {
+                                            if buf.font_table[i].name == font.name {
                                                 self.current_font_page = i + 1;
                                                 return Ok(None);
                                             }
                                         }
-                                        buf.extended_fonts.push(font);
-                                        self.current_font_page = buf.extended_fonts.len();
+                                        buf.font_table.push(font);
+                                        self.current_font_page = buf.font_table.len();
                                     }
                                 } 
                                 Err(err) => {

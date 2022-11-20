@@ -35,7 +35,8 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     o += palette_size;
 
     let font_size = 4096;
-    result.font = BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]);
+    result.font_table.clear();
+    result.font_table.push(BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]));
     o += font_size;
 
     loop {
@@ -61,7 +62,8 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     if buf.get_font_dimensions() != Size::new(8, 16) {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "Only 8x16 fonts are supported by adf."));
     }
-    buf.font.convert_to_u8_data(&mut result);
+
+    buf.font_table[0].convert_to_u8_data(&mut result);
 
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {

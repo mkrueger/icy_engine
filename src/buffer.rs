@@ -79,8 +79,7 @@ pub struct Buffer {
     pub palette: Palette,
     pub overlay_layer: Option<Layer>,
 
-    pub font: BitFont,
-    pub extended_fonts: Vec<BitFont>,
+    pub font_table: Vec<BitFont>,
     
     pub layers: Vec<Layer>,
 
@@ -90,7 +89,7 @@ pub struct Buffer {
 
 impl std::fmt::Debug for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Buffer").field("file_name", &self.file_name).field("width", &self.get_buffer_width()).field("height", &self.get_buffer_height()).field("custom_palette", &self.palette).field("font", &self.font).field("layers", &self.layers).finish()
+        f.debug_struct("Buffer").field("file_name", &self.file_name).field("width", &self.get_buffer_width()).field("height", &self.get_buffer_height()).field("custom_palette", &self.palette).field("layers", &self.layers).finish()
     }
 }
 
@@ -109,8 +108,7 @@ impl Buffer {
             is_terminal_buffer: false,
             palette: Palette::new(),
 
-            font: BitFont::default(),
-            extended_fonts: Vec::new(),
+            font_table: vec![BitFont::default()],
             overlay_layer: None,
             layers: vec!(Layer::new()),
             file_name_changed: Box::new(|| {}),
@@ -227,17 +225,15 @@ impl Buffer {
 
     pub fn get_glyph(&self, ch: &AttributedChar) -> Option<&Glyph>
     {
-        if ch.get_font_page() > 0 {
-            if let Some(ext) = &self.extended_fonts.get(ch.get_font_page() - 1) {
-                return ext.get_glyph(ch.ch);
-            }
-        }
-        self.font.get_glyph(ch.ch)
+        if let Some(ext) = &self.font_table.get(ch.get_font_page()) {
+            return ext.get_glyph(ch.ch);
+        } 
+        None
     }
 
     pub fn get_font_dimensions(&self) -> Size<u8>
     {
-        self.font.size
+        self.font_table[0].size
     }
 
     pub fn set_char(&mut self, layer: usize, pos: Position, dos_char: Option<AttributedChar>) {
@@ -327,7 +323,7 @@ impl Buffer {
         self.group.len() > 0 ||
         self.author.len() > 0 ||
         !self.comments.is_empty() ||
-        self.font.name.to_string() != super::DEFAULT_FONT_NAME && self.font.name.to_string() != super::ALT_DEFAULT_FONT_NAME
+        self.font_table[0].name.to_string() != super::DEFAULT_FONT_NAME && self.font_table[0].name.to_string() != super::ALT_DEFAULT_FONT_NAME
     }
      
     pub fn from_bytes(file_name: &Path, bytes: &[u8]) -> EngineResult<Buffer> {
