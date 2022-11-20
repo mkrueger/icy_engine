@@ -124,8 +124,21 @@ impl BufferParser for ViewdataParser {
             0b000_0101 => { /*return Ok(Some("1\0".to_string())); */ } // ENQ - send identity number <= 16 digits - ignore doesn't work properly 2022
             0b000_0110 => {} // ACK
             0b000_0111 => {} // ignore
-            0b000_1000 => caret.left(buf, 1),
-            0b000_1001 => caret.right(buf, 1),
+            0b000_1000 => {  // Caret left
+                if caret.pos.x > 0 {
+                    caret.pos.x = caret.pos.x.saturating_sub(1);
+                } else {
+                    caret.pos.x = buf.get_buffer_width() - 1;
+                }
+            },
+            0b000_1001 => { // Caret right
+                caret.pos.x += 1;
+                if caret.pos.x >= buf.get_buffer_width() {
+                    caret.pos.x = 0;
+                    view_data_caret_down(buf, caret);
+                }
+        
+            },
             0b000_1010 => {
                /*  if let Some(cur_line) = &buf.layers[0].lines.get(caret.get_position().y as usize) {
                     let mut has_double_height_line = false;
@@ -141,10 +154,16 @@ impl BufferParser for ViewdataParser {
                         caret.lf(buf);
                     }
                 }*/
-                caret.down(buf, 1);
+                view_data_caret_down(buf, caret);
                 self.reset_on_row_change(caret);
             } 
-            0b000_1011 => caret.up(buf, 1), // 11 / 0x0B
+            0b000_1011 => {  // Caret up
+                if caret.pos.y > 0 {
+                    caret.pos.y = caret.pos.y.saturating_sub(1);
+                } else {
+                    caret.pos.y = buf.get_buffer_height() - 1;
+                }
+            },
             0b000_1100 => { // 12 / 0x0C
                 caret.ff(buf); 
                 self.reset_screen();
@@ -204,6 +223,13 @@ impl BufferParser for ViewdataParser {
             }
         }
         Ok(None)
+    }
+}
+
+fn view_data_caret_down(buf: &mut Buffer, caret: &mut Caret) {
+    caret.pos.y += 1;
+    if caret.pos.y >= buf.get_buffer_height() {
+        caret.pos.y = 0;
     }
 }
 
