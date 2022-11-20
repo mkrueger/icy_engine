@@ -1,5 +1,5 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
-
+//                     https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
 use std::{cmp::{max, min}};
 
 use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus, XTERM_256_PALETTE};
@@ -254,18 +254,14 @@ impl BufferParser for AnsiParser {
                             }
                             match BitFont::from_name(&ANSI_FONT_NAMES[*nr as usize]) {
                                 Ok(font) => {
-                                    if buf.font_table[0].name == font.name {
-                                        self.current_font_page = 0;
-                                    } else {
-                                        for i in 0..buf.font_table.len() {
-                                            if buf.font_table[i].name == font.name {
-                                                self.current_font_page = i + 1;
-                                                return Ok(None);
-                                            }
+                                    for i in 0..buf.font_table.len() {
+                                        if buf.font_table[i].name == font.name {
+                                            self.current_font_page = i;
+                                            return Ok(None);
                                         }
-                                        buf.font_table.push(font);
-                                        self.current_font_page = buf.font_table.len();
                                     }
+                                    self.current_font_page = buf.font_table.len();
+                                    buf.font_table.push(font);
                                 } 
                                 Err(err) => {
                                     return Err(err);

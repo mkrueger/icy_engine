@@ -510,3 +510,12 @@ fn test_cursor_position_with0() {
     let (_, caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[10;10H\x1B[1;10H");
     assert_eq!(Position::new(9, 0), caret.get_position());
 }
+
+#[test]
+fn test_font_switch() {
+    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"foo\x1B[0;40 Dbar");
+    let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
+    assert_eq!(0, ch.get_font_page());
+    let ch = buf.get_char(Position::new(3, 0)).unwrap_or_default();
+    assert_eq!(1, ch.get_font_page());
+}
