@@ -2,9 +2,12 @@
 
 use std::io;
 
-use crate::{BufferType, BitFont, CP437_TO_UNICODE};
+use crate::{BufferType, BitFont, CP437_TO_UNICODE, Size, EngineResult};
 
 use super::Buffer;
+
+use sauce_errors::*;
+mod sauce_errors;
 
 #[repr(u8)]
 #[derive(Clone, Debug)]
@@ -68,6 +71,7 @@ impl Default for SauceDataType {
 
 const SAUCE_SIZE: i32 = 128;
 
+#[derive(Debug, Clone, Copy)]
 pub enum SauceFileType {
     Undefined,
     Ascii,
@@ -78,6 +82,176 @@ pub enum SauceFileType {
     TundraDraw,
     Bin,
     XBin,
+}
+
+pub struct SauceData {
+    pub title: SauceString<35, b' '>,
+    pub author: SauceString<20, b' '>,
+    pub group: SauceString<20, b' '>,
+    pub comments: Vec<SauceString<64, 0>>,
+
+    pub data_type: SauceDataType,
+    pub buffer_size: Size<u16>,
+
+    pub font_opt: Option<String>,
+    pub use_ice: bool,
+    pub sauce_header_len: usize,
+
+    pub sauce_file_type: SauceFileType
+}
+
+impl SauceData {
+    pub fn extract(data: &[u8]) -> EngineResult<SauceData> 
+    {
+        if data.len() < SAUCE_LEN {
+            return Err(Box::new(SauceError::FileTooShort));
+        }
+
+        let mut o = data.len() - SAUCE_LEN;
+        if SAUCE_ID != data[o..(o + 5)] {
+            return Err(Box::new(SauceError::NoSauce));
+        }
+        o += 5;
+
+        if b"00" != &data[o..(o + 2)] {
+            return Err(Box::new(SauceError::UnsupportedSauceVersion(String::from_utf8_lossy(&data[o..(o + 2)]).to_string())));
+        }
+
+        let mut title = SauceString::<35, b' '>::new();
+        let mut author = SauceString::<20, b' '>::new();
+        let mut group = SauceString::<20, b' '>::new();
+        let mut comments: Vec<SauceString<64, 0>> = Vec::new();        
+        let mut buffer_size = Size::<u16>::new(80, 25);
+        let mut font_opt = None;
+        let mut use_ice = false;
+
+        o += 2;
+        o += title.read(&data[o..]);
+        o += author.read(&data[o..]);
+        o += group.read(&data[o..]);
+
+        // skip date
+        o += 8;
+
+        // skip file_size - we can calculate it, better than to rely on random 3rd party software.
+        // Question: are there files where that is important?
+        o += 4;
+
+        let data_type = SauceDataType::from(data[o]);
+        o += 1;
+        let file_type = data[o];
+        o += 1;
+        let t_info1 = data[o] as i32 + ((data[o + 1] as i32) << 8);
+        o += 2;
+        let t_info2 = data[o] as i32 + ((data[o + 1] as i32) << 8);
+        o += 2;
+        // let t_info3 = data[o] as u16 + ((data[o + 1] as u16) << 8);
+        o += 2;
+        // let t_info4 = data[o] as u16 + ((data[o + 1] as u16) << 8);
+        o += 2;
+        let num_comments: u8 = data[o];
+        o += 1;
+        let t_flags: u8 = data[o];
+        o += 1;
+        let mut t_info_str: SauceString<22, 0> = SauceString::new();
+        o += t_info_str.read(&data[o..]);
+        assert_eq!(data.len(), o);
+
+        let mut sauce_file_type = SauceFileType::Undefined;
+
+        match data_type {
+            SauceDataType::BinaryText => {
+                buffer_size.width = (file_type as u16) << 1;
+                sauce_file_type = SauceFileType::Bin;
+                use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                font_opt =  Some(t_info_str.to_string());
+            }
+            SauceDataType::XBin => {
+                buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                sauce_file_type = SauceFileType::XBin;
+                // no flags according to spec
+            }
+            SauceDataType::Character => {
+                match file_type {
+                    SAUCE_FILE_TYPE_ASCII => {
+                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        sauce_file_type = SauceFileType::Ascii;
+                        use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                        font_opt = Some(t_info_str.to_string());
+                    }
+                    SAUCE_FILE_TYPE_ANSI => {
+                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        sauce_file_type = SauceFileType::Ansi;
+                        use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                        font_opt = Some(t_info_str.to_string());
+                    }
+                    SAUCE_FILE_TYPE_ANSIMATION => {
+                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        sauce_file_type = SauceFileType::ANSiMation;
+                        use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                        font_opt = Some(t_info_str.to_string());
+                    }
+                    
+                    SAUCE_FILE_TYPE_PCBOARD => {
+                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        sauce_file_type = SauceFileType::PCBoard;
+                        // no flags according to spec
+                    }
+                    SAUCE_FILE_TYPE_AVATAR => {
+                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        sauce_file_type = SauceFileType::Avatar;
+                        // no flags according to spec
+                    }
+                    SAUCE_FILE_TYPE_TUNDRA_DRAW => {
+                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        sauce_file_type = SauceFileType::TundraDraw;
+                        // no flags according to spec
+                    }
+                    _ => {}
+                }
+            }
+            _ => {
+                eprintln!(
+                    "useless/invalid sauce info data type: {data_type:?} file type: {file_type}."
+                );
+            }
+        }
+        let len = if num_comments > 0 {
+            if (data.len() - SAUCE_LEN) as i32 - num_comments as i32 * 64 - 5 < 0 {
+                return Err(Box::new(SauceError::InvalidCommentBlock));
+            } else {
+                let comment_start = (data.len() - SAUCE_LEN) - num_comments as usize * 64 - 5;
+                o = comment_start;
+                if SAUCE_COMMENT_ID != data[o..(o + 5)] {
+                    return Err(Box::new(SauceError::InvalidCommentId(String::from_utf8_lossy(&data[o..(o + 5)]).to_string())));
+                }
+                o += 5;
+                for _ in 0..num_comments {
+                    let mut comment: SauceString<64, 0> = SauceString::new();
+                    o += comment.read(&data[o..]);
+                    comments.push(comment);
+                }
+                comment_start // -1 is from the EOF char
+            }
+        } else {
+            data.len() - SAUCE_LEN
+        };
+
+        let offset = len - 1; // -1 is from the EOF char
+
+        Ok(SauceData {
+            title,
+            author,
+            group,
+            comments,
+            data_type,
+            buffer_size,
+            font_opt,
+            use_ice,
+            sauce_header_len: data.len() - offset,
+            sauce_file_type
+        })
+    }
 }
 
 const SAUCE_FILE_TYPE_ASCII: u8 = 0;
@@ -502,8 +676,6 @@ impl Buffer {
         Ok(true)
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {

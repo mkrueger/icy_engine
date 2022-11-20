@@ -38,8 +38,8 @@ pub use formats::*;
 mod tdf_font;
 pub use tdf_font::*;
 
-mod sauce_handling;
-pub use sauce_handling::*;
+mod sauce;
+pub use sauce::*;
 
 mod undo_stack;
 pub use undo_stack::*;
