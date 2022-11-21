@@ -75,10 +75,18 @@ impl BufferParser for ViewdataParser {
 
         if self.got_esc {
             self.got_esc = false;
+            match ch {
+                0b101_1100 => { // Black Background
+                    caret.attr.set_background(0);
+                },
+                0b101_1101 => { 
+                    caret.attr.set_background(caret.attr.get_foreground());
+                },
+                _ => {}
+            }
 
             let control_character = if self.hold_graphics { self.held_graphics_character }  else { ' ' };
-            let mut ach = AttributedChar::new(control_character, caret.attr);
-            let old_pos = caret.pos;
+            let ach = AttributedChar::new(control_character, caret.attr);
             buf.print_char(caret, ach);
             if caret.get_position().x >= buf.get_buffer_width() {
                 self.reset_on_row_change(caret);
@@ -105,16 +113,7 @@ impl BufferParser for ViewdataParser {
                 b'X' => { if !self.is_in_graphic_mode { caret.attr.set_is_concealed(true) } },
                 b'Y' => self.is_contiguous = true,
                 b'Z' => self.is_contiguous = false,
-                0b101_1100 => { // Black Background
-                    caret.attr.set_background(0);
-                    ach.attribute = caret.attr;
-                    buf.set_char(0, old_pos, Some(ach));
-                    },
-                0b101_1101 => { 
-                    caret.attr.set_background(caret.attr.get_foreground());
-                    ach.attribute = caret.attr;
-                    buf.set_char(0, old_pos, Some(ach));
-                },
+                
                 0b101_1110=> self.hold_graphics = true,
                 0b101_1111=> { self.hold_graphics = false; self.held_graphics_character = ' '; } ,
 
