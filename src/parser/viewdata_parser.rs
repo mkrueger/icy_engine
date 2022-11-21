@@ -48,6 +48,19 @@ impl ViewdataParser {
         self.reset_screen();
         caret.attr = TextAttribute::default();
     }
+
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: AttributedChar) {
+        buf.set_char(0, caret.pos, Some(ch));
+        caret.pos.x += 1;
+        if caret.get_position().x >= buf.get_buffer_width() {
+            caret.pos.x = 0;
+            caret.pos.y += 1;
+            if caret.pos.y >= buf.get_buffer_height() {
+                caret.pos.y = 0;
+            }
+            self.reset_on_row_change(caret);
+        }
+    }
 }
 
 impl BufferParser for ViewdataParser {
@@ -87,10 +100,7 @@ impl BufferParser for ViewdataParser {
 
             let control_character = if self.hold_graphics { self.held_graphics_character }  else { ' ' };
             let ach = AttributedChar::new(control_character, caret.attr);
-            buf.print_char(caret, ach);
-            if caret.get_position().x >= buf.get_buffer_width() {
-                self.reset_on_row_change(caret);
-            }
+            self.print_char(buf, caret, ach);
 
             caret.attr.set_is_concealed(false); 
             match ch {
@@ -139,14 +149,15 @@ impl BufferParser for ViewdataParser {
             0b000_0101 => { /*return Ok(Some("1\0".to_string())); */ } // ENQ - send identity number <= 16 digits - ignore doesn't work properly 2022
             0b000_0110 => {} // ACK
             0b000_0111 => {} // ignore
-            0b000_1000 => {  // Caret left
+            0b000_1000 => {  // Caret left 0x08 
                 if caret.pos.x > 0 {
                     caret.pos.x = caret.pos.x.saturating_sub(1);
                 } else {
                     caret.pos.x = buf.get_buffer_width() - 1;
                 }
+
             },
-            0b000_1001 => { // Caret right
+            0b000_1001 => { // Caret right 0x09
                 caret.pos.x += 1;
                 if caret.pos.x >= buf.get_buffer_width() {
                     caret.pos.x = 0;
@@ -154,7 +165,7 @@ impl BufferParser for ViewdataParser {
                 }
         
             },
-            0b000_1010 => {
+            0b000_1010 => { // Caret down 0x0A
                /*  if let Some(cur_line) = &buf.layers[0].lines.get(caret.get_position().y as usize) {
                     let mut has_double_height_line = false;
                     for c in &cur_line.chars {
@@ -172,7 +183,7 @@ impl BufferParser for ViewdataParser {
                 view_data_caret_down(buf, caret);
                 self.reset_on_row_change(caret);
             } 
-            0b000_1011 => {  // Caret up
+            0b000_1011 => {  // Caret up 0x0B
                 if caret.pos.y > 0 {
                     caret.pos.y = caret.pos.y.saturating_sub(1);
                 } else {
@@ -230,10 +241,7 @@ impl BufferParser for ViewdataParser {
                 }
                 let ch = unsafe { char::from_u32_unchecked(ch as u32) };
                 let ach = AttributedChar::new(ch, caret.attr);
-                buf.print_char(caret, ach);
-                if caret.get_position().x >= buf.get_buffer_width() {
-                    self.reset_on_row_change(caret);
-                }
+                self.print_char(buf, caret, ach);
             }
         }
         Ok(None)
