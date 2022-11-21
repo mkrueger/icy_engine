@@ -254,39 +254,60 @@ impl Buffer {
     {
         caret.pos = Position::default();
         self.clear();
+        self.clear_buffer_down(caret)
     }
 
-    fn clear_buffer_down(&mut self, y: i32) {
-        for y in y..self.get_last_visible_line() as i32 {
+    fn clear_buffer_down(&mut self, caret: &Caret) {
+        let mut pos = caret.get_position();
+        let mut ch = AttributedChar::default();
+        ch.attribute = caret.attr;
+
+        for y in pos.y..self.get_last_visible_line() as i32 {
             for x in 0..self.get_buffer_width() as i32 {
-                self.set_char(0, Position::new(x, y), Some(AttributedChar::default()));
+                self.set_char(0, Position::new(x, y), Some(ch));
             }
         }
     }
 
-    fn clear_buffer_up(&mut self, y: i32) {
-        for y in self.get_first_visible_line()..y {
+    fn clear_buffer_up(&mut self, caret: &Caret) {
+        let mut pos = caret.get_position();
+        let mut ch = AttributedChar::default();
+        ch.attribute = caret.attr;
+
+        for y in self.get_first_visible_line()..pos.y {
             for x in 0..self.get_buffer_width() as i32 {
-                self.set_char(0, Position::new(x, y), Some(AttributedChar::default()));
+                self.set_char(0, Position::new(x, y), Some(ch));
             }
         }
     }
 
-    fn clear_line(&mut self, y: i32) {
+    fn clear_line(&mut self, caret: &Caret) {
+        let mut pos = caret.get_position();
+        let mut ch = AttributedChar::default();
+        ch.attribute = caret.attr;
         for x in 0..self.get_buffer_width() as i32 {
-            self.set_char(0, Position::new(x, y), Some(AttributedChar::default()));
+            pos.x = x;
+            self.set_char(0, pos, Some(ch));
         }
     }
 
-    fn clear_line_end(&mut self, pos: &Position) {
+    fn clear_line_end(&mut self, caret: &Caret) {
+        let mut pos = caret.get_position();
+        let mut ch = AttributedChar::default();
+        ch.attribute = caret.attr;
         for x in pos.x..self.get_buffer_width() as i32 {
-            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::default()));
+            pos.x = x;
+            self.set_char(0, pos, Some(ch));
         }
     }
 
-    fn clear_line_start(&mut self, pos: &Position) {
+    fn clear_line_start(&mut self, caret: &Caret) {
+        let mut pos = caret.get_position();
+        let mut ch = AttributedChar::default();
+        ch.attribute = caret.attr;
         for x in 0..pos.x {
-            self.set_char(0, Position::new(x, pos.y), Some(AttributedChar::default()));
+            pos.x = x;
+            self.set_char(0, pos, Some(ch));
         }
     }
 

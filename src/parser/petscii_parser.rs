@@ -33,9 +33,9 @@ impl PETSCIIParser {
             
         match ch {
             b'O' => {}, // Cancel quote and insert mode
-            b'Q' => { buf.clear_line_end(&caret.pos); }, // Erase to end of current line
-            b'P' => { buf.clear_line_start(&caret.pos); }, // Cancel quote and insert mode
-            b'@' => { buf.clear_buffer_down(caret.pos.y); }, // Erase to end of screen
+            b'Q' => { buf.clear_line_end(caret); }, // Erase to end of current line
+            b'P' => { buf.clear_line_start(caret); }, // Cancel quote and insert mode
+            b'@' => { buf.clear_buffer_down(caret); }, // Erase to end of screen
             
             b'J' => { caret.cr(buf); }, // Move to start of current line
             b'K' => { caret.eol(buf); }, // Move to end of current line

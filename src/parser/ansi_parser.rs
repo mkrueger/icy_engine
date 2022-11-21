@@ -840,15 +840,15 @@ impl BufferParser for AnsiParser {
                     'J' => { // Erase in Display 
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
-                            buf.clear_buffer_down(caret.pos.y);
+                            buf.clear_buffer_down(caret);
                         } else {
                             if let Some(number) = self.parsed_numbers.get(0) {
                                 match *number {
                                     0 => {
-                                        buf.clear_buffer_down(caret.pos.y);
+                                        buf.clear_buffer_down(caret);
                                     }
                                     1 => {
-                                        buf.clear_buffer_up(caret.pos.y);
+                                        buf.clear_buffer_up(caret);
                                     }
                                     2 |  // clear entire screen
                                     3 
@@ -856,7 +856,7 @@ impl BufferParser for AnsiParser {
                                         buf.clear_screen(caret);
                                     } 
                                     _ => {
-                                        buf.clear_buffer_down(caret.pos.y);
+                                        buf.clear_buffer_down(caret);
                                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                                     }
                                 }
@@ -875,20 +875,20 @@ impl BufferParser for AnsiParser {
                         if self.parsed_numbers.len() > 0 {
                             match self.parsed_numbers[0] {
                                 0 => { 
-                                    buf.clear_line_end(&caret.pos);
+                                    buf.clear_line_end(caret);
                                 },
                                 1 => {
-                                    buf.clear_line_start(&caret.pos);
+                                    buf.clear_line_start(caret);
                                 },
                                 2 => {
-                                    buf.clear_line(caret.pos.y);
+                                    buf.clear_line(caret);
                                 },
                                 _ => {
                                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                                 }
                             }
                         } else {
-                            buf.clear_line_end(&caret.pos);
+                            buf.clear_line_end(caret);
                         }
                     }
                     

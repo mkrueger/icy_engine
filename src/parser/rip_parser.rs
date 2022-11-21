@@ -89,7 +89,7 @@ impl BufferParser for RipParser {
                     }
                     '>' => { // RIP_ERASE_EOL
                         self.state = RipState::Default;
-                        buf.clear_line_end(&caret.get_position());
+                        buf.clear_line_end(&caret);
                         return Ok(None);
                     }
                     'c' => { // RIP_COLOR
