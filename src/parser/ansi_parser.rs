@@ -952,6 +952,22 @@ impl BufferParser for AnsiParser {
                     ' ' => {
                         self.state = AnsiState::StartFontSelector;
                     }
+                    't' => {
+                        self.state = AnsiState::Default;
+                        if self.parsed_numbers.len() != 4 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        }
+                        let r = self.parsed_numbers[1];
+                        let g = self.parsed_numbers[2];
+                        let b = self.parsed_numbers[3];
+                        let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
+
+                        match self.parsed_numbers.get(0)  {
+                            Some(0) => { caret.attr.set_background(color); }
+                            Some(1) => { caret.attr.set_foreground(color); }
+                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                        }
+                    }
                     _ => {
                         if ('\x40'..='\x7E').contains(&ch) {
                             // unknown control sequence, terminate reading
