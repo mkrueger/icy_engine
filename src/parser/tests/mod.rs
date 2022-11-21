@@ -1,6 +1,7 @@
 mod buffer_operation_tests;
 mod ansi_parser_tests;
 mod ascii_parser_tests;
+mod viewdata_parser_tests;
 
 use crate::{Buffer, Caret, BufferParser};
 

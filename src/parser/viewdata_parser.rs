@@ -32,9 +32,11 @@ impl ViewdataParser {
     }
 
     fn fill_to_eol(&self, buf: &mut Buffer, caret: &Caret) {
+        if caret.get_position().x <= 0 {
+            return;
+        }
         let y = caret.get_position().y;
         for x in caret.get_position().x..buf.get_buffer_width() {
-
             let p = Position::new(x, y);
             let mut ch = buf.get_char(p).unwrap();
             ch.attribute = caret.attr;
@@ -51,6 +53,9 @@ impl ViewdataParser {
 impl BufferParser for ViewdataParser {
     fn from_unicode(&self, ch: char) -> char
     {
+        if ch == ' ' {
+            return ' ';
+        }
         match UNICODE_TO_VIEWDATA.get(&ch) {
             Some(out_ch) => *out_ch,
             _ => ch
@@ -72,7 +77,8 @@ impl BufferParser for ViewdataParser {
             self.got_esc = false;
 
             let control_character = if self.hold_graphics { self.held_graphics_character }  else { ' ' };
-            let ach = AttributedChar::new(control_character, caret.attr);
+            let mut ach = AttributedChar::new(control_character, caret.attr);
+            let old_pos = caret.pos;
             buf.print_char(caret, ach);
             if caret.get_position().x >= buf.get_buffer_width() {
                 self.reset_on_row_change(caret);
@@ -82,6 +88,8 @@ impl BufferParser for ViewdataParser {
             match ch {
                 b'A'..=b'G' => {// Alpha Red, Green, Yellow, Blue, Magenta, Cyan, Whita 
                     self.is_in_graphic_mode = false;
+                    self.hold_graphics = false;
+                    self.held_graphics_character = ' ';
                     caret.attr.set_foreground(1 + (ch - b'A') as u32);
                 }
                 b'Q'..=b'W' => {  // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, Whita
@@ -94,11 +102,19 @@ impl BufferParser for ViewdataParser {
                 b'L' => { caret.attr.set_is_double_height(false); },
                 b'M' => { caret.attr.set_is_double_height(true); },
 
-                b'X' => { caret.attr.set_is_concealed(true) },
+                b'X' => { if !self.is_in_graphic_mode { caret.attr.set_is_concealed(true) } },
                 b'Y' => self.is_contiguous = true,
                 b'Z' => self.is_contiguous = false,
-                0b101_1100=> caret.attr.set_background(0), // Black Background
-                0b101_1101=> caret.attr.set_background(caret.attr.get_foreground()),
+                0b101_1100 => { // Black Background
+                    caret.attr.set_background(0);
+                    ach.attribute = caret.attr;
+                    buf.set_char(0, old_pos, Some(ach));
+                    },
+                0b101_1101 => { 
+                    caret.attr.set_background(caret.attr.get_foreground());
+                    ach.attribute = caret.attr;
+                    buf.set_char(0, old_pos, Some(ach));
+                },
                 0b101_1110=> self.hold_graphics = true,
                 0b101_1111=> { self.hold_graphics = false; self.held_graphics_character = ' '; } ,
 
@@ -219,7 +235,6 @@ impl BufferParser for ViewdataParser {
                 if caret.get_position().x >= buf.get_buffer_width() {
                     self.reset_on_row_change(caret);
                 }
-    
             }
         }
         Ok(None)
@@ -263,8 +278,6 @@ pub const VIEWDATA_TO_UNICODE: [char; 256] = [
     '\u{1fb0f}','\u{1fb10}','\u{1fb11}','\u{1fb12}','\u{1fb13}','\u{1fb14}','\u{1fb15}','\u{1fb16}','\u{1fb17}','\u{1fb18}','\u{1fb19}','\u{1fb1a}','\u{1fb1b}','\u{1fb1c}','\u{1fb1d}','\u{1fb1e}',
     '\u{1fb1f}','\u{1fb20}','\u{1fb21}','\u{1fb22}','\u{1fb23}','\u{1fb24}','\u{1fb25}','\u{1fb26}','\u{1fb27}','\u{1fb28}','\u{1fb29}','\u{1fb2a}','\u{1fb2b}','\u{1fb2c}','\u{1fb2d}','\u{1fb2e}',
     '\u{1fb2f}','\u{1fb30}','\u{1fb31}','\u{1fb32}','\u{1fb33}','\u{1fb34}','\u{1fb35}','\u{1fb36}','\u{1fb37}','\u{1fb38}','\u{1fb39}','\u{1fb3a}','\u{1fb3b}','\u{2588}', ' ', ' ',
-
-
 ];
 
 
