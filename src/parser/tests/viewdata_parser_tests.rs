@@ -148,7 +148,7 @@ fn testpage_bug_4() {
 #[test]
 fn test_cr_at_eol() {
     // conceal has no effect in graphics mode 
-    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA01\r");
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA01\x1B\x08\r");
     for x in 1..buf.get_buffer_width() {
         assert_eq!(1, buf.get_char(Position::new(x, 0)).unwrap().attribute.get_foreground(), "wrong color at {}", x);
     }

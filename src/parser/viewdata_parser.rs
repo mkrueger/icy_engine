@@ -45,8 +45,8 @@ impl ViewdataParser {
         let sx = caret.get_position().x;
         let sy = caret.get_position().y;
 
-//        let fill_char = buf.get_char(Position::new(sx - 1, sy)).unwrap();
-        let attr = caret.attr;
+        let attr = buf.get_char(Position::new(sx - 1, sy)).unwrap().attribute;
+//        let attr = caret.attr;
 
         for x in sx..buf.get_buffer_width() {
             let p = Position::new(x, sy);
