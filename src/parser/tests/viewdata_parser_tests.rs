@@ -130,9 +130,9 @@ fn testpage_bug_2() {
 
 #[test]
 fn testpage_bug_3() {
-    // bg reset color changes delayed
+    // bg reset color changes immediately
     let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BM \x1BE\x1B]\x1BBT\x1B\\X");
-    assert_eq!(5, buf.get_char(Position::new(6, 0)).unwrap().attribute.get_background());
+    assert_eq!(0, buf.get_char(Position::new(6, 0)).unwrap().attribute.get_background());
     assert_eq!(0, buf.get_char(Position::new(7, 0)).unwrap().attribute.get_background());
 }
 
@@ -148,7 +148,7 @@ fn testpage_bug_4() {
 #[test]
 fn test_cr_at_eol() {
     // conceal has no effect in graphics mode 
-    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA01\x08\r");
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA01\r");
     for x in 1..buf.get_buffer_width() {
         assert_eq!(1, buf.get_char(Position::new(x, 0)).unwrap().attribute.get_foreground(), "wrong color at {}", x);
     }
@@ -171,7 +171,7 @@ fn test_lf_fill_bg_bug() {
 #[test]
 fn test_drop_shadow() {
     // conceal has no effect in graphics mode 
-    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F");
-    assert_eq!('«', buf.get_char(Position::new(15, 0)).unwrap().ch);
-    assert_eq!(0, buf.get_char(Position::new(15, 0)).unwrap().attribute.get_background());
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1B^\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F");
+    assert_eq!('«', buf.get_char(Position::new(18, 0)).unwrap().ch);
+    assert_eq!(0, buf.get_char(Position::new(18, 0)).unwrap().attribute.get_background());
 }

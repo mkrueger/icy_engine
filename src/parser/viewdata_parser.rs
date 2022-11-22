@@ -102,6 +102,10 @@ impl ViewdataParser {
     fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, mut ch: u8) -> EngineResult<Option<String>>  {
         if self.got_esc {
             match ch {
+                b'\\' => { // Black Background
+                    caret.attr.set_is_concealed(false);
+                    caret.attr.set_background(0);
+                },
                 b']' => { 
                     caret.attr.set_background(caret.attr.get_foreground());
                 },
@@ -113,6 +117,10 @@ impl ViewdataParser {
                 b'^' => {self.hold_graphics = true; self.is_in_graphic_mode = true; } ,
                 _ => {}
             }
+        }
+        if !self.hold_graphics {
+
+            self.held_graphics_character = ' ';
         }
 
         let mut print_ch = ch;
@@ -142,22 +150,15 @@ impl ViewdataParser {
 
         if self.got_esc {
             match ch {
-                b'\\' => { // Black Background
-                    caret.attr.set_is_concealed(false);
-                    caret.attr.set_background(0);
-                },
+          
                 b'A'..=b'G' => {// Alpha Red, Green, Yellow, Blue, Magenta, Cyan, White
-                    if self.is_in_graphic_mode {
-                        self.is_in_graphic_mode = false;
-                        self.hold_graphics = false;
-                        self.held_graphics_character = ' ';
-                    }
-
+                    self.is_in_graphic_mode = false;
                     caret.attr.set_is_concealed(false);
+                    self.held_graphics_character = ' ';
                     caret.attr.set_foreground(1 + (ch - b'A') as u32);
                 }
                 b'Q'..=b'W' => {  // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, White
-                    if !self.is_in_graphic_mode {
+                     if !self.is_in_graphic_mode {
                         self.is_in_graphic_mode = true;
                         self.held_graphics_character = ' ';
                     }
