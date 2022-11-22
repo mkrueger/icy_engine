@@ -24,7 +24,7 @@ fn test_bs() {
     assert_eq!(Position::new(1, 0), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x08");
-    assert_eq!(Position::new(buf.get_buffer_width() - 1, 0), caret.pos);
+    assert_eq!(Position::new(buf.get_buffer_width() - 1, 23), caret.pos);
 }
 
 #[test]
@@ -33,13 +33,13 @@ fn test_ht() {
     assert_eq!(Position::new(1, 0), caret.pos);
 
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x08\x09");
-    assert_eq!(Position::new(0, 1), caret.pos);
+    assert_eq!(Position::new(0, 0), caret.pos);
 }
 
 #[test]
 fn test_lf() {
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"test\x0A");
-    assert_eq!(Position::new(4, 1), caret.pos);
+    assert_eq!(Position::new(0, 1), caret.pos);
 
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x0B\x0A");
     assert_eq!(Position::new(0, 0), caret.pos);
@@ -151,4 +151,12 @@ fn test_cr_at_eol() {
     for x in 1..buf.get_buffer_width() {
         assert_eq!(1, buf.get_char(Position::new(x, 0)).unwrap().attribute.get_foreground(), "wrong color at {}", x);
     }
+}
+
+#[test]
+fn test_line_lose_colorbug() {
+    let a = 0b10100;
+    // conceal has no effect in graphics mode 
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BAa\r\n\x1BAa\r\n\x1BAa\x14\x1E\x09\n\x1E");
+    assert_eq!(1, buf.get_char(Position::new(1, 1)).unwrap().attribute.get_foreground());
 }

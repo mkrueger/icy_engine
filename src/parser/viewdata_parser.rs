@@ -35,11 +35,15 @@ impl ViewdataParser {
         if caret.get_position().x <= 0 {
             return;
         }
-        let y = caret.get_position().y;
-        for x in caret.get_position().x..buf.get_buffer_width() {
-            let p = Position::new(x, y);
+        let sx  =caret.get_position().x;
+        let sy = caret.get_position().y;
+
+        let fill_char = buf.get_char(Position::new(sx - 1, sy)).unwrap();
+
+        for x in sx..buf.get_buffer_width() {
+            let p = Position::new(x, sy);
             let mut ch = buf.get_char(p).unwrap();
-            ch.attribute = caret.attr;
+            ch.attribute = fill_char.attribute;
             buf.set_char(0, p, Some(ch));
         }
     }
@@ -51,16 +55,45 @@ impl ViewdataParser {
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: AttributedChar) {
         buf.set_char(0, caret.pos, Some(ch));
-        caret.pos.x += 1;
-        if caret.get_position().x >= buf.get_buffer_width() {
+        self.caret_right(buf, caret);
+    }
+
+    fn next_line(&mut self, buf: &mut Buffer, caret: &mut Caret, reset_x: bool) {
+        if reset_x {
             caret.pos.x = 0;
-            caret.pos.y += 1;
-            if caret.pos.y >= buf.get_buffer_height() {
-                caret.pos.y = 0;
-            }
-            self.reset_on_row_change(caret);
+        }
+        caret.pos.y += 1;
+        if caret.pos.y >= buf.get_buffer_height() {
+            caret.pos.y = 0;
+        }
+        self.reset_on_row_change(caret);
+    }
+
+    fn caret_up(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+        if caret.pos.y > 0 {
+            caret.pos.y = caret.pos.y.saturating_sub(1);
+        } else {
+            caret.pos.y = buf.get_buffer_height() - 1;
         }
     }
+
+    fn caret_right(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+        caret.pos.x += 1;
+        if caret.pos.x >= buf.get_buffer_width() {
+            self.next_line(buf, caret, true);
+        }
+    } 
+
+    fn caret_left(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+        if caret.pos.x > 0 {
+            caret.pos.x = caret.pos.x.saturating_sub(1);
+        } else {
+            caret.pos.x = buf.get_buffer_width() - 1;
+            self.caret_up(buf, caret);
+        }
+    }
+
+
 }
 
 impl BufferParser for ViewdataParser {
@@ -135,7 +168,6 @@ impl BufferParser for ViewdataParser {
                 _ => {}
             }
 
-            
             return Ok(None);
         } 
 
@@ -150,45 +182,16 @@ impl BufferParser for ViewdataParser {
             0b000_0110 => {} // ACK
             0b000_0111 => {} // ignore
             0b000_1000 => {  // Caret left 0x08 
-                if caret.pos.x > 0 {
-                    caret.pos.x = caret.pos.x.saturating_sub(1);
-                } else {
-                    caret.pos.x = buf.get_buffer_width() - 1;
-                }
-
+                self.caret_left(buf, caret);
             },
             0b000_1001 => { // Caret right 0x09
-                caret.pos.x += 1;
-                if caret.pos.x >= buf.get_buffer_width() {
-                    caret.pos.x = 0;
-                    view_data_caret_down(buf, caret);
-                }
-        
+                self.caret_right(buf, caret);
             },
             0b000_1010 => { // Caret down 0x0A
-               /*  if let Some(cur_line) = &buf.layers[0].lines.get(caret.get_position().y as usize) {
-                    let mut has_double_height_line = false;
-                    for c in &cur_line.chars {
-                        if let Some(c) = c {
-                            if c.attribute.is_double_height() {
-                                has_double_height_line = true;
-                                break;
-                            }
-                        }
-                    }
-                    if has_double_height_line {
-                        caret.lf(buf);
-                    }
-                }*/
-                view_data_caret_down(buf, caret);
-                self.reset_on_row_change(caret);
+                self.next_line(buf, caret, !self.is_in_graphic_mode);
             } 
             0b000_1011 => {  // Caret up 0x0B
-                if caret.pos.y > 0 {
-                    caret.pos.y = caret.pos.y.saturating_sub(1);
-                } else {
-                    caret.pos.y = buf.get_buffer_height() - 1;
-                }
+                self.caret_up(buf, caret);
             },
             0b000_1100 => { // 12 / 0x0C
                 caret.ff(buf); 
@@ -213,10 +216,10 @@ impl BufferParser for ViewdataParser {
             0b001_1000 => {} // CAN
             0b001_1001 => {} // ignore
             0b001_1010 => {} // ignore
-            0b001_1011 => self.got_esc = true,
+            0b001_1011 => self.got_esc = true, // 0x1B ESC
             0b001_1100 => { return Ok(None); } // TODO: SS2 - switch to G2 char set
             0b001_1101 => { return Ok(None); } // TODO: SS3 - switch to G3 char set
-            0b001_1110 => { // 28 / 0x1C
+            0b001_1110 => { // 28 / 0x1E
                 self.fill_to_eol(buf, caret);
                 caret.home(buf)
             },
@@ -248,12 +251,7 @@ impl BufferParser for ViewdataParser {
     }
 }
 
-fn view_data_caret_down(buf: &mut Buffer, caret: &mut Caret) {
-    caret.pos.y += 1;
-    if caret.pos.y >= buf.get_buffer_height() {
-        caret.pos.y = 0;
-    }
-}
+
 
 lazy_static::lazy_static!{
     static ref UNICODE_TO_VIEWDATA: std::collections::HashMap<char,char> = {
