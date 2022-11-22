@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use crate::{Buffer, Caret, EngineResult, AttributedChar, TextAttribute, Position};
 use super::BufferParser;
 
@@ -12,6 +14,9 @@ pub struct ViewdataParser {
     is_contiguous: bool,
 
     is_in_graphic_mode : bool,
+
+    graphics_bg: u32,
+    alpha_bg: u32
 }
 
 impl ViewdataParser {
@@ -29,21 +34,24 @@ impl ViewdataParser {
       
         self.is_contiguous = true;
         self.is_in_graphic_mode = false;
+        self.graphics_bg = 0;
+        self.alpha_bg = 0;
     }
 
     fn fill_to_eol(&self, buf: &mut Buffer, caret: &Caret) {
         if caret.get_position().x <= 0 {
             return;
         }
-        let sx  =caret.get_position().x;
+        let sx = caret.get_position().x;
         let sy = caret.get_position().y;
 
-        let fill_char = buf.get_char(Position::new(sx - 1, sy)).unwrap();
+//        let fill_char = buf.get_char(Position::new(sx - 1, sy)).unwrap();
+        let attr = caret.attr;
 
         for x in sx..buf.get_buffer_width() {
             let p = Position::new(x, sy);
             let mut ch = buf.get_char(p).unwrap();
-            ch.attribute = fill_char.attribute;
+            ch.attribute = attr;
             buf.set_char(0, p, Some(ch));
         }
     }
@@ -58,10 +66,7 @@ impl ViewdataParser {
         self.caret_right(buf, caret);
     }
 
-    fn next_line(&mut self, buf: &mut Buffer, caret: &mut Caret, reset_x: bool) {
-        if reset_x {
-            caret.pos.x = 0;
-        }
+    fn caret_down(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         caret.pos.y += 1;
         if caret.pos.y >= buf.get_buffer_height() {
             caret.pos.y = 0;
@@ -80,7 +85,8 @@ impl ViewdataParser {
     fn caret_right(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         caret.pos.x += 1;
         if caret.pos.x >= buf.get_buffer_width() {
-            self.next_line(buf, caret, true);
+            caret.pos.x = 0;
+            self.caret_down(buf, caret);
         }
     } 
 
@@ -91,6 +97,86 @@ impl ViewdataParser {
             caret.pos.x = buf.get_buffer_width() - 1;
             self.caret_up(buf, caret);
         }
+    }
+
+    fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, mut ch: u8) -> EngineResult<Option<String>>  {
+        if self.got_esc {
+            match ch {
+                b']' => { 
+                    caret.attr.set_background(caret.attr.get_foreground());
+                },
+                b'I' => { caret.attr.set_is_blinking(false); },
+                b'L' => { caret.attr.set_is_double_height(false); },
+                b'X' => { if !self.is_in_graphic_mode { caret.attr.set_is_concealed(true) } },
+                b'Y' => { self.is_contiguous = true; self.is_in_graphic_mode = true; },
+                b'Z' => self.is_contiguous = false,
+                b'^' => {self.hold_graphics = true; self.is_in_graphic_mode = true; } ,
+                _ => {}
+            }
+        }
+
+        let mut print_ch = ch;
+        if self.got_esc || ch < 0x20  {
+            print_ch = if self.hold_graphics { self.held_graphics_character as u8 } else { b' ' };
+        } else {
+            if self.is_in_graphic_mode {
+                if ch >= 0x20 && ch < 0x40 || ch >= 0x60 && ch < 0x80 {
+                    if print_ch < 0x40 {
+                        print_ch -= 0x20;
+                    } else {
+                        print_ch -= 0x40;
+                    }
+
+                    if self.is_contiguous {
+                        print_ch += 0x80;
+                    } else {
+                        print_ch += 0xC0;
+                    }
+                } 
+                self.held_graphics_character = unsafe { char::from_u32_unchecked(print_ch as u32) };
+            } 
+        }
+        // println!("print : '{}' ({}) esc:{}  attr:{}", unsafe { char::from_u32_unchecked(print_ch as u32) }, ch, self.got_esc, caret.attr);
+        let ach = AttributedChar::new(unsafe { char::from_u32_unchecked(print_ch as u32) }, caret.attr);
+        self.print_char(buf, caret, ach);
+
+        if self.got_esc {
+            match ch {
+                b'\\' => { // Black Background
+                    caret.attr.set_is_concealed(false);
+                    caret.attr.set_background(0);
+                },
+                b'A'..=b'G' => {// Alpha Red, Green, Yellow, Blue, Magenta, Cyan, White
+                    if self.is_in_graphic_mode {
+                        self.is_in_graphic_mode = false;
+                        self.hold_graphics = false;
+                        self.held_graphics_character = ' ';
+                    }
+
+                    caret.attr.set_is_concealed(false);
+                    caret.attr.set_foreground(1 + (ch - b'A') as u32);
+                }
+                b'Q'..=b'W' => {  // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, White
+                    if !self.is_in_graphic_mode {
+                        self.is_in_graphic_mode = true;
+                        self.held_graphics_character = ' ';
+                    }
+                    caret.attr.set_is_concealed(false);
+                    caret.attr.set_foreground(1 + (ch - b'Q') as u32);
+                },
+                b'H' => { caret.attr.set_is_blinking(true);  },
+        
+                b'M' => {
+                    caret.attr.set_is_double_height(true); 
+                },
+        
+                b'_' => { self.hold_graphics = false;} ,
+
+                _ => {}
+            }
+            self.got_esc = false;
+        }
+        Ok(None)
     }
 
 
@@ -117,60 +203,7 @@ impl BufferParser for ViewdataParser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
-        let mut ch = ch as u8;
-
-        if self.got_esc {
-            self.got_esc = false;
-            match ch {
-                0b101_1100 => { // Black Background
-                    caret.attr.set_background(0);
-                },
-                0b101_1101 => { 
-                    caret.attr.set_background(caret.attr.get_foreground());
-                },
-                _ => {}
-            }
-
-            let control_character = if self.hold_graphics { self.held_graphics_character }  else { ' ' };
-            let ach = AttributedChar::new(control_character, caret.attr);
-            self.print_char(buf, caret, ach);
-
-            caret.attr.set_is_concealed(false); 
-            match ch {
-                b'A'..=b'G' => {// Alpha Red, Green, Yellow, Blue, Magenta, Cyan, Whita 
-                    self.is_in_graphic_mode = false;
-                    self.hold_graphics = false;
-                    self.held_graphics_character = ' ';
-                    caret.attr.set_foreground(1 + (ch - b'A') as u32);
-                }
-                b'Q'..=b'W' => {  // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, Whita
-                    self.is_in_graphic_mode = true;
-                    caret.attr.set_foreground(1 + (ch - b'Q') as u32);
-                },
-                b'H' => { caret.attr.set_is_blinking(true);  },
-                b'I' => { caret.attr.set_is_blinking(false); },
-                
-                b'L' => { caret.attr.set_is_double_height(false); },
-                b'M' => { caret.attr.set_is_double_height(true); },
-
-                b'X' => { if !self.is_in_graphic_mode { caret.attr.set_is_concealed(true) } },
-                b'Y' => self.is_contiguous = true,
-                b'Z' => self.is_contiguous = false,
-                
-                0b101_1110=> self.hold_graphics = true,
-                0b101_1111=> { self.hold_graphics = false; self.held_graphics_character = ' '; } ,
-
-                0b001_0001 => {} // DC1 ?
-                0b001_0010 => {} // DC2 ?
-                0b001_0011 => {} // DC3 ?
-                0b001_0100 => {} // DC4 ?
-    
-                _ => {}
-            }
-
-            return Ok(None);
-        } 
-
+        let ch = ch as u8;
         match ch {
             // control codes 0
             0b000_0000 => {} // ignore
@@ -188,7 +221,7 @@ impl BufferParser for ViewdataParser {
                 self.caret_right(buf, caret);
             },
             0b000_1010 => { // Caret down 0x0A
-                self.next_line(buf, caret, !self.is_in_graphic_mode);
+                self.caret_down(buf, caret);
             } 
             0b000_1011 => {  // Caret up 0x0B
                 self.caret_up(buf, caret);
@@ -216,41 +249,22 @@ impl BufferParser for ViewdataParser {
             0b001_1000 => {} // CAN
             0b001_1001 => {} // ignore
             0b001_1010 => {} // ignore
-            0b001_1011 => self.got_esc = true, // 0x1B ESC
+            0b001_1011 => { self.got_esc = true; return Ok(None); } // 0x1B ESC
             0b001_1100 => { return Ok(None); } // TODO: SS2 - switch to G2 char set
             0b001_1101 => { return Ok(None); } // TODO: SS3 - switch to G3 char set
             0b001_1110 => { // 28 / 0x1E
-                self.fill_to_eol(buf, caret);
+              //  self.fill_to_eol(buf, caret);
                 caret.home(buf)
             },
             0b001_1111 => {} // ignore
-            
             _ => {
-                if self.is_in_graphic_mode && (ch >= 0x20 && ch < 0x40 || ch >= 0x60 && ch < 0x80) {
-                    if ch < 0x40 {
-                        ch -= 0x20;
-                    } else {
-                        ch -= 0x40;
-                    }
-                
-                    if self.is_contiguous {
-                        ch += 0x80;
-                    } else {
-                        ch += 0xC0;
-                    }
-                    self.held_graphics_character = unsafe { char::from_u32_unchecked(ch as u32) };
-                } else {
-                    self.held_graphics_character = ' ';
-                }
-                let ch = unsafe { char::from_u32_unchecked(ch as u32) };
-                let ach = AttributedChar::new(ch, caret.attr);
-                self.print_char(buf, caret, ach);
+                return self.interpret_char(buf, caret, ch);
             }
         }
+        self.got_esc = false; 
         Ok(None)
     }
 }
-
 
 
 lazy_static::lazy_static!{
@@ -272,17 +286,17 @@ pub const VIEWDATA_TO_UNICODE: [char; 256] = [
     '\u{23AF}', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 
     'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '¼', '⏸', '¾','÷', '▉', 
 
-    // grapihcs char sextants
-    ' ', '\u{1fb00}','\u{1fb01}','\u{1fb02}','\u{1fb03}','\u{1fb04}','\u{1fb05}','\u{1fb06}','\u{1fb07}','\u{1fb08}','\u{1fb09}','\u{1fb0a}','\u{1fb0b}','\u{1fb0c}','\u{1fb0d}','\u{1fb0e}',
-    '\u{1fb0f}','\u{1fb10}','\u{1fb11}','\u{1fb12}','\u{1fb13}','\u{1fb14}','\u{1fb15}','\u{1fb16}','\u{1fb17}','\u{1fb18}','\u{1fb19}','\u{1fb1a}','\u{1fb1b}','\u{1fb1c}','\u{1fb1d}','\u{1fb1e}',
-    '\u{1fb1f}','\u{1fb20}','\u{1fb21}','\u{1fb22}','\u{1fb23}','\u{1fb24}','\u{1fb25}','\u{1fb26}','\u{1fb27}','\u{1fb28}','\u{1fb29}','\u{1fb2a}','\u{1fb2b}','\u{1fb2c}','\u{1fb2d}','\u{1fb2e}',
-    '\u{1fb2f}','\u{1fb30}','\u{1fb31}','\u{1fb32}','\u{1fb33}','\u{1fb34}','\u{1fb35}','\u{1fb36}','\u{1fb37}','\u{1fb38}','\u{1fb39}','\u{1fb3a}','\u{1fb3b}','\u{2588}', ' ', ' ',
-    
+    // graphics char sextants
+    ' ',        '\u{1fb00}','\u{1fb01}','\u{1fb02}','\u{1fb03}','\u{1fb04}','\u{1fb05}','\u{1fb06}','\u{1fb07}','\u{1fb08}','\u{1fb09}','\u{1fb0a}','\u{1fb0b}','\u{1fb0c}','\u{1fb0d}','\u{1fb0e}',
+    '\u{1fb0f}','\u{1fb10}','\u{1fb11}','\u{1fb12}','\u{1fb13}',        '▌','\u{1fb14}','\u{1fb15}','\u{1fb16}','\u{1fb17}','\u{1fb18}','\u{1fb19}','\u{1fb1a}','\u{1fb1b}','\u{1fb1c}','\u{1fb1d}',
+    '\u{1fb1e}','\u{1fb1f}','\u{1fb20}','\u{1fb21}','\u{1fb22}','\u{1fb23}','\u{1fb24}','\u{1fb25}','\u{1fb26}','\u{1fb27}',        '▐','\u{1fb28}','\u{1fb29}','\u{1fb2a}','\u{1fb2b}','\u{1fb2c}',
+    '\u{1fb2d}','\u{1fb2e}','\u{1fb2f}','\u{1fb30}','\u{1fb31}','\u{1fb32}','\u{1fb33}','\u{1fb34}','\u{1fb35}','\u{1fb36}','\u{1fb37}','\u{1fb38}','\u{1fb39}','\u{1fb3a}','\u{1fb3b}',        '█', 
+
     // no sextants for this variant :/
-    ' ', '\u{1fb00}','\u{1fb01}','\u{1fb02}','\u{1fb03}','\u{1fb04}','\u{1fb05}','\u{1fb06}','\u{1fb07}','\u{1fb08}','\u{1fb09}','\u{1fb0a}','\u{1fb0b}','\u{1fb0c}','\u{1fb0d}','\u{1fb0e}',
-    '\u{1fb0f}','\u{1fb10}','\u{1fb11}','\u{1fb12}','\u{1fb13}','\u{1fb14}','\u{1fb15}','\u{1fb16}','\u{1fb17}','\u{1fb18}','\u{1fb19}','\u{1fb1a}','\u{1fb1b}','\u{1fb1c}','\u{1fb1d}','\u{1fb1e}',
-    '\u{1fb1f}','\u{1fb20}','\u{1fb21}','\u{1fb22}','\u{1fb23}','\u{1fb24}','\u{1fb25}','\u{1fb26}','\u{1fb27}','\u{1fb28}','\u{1fb29}','\u{1fb2a}','\u{1fb2b}','\u{1fb2c}','\u{1fb2d}','\u{1fb2e}',
-    '\u{1fb2f}','\u{1fb30}','\u{1fb31}','\u{1fb32}','\u{1fb33}','\u{1fb34}','\u{1fb35}','\u{1fb36}','\u{1fb37}','\u{1fb38}','\u{1fb39}','\u{1fb3a}','\u{1fb3b}','\u{2588}', ' ', ' ',
+    ' ',        '\u{1fb00}','\u{1fb01}','\u{1fb02}','\u{1fb03}','\u{1fb04}','\u{1fb05}','\u{1fb06}','\u{1fb07}','\u{1fb08}','\u{1fb09}','\u{1fb0a}','\u{1fb0b}','\u{1fb0c}','\u{1fb0d}','\u{1fb0e}',
+    '\u{1fb0f}','\u{1fb10}','\u{1fb11}','\u{1fb12}','\u{1fb13}',        '▌','\u{1fb14}','\u{1fb15}','\u{1fb16}','\u{1fb17}','\u{1fb18}','\u{1fb19}','\u{1fb1a}','\u{1fb1b}','\u{1fb1c}','\u{1fb1d}',
+    '\u{1fb1e}','\u{1fb1f}','\u{1fb20}','\u{1fb21}','\u{1fb22}','\u{1fb23}','\u{1fb24}','\u{1fb25}','\u{1fb26}','\u{1fb27}',        '▐','\u{1fb28}','\u{1fb29}','\u{1fb2a}','\u{1fb2b}','\u{1fb2c}',
+    '\u{1fb2d}','\u{1fb2e}','\u{1fb2f}','\u{1fb30}','\u{1fb31}','\u{1fb32}','\u{1fb33}','\u{1fb34}','\u{1fb35}','\u{1fb36}','\u{1fb37}','\u{1fb38}','\u{1fb39}','\u{1fb3a}','\u{1fb3b}',        '█', 
 ];
 
 

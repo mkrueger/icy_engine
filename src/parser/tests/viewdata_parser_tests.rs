@@ -39,7 +39,7 @@ fn test_ht() {
 #[test]
 fn test_lf() {
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"test\x0A");
-    assert_eq!(Position::new(0, 1), caret.pos);
+    assert_eq!(Position::new(4, 1), caret.pos);
 
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x0B\x0A");
     assert_eq!(Position::new(0, 0), caret.pos);
@@ -130,9 +130,10 @@ fn testpage_bug_2() {
 
 #[test]
 fn testpage_bug_3() {
-    // bg reset color changes immediately
-    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BM \x1BE\x1B]\x1BBT\x1B\\");
-    assert_eq!(0, buf.get_char(Position::new(6, 0)).unwrap().attribute.get_background());
+    // bg reset color changes delayed
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BM \x1BE\x1B]\x1BBT\x1B\\X");
+    assert_eq!(5, buf.get_char(Position::new(6, 0)).unwrap().attribute.get_background());
+    assert_eq!(0, buf.get_char(Position::new(7, 0)).unwrap().attribute.get_background());
 }
 
 #[test]
@@ -155,8 +156,22 @@ fn test_cr_at_eol() {
 
 #[test]
 fn test_line_lose_colorbug() {
-    let a = 0b10100;
     // conceal has no effect in graphics mode 
     let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BAa\r\n\x1BAa\r\n\x1BAa\x14\x1E\x09\n\x1E");
     assert_eq!(1, buf.get_char(Position::new(1, 1)).unwrap().attribute.get_foreground());
+}
+
+#[test]
+fn test_lf_fill_bg_bug() {
+    // conceal has no effect in graphics mode 
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BD\x1B] \x1B\\\r\n");
+    assert_eq!(0, buf.get_char(Position::new(5, 0)).unwrap().attribute.get_background());
+}
+
+#[test]
+fn test_drop_shadow() {
+    // conceal has no effect in graphics mode 
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F");
+    assert_eq!('«', buf.get_char(Position::new(15, 0)).unwrap().ch);
+    assert_eq!(0, buf.get_char(Position::new(15, 0)).unwrap().attribute.get_background());
 }
