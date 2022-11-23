@@ -17,7 +17,6 @@ fn create_viewdata_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buf
     (buf, caret)
 }
 
-
 #[test]
 fn test_bs() {
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"ab\x08");
@@ -155,13 +154,6 @@ fn test_cr_at_eol() {
 }
 
 #[test]
-fn test_line_lose_colorbug() {
-    // conceal has no effect in graphics mode 
-    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BAa\r\n\x1BAa\r\n\x1BAa\x14\x1E\x09\n\x1E");
-    assert_eq!(1, buf.get_char(Position::new(1, 1)).unwrap().attribute.get_foreground());
-}
-
-#[test]
 fn test_lf_fill_bg_bug() {
     // conceal has no effect in graphics mode 
     let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1BD\x1B] \x1B\\\r\n");
@@ -174,4 +166,22 @@ fn test_drop_shadow() {
     let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1B^\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F");
     assert_eq!('«', buf.get_char(Position::new(18, 0)).unwrap().ch);
     assert_eq!(0, buf.get_char(Position::new(18, 0)).unwrap().attribute.get_background());
+}
+
+#[test]
+fn test_color_on_clreol() {
+    // conceal has no effect in graphics mode 
+    let (buf, _) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x1E\x0B\x1BAACCESS DENIED.\x11\x1E\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\x1E\x0B\x1BB*1\x14\x1E\x09\n");
+    assert_eq!(2, buf.get_char(Position::new(3, buf.get_buffer_height() - 1)).unwrap().attribute.get_foreground());
+}
+
+
+#[test]
+fn test_caret_visibility() {
+    let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x14\n\n\n");
+    assert_eq!(false, caret.is_visible);
+
+    let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x14\n\n\n\x11");
+    assert_eq!(true, caret.is_visible);
+
 }

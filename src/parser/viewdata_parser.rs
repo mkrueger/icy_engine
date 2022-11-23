@@ -252,7 +252,7 @@ impl BufferParser for ViewdataParser {
             0b001_1100 => { return Ok(None); } // TODO: SS2 - switch to G2 char set
             0b001_1101 => { return Ok(None); } // TODO: SS3 - switch to G3 char set
             0b001_1110 => { // 28 / 0x1E
-              //  self.fill_to_eol(buf, caret);
+                self.fill_to_eol(buf, caret);
                 caret.home(buf)
             },
             0b001_1111 => {} // ignore
