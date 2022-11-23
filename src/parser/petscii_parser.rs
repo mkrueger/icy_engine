@@ -1,4 +1,4 @@
-use crate::{Caret, AttributedChar, Position, AsciiParser, EngineResult, ParserError};
+use crate::{Caret, AttributedChar, Position, AsciiParser, EngineResult, ParserError, CallbackAction};
 use super::{Buffer, BufferParser};
 
 pub struct PETSCIIParser {
@@ -28,7 +28,7 @@ impl PETSCIIParser {
         }
     }
 
-    pub fn handle_c128_escapes(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<Option<String>> {
+    pub fn handle_c128_escapes(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<CallbackAction> {
         self.got_esc = false;
             
         match ch {
@@ -74,7 +74,7 @@ impl PETSCIIParser {
 
             _=> { eprintln!("Unknown C128 escape code: 0x{:02X}/{:?} ", ch, char::from_u32(ch as u32))}
         }
-        return Ok(None);
+        return Ok(CallbackAction::None);
     }
 
     pub fn update_shift_mode(&mut self, buf: &mut Buffer, shift_mode: bool) 
@@ -132,7 +132,7 @@ impl BufferParser for PETSCIIParser {
         AsciiParser::new().to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         if self.got_esc {
             return self.handle_c128_escapes(buf, caret, ch);
@@ -202,7 +202,7 @@ impl BufferParser for PETSCIIParser {
                 buf.print_char(caret, ch);
             }
         }
-        Ok(None)
+        Ok(CallbackAction::None)
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::{Buffer, Caret, AnsiParser, EngineResult, AnsiState, ParserError, Rectangle};
+use crate::{Buffer, Caret, AnsiParser, EngineResult, AnsiState, ParserError, Rectangle, CallbackAction};
 use super::BufferParser;
 
 enum RipState {
@@ -51,7 +51,7 @@ impl BufferParser for RipParser {
         self.ansi_parser.to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
 
         match self.state {
             RipState::ReadCommand => {
@@ -66,18 +66,18 @@ impl BufferParser for RipParser {
                         self.state = RipState::Default;
                         self.text_window = None;
                         self.viewport = None;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     'e' => { // RIP_ERASE_VIEW
                         self.state = RipState::Default;
                         self.clear();
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     'E' => { // RIP_ERASE_WINDOW
                         // level1: RIP_END_TEXT
                         self.state = RipState::Default;
                         buf.clear();
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     'g' => { // RIP_GOTOXY
                         todo!();
@@ -85,12 +85,12 @@ impl BufferParser for RipParser {
                     'H' => { // RIP_HOME
                         self.state = RipState::Default;
                         caret.home(buf);
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     '>' => { // RIP_ERASE_EOL
                         self.state = RipState::Default;
                         buf.clear_line_end(&caret);
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     'c' => { // RIP_COLOR
                         todo!();
@@ -205,7 +205,7 @@ impl BufferParser for RipParser {
                     }
                     '#' => { // RIP_NO_MORE
                         self.state = RipState::Default;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     _ => {
                         self.state = RipState::Default;
@@ -222,7 +222,7 @@ impl BufferParser for RipParser {
                     return self.ansi_parser.print_char(buf, caret, ch);
                 }
                 self.state = RipState::ReadCommand;
-                return Ok(None);
+                return Ok(CallbackAction::None);
             }
             _ => {
                 match self.ansi_parser.state {
@@ -231,12 +231,12 @@ impl BufferParser for RipParser {
                             '!' => { // Select Graphic Rendition 
                                 self.ansi_parser.state = AnsiState::Default;
                                 if self.ansi_parser.parsed_numbers.is_empty() {
-                                    return Ok(Some(RIP_TERMINAL_ID.to_string()));
+                                    return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                                 }
         
                                 match self.ansi_parser.parsed_numbers[0] {
                                     0 => {
-                                        return Ok(Some(RIP_TERMINAL_ID.to_string()));
+                                        return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                                     }
                                     1 => {
                                         self.enable_rip = false;
@@ -248,7 +248,7 @@ impl BufferParser for RipParser {
                                         return Err(Box::new(ParserError::InvalidRipAnsiQuery(self.ansi_parser.parsed_numbers[0])));
                                     }
                                 }
-                                return Ok(None);
+                                return Ok(CallbackAction::None);
                             }
                             _ => {}
                         }
@@ -261,7 +261,7 @@ impl BufferParser for RipParser {
                         match ch {
                             '!' => {
                                 self.state = RipState::GotRipStart;
-                                return Ok(None);
+                                return Ok(CallbackAction::None);
                             }
                             _=> {}
                         }

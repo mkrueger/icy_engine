@@ -1,4 +1,4 @@
-use crate::{Buffer, Caret, TextAttribute, EngineResult, LF, FF, CR, BS};
+use crate::{Buffer, Caret, TextAttribute, EngineResult, LF, FF, CR, BS, CallbackAction};
 use super::BufferParser;
 pub struct AsciiParser {
 }
@@ -27,7 +27,7 @@ impl BufferParser for AsciiParser {
         }
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match ch {
             '\x00' | '\u{00FF}' => {
                 caret.attr = TextAttribute::default();
@@ -39,7 +39,7 @@ impl BufferParser for AsciiParser {
             '\x7F' => caret.del(buf),
             _ => buf.print_value(caret, ch as u16)
         }
-        Ok(None)
+        Ok(CallbackAction::None)
     }
 }
 

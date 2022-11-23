@@ -1,4 +1,4 @@
-use crate::{Buffer, Caret,  AnsiParser, TextAttribute, EngineResult};
+use crate::{Buffer, Caret,  AnsiParser, TextAttribute, EngineResult, CallbackAction};
 use super::BufferParser;
 
 pub struct PCBoardParser {
@@ -34,14 +34,14 @@ impl BufferParser for PCBoardParser {
         self.ansi_parser.to_unicode(ch)
     }
     
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.pcb_color {
             self.pcb_pos += 1;
             if self.pcb_pos < 3 {
                 match self.pcb_pos {
                     1 => {
                         self.pcb_value = conv_ch(ch);
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     2 => {
                         self.pcb_value = (self.pcb_value << 4) + conv_ch(ch);
@@ -52,7 +52,7 @@ impl BufferParser for PCBoardParser {
             }
             self.pcb_color = false;
             self.pcb_code = false;
-            return Ok(None);
+            return Ok(CallbackAction::None);
         }
         
         if self.pcb_code {
@@ -66,12 +66,12 @@ impl BufferParser for PCBoardParser {
                 }
                 _ => {}
             }
-            return Ok(None);
+            return Ok(CallbackAction::None);
         }
         match ch {
             '@' => {
                 self.pcb_code = true;
-                Ok(None)
+                Ok(CallbackAction::None)
             }
             _ => self.ansi_parser.print_char(buf, caret, ch),
         }

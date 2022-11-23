@@ -31,12 +31,45 @@ pub const CR: char = '\r';
 pub const BS: char = '\x08';
 pub const FF: char = '\x0C';
 
+pub enum MusicStyle {
+    Foreground,
+    Background,
+    Normal,
+    Legato,
+    Staccato
+}
+
+pub enum MusicAction {
+    SetTempo(u8),
+    SetLength(i32),
+    SetOctave(u8),
+    PlayNote(&'static str),
+    Pause,
+}
+
+pub struct AnsiMusic {
+    pub music_style: MusicStyle,
+    pub music_actions: Vec<MusicAction> 
+}
+
+impl Default for AnsiMusic {
+    fn default() -> Self {
+        Self { music_style: MusicStyle::Normal, music_actions: Default::default() }
+    }
+}
+
+pub enum CallbackAction {
+    None,
+    SendString(String),
+    PlayMusic(AnsiMusic)
+}
+
 pub trait BufferParser {
     fn from_unicode(&self, ch: char) -> char;
     fn to_unicode(&self, ch: char) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
-    fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: char) -> EngineResult<Option<String>>;
+    fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: char) -> EngineResult<CallbackAction>;
 }
 
 impl Caret {

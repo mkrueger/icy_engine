@@ -1,4 +1,4 @@
-use crate::{Buffer, Caret, EngineResult};
+use crate::{Buffer, Caret, EngineResult, CallbackAction};
 use super::BufferParser;
 
 pub struct AtasciiParser {
@@ -30,12 +30,12 @@ impl BufferParser for AtasciiParser {
         }
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
 
         if self.got_escape {
             self.got_escape = false;
             buf.print_value(caret, ch as u16);
-            return Ok(None);
+            return Ok(CallbackAction::None);
         }
 
         match ch {
@@ -59,7 +59,7 @@ impl BufferParser for AtasciiParser {
             }
             _ => buf.print_value(caret, ch as u16)
         }
-        Ok(None)
+        Ok(CallbackAction::None)
     }
 }
 

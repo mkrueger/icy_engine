@@ -1,5 +1,5 @@
 use std::{ cmp::{max, min}};
-use crate::{Buffer, Caret, AsciiParser, AnsiParser, TextAttribute, EngineResult, ParserError};
+use crate::{Buffer, Caret, AsciiParser, AnsiParser, TextAttribute, EngineResult, ParserError, CallbackAction};
 use super::BufferParser;
 
 enum AvtReadState {
@@ -42,7 +42,7 @@ impl AvatarParser {
         }
     }
 
-    fn print_fallback(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_fallback(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.use_ansi_parser {
             self.ansi_parser.print_char(buf, caret, ch)
         } else {
@@ -62,7 +62,7 @@ impl BufferParser for AvatarParser {
         self.ascii_parser.to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match self.avt_state {
             AvtReadState::Chars => {
                 match ch {
@@ -76,13 +76,13 @@ impl BufferParser for AvatarParser {
                     }
                     _ => return self.print_fallback(buf, caret, ch)
                 }
-                return Ok(None);
+                return Ok(CallbackAction::None);
             }
             AvtReadState::ReadCommand => {
                 match ch as u16 {
                     1 => {
                         self.avt_state = AvtReadState::ReadColor;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     2 => {
                         caret.attr.set_is_blinking(true);
@@ -106,7 +106,7 @@ impl BufferParser for AvatarParser {
                     8 =>  {
                         self.avt_state = AvtReadState::MoveCursor;
                         self.avatar_state = 1;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     // TODO implement commands from FSC0025.txt & FSC0037.txt
                     _ => {
@@ -115,14 +115,14 @@ impl BufferParser for AvatarParser {
                     }
                 }
                 self.avt_state = AvtReadState::Chars;
-                return Ok(None);
+                return Ok(CallbackAction::None);
             }
             AvtReadState::RepeatChars => {
                 match self.avatar_state {
                     1=> {
                         self.avt_repeat_char = ch;
                         self.avatar_state = 2;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     2 => {
                         self.avatar_state = 3;
@@ -131,7 +131,7 @@ impl BufferParser for AvatarParser {
                             self.ascii_parser.print_char(buf, caret, self.avt_repeat_char)?;
                         }
                         self.avt_state = AvtReadState::Chars;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     _ => { 
                         self.avt_state = AvtReadState::Chars;
@@ -142,21 +142,21 @@ impl BufferParser for AvatarParser {
             AvtReadState::ReadColor => {
                 caret.attr = TextAttribute::from_u8(ch as u8, buf.buffer_type);
                 self.avt_state = AvtReadState::Chars;
-                return Ok(None);
+                return Ok(CallbackAction::None);
             }
             AvtReadState::MoveCursor => {
                 match self.avatar_state {
                     1=> {
                         self.avt_repeat_char = ch;
                         self.avatar_state = 2;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     2 => {
                         caret.pos.x = self.avt_repeat_char as i32;
                         caret.pos.y = ch as i32;
                         
                         self.avt_state = AvtReadState::Chars;
-                        return Ok(None);
+                        return Ok(CallbackAction::None);
                     }
                     _ => { 
                         return Err(Box::new(ParserError::Description("error in reading avt avt_gotoxy")));

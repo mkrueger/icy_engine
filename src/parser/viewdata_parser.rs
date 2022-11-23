@@ -1,4 +1,4 @@
-use crate::{Buffer, Caret, EngineResult, AttributedChar, TextAttribute, Position};
+use crate::{Buffer, Caret, EngineResult, AttributedChar, TextAttribute, Position, CallbackAction};
 use super::BufferParser;
 
 /// https://www.blunham.com/Radar/Teletext/PDFs/Viewdata1976Spec.pdf
@@ -97,7 +97,7 @@ impl ViewdataParser {
         }
     }
 
-    fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<Option<String>>  {
+    fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<CallbackAction>  {
         if self.got_esc {
             match ch {
                 b'\\' => { // Black Background
@@ -175,7 +175,7 @@ impl ViewdataParser {
             }
             self.got_esc = false;
         }
-        Ok(None)
+        Ok(CallbackAction::None)
     }
 
 
@@ -201,7 +201,7 @@ impl BufferParser for ViewdataParser {
         }
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         match ch {
             // control codes 0
@@ -233,8 +233,8 @@ impl BufferParser for ViewdataParser {
                 self.fill_to_eol(buf, caret);
                 caret.cr(buf);
             },
-            0b000_1110 => { return Ok(None); } // TODO: SO - switch to G1 char set
-            0b000_1111 => { return Ok(None); } // TODO: SI - switch to G0 char set
+            0b000_1110 => { return Ok(CallbackAction::None); } // TODO: SO - switch to G1 char set
+            0b000_1111 => { return Ok(CallbackAction::None); } // TODO: SI - switch to G0 char set
 
             // control codes 1
             0b001_0000 => {} // ignore
@@ -248,9 +248,9 @@ impl BufferParser for ViewdataParser {
             0b001_1000 => {} // CAN
             0b001_1001 => {} // ignore
             0b001_1010 => {} // ignore
-            0b001_1011 => { self.got_esc = true; return Ok(None); } // 0x1B ESC
-            0b001_1100 => { return Ok(None); } // TODO: SS2 - switch to G2 char set
-            0b001_1101 => { return Ok(None); } // TODO: SS3 - switch to G3 char set
+            0b001_1011 => { self.got_esc = true; return Ok(CallbackAction::None); } // 0x1B ESC
+            0b001_1100 => { return Ok(CallbackAction::None); } // TODO: SS2 - switch to G2 char set
+            0b001_1101 => { return Ok(CallbackAction::None); } // TODO: SS3 - switch to G3 char set
             0b001_1110 => { // 28 / 0x1E
                 self.fill_to_eol(buf, caret);
                 caret.home(buf)
@@ -261,7 +261,7 @@ impl BufferParser for ViewdataParser {
             }
         }
         self.got_esc = false; 
-        Ok(None)
+        Ok(CallbackAction::None)
     }
 }
 

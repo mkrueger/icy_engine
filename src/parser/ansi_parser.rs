@@ -2,10 +2,11 @@
 //                     https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
 use std::{cmp::{max, min}};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus, XTERM_256_PALETTE};
+use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus, XTERM_256_PALETTE, CallbackAction, MusicAction, MusicStyle, AnsiMusic};
 
 use super::{BufferParser, AsciiParser};
 
+#[derive(Clone, Copy)]
 pub enum SixelState {
     Read,
     ReadColor,
@@ -14,6 +15,16 @@ pub enum SixelState {
     EndSequence
 }
 
+#[derive(Clone, Copy)]
+pub enum AnsiMusicState {
+    Default,
+    SetTempo(u16),
+    SetOctave(u8),
+    Note(usize),
+    SetLength(i32)
+}
+
+#[derive(Clone, Copy)]
 pub enum AnsiState {
     Default,
     GotEscape,
@@ -21,8 +32,36 @@ pub enum AnsiState {
     ReadCustomCommand,
     StartFontSelector,
     GotDCS,
-    ReadSixel(SixelState)
+    ReadSixel(SixelState),
+
+    StartAnsiMusic,
+    ParseAnsiMusic(AnsiMusicState)
 }
+
+pub enum AnsiMusicOption {
+    Off,
+    Conflicting,
+    Banana,
+    Both
+}
+
+pub const NOTE_TABLE: &'static [&'static str] = &[
+    "C",
+    "D",
+    "E",
+    "F",
+    "G",
+    "A",
+    "B",
+    "C#",
+    "D#",
+    "E#",
+    "F#",
+    "G#",
+    "A#",
+    "B",    
+];
+
 
 pub struct AnsiParser {
     ascii_parser: AsciiParser,
@@ -38,6 +77,10 @@ pub struct AnsiParser {
 
     current_sequence: String,
     current_sixel_color: i32,
+
+    pub ansi_music: AnsiMusicOption,
+    cur_music: Option<AnsiMusic>,
+    cur_octave: u8
 }
 
 const ANSI_CSI: char = '[';
@@ -105,52 +148,55 @@ impl AnsiParser {
             current_sixel_palette: Palette::default(),
             current_sixel_color: 0,
             sixel_cursor: Position::default(),
-            current_sixel: 0
+            current_sixel: 0,
+            ansi_music: AnsiMusicOption::Both,
+            cur_music: None,
+            cur_octave: 4
         }
     }
 
-    fn start_sequence(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn start_sequence(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         self.state = AnsiState::Default;
         match ch {
             ANSI_CSI => {
                 self.current_sequence.push('[');
                 self.state = AnsiState::ReadSequence;
                 self.parsed_numbers.clear();
-                Ok(None)
+                Ok(CallbackAction::None)
             }
             '7' => {
                 self.saved_cursor_opt = Some(caret.clone());
-                Ok(None)
+                Ok(CallbackAction::None)
             }
             '8' => {
                 if let Some(saved_caret) = &self.saved_cursor_opt {
                     *caret = saved_caret.clone();
                 }
-                Ok(None)
+                Ok(CallbackAction::None)
             }
 
             'c' => { // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
                 caret.ff(buf);
-                Ok(None)
+                Ok(CallbackAction::None)
             }
 
             'D' => { // Index
                 caret.index(buf);
-                Ok(None)
+                Ok(CallbackAction::None)
             }
             'M' => { // Reverse Index
                 caret.reverse_index(buf);
-                Ok(None)
+                Ok(CallbackAction::None)
             }
             
             'E' => { // Next Line
                 caret.next_line(buf);
-                Ok(None)
+                Ok(CallbackAction::None)
             }
 
             'P' => { // DCS
                 self.state = AnsiState::GotDCS;
-                Ok(None)
+                Ok(CallbackAction::None)
             }
             
             _ => {
@@ -225,6 +271,93 @@ impl AnsiParser {
             _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
         }
     }
+
+    fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
+        if let AnsiState::ParseAnsiMusic(state) = self.state.clone() {
+            match state {
+                AnsiMusicState::SetTempo(x) => {
+                    let mut x = x;
+                    if '0' <= ch && ch <= '9' {
+                        x = x * 10 + ch as u16 - b'0' as u16;
+                        if x > 255  {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        }
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(x))
+                    } else {
+                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetTempo(x as u8));
+                        return self.parse_default_ansi_music(ch);
+                    }
+                }
+                AnsiMusicState::SetOctave(x) => {
+                    if '0' <= ch && ch <= '9' {
+                        self.cur_octave = x;
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetOctave(x));
+                    } else {
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                    }
+                }
+                AnsiMusicState::Note(n) => {
+                    self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                    match ch {
+                        '+' | '#' => {
+                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(NOTE_TABLE[n + 8]));
+                            return self.parse_default_ansi_music(ch);
+                        }
+//                        '-' => {}
+                        _ => {
+                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(NOTE_TABLE[n]));
+                            return self.parse_default_ansi_music(ch);
+                        }
+                    }
+                },
+                AnsiMusicState::SetLength(x) => {
+                    let mut x = x;
+                    if '0' <= ch && ch <= '9' {
+                        x = x * 10 + ch as i32 - b'0' as i32;
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(x))
+                    } else {
+                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetLength(x));
+                        return self.parse_default_ansi_music(ch);
+                    }
+                }
+                AnsiMusicState::Default => {
+                    return self.parse_default_ansi_music(ch);
+                }
+            }
+        }
+        Ok(CallbackAction::None)
+
+    }
+
+    fn parse_default_ansi_music(&mut self, ch: char)  -> EngineResult<CallbackAction> {
+        match ch  {
+            '\x0E' => {
+                self.state = AnsiState::Default;
+                self.cur_octave = 4;
+                return Ok(CallbackAction::PlayMusic(self.cur_music.replace(AnsiMusic::default()).unwrap()));
+            }
+            'T' => {
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(0))
+            }
+            'O' => {
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetOctave(0))
+            }
+            'C' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(0)),
+            'D' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(1)),
+            'E' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(2)),
+            'F' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(3)),
+            'G' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(4)),
+            'A' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(5)),
+            'B' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(6)),
+            'P' => {
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::Pause);
+            }
+            _ =>  {}
+        }
+        Ok(CallbackAction::None)
+    }
 }
 
 impl BufferParser for AnsiParser {
@@ -236,8 +369,22 @@ impl BufferParser for AnsiParser {
         self.ascii_parser.to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<Option<String>> {
+    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match &self.state {
+            AnsiState::StartAnsiMusic => {
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                match ch  {
+                    'F' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Foreground,
+                    'B' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Background,
+                    'N' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Normal,
+                    'L' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Legato,
+                    'S' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Staccato,
+                    _ => return self.parse_ansi_music(ch)
+                }
+            }
+            AnsiState::ParseAnsiMusic(_) => {
+                return self.parse_ansi_music(ch);
+            }
             AnsiState::GotEscape => return self.start_sequence(buf, caret, ch),
             AnsiState::StartFontSelector => {
                 self.state = AnsiState::Default;
@@ -257,7 +404,7 @@ impl BufferParser for AnsiParser {
                                     for i in 0..buf.font_table.len() {
                                         if buf.font_table[i].name == font.name {
                                             self.current_font_page = i;
-                                            return Ok(None);
+                                            return Ok(CallbackAction::None);
                                         }
                                     }
                                     self.current_font_page = buf.font_table.len();
@@ -729,11 +876,11 @@ impl BufferParser for AnsiParser {
                         }
                         match self.parsed_numbers[0] {
                             5 => { // Device status report
-                                return Ok(Some("\x1b[0n".to_string()));
+                                return Ok(CallbackAction::SendString("\x1b[0n".to_string()));
                             },
                             6 => { // Get cursor position
                                 let s = format!("\x1b[{};{}R", min(buf.get_buffer_height() as i32, caret.pos.y + 1), min(buf.get_buffer_width() as i32, caret.pos.x + 1));
-                                return Ok(Some(s));
+                                return Ok(CallbackAction::SendString(s));
                             },
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
@@ -775,32 +922,41 @@ impl BufferParser for AnsiParser {
                     }
                     'M' => { // Delete line
                         self.state = AnsiState::Default;
-                        if self.parsed_numbers.is_empty() {
-                            if let Some(layer) = buf.layers.get(0) {
-                                if caret.pos.y  < layer.lines.len() as i32 {
-                                    buf.remove_terminal_line(caret.pos.y);
-                                }
-                            } else {
-                                return Err(Box::new(ParserError::InvalidBuffer));
-                            }
+                        if matches!(self.ansi_music, AnsiMusicOption::Conflicting) || matches!(self.ansi_music, AnsiMusicOption::Both) {
+                            self.state = AnsiState::StartAnsiMusic;
                         } else {
-                            if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
-                            }
-                            if let Some(number) =self.parsed_numbers.get(0) {
-                                let mut number = *number;
+                            if self.parsed_numbers.is_empty() {
                                 if let Some(layer) = buf.layers.get(0) {
-                                    number = min(number, layer.lines.len() as i32 - caret.pos.y);
+                                    if caret.pos.y  < layer.lines.len() as i32 {
+                                        buf.remove_terminal_line(caret.pos.y);
+                                    }
                                 } else {
                                     return Err(Box::new(ParserError::InvalidBuffer));
                                 }
-                                for _ in 0..number {
-                                    buf.remove_terminal_line(caret.pos.y);
-                                }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                if self.parsed_numbers.len() != 1 {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                }
+                                if let Some(number) =self.parsed_numbers.get(0) {
+                                    let mut number = *number;
+                                    if let Some(layer) = buf.layers.get(0) {
+                                        number = min(number, layer.lines.len() as i32 - caret.pos.y);
+                                    } else {
+                                        return Err(Box::new(ParserError::InvalidBuffer));
+                                    }
+                                    for _ in 0..number {
+                                        buf.remove_terminal_line(caret.pos.y);
+                                    }
+                                } else {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                }
                             }
                         }
+                    }
+                    'N' => { 
+                        if matches!(self.ansi_music, AnsiMusicOption::Banana) || matches!(self.ansi_music, AnsiMusicOption::Both) {
+                            self.state = AnsiState::StartAnsiMusic;
+                        } 
                     }
                     
                     'P' => { // Delete character
@@ -896,7 +1052,7 @@ impl BufferParser for AnsiParser {
                     
                     'c' => { // device attributes
                         self.state = AnsiState::Default;
-                        return Ok(Some("\x1b[?1;0c".to_string()));
+                        return Ok(CallbackAction::SendString("\x1b[?1;0c".to_string()));
                     }
     
                     'r' => { // Set Top and Bottom Margins
@@ -1018,7 +1174,7 @@ impl BufferParser for AnsiParser {
             }
         }
 
-        Ok(None)
+        Ok(CallbackAction::None)
     }
 
 }
