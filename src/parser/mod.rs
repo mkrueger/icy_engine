@@ -258,7 +258,7 @@ impl Buffer {
     }
 
     fn clear_buffer_down(&mut self, caret: &Caret) {
-        let mut pos = caret.get_position();
+        let pos = caret.get_position();
         let mut ch = AttributedChar::default();
         ch.attribute = caret.attr;
 
@@ -270,7 +270,7 @@ impl Buffer {
     }
 
     fn clear_buffer_up(&mut self, caret: &Caret) {
-        let mut pos = caret.get_position();
+        let pos = caret.get_position();
         let mut ch = AttributedChar::default();
         ch.attribute = caret.attr;
 

@@ -6,34 +6,22 @@ pub struct Caret {
     pub(super) pos: Position,
     pub(super) attr: TextAttribute,
     pub insert_mode: bool,
-    pub is_visible: bool
+    pub is_visible: bool,
+    pub is_blinking: bool
 }
 
 impl Caret {
-
-    pub fn new() -> Self {
-        Self {
-            pos: Position::default(),
-            attr: TextAttribute::default(),
-            is_visible: true,
-            insert_mode: false
-        }
-    }
-
-    pub fn from(pos: Position) -> Self {
+    pub fn new(pos: Position) -> Self {
         Self {
             pos,
-            attr: TextAttribute::default(),
-            is_visible: true,
-            insert_mode: false
+            ..Default::default()
         }
     }
-    pub fn from_xy(x: i32, y: i32) -> Self {
+
+    pub fn new_xy(x: i32, y: i32) -> Self {
         Self {
             pos: Position { x, y },
-            attr: TextAttribute::default(),
-            is_visible: true,
-            insert_mode: false
+            ..Default::default()
         }
     }
 
@@ -81,11 +69,12 @@ impl std::fmt::Debug for Caret {
 
 impl Default for Caret {
     fn default() -> Self {
-        Self {
-            pos: Position::default(),
-            attr: TextAttribute::default(),
-            is_visible: true,
-            insert_mode: Default::default()
+        Self { 
+            pos: Default::default(), 
+            attr: Default::default(), 
+            insert_mode: false, 
+            is_visible: true, 
+            is_blinking: true
         }
     }
 }

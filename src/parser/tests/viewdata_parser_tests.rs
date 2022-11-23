@@ -5,7 +5,7 @@ use super::update_buffer;
 fn create_viewdata_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) 
 {
     let mut buf = Buffer::create(40, 24);
-    let mut caret  = Caret::new();
+    let mut caret  = Caret::default();
     // remove editing layer
     buf.is_terminal_buffer = true;
     buf.layers.remove(0);

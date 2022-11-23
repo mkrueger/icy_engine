@@ -1,5 +1,3 @@
-use std::cmp::max;
-
 use crate::{Buffer, Caret, EngineResult, AttributedChar, TextAttribute, Position};
 use super::BufferParser;
 
@@ -99,7 +97,7 @@ impl ViewdataParser {
         }
     }
 
-    fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, mut ch: u8) -> EngineResult<Option<String>>  {
+    fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<Option<String>>  {
         if self.got_esc {
             match ch {
                 b'\\' => { // Black Background

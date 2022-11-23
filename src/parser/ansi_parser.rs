@@ -468,6 +468,7 @@ impl BufferParser for AnsiParser {
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap,
                             Some(25) => caret.is_visible = false,
                             Some(33) => buf.terminal_state.set_use_ice_colors(false),
+                            Some(35) => caret.is_blinking = true,
                             _ => { 
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                             }
@@ -484,6 +485,7 @@ impl BufferParser for AnsiParser {
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
                             Some(25) => caret.is_visible = true,
                             Some(33) => buf.terminal_state.set_use_ice_colors(true),
+                            Some(35) => caret.is_blinking = false,
 
                             // Mouse tracking see https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
                             Some(9) => buf.terminal_state.mouse_mode = MouseMode::X10,

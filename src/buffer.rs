@@ -419,7 +419,7 @@ impl Buffer {
             CharInterpreter::Petscii => Box::new(PETSCIIParser::new()),
         };
 
-        let mut caret = Caret::new();
+        let mut caret = Caret::default();
         for b in bytes.iter().take(file_size) {
             interpreter.as_mut().print_char(&mut result, &mut caret, char::from_u32(*b as u32).unwrap())?;
         }

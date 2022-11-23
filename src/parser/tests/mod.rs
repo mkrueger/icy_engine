@@ -17,7 +17,7 @@ fn get_string_from_buffer(buf: &Buffer) -> String
 fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) 
 {
     let mut buf = Buffer::create(80, 25);
-    let mut caret  = Caret::new();
+    let mut caret  = Caret::default();
     // remove editing layer
     buf.is_terminal_buffer = true;
     buf.layers.remove(0);

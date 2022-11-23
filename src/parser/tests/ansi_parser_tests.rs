@@ -245,7 +245,7 @@ fn test_remove_n_line() {
     for i in 0..4  {
         assert_eq!(b't' , buf.get_char(Position::new(0, i)).unwrap().ch as u8);
     }
-    update_buffer(&mut buf, &mut Caret::new(), &mut AnsiParser::new(), b"\x1b[3M");
+    update_buffer(&mut buf, &mut Caret::default(), &mut AnsiParser::new(), b"\x1b[3M");
     assert_eq!(b't' , buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
     assert_eq!(b' ' , buf.get_char(Position::new(0, 1)).unwrap().ch as u8);
 }
@@ -253,18 +253,18 @@ fn test_remove_n_line() {
 #[test]
 fn test_delete_character_default() {
     let (mut buf, _) = create_buffer(&mut AnsiParser::new(), b"test");
-    update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
+    update_buffer(&mut buf, &mut &mut Caret::new_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
     assert_eq!(b'e' , buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
-    update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
+    update_buffer(&mut buf, &mut &mut Caret::new_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
     assert_eq!(b's' , buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
-    update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
+    update_buffer(&mut buf, &mut &mut Caret::new_xy(0, 0), &mut AnsiParser::new(), b"\x1b[P");
     assert_eq!(b't' , buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
 }
 
 #[test]
 fn test_delete_n_character() {
     let (mut buf, _) = create_buffer(&mut AnsiParser::new(), b"testme");
-    update_buffer(&mut buf, &mut &mut Caret::from_xy(0, 0), &mut AnsiParser::new(), b"\x1b[4P");
+    update_buffer(&mut buf, &mut &mut Caret::new_xy(0, 0), &mut AnsiParser::new(), b"\x1b[4P");
     assert_eq!(b'm' , buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
 }
 
