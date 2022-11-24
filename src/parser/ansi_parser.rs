@@ -1,6 +1,6 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
 //                     https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
-use std::{cmp::{max, min}};
+use std::{cmp::{max, min}, fmt::Display};
 
 use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus, XTERM_256_PALETTE, CallbackAction, MusicAction, MusicStyle, AnsiMusic};
 
@@ -39,12 +39,30 @@ pub enum AnsiState {
     ParseAnsiMusic(AnsiMusicState)
 }
 
+#[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum AnsiMusicOption {
     Off,
     Conflicting,
     Banana,
     Both
+}
+
+impl Display for AnsiMusicOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl From<String> for AnsiMusicOption {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "Conflicting" => AnsiMusicOption::Conflicting,
+            "Banana" => AnsiMusicOption::Banana,
+            "Both" => AnsiMusicOption::Both,
+            _ => AnsiMusicOption::Off
+        }
+    }
 }
 
 /*
