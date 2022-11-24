@@ -6,7 +6,7 @@ use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMod
 
 use super::{BufferParser, AsciiParser};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum SixelState {
     Read,
     ReadColor,
@@ -15,16 +15,18 @@ pub enum SixelState {
     EndSequence
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum AnsiMusicState {
     Default,
+    ParseMusicStyle,
     SetTempo(u16),
-    SetOctave(u8),
-    Note(usize),
+    Pause(i32),
+    SetOctave,
+    Note(usize, u32),
     SetLength(i32)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum AnsiState {
     Default,
     GotEscape,
@@ -34,10 +36,10 @@ pub enum AnsiState {
     GotDCS,
     ReadSixel(SixelState),
 
-    StartAnsiMusic,
     ParseAnsiMusic(AnsiMusicState)
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum AnsiMusicOption {
     Off,
     Conflicting,
@@ -45,22 +47,26 @@ pub enum AnsiMusicOption {
     Both
 }
 
-pub const NOTE_TABLE: &'static [&'static str] = &[
-    "C",
-    "D",
-    "E",
-    "F",
-    "G",
-    "A",
-    "B",
-    "C#",
-    "D#",
-    "E#",
-    "F#",
-    "G#",
-    "A#",
-    "B",    
+/*
+Generated with:
+for oct in range(1, 8):
+    for i in range(16, 28):
+        n = i + (28-16) * (oct - 1)
+        freq = 440.0 * pow(2.0, (n - 49.0) / 12.0)
+        print("{:.4f}".format(freq), end=", ")
+    print()
+*/
+pub const FREQ: [f32;12 * 7] = [
+//  C      C#       D        D#       E        F        F#       G         G#        A         A#        B
+65.4064, 69.2957, 73.4162, 77.7817, 82.4069, 87.3071, 92.4986, 97.9989, 103.8262, 110.0000, 116.5409, 123.4708, 
+130.8128, 138.5913, 146.8324, 155.5635, 164.8138, 174.6141, 184.9972, 195.9977, 207.6523, 220.0000, 233.0819, 246.9417, 
+261.6256, 277.1826, 293.6648, 311.1270, 329.6276, 349.2282, 369.9944, 391.9954, 415.3047, 440.0000, 466.1638, 493.8833, 
+523.2511, 554.3653, 587.3295, 622.2540, 659.2551, 698.4565, 739.9888, 783.9909, 830.6094, 880.0000, 932.3275, 987.7666, 
+1046.5023, 1108.7305, 1174.6591, 1244.5079, 1318.5102, 1396.9129, 1479.9777, 1567.9817, 1661.2188, 1760.0000, 1864.6550, 1975.5332, 
+2093.0045, 2217.4610, 2349.3181, 2489.0159, 2637.0205, 2793.8259, 2959.9554, 3135.9635, 3322.4376, 3520.0000, 3729.3101, 3951.0664, 
+4186.0090, 4434.9221, 4698.6363, 4978.0317, 5274.0409, 5587.6517, 5919.9108, 6271.9270, 6644.8752, 7040.0000, 7458.6202, 7902.1328
 ];
+
 
 
 pub struct AnsiParser {
@@ -80,7 +86,9 @@ pub struct AnsiParser {
 
     pub ansi_music: AnsiMusicOption,
     cur_music: Option<AnsiMusic>,
-    cur_octave: u8
+    cur_octave: usize,
+    cur_length: u32,
+    cur_tempo: u32
 }
 
 const ANSI_CSI: char = '[';
@@ -151,7 +159,9 @@ impl AnsiParser {
             current_sixel: 0,
             ansi_music: AnsiMusicOption::Both,
             cur_music: None,
-            cur_octave: 4
+            cur_octave: 3,
+            cur_length: 4,
+            cur_tempo: 120
         }
     }
 
@@ -275,38 +285,61 @@ impl AnsiParser {
     fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
         if let AnsiState::ParseAnsiMusic(state) = self.state.clone() {
             match state {
+                AnsiMusicState::ParseMusicStyle => {
+                    self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                    match ch  {
+                        'F' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Foreground)),
+                        'B' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Background)),
+                        'N' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Normal)),
+                        'L' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Legato)),
+                        'S' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Staccato)),
+                        _ => return self.parse_ansi_music(ch)
+                    }
+                }
                 AnsiMusicState::SetTempo(x) => {
                     let mut x = x;
                     if '0' <= ch && ch <= '9' {
                         x = x * 10 + ch as u16 - b'0' as u16;
-                        if x > 255  {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
-                        }
                         self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(x))
                     } else {
-                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetTempo(x as u8));
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                        self.cur_tempo = min(255, max(32, x)) as u32;
                         return self.parse_default_ansi_music(ch);
                     }
                 }
-                AnsiMusicState::SetOctave(x) => {
-                    if '0' <= ch && ch <= '9' {
-                        self.cur_octave = x;
+                AnsiMusicState::SetOctave => {
+                    if '0' <= ch && ch <= '6' {
+                        self.cur_octave = ((ch as u8) - b'0') as usize;
                         self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
-                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetOctave(x));
                     } else {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                     }
                 }
-                AnsiMusicState::Note(n) => {
+                AnsiMusicState::Note(n, len) => {
                     self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
                     match ch {
                         '+' | '#' => {
-                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(NOTE_TABLE[n + 8]));
-                            return self.parse_default_ansi_music(ch);
+                            if n + 1 < FREQ.len() {
+                                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n + 1, len));
+                            }
                         }
-//                        '-' => {}
+                        '-' => {
+                            if n > 0  { // B
+                                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n - 1, len));
+                            }
+                        }
+                        '0'..='9' => {
+                            let len = len * 10 + ch as u32 - b'0' as u32;
+                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n, len));
+                        }
+                        '.' => {
+                            let len = len * 3 / 2;
+                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n, len));
+                        }
                         _ => {
-                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(NOTE_TABLE[n]));
+                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                            let len = if len == 0 { self.cur_length } else { len };
+                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(FREQ[n + (self.cur_octave * 12)], self.cur_tempo * len));
                             return self.parse_default_ansi_music(ch);
                         }
                     }
@@ -316,8 +349,25 @@ impl AnsiParser {
                     if '0' <= ch && ch <= '9' {
                         x = x * 10 + ch as i32 - b'0' as i32;
                         self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(x))
+                    } else if ch == '.' {
+                        x = x * 3 / 2;
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(x))
                     } else {
-                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetLength(x));
+                        self.cur_length = min(64, max(1, x as u32));
+                        return self.parse_default_ansi_music(ch);
+                    }
+                }
+                AnsiMusicState::Pause(x) => {
+                    let mut x = x;
+                    if '0' <= ch && ch <= '9' {
+                        x = x * 10 + ch as i32 - b'0' as i32;
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(x))
+                    } else if ch == '.' {
+                        x = x * 3 / 2;
+                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(x))
+                    } else {
+                        let pause = min(64, max(1, x as u32));
+                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::Pause(self.cur_tempo * pause));
                         return self.parse_default_ansi_music(ch);
                     }
                 }
@@ -334,25 +384,38 @@ impl AnsiParser {
         match ch  {
             '\x0E' => {
                 self.state = AnsiState::Default;
-                self.cur_octave = 4;
+                self.cur_octave = 3;
                 return Ok(CallbackAction::PlayMusic(self.cur_music.replace(AnsiMusic::default()).unwrap()));
             }
             'T' => {
                 self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(0))
             }
-            'O' => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetOctave(0))
+            'L' => {
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(0))
             }
-            'C' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(0)),
-            'D' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(1)),
-            'E' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(2)),
-            'F' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(3)),
-            'G' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(4)),
-            'A' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(5)),
-            'B' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(6)),
+            'O' => {
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetOctave)
+            }
+            'C' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(0, 0)),
+            'D' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(2, 0)),
+            'E' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(4, 0)),
+            'F' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(5, 0)),
+            'G' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(7, 0)),
+            'A' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(9, 0)),
+            'B' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(11, 0)),
+            'M' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle),
+            '<' => {
+                if self.cur_octave > 0 {
+                    self.cur_octave -= 1;
+                } 
+            } 
+            '>' => {
+                if self.cur_octave < 6 {
+                    self.cur_octave += 1;
+                }
+            } 
             'P' => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
-                self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::Pause);
+                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(0));
             }
             _ =>  {}
         }
@@ -371,17 +434,6 @@ impl BufferParser for AnsiParser {
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match &self.state {
-            AnsiState::StartAnsiMusic => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
-                match ch  {
-                    'F' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Foreground,
-                    'B' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Background,
-                    'N' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Normal,
-                    'L' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Legato,
-                    'S' => self.cur_music.as_mut().unwrap().music_style = MusicStyle::Staccato,
-                    _ => return self.parse_ansi_music(ch)
-                }
-            }
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
             }
@@ -881,6 +933,10 @@ impl BufferParser for AnsiParser {
                             6 => { // Get cursor position
                                 let s = format!("\x1b[{};{}R", min(buf.get_buffer_height() as i32, caret.pos.y + 1), min(buf.get_buffer_width() as i32, caret.pos.x + 1));
                                 return Ok(CallbackAction::SendString(s));
+                            }, 
+                            255 => { // Current screen size
+                                let s = format!("\x1b[{};{}R", buf.terminal_state.height, buf.terminal_state.width);
+                                return Ok(CallbackAction::SendString(s));
                             },
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
@@ -923,7 +979,8 @@ impl BufferParser for AnsiParser {
                     'M' => { // Delete line
                         self.state = AnsiState::Default;
                         if matches!(self.ansi_music, AnsiMusicOption::Conflicting) || matches!(self.ansi_music, AnsiMusicOption::Both) {
-                            self.state = AnsiState::StartAnsiMusic;
+                            self.cur_music = Some(AnsiMusic::default());
+                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
                         } else {
                             if self.parsed_numbers.is_empty() {
                                 if let Some(layer) = buf.layers.get(0) {
@@ -955,7 +1012,15 @@ impl BufferParser for AnsiParser {
                     }
                     'N' => { 
                         if matches!(self.ansi_music, AnsiMusicOption::Banana) || matches!(self.ansi_music, AnsiMusicOption::Both) {
-                            self.state = AnsiState::StartAnsiMusic;
+                            self.cur_music = Some(AnsiMusic::default());
+                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
+                        } 
+                    }
+
+                    '|' => { 
+                        if !matches!(self.ansi_music, AnsiMusicOption::Off) {
+                            self.cur_music = Some(AnsiMusic::default());
+                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
                         } 
                     }
                     

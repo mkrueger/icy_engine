@@ -31,6 +31,8 @@ pub const CR: char = '\r';
 pub const BS: char = '\x08';
 pub const FF: char = '\x0C';
 
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MusicStyle {
     Foreground,
     Background,
@@ -39,25 +41,25 @@ pub enum MusicStyle {
     Staccato
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MusicAction {
-    SetTempo(u8),
-    SetLength(i32),
-    SetOctave(u8),
-    PlayNote(&'static str),
-    Pause,
+    PlayNote(f32, u32), // freq / note length 
+    Pause(u32),
+    SetStyle(MusicStyle),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnsiMusic {
-    pub music_style: MusicStyle,
     pub music_actions: Vec<MusicAction> 
 }
 
 impl Default for AnsiMusic {
     fn default() -> Self {
-        Self { music_style: MusicStyle::Normal, music_actions: Default::default() }
+        Self { music_actions: Default::default() }
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum CallbackAction {
     None,
     SendString(String),

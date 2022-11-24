@@ -3,7 +3,7 @@ mod ansi_parser_tests;
 mod ascii_parser_tests;
 mod viewdata_parser_tests;
 
-use crate::{Buffer, Caret, BufferParser};
+use crate::{Buffer, Caret, BufferParser, CallbackAction};
 
 fn get_string_from_buffer(buf: &Buffer) -> String
 {
@@ -36,4 +36,24 @@ fn update_buffer<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &
             parser.print_char(buf,caret, ch).unwrap(); // test code
         }
     }
+}
+
+fn get_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackAction
+{
+    let mut buf = Buffer::create(80, 25);
+    let mut caret  = Caret::default();
+    // remove editing layer
+    buf.is_terminal_buffer = true;
+    buf.layers.remove(0);
+    buf.layers[0].is_locked = false;
+    buf.layers[0].is_transparent = false;
+    
+    let mut action = CallbackAction::None;
+    for b in input {
+        if let Some(ch) = char::from_u32(*b as u32) {
+            action = parser.print_char(&mut buf, &mut caret, ch).unwrap(); // test code
+        }
+    }
+    
+    action
 }
