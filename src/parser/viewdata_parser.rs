@@ -226,7 +226,11 @@ impl BufferParser for ViewdataParser {
                 self.caret_up(buf, caret);
             },
             0b000_1100 => { // 12 / 0x0C
-                caret.ff(buf); 
+                buf.terminal_state.reset();
+                buf.clear();
+                caret.pos = Position::default();
+                caret.attr = TextAttribute::default();
+        
                 self.reset_screen();
             },
             0b000_1101 => {  // 13 / 0x0D

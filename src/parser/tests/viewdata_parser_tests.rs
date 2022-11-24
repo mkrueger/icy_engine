@@ -175,7 +175,6 @@ fn test_color_on_clreol() {
     assert_eq!(2, buf.get_char(Position::new(3, buf.get_buffer_height() - 1)).unwrap().attribute.get_foreground());
 }
 
-
 #[test]
 fn test_caret_visibility() {
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x14\n\n\n");
@@ -184,4 +183,6 @@ fn test_caret_visibility() {
     let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x14\n\n\n\x11");
     assert_eq!(true, caret.is_visible);
 
+    let (_, caret) = create_viewdata_buffer(&mut ViewdataParser::new(), b"\x14\x0C");
+    assert_eq!(false, caret.is_visible);
 }

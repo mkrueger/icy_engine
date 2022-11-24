@@ -535,18 +535,18 @@ fn test_music() {
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
     assert_eq!(1, music.music_actions.len());
     let MusicAction::PlayNote(f, len) = music.music_actions[0] else { panic!(); };
-    assert_eq!(261.6256, f);
-    assert_eq!(4, len);
+    assert_eq!(523.2511, f);
+    assert_eq!(4 * 120, len);
 }
 
 #[test]
 fn test_set_length() {
     let action = get_action(&mut AnsiParser::new(), b"\x1B[NNL8C\x0E");
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
-    assert_eq!(1, music.music_actions.len());
-    let MusicAction::PlayNote(f, len) = music.music_actions[0] else { panic!(); };
-    assert_eq!(261.6256, f);
-    assert_eq!(8, len);
+    assert_eq!(2, music.music_actions.len());
+    let MusicAction::PlayNote(f, len) = music.music_actions[1] else { panic!(); };
+    assert_eq!(523.2511, f);
+    assert_eq!(8 * 120, len);
 }
 
 #[test]
@@ -562,14 +562,12 @@ fn test_pause() {
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
     assert_eq!(1, music.music_actions.len());
     let MusicAction::Pause(t) = music.music_actions[0] else { panic!(); };
-    assert_eq!(32 + 16, t);
+    assert_eq!(5760, t);
 }
 
 #[test]
 fn test_melody() {
     let action = get_action(&mut AnsiParser::new(), b"\x1B[MFT225O3L8GL8GL8GL2E-P8L8FL8FL8FMLL2DL2DMNP8\x0E");
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
-    assert_eq!(15, music.music_actions.len());
+    assert_eq!(14, music.music_actions.len());
 }
-
-// \x1B[MFT225O3L8GL8GL8GL2E-P8L8FL8FL8FMLL2DL2DMNP8\x0E
