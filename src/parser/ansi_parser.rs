@@ -790,6 +790,11 @@ impl BufferParser for AnsiParser {
                                     caret.attr.set_background(self.parse_extended_colors(buf, &mut i)?);
                                 }
                                 49 => caret.attr.set_background(0), // Set background color to default, ECMA-48 3rd
+
+                                // high intensity colors
+                                90..=97 => caret.attr.set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
+                                100..=107 => caret.attr.set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
+
                                 _ => { 
                                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                                 }
@@ -1140,11 +1145,14 @@ impl BufferParser for AnsiParser {
     
                     'r' => { // Set Top and Bottom Margins
                         self.state = AnsiState::Default;
-                        if self.parsed_numbers.len() != 2 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
-                        }
-                        let start = self.parsed_numbers[0] - 1;
-                        let end = self.parsed_numbers[1] - 1;
+                        let (start, end) = match self.parsed_numbers.len() {
+                            2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
+                            1 => (0, self.parsed_numbers[0] - 1),
+                            0 => (0, buf.terminal_state.height),
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            }
+                        };
     
                         if start > end {
                             // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
