@@ -332,6 +332,7 @@ impl Buffer {
      
     pub fn from_bytes(file_name: &Path, bytes: &[u8]) -> EngineResult<Buffer> {
         let mut result = Buffer::new();
+        result.is_terminal_buffer = false;
         result.file_name = Some(file_name.to_path_buf());
         let ext = file_name.extension();
 
@@ -409,7 +410,7 @@ impl Buffer {
         }
 
         if result.get_buffer_width() == 0 { result.set_buffer_width(80); }
-        result.set_buffer_height(1);
+        result.set_buffer_height(25);
 
         let mut interpreter: Box<dyn BufferParser> = match interpreter {
             CharInterpreter::Ascii => Box::new(AsciiParser::new()),
