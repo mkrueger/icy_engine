@@ -43,13 +43,15 @@ impl ViewdataParser {
         let sx = caret.get_position().x;
         let sy = caret.get_position().y;
 
-        let attr = buf.get_char(Position::new(sx - 1, sy)).unwrap().attribute;
-//        let attr = caret.attr;
+        let attr = buf.get_char(Position::new(sx, sy)).unwrap().attribute;
 
         for x in sx..buf.get_buffer_width() {
             let p = Position::new(x, sy);
             let mut ch = buf.get_char(p).unwrap();
-            ch.attribute = attr;
+            if ch.attribute != attr {
+                break;
+            }
+            ch.attribute = caret.attr;
             buf.set_char(0, p, Some(ch));
         }
     }
@@ -103,13 +105,15 @@ impl ViewdataParser {
                 b'\\' => { // Black Background
                     caret.attr.set_is_concealed(false);
                     caret.attr.set_background(0);
+                    self.fill_to_eol(buf, caret);
                 },
                 b']' => { 
                     caret.attr.set_background(caret.attr.get_foreground());
+                    self.fill_to_eol(buf, caret);
                 },
-                b'I' => { caret.attr.set_is_blinking(false); },
-                b'L' => { caret.attr.set_is_double_height(false); },
-                b'X' => { if !self.is_in_graphic_mode { caret.attr.set_is_concealed(true) } },
+                b'I' => { caret.attr.set_is_blinking(false); self.fill_to_eol(buf, caret); },
+                b'L' => { caret.attr.set_is_double_height(false); self.fill_to_eol(buf, caret); },
+                b'X' => { if !self.is_in_graphic_mode { caret.attr.set_is_concealed(true); self.fill_to_eol(buf, caret); } },
                 b'Y' => { self.is_contiguous = true; self.is_in_graphic_mode = true; },
                 b'Z' => self.is_contiguous = false,
                 b'^' => {self.hold_graphics = true; self.is_in_graphic_mode = true; } ,
@@ -117,7 +121,6 @@ impl ViewdataParser {
             }
         }
         if !self.hold_graphics {
-
             self.held_graphics_character = ' ';
         }
 
@@ -154,6 +157,7 @@ impl ViewdataParser {
                     caret.attr.set_is_concealed(false);
                     self.held_graphics_character = ' ';
                     caret.attr.set_foreground(1 + (ch - b'A') as u32);
+                    self.fill_to_eol(buf, caret);
                 }
                 b'Q'..=b'W' => {  // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, White
                      if !self.is_in_graphic_mode {
@@ -162,11 +166,16 @@ impl ViewdataParser {
                     }
                     caret.attr.set_is_concealed(false);
                     caret.attr.set_foreground(1 + (ch - b'Q') as u32);
+                    self.fill_to_eol(buf, caret);
                 },
-                b'H' => { caret.attr.set_is_blinking(true);  },
+                b'H' => {
+                    caret.attr.set_is_blinking(true);
+                    self.fill_to_eol(buf, caret);
+                },
         
                 b'M' => {
                     caret.attr.set_is_double_height(true); 
+                    self.fill_to_eol(buf, caret);
                 },
         
                 b'_' => { self.hold_graphics = false;} ,
@@ -234,7 +243,6 @@ impl BufferParser for ViewdataParser {
                 self.reset_screen();
             },
             0b000_1101 => {  // 13 / 0x0D
-                self.fill_to_eol(buf, caret);
                 caret.cr(buf);
             },
             0b000_1110 => { return Ok(CallbackAction::None); } // TODO: SO - switch to G1 char set
@@ -256,7 +264,6 @@ impl BufferParser for ViewdataParser {
             0b001_1100 => { return Ok(CallbackAction::None); } // TODO: SS2 - switch to G2 char set
             0b001_1101 => { return Ok(CallbackAction::None); } // TODO: SS3 - switch to G3 char set
             0b001_1110 => { // 28 / 0x1E
-                self.fill_to_eol(buf, caret);
                 caret.home(buf)
             },
             0b001_1111 => {} // ignore
