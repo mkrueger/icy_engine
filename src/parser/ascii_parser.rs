@@ -1,33 +1,35 @@
-use crate::{Buffer, Caret, TextAttribute, EngineResult, LF, FF, CR, BS, CallbackAction};
 use super::BufferParser;
-pub struct AsciiParser {
-}
+use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, BS, CR, FF, LF};
+pub struct AsciiParser {}
 
 impl AsciiParser {
     pub fn new() -> Self {
-        Self { }
+        Self {}
     }
 }
 
 impl BufferParser for AsciiParser {
-    fn from_unicode(&self, ch: char) -> char
-    {
+    fn from_unicode(&self, ch: char) -> char {
         if let Some(tch) = UNICODE_TO_CP437.get(&ch) {
             *tch
         } else {
-            ch 
+            ch
         }
     }
 
-    fn to_unicode(&self, ch: char) -> char
-    {
+    fn to_unicode(&self, ch: char) -> char {
         match CP437_TO_UNICODE.get(ch as usize) {
             Some(out_ch) => *out_ch,
-            _ => ch
+            _ => ch,
         }
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
+    fn print_char(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        ch: char,
+    ) -> EngineResult<CallbackAction> {
         match ch {
             '\x00' | '\u{00FF}' => {
                 caret.attr = TextAttribute::default();
@@ -37,16 +39,16 @@ impl BufferParser for AsciiParser {
             CR => caret.cr(buf),
             BS => caret.bs(buf),
             '\x7F' => caret.del(buf),
-            _ => buf.print_value(caret, ch as u16)
+            _ => buf.print_value(caret, ch as u16),
         }
         Ok(CallbackAction::None)
     }
 }
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref UNICODE_TO_CP437: std::collections::HashMap<char,char> = {
         let mut res = std::collections::HashMap::new();
-        for a in 0..256 { 
+        for a in 0..256 {
             res.insert(CP437_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
         }
         res

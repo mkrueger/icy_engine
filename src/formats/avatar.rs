@@ -1,8 +1,8 @@
-use std::{io};
+use std::io;
 
 use crate::{Buffer, Position, TextAttribute};
 
-use super::{ SaveOptions};
+use super::SaveOptions;
 
 /// Starts Avatar command
 const AVT_CMD: u8 = 22;
@@ -22,8 +22,7 @@ pub enum AvtReadState {
     ReadColor,
 }
 
-pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
-{
+pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
@@ -31,14 +30,16 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut first_char = true;
 
     match options.screen_preparation {
-        super::ScreenPreperation::None => {},
-        super::ScreenPreperation::ClearScreen => { result.push(AVT_CLR); },
-        super::ScreenPreperation::Home => { 
-            result.push(AVT_CMD); 
-            result.push(8);  // move caret
-            result.push(1);  // x
-            result.push(1);  // y
-        },
+        super::ScreenPreperation::None => {}
+        super::ScreenPreperation::ClearScreen => {
+            result.push(AVT_CLR);
+        }
+        super::ScreenPreperation::Home => {
+            result.push(AVT_CMD);
+            result.push(8); // move caret
+            result.push(1); // x
+            result.push(1); // y
+        }
     }
 
     // TODO: implement repeat pattern compression (however even TheDraw never bothered to implement this cool RLE from fsc0037)
@@ -49,9 +50,11 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             let mut repeat_count = 1;
             let mut ch = buf.get_char(pos).unwrap_or_default();
 
-            while pos.x < buf.get_buffer_width() as i32 - 3 && ch == buf.get_char(pos + Position::new(1, 0)).unwrap_or_default() {
+            while pos.x < buf.get_buffer_width() as i32 - 3
+                && ch == buf.get_char(pos + Position::new(1, 0)).unwrap_or_default()
+            {
                 repeat_count += 1;
-                pos.x += 1;                     
+                pos.x += 1;
                 ch = buf.get_char(pos).unwrap_or_default();
             }
 
@@ -82,7 +85,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 result.push(ch.ch as u8);
                 result.push(1);
             } else {
-                result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8});
+                result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
             }
             pos.x += 1;
         }
@@ -95,23 +98,23 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         pos.x = 0;
         pos.y += 1;
     }
-    if options.save_sauce  {
+    if options.save_sauce {
         buf.write_sauce_info(&crate::SauceFileType::Avatar, &mut result)?;
     }
     Ok(result)
 }
 
-pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String)
-{
+pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
     if buf.get_buffer_width() != 80 {
-        return (true, "width != 80".to_string() );
+        return (true, "width != 80".to_string());
     }
 
-    if buf.has_sauce_relevant_data() { return (true, String::new()); }
+    if buf.has_sauce_relevant_data() {
+        return (true, String::new());
+    }
 
-    ( false, String::new() )
+    (false, String::new())
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -119,44 +122,67 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"),  
-        &[b'X', 12, b'X']).unwrap();
+        let buf =
+            Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), &[b'X', 12, b'X']).unwrap();
         assert_eq!(1, buf.get_buffer_height());
         assert_eq!(1, buf.get_buffer_width());
     }
 
-
     #[test]
     fn test_repeat() {
-        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), 
-        &[b'X', 25, b'b', 3, b'X']).unwrap();
+        let buf = Buffer::from_bytes(
+            &std::path::PathBuf::from("test.avt"),
+            &[b'X', 25, b'b', 3, b'X'],
+        )
+        .unwrap();
         assert_eq!(1, buf.get_buffer_height());
         assert_eq!(5, buf.get_buffer_width());
-        assert_eq!(b'X', buf.get_char(Position::new(0, 0)).unwrap_or_default().ch as u8);
-        assert_eq!(b'b', buf.get_char(Position::new(1, 0)).unwrap_or_default().ch as u8);
-        assert_eq!(b'b', buf.get_char(Position::new(2, 0)).unwrap_or_default().ch as u8);
-        assert_eq!(b'b', buf.get_char(Position::new(3, 0)).unwrap_or_default().ch as u8);
-        assert_eq!(b'X', buf.get_char(Position::new(4, 0)).unwrap_or_default().ch as u8);
+        assert_eq!(
+            b'X',
+            buf.get_char(Position::new(0, 0)).unwrap_or_default().ch as u8
+        );
+        assert_eq!(
+            b'b',
+            buf.get_char(Position::new(1, 0)).unwrap_or_default().ch as u8
+        );
+        assert_eq!(
+            b'b',
+            buf.get_char(Position::new(2, 0)).unwrap_or_default().ch as u8
+        );
+        assert_eq!(
+            b'b',
+            buf.get_char(Position::new(3, 0)).unwrap_or_default().ch as u8
+        );
+        assert_eq!(
+            b'X',
+            buf.get_char(Position::new(4, 0)).unwrap_or_default().ch as u8
+        );
     }
 
     #[test]
     fn test_zero_repeat() {
-        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), 
-        &[25, b'b', 0]).unwrap();
+        let buf =
+            Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), &[25, b'b', 0]).unwrap();
         assert_eq!(0, buf.get_buffer_height());
         assert_eq!(0, buf.get_buffer_width());
     }
 
     #[test]
     fn test_linebreak_bug() {
-        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), &[12,22,1,8,32,88,22,1,15,88,25,32,4,88,22,1,8,88,32,32,32,22,1,3,88,88,22,1,57,88,88,88,25,88,7,22,1,9,25,88,4,22,1,25,88,88,88,88,88,88,22,1,1,25,88,13]).unwrap();
+        let buf = Buffer::from_bytes(
+            &std::path::PathBuf::from("test.avt"),
+            &[
+                12, 22, 1, 8, 32, 88, 22, 1, 15, 88, 25, 32, 4, 88, 22, 1, 8, 88, 32, 32, 32, 22,
+                1, 3, 88, 88, 22, 1, 57, 88, 88, 88, 25, 88, 7, 22, 1, 9, 25, 88, 4, 22, 1, 25, 88,
+                88, 88, 88, 88, 88, 22, 1, 1, 25, 88, 13,
+            ],
+        )
+        .unwrap();
         assert_eq!(1, buf.get_buffer_height());
         assert_eq!(47, buf.get_buffer_width());
     }
 
-
-    fn output_avt(data: &[u8]) -> Vec<u8>
-    {
+    fn output_avt(data: &[u8]) -> Vec<u8> {
         let mut result = Vec::new();
         let mut prev = 0;
 
@@ -190,17 +216,16 @@ mod tests {
         result
     }
 
-    fn test_avt(data: &[u8])
-    {
+    fn test_avt(data: &[u8]) {
         let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), data).unwrap();
         let converted = super::convert_to_avt(&buf, &SaveOptions::new()).unwrap();
 
         // more gentle output.
-        let b : Vec<u8> = output_avt(&converted);
-        let converted  = String::from_utf8_lossy(b.as_slice());
+        let b: Vec<u8> = output_avt(&converted);
+        let converted = String::from_utf8_lossy(b.as_slice());
 
-        let b : Vec<u8> = output_avt(data);
-        let expected  = String::from_utf8_lossy(b.as_slice());
+        let b: Vec<u8> = output_avt(data);
+        let expected = String::from_utf8_lossy(b.as_slice());
 
         assert_eq!(expected, converted);
     }

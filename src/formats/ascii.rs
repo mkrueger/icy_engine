@@ -4,8 +4,7 @@ use crate::{Buffer, Position};
 
 use super::SaveOptions;
 
-pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
-{
+pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut pos = Position::default();
     let height = buf.get_real_buffer_height() as i32;
@@ -14,7 +13,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         let line_length = buf.get_line_length(pos.y);
         while pos.x < line_length {
             let ch = buf.get_char(pos).unwrap_or_default();
-            result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8});
+            result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
             pos.x += 1;
         }
 
@@ -34,14 +33,14 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     Ok(result)
 }
 
-pub fn get_save_sauce_default_asc(buf: &Buffer) -> (bool, String)
-{
+pub fn get_save_sauce_default_asc(buf: &Buffer) -> (bool, String) {
     if buf.get_buffer_width() != 80 {
-        return (true, "width != 80".to_string() );
+        return (true, "width != 80".to_string());
     }
 
-    if buf.has_sauce_relevant_data() { return (true, String::new()); }
+    if buf.has_sauce_relevant_data() {
+        return (true, String::new());
+    }
 
-
-    ( false, String::new() )
+    (false, String::new())
 }

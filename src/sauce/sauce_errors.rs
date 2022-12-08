@@ -8,7 +8,7 @@ pub enum SauceError {
     NoSauce,
     UnsupportedSauceVersion(String),
     InvalidCommentBlock,
-    InvalidCommentId(String)
+    InvalidCommentId(String),
 }
 
 impl std::fmt::Display for SauceError {

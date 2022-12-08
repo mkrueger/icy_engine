@@ -1,7 +1,7 @@
 use std::io;
 
-use crate::{Buffer, AttributedChar, BitFont, Size, Palette, BufferType};
-use super::{ Position, TextAttribute, SaveOptions};
+use super::{Position, SaveOptions, TextAttribute};
+use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Size};
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
 
@@ -13,19 +13,24 @@ use super::{ Position, TextAttribute, SaveOptions};
 // A very simple format with a weird palette storage. Only 16 colors got used but a full 64 color palette is stored.
 // Maybe useful for DOS demos running in text mode.
 
-pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool>
-{
+pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
     result.set_buffer_width(80);
     result.buffer_type = BufferType::LegacyIce;
     let mut o = 0;
     let mut pos = Position::default();
-    if file_size <  1 + 3 * 64 + 4096 {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid ADF - file too short"));
+    if file_size < 1 + 3 * 64 + 4096 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Invalid ADF - file too short",
+        ));
     }
 
     let version = bytes[o];
     if version != 1 {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Unsupported ADF version {}", version)));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Unsupported ADF version {}", version),
+        ));
     }
     o += 1;
 
@@ -36,7 +41,9 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
     let font_size = 4096;
     result.font_table.clear();
-    result.font_table.push(BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]));
+    result
+        .font_table
+        .push(BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]));
     o += font_size;
 
     loop {
@@ -45,7 +52,14 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
                 result.set_height_for_pos(pos);
                 return Ok(true);
             }
-            result.set_char(0, pos, Some(AttributedChar::new(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
+            result.set_char(
+                0,
+                pos,
+                Some(AttributedChar::new(
+                    char::from_u32(bytes[o] as u32).unwrap(),
+                    TextAttribute::from_u8(bytes[o + 1], result.buffer_type),
+                )),
+            );
             pos.x += 1;
             o += 2;
         }
@@ -54,20 +68,24 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     }
 }
 
-pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
-{
+pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = vec![1]; // version
 
     result.extend(buf.palette.to_ega_palette());
     if buf.get_font_dimensions() != Size::new(8, 16) {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Only 8x16 fonts are supported by adf."));
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Only 8x16 fonts are supported by adf.",
+        ));
     }
 
     buf.font_table[0].convert_to_u8_data(&mut result);
 
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {
-            let ch = buf.get_char(Position::new(x as i32, y as i32)).unwrap_or_default();
+            let ch = buf
+                .get_char(Position::new(x as i32, y as i32))
+                .unwrap_or_default();
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(BufferType::LegacyIce));
         }
@@ -78,14 +96,14 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     Ok(result)
 }
 
-pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String)
-{
+pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {
     if buf.get_buffer_width() != 80 {
-        return (true, "width != 80".to_string() );
+        return (true, "width != 80".to_string());
     }
 
-    if buf.has_sauce_relevant_data() { return (true, String::new()); }
+    if buf.has_sauce_relevant_data() {
+        return (true, String::new());
+    }
 
-
-    ( false, String::new() )
+    (false, String::new())
 }

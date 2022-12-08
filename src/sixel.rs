@@ -5,7 +5,7 @@ pub enum SixelReadStatus {
     NotStarted,
     Finished,
     Error,
-    Position(i32, i32)
+    Position(i32, i32),
 }
 
 impl Default for SixelReadStatus {
@@ -21,23 +21,26 @@ pub struct Sixel {
     pub background_color: Option<Color>,
     pub picture: Vec<Vec<Option<Color>>>,
     pub len: usize,
-    pub read_status: SixelReadStatus
+    pub read_status: SixelReadStatus,
 }
 
 impl Sixel {
     pub fn new(position: Position, aspect_ratio: u8) -> Self {
-        Self { 
+        Self {
             position,
             aspect_ratio,
             background_color: None,
             picture: Vec::new(),
             read_status: Default::default(),
-            len: 0
+            len: 0,
         }
     }
 
     pub fn get_rect(&self) -> Rectangle {
-        Rectangle { start: self.position, size: Size::new(self.width() as i32, self.height() as i32) }
+        Rectangle {
+            start: self.position,
+            size: Size::new(self.width() as i32, self.height() as i32),
+        }
     }
 
     pub fn width(&self) -> u32 {

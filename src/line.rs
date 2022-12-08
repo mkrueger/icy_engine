@@ -1,4 +1,4 @@
-use super::{AttributedChar};
+use super::AttributedChar;
 #[derive(Clone, Debug, Default)]
 pub struct Line {
     pub chars: Vec<Option<AttributedChar>>,
@@ -19,16 +19,14 @@ impl Line {
         0
     }
 
-    pub fn insert_char(&mut self, index: i32, char_opt: Option<AttributedChar>)
-    {
+    pub fn insert_char(&mut self, index: i32, char_opt: Option<AttributedChar>) {
         if index > self.chars.len() as i32 {
             self.chars.resize(index as usize, None);
         }
         self.chars.insert(index as usize, char_opt);
     }
-    
-    pub fn set_char(&mut self, index: i32, char_opt: Option<AttributedChar>)
-    {
+
+    pub fn set_char(&mut self, index: i32, char_opt: Option<AttributedChar>) {
         if index >= self.chars.len() as i32 {
             self.chars.resize(index as usize + 1, None);
         }
@@ -36,10 +34,9 @@ impl Line {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::{Line, AttributedChar};
+    use crate::{AttributedChar, Line};
 
     #[test]
     fn test_insert_char() {

@@ -1,24 +1,23 @@
-use std::cmp::{min, max};
+use std::cmp::{max, min};
 
-use crate::{Caret, Buffer};
+use crate::{Buffer, Caret};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerminalScrolling {
     Smooth,
-    Fast
+    Fast,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum OriginMode {
     UpperLeftCorner,
-    WithinMargins
+    WithinMargins,
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum AutoWrapMode {
     NoWrap,
-    AutoWrap
+    AutoWrap,
 }
 
 #[derive(Debug)]
@@ -31,12 +30,11 @@ pub struct TerminalState {
     pub auto_wrap_mode: AutoWrapMode,
     pub margins: Option<(i32, i32)>,
     pub mouse_mode: MouseMode,
-    use_ice: bool
+    use_ice: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MouseMode
-{
+pub enum MouseMode {
     Default,
     Highlight,
     X10,
@@ -51,16 +49,16 @@ pub enum MouseMode
 }
 
 impl TerminalState {
-    pub fn from(width: i32, height:i32) -> Self {
+    pub fn from(width: i32, height: i32) -> Self {
         Self {
             width,
             height,
             scroll_state: TerminalScrolling::Smooth,
             origin_mode: OriginMode::UpperLeftCorner,
-            auto_wrap_mode: AutoWrapMode::AutoWrap, 
+            auto_wrap_mode: AutoWrapMode::AutoWrap,
             mouse_mode: MouseMode::Default,
             margins: None,
-            use_ice: false
+            use_ice: false,
         }
     }
 
@@ -85,15 +83,14 @@ impl TerminalState {
                 let n = min(first + buf.get_buffer_height() - 1, max(first, caret.pos.y));
                 caret.pos.y = n;
                 caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
-            },
-            crate::OriginMode::WithinMargins => { 
+            }
+            crate::OriginMode::WithinMargins => {
                 let first = buf.get_first_editable_line();
                 let height = buf.get_last_editable_line() - first;
                 let n = min(first + height - 1, max(first, caret.pos.y));
                 caret.pos.y = n;
                 caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
-             }
+            }
         }
-
     }
 }

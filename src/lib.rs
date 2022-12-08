@@ -1,5 +1,12 @@
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_possible_wrap, clippy::too_many_lines, clippy::cast_lossless, clippy::cast_precision_loss)]
+#![allow(
+    clippy::cast_sign_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::too_many_lines,
+    clippy::cast_lossless,
+    clippy::cast_precision_loss
+)]
 mod text_attribute;
 use std::error::Error;
 
@@ -18,7 +25,7 @@ mod position;
 pub use position::*;
 
 mod buffer;
-pub use  buffer::*;
+pub use buffer::*;
 
 mod palette_handling;
 pub use palette_handling::*;
@@ -53,42 +60,60 @@ pub use terminal_state::*;
 mod sixel;
 pub use sixel::*;
 
+mod selection;
+pub use selection::*;
+
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct Size<T> 
-{
+pub struct Size<T> {
     pub width: T,
-    pub height: T
+    pub height: T,
 }
 
 impl<T> PartialEq for Size<T>
-where T: PartialEq {
+where
+    T: PartialEq,
+{
     fn eq(&self, other: &Size<T>) -> bool {
         self.width == other.width && self.height == other.height
     }
 }
 
-impl<T> Size<T> 
-where T: Default
+impl<T> Size<T>
+where
+    T: Default,
 {
-    pub fn new(width: T, height: T) -> Self
-    {
+    pub fn new(width: T, height: T) -> Self {
         Size { width, height }
     }
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Rectangle
-{
+pub struct Rectangle {
     pub start: Position,
-    pub size: Size<i32>
+    pub size: Size<i32>,
 }
 
 impl Rectangle {
-    pub fn lower_right(&self) -> Position {
-        Position { x: self.start.x + self.size.width, y: self.start.y + self.size.height }
+    pub fn new(start: Position, size: Size<i32>) -> Self {
+        Self { start, size }
     }
+
+    pub fn from(x: i32, y: i32, width: i32, height: i32) -> Self {
+        Self {
+            start: Position::new(x, y),
+            size: Size::new(width, height),
+        }
+    }
+
+    pub fn lower_right(&self) -> Position {
+        Position {
+            x: self.start.x + self.size.width,
+            y: self.start.y + self.size.height,
+        }
+    }
+
     pub fn contains(&self, other: Rectangle) -> bool {
         self.start <= other.start && self.lower_right() <= other.lower_right()
     }

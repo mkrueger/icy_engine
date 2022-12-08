@@ -1,12 +1,14 @@
-use crate::{Caret, AttributedChar, Position, AsciiParser, EngineResult, ParserError, CallbackAction};
 use super::{Buffer, BufferParser};
+use crate::{
+    AsciiParser, AttributedChar, CallbackAction, Caret, EngineResult, ParserError, Position,
+};
 
 pub struct PETSCIIParser {
     underline_mode: bool,
     reverse_mode: bool,
     got_esc: bool,
     shift_mode: bool,
-    c_shift: bool
+    c_shift: bool,
 }
 
 impl PETSCIIParser {
@@ -16,11 +18,11 @@ impl PETSCIIParser {
             underline_mode: false,
             reverse_mode: false,
             got_esc: false,
-            c_shift: false
+            c_shift: false,
         }
     }
 
-    pub fn handle_reverse_mode(&self, ch : u8) -> u8 {
+    pub fn handle_reverse_mode(&self, ch: u8) -> u8 {
         if self.reverse_mode {
             ch + 0x80
         } else {
@@ -28,57 +30,119 @@ impl PETSCIIParser {
         }
     }
 
-    pub fn handle_c128_escapes(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> EngineResult<CallbackAction> {
+    pub fn handle_c128_escapes(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        ch: u8,
+    ) -> EngineResult<CallbackAction> {
         self.got_esc = false;
-            
+
         match ch {
-            b'O' => {}, // Cancel quote and insert mode
-            b'Q' => { buf.clear_line_end(caret); }, // Erase to end of current line
-            b'P' => { buf.clear_line_start(caret); }, // Cancel quote and insert mode
-            b'@' => { buf.clear_buffer_down(caret); }, // Erase to end of screen
-            
-            b'J' => { caret.cr(buf); }, // Move to start of current line
-            b'K' => { caret.eol(buf); }, // Move to end of current line
-            
-            b'A' => { eprintln!("auto insert mode unsupported."); }, // Enable auto-insert mode
-            b'C' => { eprintln!("auto insert mode unsupported."); }, // Disable auto-insert mode
+            b'O' => {} // Cancel quote and insert mode
+            b'Q' => {
+                buf.clear_line_end(caret);
+            } // Erase to end of current line
+            b'P' => {
+                buf.clear_line_start(caret);
+            } // Cancel quote and insert mode
+            b'@' => {
+                buf.clear_buffer_down(caret);
+            } // Erase to end of screen
 
-            b'D' => { buf.remove_terminal_line(caret.pos.y); }, // Delete current line
-            b'I' => { buf.insert_terminal_line(caret.pos.y); }, // Insert line
+            b'J' => {
+                caret.cr(buf);
+            } // Move to start of current line
+            b'K' => {
+                caret.eol(buf);
+            } // Move to end of current line
 
-            b'Y' => { eprintln!("Set default tab stops (8 spaces) unsupported."); }, // Set default tab stops (8 spaces)
-            b'Z' => { eprintln!("Clear all tab stops unsupported."); }, // Clear all tab stops
+            b'A' => {
+                eprintln!("auto insert mode unsupported.");
+            } // Enable auto-insert mode
+            b'C' => {
+                eprintln!("auto insert mode unsupported.");
+            } // Disable auto-insert mode
 
-            b'L' => { eprintln!("Enable scrolling unsupported."); }, // Enable scrolling
-            b'M' => { eprintln!("Disable scrolling unsupported."); }, // Disable scrolling
-    
-            b'V' => { eprintln!("Scroll up unsupported."); }, // Scroll up
-            b'W' => { eprintln!("Scroll down unsupported."); }, // Scroll down
+            b'D' => {
+                buf.remove_terminal_line(caret.pos.y);
+            } // Delete current line
+            b'I' => {
+                buf.insert_terminal_line(caret.pos.y);
+            } // Insert line
 
-            b'G' => { eprintln!("Enable bell unsupported."); }, // Enable bell (by CTRL G)
-            b'H' => { eprintln!("Disable bell unsupported."); }, // Disable bell
+            b'Y' => {
+                eprintln!("Set default tab stops (8 spaces) unsupported.");
+            } // Set default tab stops (8 spaces)
+            b'Z' => {
+                eprintln!("Clear all tab stops unsupported.");
+            } // Clear all tab stops
 
-            b'E' => { eprintln!("Set cursor to non-flashing mode unsupported."); }, // Set cursor to non-flashing mode
-            b'F' => { eprintln!("Set cursor to flashing mode unsupported."); }, // Set cursor to flashing mode
+            b'L' => {
+                eprintln!("Enable scrolling unsupported.");
+            } // Enable scrolling
+            b'M' => {
+                eprintln!("Disable scrolling unsupported.");
+            } // Disable scrolling
 
-            b'B' => { eprintln!("Set bottom of screen window at cursor position unsupported."); }, // Set bottom of screen window at cursor position
-            b'T' => { eprintln!("Set top of screen window at cursor position unsupported."); }, // Set top of screen window at cursor position
+            b'V' => {
+                eprintln!("Scroll up unsupported.");
+            } // Scroll up
+            b'W' => {
+                eprintln!("Scroll down unsupported.");
+            } // Scroll down
 
-            b'X' => { eprintln!("Swap 40/80 column display output device unsupported."); }, // Swap 40/80 column display output device
-            
-            b'U' => { eprintln!("Change to underlined cursor unsupported."); }, // Change to underlined cursor
-            b'S' => { eprintln!("Change to block cursor unsupported."); }, // Change to block cursor
+            b'G' => {
+                eprintln!("Enable bell unsupported.");
+            } // Enable bell (by CTRL G)
+            b'H' => {
+                eprintln!("Disable bell unsupported.");
+            } // Disable bell
 
-            b'R' => { eprintln!("Set screen to reverse video unsupported."); }, // Set screen to reverse video
-            b'N' => { eprintln!("Set screen to normal (non reverse video) state unsupported."); }, // Set screen to normal (non reverse video) state
+            b'E' => {
+                eprintln!("Set cursor to non-flashing mode unsupported.");
+            } // Set cursor to non-flashing mode
+            b'F' => {
+                eprintln!("Set cursor to flashing mode unsupported.");
+            } // Set cursor to flashing mode
 
-            _=> { eprintln!("Unknown C128 escape code: 0x{:02X}/{:?} ", ch, char::from_u32(ch as u32))}
+            b'B' => {
+                eprintln!("Set bottom of screen window at cursor position unsupported.");
+            } // Set bottom of screen window at cursor position
+            b'T' => {
+                eprintln!("Set top of screen window at cursor position unsupported.");
+            } // Set top of screen window at cursor position
+
+            b'X' => {
+                eprintln!("Swap 40/80 column display output device unsupported.");
+            } // Swap 40/80 column display output device
+
+            b'U' => {
+                eprintln!("Change to underlined cursor unsupported.");
+            } // Change to underlined cursor
+            b'S' => {
+                eprintln!("Change to block cursor unsupported.");
+            } // Change to block cursor
+
+            b'R' => {
+                eprintln!("Set screen to reverse video unsupported.");
+            } // Set screen to reverse video
+            b'N' => {
+                eprintln!("Set screen to normal (non reverse video) state unsupported.");
+            } // Set screen to normal (non reverse video) state
+
+            _ => {
+                eprintln!(
+                    "Unknown C128 escape code: 0x{:02X}/{:?} ",
+                    ch,
+                    char::from_u32(ch as u32)
+                )
+            }
         }
         return Ok(CallbackAction::None);
     }
 
-    pub fn update_shift_mode(&mut self, buf: &mut Buffer, shift_mode: bool) 
-    {
+    pub fn update_shift_mode(&mut self, buf: &mut Buffer, shift_mode: bool) {
         if self.shift_mode == shift_mode {
             return;
         }
@@ -94,27 +158,25 @@ impl PETSCIIParser {
     }
 }
 
-
-const BLACK:u32 = 0x00;
-const WHITE:u32 = 0x01;
-const RED:u32 = 0x02;
-const CYAN:u32 = 0x03;
-const PURPLE:u32 = 0x04;
-const GREEN:u32 = 0x05;
-const BLUE:u32 = 0x06;
-const YELLOW:u32 = 0x07;
-const ORANGE:u32 = 0x08;
-const BROWN:u32 = 0x09;
-const PINK:u32 = 0x0a;
-const GREY1:u32 = 0x0b;
-const GREY2:u32 = 0x0c;
-const LIGHT_GREEN:u32 = 0x0d;
-const LIGHT_BLUE:u32 = 0x0e;
-const GREY3:u32 = 0x0f;
+const BLACK: u32 = 0x00;
+const WHITE: u32 = 0x01;
+const RED: u32 = 0x02;
+const CYAN: u32 = 0x03;
+const PURPLE: u32 = 0x04;
+const GREEN: u32 = 0x05;
+const BLUE: u32 = 0x06;
+const YELLOW: u32 = 0x07;
+const ORANGE: u32 = 0x08;
+const BROWN: u32 = 0x09;
+const PINK: u32 = 0x0a;
+const GREY1: u32 = 0x0b;
+const GREY2: u32 = 0x0c;
+const LIGHT_GREEN: u32 = 0x0d;
+const LIGHT_BLUE: u32 = 0x0e;
+const GREY3: u32 = 0x0f;
 
 impl BufferParser for PETSCIIParser {
-    fn from_unicode(&self, ch: char) -> char
-    {
+    fn from_unicode(&self, ch: char) -> char {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
             if let Some(out_ch) = char::from_u32(*tch as u32) {
                 out_ch
@@ -126,27 +188,31 @@ impl BufferParser for PETSCIIParser {
         }
     }
 
-    fn to_unicode(&self, ch: char) -> char
-    {
+    fn to_unicode(&self, ch: char) -> char {
         // TODO
         AsciiParser::new().to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
+    fn print_char(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        ch: char,
+    ) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         if self.got_esc {
             return self.handle_c128_escapes(buf, caret, ch);
         }
 
         match ch {
-            0x02 => self.underline_mode = true,   // C128
+            0x02 => self.underline_mode = true, // C128
             0x05 => caret.set_foreground(WHITE),
             0x08 => self.c_shift = false,
             0x09 => self.c_shift = true,
             0x0A => caret.cr(buf),
-            0x0D | 0x8D => { 
+            0x0D | 0x8D => {
                 caret.lf(buf);
-                self.reverse_mode = false;        
+                self.reverse_mode = false;
             }
             0x0E => self.update_shift_mode(buf, false),
             0x11 => caret.down(buf, 1),
@@ -163,11 +229,13 @@ impl BufferParser for PETSCIIParser {
             0x90 => caret.set_foreground(BLACK),
             0x91 => caret.up(buf, 1),
             0x92 => self.reverse_mode = false,
-            0x93 => { buf.clear_screen(caret); } ,
+            0x93 => {
+                buf.clear_screen(caret);
+            }
             0x95 => caret.set_foreground(BROWN),
             0x96 => caret.set_foreground(PINK),
             0x97 => caret.set_foreground(GREY1),
-            0x98 => caret.set_foreground(GREY2), 
+            0x98 => caret.set_foreground(GREY2),
             0x99 => caret.set_foreground(LIGHT_GREEN),
             0x9A => caret.set_foreground(LIGHT_BLUE),
             0x9B => caret.set_foreground(GREY3),
@@ -177,27 +245,20 @@ impl BufferParser for PETSCIIParser {
             0x9F => caret.set_foreground(CYAN),
             0xFF => buf.print_value(caret, 94), // PI character
             _ => {
-                let tch = match ch  {
-                    0x20..=0x3F => {
-                        ch
-                    }
-                    0x40..=0x5F => {
-                        ch - 0x40
-                    }
-                    0x60..=0x7F => {
-                        ch - 0x20
-                    }
-                    0xA0..=0xBF => {
-                        ch - 0x40
-                    }
-                    0xC0..=0xFE => {
-                        ch - 0x80
-                    }
+                let tch = match ch {
+                    0x20..=0x3F => ch,
+                    0x40..=0x5F => ch - 0x40,
+                    0x60..=0x7F => ch - 0x20,
+                    0xA0..=0xBF => ch - 0x40,
+                    0xC0..=0xFE => ch - 0x80,
                     _ => {
                         return Err(Box::new(ParserError::UnsupportedControlCode(ch as u32)));
                     }
                 };
-                let mut ch = AttributedChar::new(char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(), caret.attr);
+                let mut ch = AttributedChar::new(
+                    char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(),
+                    caret.attr,
+                );
                 ch.set_font_page(if self.shift_mode { 1 } else { 0 });
                 buf.print_char(caret, ch);
             }
@@ -206,7 +267,7 @@ impl BufferParser for PETSCIIParser {
     }
 }
 
-lazy_static::lazy_static!{
+lazy_static::lazy_static! {
     static ref UNICODE_TO_PETSCII: std::collections::HashMap<u8,u8> = vec![
         (0x41, 0x61),
         (0x42, 0x62),

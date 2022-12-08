@@ -12,7 +12,7 @@ impl Default for AttributedChar {
         AttributedChar {
             ch: ' ',
             attribute: super::TextAttribute::default(),
-            font_page: 0
+            font_page: 0,
         }
     }
 }
@@ -22,16 +22,16 @@ impl AttributedChar {
         AttributedChar {
             ch,
             attribute,
-            font_page: 0
+            font_page: 0,
         }
     }
 
-    #[inline(always)] 
+    #[inline(always)]
     pub fn is_transparent(self) -> bool {
         (self.ch == '\0' || self.ch == ' ') && self.attribute.get_background() == 0
     }
 
-    #[inline(always)] 
+    #[inline(always)]
     pub fn get_font_page(&self) -> usize {
         self.font_page
     }
@@ -48,10 +48,17 @@ impl PartialEq for AttributedChar {
 
 impl std::fmt::Display for AttributedChar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(Char: {}/0x{0:X} '{}', Attr: {}, ExtFont: {})", self.ch as u32, char::from_u32(self.ch as u32).unwrap(),  self.attribute, self.font_page)
+        write!(
+            f,
+            "(Char: {}/0x{0:X} '{}', Attr: {}, ExtFont: {})",
+            self.ch as u32,
+            char::from_u32(self.ch as u32).unwrap(),
+            self.attribute,
+            self.font_page
+        )
     }
 }
- /*
+/*
 pub fn get_color(color: u8) -> &'static str
 {
     match color {

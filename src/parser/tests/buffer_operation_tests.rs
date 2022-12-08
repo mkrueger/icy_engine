@@ -1,11 +1,17 @@
-use crate::{parser::tests::{create_buffer, update_buffer, get_string_from_buffer}, AnsiParser, Position, TextAttribute};
+use crate::{
+    parser::tests::{create_buffer, get_string_from_buffer, update_buffer},
+    AnsiParser, Position, TextAttribute,
+};
 
 #[test]
 fn test_bs() {
     let (buf, caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[1;43mtest\x08\x08\x08\x08");
     assert_eq!(Position::default(), caret.pos);
     for i in 0..4 {
-        assert_eq!(TextAttribute::from_color(15, 6), buf.get_char(Position::new(i, 0)).unwrap().attribute);
+        assert_eq!(
+            TextAttribute::from_color(15, 6),
+            buf.get_char(Position::new(i, 0)).unwrap().attribute
+        );
     }
 }
 
@@ -53,7 +59,8 @@ fn test_margin_scroll_up() {
 
 #[test]
 fn test_margin_scroll_down_bug() {
-    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"1\x1b[5;19r\x1b[17;1Hfoo\nbar");
+    let (mut buf, mut caret) =
+        create_buffer(&mut AnsiParser::new(), b"1\x1b[5;19r\x1b[17;1Hfoo\nbar");
 
     let ch = buf.get_char(Position::new(0, 16)).unwrap_or_default();
     assert_eq!(b'f', ch.ch as u8);
@@ -61,12 +68,27 @@ fn test_margin_scroll_down_bug() {
     assert_eq!(b'b', ch.ch as u8);
 
     assert_eq!(17, caret.pos.y);
-    update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1B[19H\r\n");
-    update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1B[19H\r\n");
-    update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1B[19H\r\n");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut AnsiParser::new(),
+        b"\x1B[19H\r\n",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut AnsiParser::new(),
+        b"\x1B[19H\r\n",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut AnsiParser::new(),
+        b"\x1B[19H\r\n",
+    );
 
     assert_eq!(18, caret.pos.y);
-    
+
     let ch = buf.get_char(Position::new(0, 16 - 3)).unwrap_or_default();
     assert_eq!(b'f', ch.ch as u8);
     let ch = buf.get_char(Position::new(0, 17 - 3)).unwrap_or_default();
@@ -87,19 +109,31 @@ fn test_clear_screen_reset() {
 #[test]
 fn test_margins_scroll_down() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\n\n\n\x1B[4;8rTEST\r\nt1\r\nt2\r\nt3\r\nt4\r\nt5\r\nt6\r\nt7\r\nt8\r\nt9\r\nt10\r\nt11");
-    assert_eq!("TEST\r\nt1\r\nt2\r\nt7\r\nt8\r\nt9\r\nt10\r\nt11\r\n", get_string_from_buffer(&buf));
+    assert_eq!(
+        "TEST\r\nt1\r\nt2\r\nt7\r\nt8\r\nt9\r\nt10\r\nt11\r\n",
+        get_string_from_buffer(&buf)
+    );
 }
 
 #[test]
 fn test_margins_edit_outofarea() {
-    let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\n\n\n\x1B[4;8r\x1B[4;1H1\r\n2\r\n3\r\n4\x1B[9;1H1\r\n2\r\n3\r\n4");
-    assert_eq!("\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n\r\n1\r\n2\r\n3\r\n4", get_string_from_buffer(&buf));
+    let (buf, _) = create_buffer(
+        &mut AnsiParser::new(),
+        b"\x1B[2J\n\n\n\x1B[4;8r\x1B[4;1H1\r\n2\r\n3\r\n4\x1B[9;1H1\r\n2\r\n3\r\n4",
+    );
+    assert_eq!(
+        "\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n\r\n1\r\n2\r\n3\r\n4",
+        get_string_from_buffer(&buf)
+    );
 }
 
 #[test]
 fn test_margins_scrolling() {
     let (buf, _) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\x1B[5;19r\x1B[19H1\x1B[19H\r\n2\x1B[19H\r\n3\x1B[19H\r\n4\x1B[19H\r\n5\x1B[19H\r\n");
-    assert_eq!("\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n5\r\n\r\n", get_string_from_buffer(&buf));
+    assert_eq!(
+        "\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n1\r\n2\r\n3\r\n4\r\n5\r\n\r\n",
+        get_string_from_buffer(&buf)
+    );
 }
 
 #[test]
@@ -107,7 +141,12 @@ fn test_margins_scrolling2() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\x1B[5;19r\x1B[5;1H");
 
     for i in 5..19 {
-        update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), format!("{}\n\r", i).as_bytes());
+        update_buffer(
+            &mut buf,
+            &mut caret,
+            &mut AnsiParser::new(),
+            format!("{}\n\r", i).as_bytes(),
+        );
     }
 
     assert_eq!("\r\n\r\n\r\n\r\n5\r\n6\r\n7\r\n8\r\n9\r\n10\r\n11\r\n12\r\n13\r\n14\r\n15\r\n16\r\n17\r\n18\r\n", get_string_from_buffer(&buf));
@@ -124,7 +163,10 @@ fn test_margins_clear_line_bug() {
 
 #[test]
 fn test_clear_buffer_down() {
-    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J\x1B[5;19r\x1B[25;1H1\x1B[1;1H");
+    let (mut buf, mut caret) = create_buffer(
+        &mut AnsiParser::new(),
+        b"\x1B[2J\x1B[5;19r\x1B[25;1H1\x1B[1;1H",
+    );
     assert_eq!('1', buf.get_char(Position::new(0, 24)).unwrap().ch);
     update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1B[J");
     assert_eq!(' ', buf.get_char(Position::new(0, 24)).unwrap().ch);
@@ -132,7 +174,8 @@ fn test_clear_buffer_down() {
 
 #[test]
 fn test_clear_buffer_up() {
-    let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1B[2J1\x1B[5;19r\x1B[25;1H");
+    let (mut buf, mut caret) =
+        create_buffer(&mut AnsiParser::new(), b"\x1B[2J1\x1B[5;19r\x1B[25;1H");
     assert_eq!('1', buf.get_char(Position::new(0, 0)).unwrap().ch);
     update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1B[1J");
     assert_eq!(' ', buf.get_char(Position::new(0, 0)).unwrap().ch);

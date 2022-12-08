@@ -1,10 +1,17 @@
 // Useful description: https://vt100.net/docs/vt510-rm/chapter4.html
 //                     https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
-use std::{cmp::{max, min}, fmt::Display};
+use std::{
+    cmp::{max, min},
+    fmt::Display,
+};
 
-use crate::{Position, Buffer, TextAttribute, Caret, TerminalScrolling, OriginMode, AutoWrapMode, EngineResult, ParserError, BitFont, LF, FF, CR, BS, AttributedChar, MouseMode, Palette, Sixel, SixelReadStatus, XTERM_256_PALETTE, CallbackAction, MusicAction, MusicStyle, AnsiMusic};
+use crate::{
+    AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, EngineResult,
+    MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position, Sixel,
+    SixelReadStatus, TerminalScrolling, TextAttribute, BS, CR, FF, LF, XTERM_256_PALETTE,
+};
 
-use super::{BufferParser, AsciiParser};
+use super::{AsciiParser, BufferParser};
 
 #[derive(Debug, Clone, Copy)]
 pub enum SixelState {
@@ -12,7 +19,7 @@ pub enum SixelState {
     ReadColor,
     ReadSize,
     Repeat,
-    EndSequence
+    EndSequence,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -23,7 +30,7 @@ pub enum AnsiMusicState {
     Pause(i32),
     SetOctave,
     Note(usize, u32),
-    SetLength(i32)
+    SetLength(i32),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -36,7 +43,7 @@ pub enum AnsiState {
     GotDCS,
     ReadSixel(SixelState),
 
-    ParseAnsiMusic(AnsiMusicState)
+    ParseAnsiMusic(AnsiMusicState),
 }
 
 #[repr(u8)]
@@ -45,7 +52,7 @@ pub enum AnsiMusicOption {
     Off,
     Conflicting,
     Banana,
-    Both
+    Both,
 }
 
 impl Display for AnsiMusicOption {
@@ -60,7 +67,7 @@ impl From<String> for AnsiMusicOption {
             "Conflicting" => AnsiMusicOption::Conflicting,
             "Banana" => AnsiMusicOption::Banana,
             "Both" => AnsiMusicOption::Both,
-            _ => AnsiMusicOption::Off
+            _ => AnsiMusicOption::Off,
         }
     }
 }
@@ -74,26 +81,27 @@ for oct in range(1, 8):
         print("{:.4f}".format(freq), end=", ")
     print()
 */
-pub const FREQ: [f32;12 * 7] = [
-//  C      C#       D        D#       E        F        F#       G         G#        A         A#        B
-65.4064, 69.2957, 73.4162, 77.7817, 82.4069, 87.3071, 92.4986, 97.9989, 103.8262, 110.0000, 116.5409, 123.4708, 
-130.8128, 138.5913, 146.8324, 155.5635, 164.8138, 174.6141, 184.9972, 195.9977, 207.6523, 220.0000, 233.0819, 246.9417, 
-261.6256, 277.1826, 293.6648, 311.1270, 329.6276, 349.2282, 369.9944, 391.9954, 415.3047, 440.0000, 466.1638, 493.8833, 
-523.2511, 554.3653, 587.3295, 622.2540, 659.2551, 698.4565, 739.9888, 783.9909, 830.6094, 880.0000, 932.3275, 987.7666, 
-1046.5023, 1108.7305, 1174.6591, 1244.5079, 1318.5102, 1396.9129, 1479.9777, 1567.9817, 1661.2188, 1760.0000, 1864.6550, 1975.5332, 
-2093.0045, 2217.4610, 2349.3181, 2489.0159, 2637.0205, 2793.8259, 2959.9554, 3135.9635, 3322.4376, 3520.0000, 3729.3101, 3951.0664, 
-4186.0090, 4434.9221, 4698.6363, 4978.0317, 5274.0409, 5587.6517, 5919.9108, 6271.9270, 6644.8752, 7040.0000, 7458.6202, 7902.1328
+pub const FREQ: [f32; 12 * 7] = [
+    //  C      C#       D        D#       E        F        F#       G         G#        A         A#        B
+    65.4064, 69.2957, 73.4162, 77.7817, 82.4069, 87.3071, 92.4986, 97.9989, 103.8262, 110.0000,
+    116.5409, 123.4708, 130.8128, 138.5913, 146.8324, 155.5635, 164.8138, 174.6141, 184.9972,
+    195.9977, 207.6523, 220.0000, 233.0819, 246.9417, 261.6256, 277.1826, 293.6648, 311.1270,
+    329.6276, 349.2282, 369.9944, 391.9954, 415.3047, 440.0000, 466.1638, 493.8833, 523.2511,
+    554.3653, 587.3295, 622.2540, 659.2551, 698.4565, 739.9888, 783.9909, 830.6094, 880.0000,
+    932.3275, 987.7666, 1046.5023, 1108.7305, 1174.6591, 1244.5079, 1318.5102, 1396.9129,
+    1479.9777, 1567.9817, 1661.2188, 1760.0000, 1864.6550, 1975.5332, 2093.0045, 2217.4610,
+    2349.3181, 2489.0159, 2637.0205, 2793.8259, 2959.9554, 3135.9635, 3322.4376, 3520.0000,
+    3729.3101, 3951.0664, 4186.0090, 4434.9221, 4698.6363, 4978.0317, 5274.0409, 5587.6517,
+    5919.9108, 6271.9270, 6644.8752, 7040.0000, 7458.6202, 7902.1328,
 ];
-
-
 
 pub struct AnsiParser {
     ascii_parser: AsciiParser,
-    pub (crate) state: AnsiState,
+    pub(crate) state: AnsiState,
     current_font_page: usize,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
-    pub (crate) parsed_numbers: Vec<i32>,
+    pub(crate) parsed_numbers: Vec<i32>,
 
     current_sixel: usize,
     sixel_cursor: Position,
@@ -106,59 +114,59 @@ pub struct AnsiParser {
     cur_music: Option<AnsiMusic>,
     cur_octave: usize,
     cur_length: u32,
-    cur_tempo: u32
+    cur_tempo: u32,
 }
 
 const ANSI_CSI: char = '[';
 const ANSI_ESC: char = '\x1B';
 
-const COLOR_OFFSETS : [u8; 8] = [ 0, 4, 2, 6, 1, 5, 3, 7 ];
+const COLOR_OFFSETS: [u8; 8] = [0, 4, 2, 6, 1, 5, 3, 7];
 
 // TODO: Get missing fonts https://github.com/lattera/freebsd/tree/master/share/syscons/fonts
-pub static ANSI_FONT_NAMES: [&str;43] = [
-    "IBM VGA", // Codepage 437 English
-    "IBM VGA 855", // Codepage 1251 Cyrillic
-    "IBM VGA 866", // Maybe wrong: Russian koi8-r
-    "IBM VGA 850", // ISO-8859-2 Central European
-    "IBM VGA 775", // ISO-8859-4 Baltic wide
-    "IBM VGA 866", // Codepage 866 (c) Russian
-    "IBM VGA 857", // ISO-8859-9 Turkish
-    "IBM VGA", // Unsupported:  haik8 codepage
-    "IBM VGA 862", // ISO-8859-8 Hebrew
-    "IBM VGA", // Unsupported: Ukrainian font koi8-u
-    "IBM VGA", // Unsupported: ISO-8859-15 West European, (thin)
-    "IBM VGA", // Unsupported: ISO-8859-4 Baltic (VGA 9bit mapped)
-    "IBM VGA", // Unsupported: Russian koi8-r (b)
-    "IBM VGA", // Unsupported: ISO-8859-4 Baltic wide
-    "IBM VGA", // Unsupported: ISO-8859-5 Cyrillic
-    "IBM VGA", // Unsupported: ARMSCII-8 Character set
-    "IBM VGA", // Unsupported: ISO-8859-15 West European
-    "IBM VGA 850", // Codepage 850 Multilingual Latin I, (thin)
-    "IBM VGA 850", // Codepage 850 Multilingual Latin I
-    "IBM VGA", // Unsupported: Codepage 885 Norwegian, (thin)
-    "IBM VGA", // Unsupported: Codepage 1251 Cyrillic
-    "IBM VGA", // Unsupported: ISO-8859-7 Greek
-    "IBM VGA", // Unsupported: Russian koi8-r (c)
-    "IBM VGA", // Unsupported: ISO-8859-4 Baltic
-    "IBM VGA", // Unsupported: ISO-8859-1 West European
-    "IBM VGA 866", // Codepage 866 Russian
-    "IBM VGA", // Unsupported: Codepage 437 English, (thin)
-    "IBM VGA", // Unsupported: Codepage 866 (b) Russian
-    "IBM VGA", // Unsupported: Codepage 885 Norwegian
-    "IBM VGA", // Unsupported: Ukrainian font cp866u
-    "IBM VGA", // Unsupported: ISO-8859-1 West European, (thin)
-    "IBM VGA", // Unsupported: Codepage 1131 Belarusian, (swiss)
-    "C64 PETSCII shifted", // Commodore 64 (UPPER)
+pub static ANSI_FONT_NAMES: [&str; 43] = [
+    "IBM VGA",               // Codepage 437 English
+    "IBM VGA 855",           // Codepage 1251 Cyrillic
+    "IBM VGA 866",           // Maybe wrong: Russian koi8-r
+    "IBM VGA 850",           // ISO-8859-2 Central European
+    "IBM VGA 775",           // ISO-8859-4 Baltic wide
+    "IBM VGA 866",           // Codepage 866 (c) Russian
+    "IBM VGA 857",           // ISO-8859-9 Turkish
+    "IBM VGA",               // Unsupported:  haik8 codepage
+    "IBM VGA 862",           // ISO-8859-8 Hebrew
+    "IBM VGA",               // Unsupported: Ukrainian font koi8-u
+    "IBM VGA",               // Unsupported: ISO-8859-15 West European, (thin)
+    "IBM VGA",               // Unsupported: ISO-8859-4 Baltic (VGA 9bit mapped)
+    "IBM VGA",               // Unsupported: Russian koi8-r (b)
+    "IBM VGA",               // Unsupported: ISO-8859-4 Baltic wide
+    "IBM VGA",               // Unsupported: ISO-8859-5 Cyrillic
+    "IBM VGA",               // Unsupported: ARMSCII-8 Character set
+    "IBM VGA",               // Unsupported: ISO-8859-15 West European
+    "IBM VGA 850",           // Codepage 850 Multilingual Latin I, (thin)
+    "IBM VGA 850",           // Codepage 850 Multilingual Latin I
+    "IBM VGA",               // Unsupported: Codepage 885 Norwegian, (thin)
+    "IBM VGA",               // Unsupported: Codepage 1251 Cyrillic
+    "IBM VGA",               // Unsupported: ISO-8859-7 Greek
+    "IBM VGA",               // Unsupported: Russian koi8-r (c)
+    "IBM VGA",               // Unsupported: ISO-8859-4 Baltic
+    "IBM VGA",               // Unsupported: ISO-8859-1 West European
+    "IBM VGA 866",           // Codepage 866 Russian
+    "IBM VGA",               // Unsupported: Codepage 437 English, (thin)
+    "IBM VGA",               // Unsupported: Codepage 866 (b) Russian
+    "IBM VGA",               // Unsupported: Codepage 885 Norwegian
+    "IBM VGA",               // Unsupported: Ukrainian font cp866u
+    "IBM VGA",               // Unsupported: ISO-8859-1 West European, (thin)
+    "IBM VGA",               // Unsupported: Codepage 1131 Belarusian, (swiss)
+    "C64 PETSCII shifted",   // Commodore 64 (UPPER)
     "C64 PETSCII unshifted", // Commodore 64 (Lower)
-    "C64 PETSCII shifted", // Commodore 128 (UPPER)
+    "C64 PETSCII shifted",   // Commodore 128 (UPPER)
     "C64 PETSCII unshifted", // Commodore 128 (Lower)
-    "Atari ATASCII", // Atari
-    "Amiga P0T-NOoDLE", // P0T NOoDLE (Amiga)
-    "Amiga mOsOul", // mO'sOul (Amiga)
-    "Amiga MicroKnight+", // MicroKnight Plus (Amiga)
-    "Amiga Topaz 1+", // Topaz Plus (Amiga)
-    "Amiga MicroKnight", // MicroKnight (Amiga)
-    "Amiga Topaz 1", // Topaz (Amiga)
+    "Atari ATASCII",         // Atari
+    "Amiga P0T-NOoDLE",      // P0T NOoDLE (Amiga)
+    "Amiga mOsOul",          // mO'sOul (Amiga)
+    "Amiga MicroKnight+",    // MicroKnight Plus (Amiga)
+    "Amiga Topaz 1+",        // Topaz Plus (Amiga)
+    "Amiga MicroKnight",     // MicroKnight (Amiga)
+    "Amiga Topaz 1",         // Topaz (Amiga)
 ];
 
 impl AnsiParser {
@@ -179,11 +187,16 @@ impl AnsiParser {
             cur_music: None,
             cur_octave: 3,
             cur_length: 4,
-            cur_tempo: 120
+            cur_tempo: 120,
         }
     }
 
-    fn start_sequence(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
+    fn start_sequence(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        ch: char,
+    ) -> EngineResult<CallbackAction> {
         self.state = AnsiState::Default;
         match ch {
             ANSI_CSI => {
@@ -203,46 +216,54 @@ impl AnsiParser {
                 Ok(CallbackAction::None)
             }
 
-            'c' => { // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
+            'c' => {
+                // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
                 caret.ff(buf);
                 Ok(CallbackAction::None)
             }
 
-            'D' => { // Index
+            'D' => {
+                // Index
                 caret.index(buf);
                 Ok(CallbackAction::None)
             }
-            'M' => { // Reverse Index
+            'M' => {
+                // Reverse Index
                 caret.reverse_index(buf);
                 Ok(CallbackAction::None)
             }
-            
-            'E' => { // Next Line
+
+            'E' => {
+                // Next Line
                 caret.next_line(buf);
                 Ok(CallbackAction::None)
             }
 
-            'P' => { // DCS
+            'P' => {
+                // DCS
                 self.state = AnsiState::GotDCS;
                 Ok(CallbackAction::None)
             }
-            
-            _ => {
-                Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
-            }
+
+            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                self.current_sequence.clone(),
+            ))),
         }
     }
 
     fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
         let sixel = &mut buf.layers[0].sixels[self.current_sixel];
-        if ch < '?'  {
+        if ch < '?' {
             sixel.read_status = SixelReadStatus::Error;
             return Err(Box::new(ParserError::InvalidSixelChar(ch)));
         }
         let mask = ch as u8 - b'?';
 
         sixel.len += 1;
-        let fg_color = Some(self.current_sixel_palette.colors[(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()]);
+        let fg_color = Some(
+            self.current_sixel_palette.colors
+                [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()],
+        );
         let offset = self.sixel_cursor.x as usize;
         if sixel.picture.len() <= offset {
             sixel.picture.resize(offset + 1, Vec::new());
@@ -252,9 +273,9 @@ impl AnsiParser {
         if cur_line.len() < line_offset + 6 {
             cur_line.resize(line_offset + 6, None);
         }
-        
+
         for i in 0..6 {
-            if mask & (1 << i) != 0 {  
+            if mask & (1 << i) != 0 {
                 cur_line[line_offset + i] = fg_color;
             }
         }
@@ -265,12 +286,17 @@ impl AnsiParser {
 
     fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
         if *i + 1 >= self.parsed_numbers.len() {
-            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                self.current_sequence.clone(),
+            )));
         }
         match self.parsed_numbers[*i + 1] {
-            5 => { // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
+            5 => {
+                // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
                 if *i + 3 > self.parsed_numbers.len() {
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_sequence.clone(),
+                    )));
                 }
                 let color = self.parsed_numbers[*i + 2];
                 *i += 3;
@@ -278,12 +304,17 @@ impl AnsiParser {
                     let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize]);
                     Ok(color)
                 } else {
-                    Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_sequence.clone(),
+                    )))
                 }
             }
-            2 => { // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
+            2 => {
+                // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
                 if *i + 5 > self.parsed_numbers.len() {
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_sequence.clone(),
+                    )));
                 }
                 let r = self.parsed_numbers[*i + 2];
                 let g = self.parsed_numbers[*i + 3];
@@ -292,11 +323,15 @@ impl AnsiParser {
                 if r >= 0 && r <= 255 && g >= 0 && g <= 255 && b >= 0 && b <= 255 {
                     let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
                     Ok(color)
-                } else { 
-                    Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                } else {
+                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_sequence.clone(),
+                    )))
                 }
             }
-            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                self.current_sequence.clone(),
+            ))),
         }
     }
 
@@ -305,13 +340,38 @@ impl AnsiParser {
             match state {
                 AnsiMusicState::ParseMusicStyle => {
                     self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
-                    match ch  {
-                        'F' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Foreground)),
-                        'B' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Background)),
-                        'N' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Normal)),
-                        'L' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Legato)),
-                        'S' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Staccato)),
-                        _ => return self.parse_ansi_music(ch)
+                    match ch {
+                        'F' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Foreground)),
+                        'B' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Background)),
+                        'N' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Normal)),
+                        'L' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Legato)),
+                        'S' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Staccato)),
+                        _ => return self.parse_ansi_music(ch),
                     }
                 }
                 AnsiMusicState::SetTempo(x) => {
@@ -330,7 +390,9 @@ impl AnsiParser {
                         self.cur_octave = ((ch as u8) - b'0') as usize;
                         self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
                     } else {
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            self.current_sequence.clone(),
+                        )));
                     }
                 }
                 AnsiMusicState::Note(n, len) => {
@@ -338,12 +400,15 @@ impl AnsiParser {
                     match ch {
                         '+' | '#' => {
                             if n + 1 < FREQ.len() {
-                                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n + 1, len));
+                                self.state =
+                                    AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n + 1, len));
                             }
                         }
                         '-' => {
-                            if n > 0  { // B
-                                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n - 1, len));
+                            if n > 0 {
+                                // B
+                                self.state =
+                                    AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n - 1, len));
                             }
                         }
                         '0'..='9' => {
@@ -357,11 +422,16 @@ impl AnsiParser {
                         _ => {
                             self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
                             let len = if len == 0 { self.cur_length } else { len };
-                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(FREQ[n + (self.cur_octave * 12)], self.cur_tempo * len));
+                            self.cur_music.as_mut().unwrap().music_actions.push(
+                                MusicAction::PlayNote(
+                                    FREQ[n + (self.cur_octave * 12)],
+                                    self.cur_tempo * len,
+                                ),
+                            );
                             return self.parse_default_ansi_music(ch);
                         }
                     }
-                },
+                }
                 AnsiMusicState::SetLength(x) => {
                     let mut x = x;
                     if '0' <= ch && ch <= '9' {
@@ -385,7 +455,11 @@ impl AnsiParser {
                         self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(x))
                     } else {
                         let pause = min(64, max(1, x as u32));
-                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::Pause(self.cur_tempo * pause));
+                        self.cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::Pause(self.cur_tempo * pause));
                         return self.parse_default_ansi_music(ch);
                     }
                 }
@@ -395,25 +469,20 @@ impl AnsiParser {
             }
         }
         Ok(CallbackAction::None)
-
     }
 
-    fn parse_default_ansi_music(&mut self, ch: char)  -> EngineResult<CallbackAction> {
-        match ch  {
+    fn parse_default_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
+        match ch {
             '\x0E' => {
                 self.state = AnsiState::Default;
                 self.cur_octave = 3;
-                return Ok(CallbackAction::PlayMusic(self.cur_music.replace(AnsiMusic::default()).unwrap()));
+                return Ok(CallbackAction::PlayMusic(
+                    self.cur_music.replace(AnsiMusic::default()).unwrap(),
+                ));
             }
-            'T' => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(0))
-            }
-            'L' => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(0))
-            }
-            'O' => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetOctave)
-            }
+            'T' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(0)),
+            'L' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(0)),
+            'O' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetOctave),
             'C' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(0, 0)),
             'D' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(2, 0)),
             'E' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(4, 0)),
@@ -425,17 +494,17 @@ impl AnsiParser {
             '<' => {
                 if self.cur_octave > 0 {
                     self.cur_octave -= 1;
-                } 
-            } 
+                }
+            }
             '>' => {
                 if self.cur_octave < 6 {
                     self.cur_octave += 1;
                 }
-            } 
+            }
             'P' => {
                 self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(0));
             }
-            _ =>  {}
+            _ => {}
         }
         Ok(CallbackAction::None)
     }
@@ -445,12 +514,17 @@ impl BufferParser for AnsiParser {
     fn from_unicode(&self, ch: char) -> char {
         self.ascii_parser.from_unicode(ch)
     }
-    
+
     fn to_unicode(&self, ch: char) -> char {
         self.ascii_parser.to_unicode(ch)
     }
 
-    fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
+    fn print_char(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        ch: char,
+    ) -> EngineResult<CallbackAction> {
         match &self.state {
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
@@ -462,7 +536,9 @@ impl BufferParser for AnsiParser {
                     'D' => {
                         if self.parsed_numbers.len() != 2 {
                             self.current_sequence.push('D');
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
 
                         if let Some(nr) = self.parsed_numbers.get(1) {
@@ -479,60 +555,65 @@ impl BufferParser for AnsiParser {
                                     }
                                     self.current_font_page = buf.font_table.len();
                                     buf.font_table.push(font);
-                                } 
+                                }
                                 Err(err) => {
                                     return Err(err);
                                 }
                             }
                         }
                     }
-                    _ => { 
+                    _ => {
                         self.current_sequence.push(ch);
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            self.current_sequence.clone(),
+                        )));
                     }
                 }
             }
-            AnsiState::GotDCS => {
-                match ch {
-                    'q' => {
-                        let aspect_ratio = 
-                            match self.parsed_numbers.get(0) {
-                                Some(0) | Some(1) => 5,
-                                Some(2) => 3,
-                                Some(7) | Some(8) | Some(9) => 1,
-                                _ => 2
-                            };
+            AnsiState::GotDCS => match ch {
+                'q' => {
+                    let aspect_ratio = match self.parsed_numbers.get(0) {
+                        Some(0) | Some(1) => 5,
+                        Some(2) => 3,
+                        Some(7) | Some(8) | Some(9) => 1,
+                        _ => 2,
+                    };
 
-                        let mut sixel = Sixel::new(caret.pos, aspect_ratio);
-                        match self.parsed_numbers.get(0) {
-                            Some(1) => sixel.background_color = Some(buf.palette.colors[caret.attr.get_background() as usize]),
-                            _ =>  sixel.background_color = None
-                        };
-
-                        self.current_sixel = buf.layers[0].sixels.len();
-                        buf.layers[0].sixels.push(sixel);
-                        self.sixel_cursor = Position::default();
-                        self.current_sixel_palette.clear();
-                        self.state = AnsiState::ReadSixel(SixelState::Read);
-                    }
-                    _ => { 
-                        if ('0'..='9').contains(&ch) {
-                            let d = match self.parsed_numbers.pop() {
-                                Some(number) => number,
-                                _ => 0
-                            };
-                            self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
-                        } else if ch == ';' {
-                            self.parsed_numbers.push(0);
-                        } else {
-                            self.state = AnsiState::Default;
-                            self.current_sequence.push(ch);
-                            buf.layers[0].sixels[self.current_sixel].read_status = SixelReadStatus::Error;
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                    let mut sixel = Sixel::new(caret.pos, aspect_ratio);
+                    match self.parsed_numbers.get(0) {
+                        Some(1) => {
+                            sixel.background_color =
+                                Some(buf.palette.colors[caret.attr.get_background() as usize])
                         }
+                        _ => sixel.background_color = None,
+                    };
+
+                    self.current_sixel = buf.layers[0].sixels.len();
+                    buf.layers[0].sixels.push(sixel);
+                    self.sixel_cursor = Position::default();
+                    self.current_sixel_palette.clear();
+                    self.state = AnsiState::ReadSixel(SixelState::Read);
+                }
+                _ => {
+                    if ('0'..='9').contains(&ch) {
+                        let d = match self.parsed_numbers.pop() {
+                            Some(number) => number,
+                            _ => 0,
+                        };
+                        self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    } else if ch == ';' {
+                        self.parsed_numbers.push(0);
+                    } else {
+                        self.state = AnsiState::Default;
+                        self.current_sequence.push(ch);
+                        buf.layers[0].sixels[self.current_sixel].read_status =
+                            SixelReadStatus::Error;
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            self.current_sequence.clone(),
+                        )));
                     }
                 }
-            }
+            },
             AnsiState::ReadSixel(state) => {
                 match state {
                     SixelState::EndSequence => {
@@ -540,7 +621,7 @@ impl BufferParser for AnsiParser {
                         let sixel = &mut layer.sixels[self.current_sixel];
                         sixel.read_status = SixelReadStatus::Finished;
 
-                        // remove sixels that are shadowed by the new one 
+                        // remove sixels that are shadowed by the new one
                         /*if self.current_sixel > 0 {
                             let cur_rect = sixel.get_rect();
                             let mut i = self.current_sixel - 1;
@@ -556,7 +637,7 @@ impl BufferParser for AnsiParser {
                                 i -= 1;
                             }
                         }*/
-                        
+
                         if ch == '\\' {
                             self.state = AnsiState::Default;
                         } else {
@@ -567,7 +648,7 @@ impl BufferParser for AnsiParser {
                         if ('0'..='9').contains(&ch) {
                             let d = match self.parsed_numbers.pop() {
                                 Some(number) => number,
-                                _ => 0
+                                _ => 0,
                             };
                             self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
                         } else if ch == ';' {
@@ -584,15 +665,18 @@ impl BufferParser for AnsiParser {
 
                                 match self.parsed_numbers[1] {
                                     2 => {
-                                        self.current_sixel_palette.set_color_rgb(self.current_sixel_color as usize,
+                                        self.current_sixel_palette.set_color_rgb(
+                                            self.current_sixel_color as usize,
                                             (self.parsed_numbers[2] * 255 / 100) as u8,
                                             (self.parsed_numbers[3] * 255 / 100) as u8,
                                             (self.parsed_numbers[4] * 255 / 100) as u8,
                                         );
                                     }
                                     1 => {
-                                        self.current_sixel_palette.set_color_hsl(self.current_sixel_color as usize,
-                                            self.parsed_numbers[2] as f32 * 360.0 / (2.0 * std::f32::consts::PI),
+                                        self.current_sixel_palette.set_color_hsl(
+                                            self.current_sixel_color as usize,
+                                            self.parsed_numbers[2] as f32 * 360.0
+                                                / (2.0 * std::f32::consts::PI),
                                             self.parsed_numbers[4] as f32 / 100.0, // sixel is hls
                                             self.parsed_numbers[3] as f32 / 100.0,
                                         );
@@ -600,7 +684,9 @@ impl BufferParser for AnsiParser {
                                     n => {
                                         let sixel = &mut buf.layers[0].sixels[self.current_sixel];
                                         sixel.read_status = SixelReadStatus::Error;
-                                        return Err(Box::new(ParserError::UnsupportedSixelColorformat(n)));
+                                        return Err(Box::new(
+                                            ParserError::UnsupportedSixelColorformat(n),
+                                        ));
                                     }
                                 }
                             }
@@ -611,7 +697,7 @@ impl BufferParser for AnsiParser {
                         if ('0'..='9').contains(&ch) {
                             let d = match self.parsed_numbers.pop() {
                                 Some(number) => number,
-                                _ => 0
+                                _ => 0,
                             };
                             self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
                         } else if ch == ';' {
@@ -644,7 +730,7 @@ impl BufferParser for AnsiParser {
                         if ('0'..='9').contains(&ch) {
                             let d = match self.parsed_numbers.pop() {
                                 Some(number) => number,
-                                _ => 0
+                                _ => 0,
                             };
                             self.parsed_numbers.push(d * 10 + ch as i32 - '0' as i32);
                         } else {
@@ -668,14 +754,17 @@ impl BufferParser for AnsiParser {
             }
             AnsiState::ReadCustomCommand => {
                 match ch {
-                    'p' => { // [!p Soft Teminal Reset
+                    'p' => {
+                        // [!p Soft Teminal Reset
                         self.state = AnsiState::Default;
                         buf.terminal_state.reset();
                     }
                     'l' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         match self.parsed_numbers.get(0) {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Fast,
@@ -686,15 +775,19 @@ impl BufferParser for AnsiParser {
                             Some(25) => caret.is_visible = false,
                             Some(33) => buf.terminal_state.set_use_ice_colors(false),
                             Some(35) => caret.is_blinking = true,
-                            _ => { 
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
-                        } 
+                        }
                     }
                     'h' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         match self.parsed_numbers.get(0) {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
@@ -712,29 +805,41 @@ impl BufferParser for AnsiParser {
                             Some(1003) => buf.terminal_state.mouse_mode = MouseMode::AnyEvents,
 
                             Some(1004) => buf.terminal_state.mouse_mode = MouseMode::FocusEvent,
-                            Some(1007) => buf.terminal_state.mouse_mode = MouseMode::AlternateScroll,
+                            Some(1007) => {
+                                buf.terminal_state.mouse_mode = MouseMode::AlternateScroll
+                            }
                             Some(1005) => buf.terminal_state.mouse_mode = MouseMode::ExtendedMode,
-                            Some(1006) => buf.terminal_state.mouse_mode = MouseMode::SGRExtendedMode,
-                            Some(1015) => buf.terminal_state.mouse_mode = MouseMode::URXVTExtendedMode,
+                            Some(1006) => {
+                                buf.terminal_state.mouse_mode = MouseMode::SGRExtendedMode
+                            }
+                            Some(1015) => {
+                                buf.terminal_state.mouse_mode = MouseMode::URXVTExtendedMode
+                            }
                             Some(1016) => buf.terminal_state.mouse_mode = MouseMode::PixelPosition,
 
-                            Some(cmd) => { 
+                            Some(cmd) => {
                                 return Err(Box::new(ParserError::UnsupportedCustomCommand(*cmd)));
                             }
-                            None => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
-                        } 
+                            None => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )))
+                            }
+                        }
                     }
                     '0'..='9' => {
                         let d = match self.parsed_numbers.pop() {
                             Some(number) => number,
-                            _ => 0
+                            _ => 0,
                         };
                         self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
                     }
                     _ => {
                         self.state = AnsiState::Default;
                         // error in control sequence, terminate reading
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            self.current_sequence.clone(),
+                        )));
                     }
                 }
             }
@@ -744,70 +849,100 @@ impl BufferParser for AnsiParser {
                 } else {
                     return Err(Box::new(ParserError::InvalidChar('\0')));
                 }
-                
+
                 match ch {
-                    'm' => { // Select Graphic Rendition 
+                    'm' => {
+                        // Select Graphic Rendition
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() == 0 {
-                            caret.attr = TextAttribute::default(); // Reset or normal 
-                        } 
+                            caret.attr = TextAttribute::default(); // Reset or normal
+                        }
                         let mut i = 0;
                         while i < self.parsed_numbers.len() {
                             let n = self.parsed_numbers[i];
                             match n {
-                                0 => caret.attr = TextAttribute::default(), // Reset or normal 
+                                0 => caret.attr = TextAttribute::default(), // Reset or normal
                                 1 => caret.attr.set_is_bold(true),
-                                2 => { caret.attr.set_is_faint(true); },  
-                                3 => { caret.attr.set_is_italic(true); },  
-                                4 => caret.attr.set_is_underlined(true), 
+                                2 => {
+                                    caret.attr.set_is_faint(true);
+                                }
+                                3 => {
+                                    caret.attr.set_is_italic(true);
+                                }
+                                4 => caret.attr.set_is_underlined(true),
                                 5 | 6 => caret.attr.set_is_blinking(true),
                                 7 => {
                                     let fg = caret.attr.get_foreground();
                                     caret.attr.set_foreground(caret.attr.get_background());
                                     caret.attr.set_background(fg);
                                 }
-                                8 => { caret.attr.set_is_concealed(true); },
+                                8 => {
+                                    caret.attr.set_is_concealed(true);
+                                }
                                 9 => caret.attr.set_is_crossed_out(true),
-                                10 => self.current_font_page = 0, // Primary (default) font 
-                                11..=19 => { /* ignore alternate fonts for now */  } //return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
-                                21 => { caret.attr.set_is_double_underlined(true) },
-                                22 => { caret.attr.set_is_bold(false); caret.attr.set_is_faint(false) },
+                                10 => self.current_font_page = 0, // Primary (default) font
+                                11..=19 => { /* ignore alternate fonts for now */ } //return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
+                                21 => caret.attr.set_is_double_underlined(true),
+                                22 => {
+                                    caret.attr.set_is_bold(false);
+                                    caret.attr.set_is_faint(false)
+                                }
                                 23 => caret.attr.set_is_italic(false),
                                 24 => caret.attr.set_is_underlined(false),
                                 25 => caret.attr.set_is_blinking(false),
-                                27 => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
+                                27 => {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )))
+                                }
                                 28 => caret.attr.set_is_concealed(false),
                                 29 => caret.attr.set_is_crossed_out(false),
                                 // set foreaground color
-                                30..=37 => caret.attr.set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
+                                30..=37 => caret
+                                    .attr
+                                    .set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
                                 38 => {
-                                    caret.attr.set_foreground(self.parse_extended_colors(buf, &mut i)?);
+                                    caret
+                                        .attr
+                                        .set_foreground(self.parse_extended_colors(buf, &mut i)?);
                                 }
-                                39 => caret.attr.set_foreground(7), // Set foreground color to default, ECMA-48 3rd 
+                                39 => caret.attr.set_foreground(7), // Set foreground color to default, ECMA-48 3rd
                                 // set background color
-                                40..=47 => caret.attr.set_background(COLOR_OFFSETS[n as usize - 40] as u32),
+                                40..=47 => caret
+                                    .attr
+                                    .set_background(COLOR_OFFSETS[n as usize - 40] as u32),
                                 48 => {
-                                    caret.attr.set_background(self.parse_extended_colors(buf, &mut i)?);
+                                    caret
+                                        .attr
+                                        .set_background(self.parse_extended_colors(buf, &mut i)?);
                                 }
                                 49 => caret.attr.set_background(0), // Set background color to default, ECMA-48 3rd
 
                                 // high intensity colors
-                                90..=97 => caret.attr.set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
-                                100..=107 => caret.attr.set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
+                                90..=97 => caret
+                                    .attr
+                                    .set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
+                                100..=107 => caret
+                                    .attr
+                                    .set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
 
-                                _ => { 
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                _ => {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )));
                                 }
                             }
                             i += 1;
                         }
                     }
-                    'H' | 'f' => { // Cursor Position + Horizontal Vertical Position ('f')
+                    'H' | 'f' => {
+                        // Cursor Position + Horizontal Vertical Position ('f')
                         self.state = AnsiState::Default;
                         if !self.parsed_numbers.is_empty() {
-                            if self.parsed_numbers[0] >= 0 { 
+                            if self.parsed_numbers[0] >= 0 {
                                 // always be in terminal mode for gotoxy
-                                caret.pos.y =  buf.get_first_visible_line() + max(0, self.parsed_numbers[0] - 1);
+                                caret.pos.y = buf.get_first_visible_line()
+                                    + max(0, self.parsed_numbers[0] - 1);
                             }
                             if self.parsed_numbers.len() > 1 {
                                 if self.parsed_numbers[1] >= 0 {
@@ -821,7 +956,8 @@ impl BufferParser for AnsiParser {
                         }
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
-                    'C' => { // Cursor Forward 
+                    'C' => {
+                        // Cursor Forward
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.right(buf, 1);
@@ -829,7 +965,8 @@ impl BufferParser for AnsiParser {
                             caret.right(buf, self.parsed_numbers[0]);
                         }
                     }
-                    'D' => { // Cursor Back 
+                    'D' => {
+                        // Cursor Back
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.left(buf, 1);
@@ -837,7 +974,8 @@ impl BufferParser for AnsiParser {
                             caret.left(buf, self.parsed_numbers[0]);
                         }
                     }
-                    'A' => { // Cursor Up 
+                    'A' => {
+                        // Cursor Up
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.up(buf, 1);
@@ -845,7 +983,8 @@ impl BufferParser for AnsiParser {
                             caret.up(buf, self.parsed_numbers[0]);
                         }
                     }
-                    'B' => { // Cursor Down 
+                    'B' => {
+                        // Cursor Down
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.down(buf, 1);
@@ -853,38 +992,43 @@ impl BufferParser for AnsiParser {
                             caret.down(buf, self.parsed_numbers[0]);
                         }
                     }
-                    's' => { // Save Current Cursor Position
+                    's' => {
+                        // Save Current Cursor Position
                         self.state = AnsiState::Default;
                         self.saved_pos = caret.pos;
                     }
-                    'u' => { // Restore Saved Cursor Position 
+                    'u' => {
+                        // Restore Saved Cursor Position
                         self.state = AnsiState::Default;
                         caret.pos = self.saved_pos;
                     }
-                    
-                    'd' => { // Vertical Line Position Absolute
+
+                    'd' => {
+                        // Vertical Line Position Absolute
                         self.state = AnsiState::Default;
-                        let num  = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => n - 1,
-                            _ => 0
+                            _ => 0,
                         };
-                        caret.pos.y =  buf.get_first_visible_line() + num;
+                        caret.pos.y = buf.get_first_visible_line() + num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
-                    'e' => { // Vertical Line Position Relative
+                    'e' => {
+                        // Vertical Line Position Relative
                         self.state = AnsiState::Default;
-                        let num  = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => *n,
-                            _ => 1
+                            _ => 1,
                         };
                         caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
-                    '\'' => { // Horizontal Line Position Absolute
+                    '\'' => {
+                        // Horizontal Line Position Absolute
                         self.state = AnsiState::Default;
-                        let num = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => n - 1,
-                            _ => 0
+                            _ => 0,
                         };
                         if let Some(layer) = &buf.layers.get(0) {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
@@ -895,85 +1039,106 @@ impl BufferParser for AnsiParser {
                             return Err(Box::new(ParserError::InvalidBuffer));
                         }
                     }
-                    'a' => { // Horizontal Line Position Relative
+                    'a' => {
+                        // Horizontal Line Position Relative
                         self.state = AnsiState::Default;
-                        let num = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => *n,
-                            _ => 1
+                            _ => 1,
                         };
                         if let Some(layer) = &buf.layers.get(0) {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
-                                caret.pos.x = min(line.get_line_length() as i32 + 1, caret.pos.x + num);
+                                caret.pos.x =
+                                    min(line.get_line_length() as i32 + 1, caret.pos.x + num);
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
                             return Err(Box::new(ParserError::InvalidBuffer));
                         }
                     }
-                    
-                    'G' => { // Cursor Horizontal Absolute
+
+                    'G' => {
+                        // Cursor Horizontal Absolute
                         self.state = AnsiState::Default;
-                        let num = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => n - 1,
-                            _ => 0
+                            _ => 0,
                         };
                         caret.pos.x = num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
-                    'E' => { // Cursor Next Line
+                    'E' => {
+                        // Cursor Next Line
                         self.state = AnsiState::Default;
-                        let num  = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => *n,
-                            _ => 1
+                            _ => 1,
                         };
                         caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                         caret.pos.x = 0;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
-                    'F' => { // Cursor Previous Line
+                    'F' => {
+                        // Cursor Previous Line
                         self.state = AnsiState::Default;
-                        let num  = match self.parsed_numbers.get(0) { 
+                        let num = match self.parsed_numbers.get(0) {
                             Some(n) => *n,
-                            _ => 1
+                            _ => 1,
                         };
                         caret.pos.y = buf.get_first_visible_line() + caret.pos.y - num;
                         caret.pos.x = 0;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
-                            
-                    'n' => { // Device Status Report 
+
+                    'n' => {
+                        // Device Status Report
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         match self.parsed_numbers[0] {
-                            5 => { // Device status report
+                            5 => {
+                                // Device status report
                                 return Ok(CallbackAction::SendString("\x1b[0n".to_string()));
-                            },
-                            6 => { // Get cursor position
-                                let s = format!("\x1b[{};{}R", min(buf.get_buffer_height() as i32, caret.pos.y + 1), min(buf.get_buffer_width() as i32, caret.pos.x + 1));
+                            }
+                            6 => {
+                                // Get cursor position
+                                let s = format!(
+                                    "\x1b[{};{}R",
+                                    min(buf.get_buffer_height() as i32, caret.pos.y + 1),
+                                    min(buf.get_buffer_width() as i32, caret.pos.x + 1)
+                                );
                                 return Ok(CallbackAction::SendString(s));
-                            }, 
-                            255 => { // Current screen size
-                                let s = format!("\x1b[{};{}R", buf.terminal_state.height, buf.terminal_state.width);
+                            }
+                            255 => {
+                                // Current screen size
+                                let s = format!(
+                                    "\x1b[{};{}R",
+                                    buf.terminal_state.height, buf.terminal_state.width
+                                );
                                 return Ok(CallbackAction::SendString(s));
-                            },
+                            }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         }
                     }
-                    
-                    /*  TODO: 
+
+                    /*  TODO:
                         Insert Column 	  CSI Pn ' }
-                        Delete Column 	  CSI Pn ' ~ 
+                        Delete Column 	  CSI Pn ' ~
                     */
-                    
-                    
-                    'X' => { // Erase character
+                    'X' => {
+                        // Erase character
                         self.state = AnsiState::Default;
 
                         if let Some(number) = self.parsed_numbers.get(0) {
@@ -981,11 +1146,14 @@ impl BufferParser for AnsiParser {
                         } else {
                             caret.erase_charcter(buf, 1);
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         }
                     }
-                    '@' => { // Insert character
+                    '@' => {
+                        // Insert character
                         self.state = AnsiState::Default;
 
                         if let Some(number) = self.parsed_numbers.get(0) {
@@ -995,19 +1163,24 @@ impl BufferParser for AnsiParser {
                         } else {
                             caret.ins(buf);
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         }
                     }
-                    'M' => { // Delete line
+                    'M' => {
+                        // Delete line
                         self.state = AnsiState::Default;
-                        if matches!(self.ansi_music, AnsiMusicOption::Conflicting) || matches!(self.ansi_music, AnsiMusicOption::Both) {
+                        if matches!(self.ansi_music, AnsiMusicOption::Conflicting)
+                            || matches!(self.ansi_music, AnsiMusicOption::Both)
+                        {
                             self.cur_music = Some(AnsiMusic::default());
                             self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
                         } else {
                             if self.parsed_numbers.is_empty() {
                                 if let Some(layer) = buf.layers.get(0) {
-                                    if caret.pos.y  < layer.lines.len() as i32 {
+                                    if caret.pos.y < layer.lines.len() as i32 {
                                         buf.remove_terminal_line(caret.pos.y);
                                     }
                                 } else {
@@ -1015,12 +1188,15 @@ impl BufferParser for AnsiParser {
                                 }
                             } else {
                                 if self.parsed_numbers.len() != 1 {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )));
                                 }
-                                if let Some(number) =self.parsed_numbers.get(0) {
+                                if let Some(number) = self.parsed_numbers.get(0) {
                                     let mut number = *number;
                                     if let Some(layer) = buf.layers.get(0) {
-                                        number = min(number, layer.lines.len() as i32 - caret.pos.y);
+                                        number =
+                                            min(number, layer.lines.len() as i32 - caret.pos.y);
                                     } else {
                                         return Err(Box::new(ParserError::InvalidBuffer));
                                     }
@@ -1028,62 +1204,77 @@ impl BufferParser for AnsiParser {
                                         buf.remove_terminal_line(caret.pos.y);
                                     }
                                 } else {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )));
                                 }
                             }
                         }
                     }
-                    'N' => { 
-                        if matches!(self.ansi_music, AnsiMusicOption::Banana) || matches!(self.ansi_music, AnsiMusicOption::Both) {
+                    'N' => {
+                        if matches!(self.ansi_music, AnsiMusicOption::Banana)
+                            || matches!(self.ansi_music, AnsiMusicOption::Both)
+                        {
                             self.cur_music = Some(AnsiMusic::default());
                             self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
-                        } 
+                        }
                     }
 
-                    '|' => { 
+                    '|' => {
                         if !matches!(self.ansi_music, AnsiMusicOption::Off) {
                             self.cur_music = Some(AnsiMusic::default());
                             self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
-                        } 
+                        }
                     }
-                    
-                    'P' => { // Delete character
+
+                    'P' => {
+                        // Delete character
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.del(buf);
                         } else {
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                             if let Some(number) = self.parsed_numbers.get(0) {
                                 for _ in 0..*number {
                                     caret.del(buf);
                                 }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         }
                     }
-    
-                    'L' => { // Insert line 
+
+                    'L' => {
+                        // Insert line
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             buf.insert_terminal_line(caret.pos.y);
                         } else {
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                             if let Some(number) = self.parsed_numbers.get(0) {
                                 for _ in 0..*number {
                                     buf.insert_terminal_line(caret.pos.y);
                                 }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         }
                     }
-                    
-                    'J' => { // Erase in Display 
+
+                    'J' => {
+                        // Erase in Display
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             buf.clear_buffer_down(caret);
@@ -1097,105 +1288,144 @@ impl BufferParser for AnsiParser {
                                         buf.clear_buffer_up(caret);
                                     }
                                     2 |  // clear entire screen
-                                    3 
-                                    => {
+                                    3 => {
                                         buf.clear_screen(caret);
-                                    } 
+                                    }
                                     _ => {
                                         buf.clear_buffer_down(caret);
                                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
                                     }
                                 }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         }
                     }
-                    
-                    '?' => { // read custom command
+
+                    '?' => {
+                        // read custom command
                         self.state = AnsiState::ReadCustomCommand;
                     }
-    
-                    'K' => { // Erase in line
+
+                    'K' => {
+                        // Erase in line
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() > 0 {
                             match self.parsed_numbers[0] {
-                                0 => { 
+                                0 => {
                                     buf.clear_line_end(caret);
-                                },
+                                }
                                 1 => {
                                     buf.clear_line_start(caret);
-                                },
+                                }
                                 2 => {
                                     buf.clear_line(caret);
-                                },
+                                }
                                 _ => {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )));
                                 }
                             }
                         } else {
                             buf.clear_line_end(caret);
                         }
                     }
-                    
-                    'c' => { // device attributes
+
+                    'c' => {
+                        // device attributes
                         self.state = AnsiState::Default;
                         return Ok(CallbackAction::SendString("\x1b[?1;0c".to_string()));
                     }
-    
-                    'r' => { // Set Top and Bottom Margins
+
+                    'r' => {
+                        // Set Top and Bottom Margins
                         self.state = AnsiState::Default;
                         let (start, end) = match self.parsed_numbers.len() {
                             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
                             1 => (0, self.parsed_numbers[0] - 1),
                             0 => (0, buf.terminal_state.height),
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
                             }
                         };
-    
+
                         if start > end {
                             // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
-                            buf.terminal_state.margins  = None;
+                            buf.terminal_state.margins = None;
                         } else {
                             caret.pos = buf.upper_left_position();
-                            buf.terminal_state.margins  = Some((start, end));
+                            buf.terminal_state.margins = Some((start, end));
                         }
                     }
                     'h' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         match self.parsed_numbers.get(0) {
-                            Some(4) => { caret.insert_mode = true; }
-                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                            Some(4) => {
+                                caret.insert_mode = true;
+                            }
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )))
+                            }
                         }
                     }
-    
+
                     'l' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
-                        match self.parsed_numbers.get(0)  {
-                            Some(4) => { caret.insert_mode = false; }
-                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                        match self.parsed_numbers.get(0) {
+                            Some(4) => {
+                                caret.insert_mode = false;
+                            }
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )))
+                            }
                         }
                     }
                     '~' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         match self.parsed_numbers.get(0) {
-                            Some(1) => { caret.pos.x = 0; } // home
-                            Some(2) => { caret.ins(buf); } // home
-                            Some(3) => { caret.del(buf); }
-                            Some(4) => { caret.eol(buf); }
-                            Some(5) => {} // pg up 
+                            Some(1) => {
+                                caret.pos.x = 0;
+                            } // home
+                            Some(2) => {
+                                caret.ins(buf);
+                            } // home
+                            Some(3) => {
+                                caret.del(buf);
+                            }
+                            Some(4) => {
+                                caret.eol(buf);
+                            }
+                            Some(5) => {} // pg up
                             Some(6) => {} // pg dn
-                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )))
+                            }
                         }
                     }
                     ' ' => {
@@ -1204,30 +1434,42 @@ impl BufferParser for AnsiParser {
                     't' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 4 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                         let r = self.parsed_numbers[1];
                         let g = self.parsed_numbers[2];
                         let b = self.parsed_numbers[3];
                         let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
 
-                        match self.parsed_numbers.get(0)  {
-                            Some(0) => { caret.attr.set_background(color); }
-                            Some(1) => { caret.attr.set_foreground(color); }
-                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())))
+                        match self.parsed_numbers.get(0) {
+                            Some(0) => {
+                                caret.attr.set_background(color);
+                            }
+                            Some(1) => {
+                                caret.attr.set_foreground(color);
+                            }
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )))
+                            }
                         }
                     }
                     _ => {
                         if ('\x40'..='\x7E').contains(&ch) {
                             // unknown control sequence, terminate reading
                             self.state = AnsiState::Default;
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
-        
+
                         if ('0'..='9').contains(&ch) {
                             let d = match self.parsed_numbers.pop() {
                                 Some(number) => number,
-                                _ => 0
+                                _ => 0,
                             };
                             self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
                         } else if ch == ';' {
@@ -1235,64 +1477,61 @@ impl BufferParser for AnsiParser {
                         } else {
                             self.state = AnsiState::Default;
                             // error in control sequence, terminate reading
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone())));
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_sequence.clone(),
+                            )));
                         }
                     }
                 }
             }
-            AnsiState::Default => {
-                match ch {
-                    ANSI_ESC => {
-                        self.current_sequence.clear();
-                        self.current_sequence.push_str("<ESC>");
-                        self.state = AnsiState::Default;
-                        self.state = AnsiState::GotEscape;
-                    }
-                    '\x00' | '\u{00FF}' => {
-                        caret.attr = TextAttribute::default();
-                    }
-                    LF => caret.lf(buf),
-                    FF => caret.ff(buf),
-                    CR => caret.cr(buf),
-                    BS => caret.bs(buf),
-                    '\x7F' => caret.del(buf),
-                    _ => {
-                        let mut ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
-                        ch.set_font_page(self.current_font_page);
-                        buf.print_char(caret, ch);
-                    }
+            AnsiState::Default => match ch {
+                ANSI_ESC => {
+                    self.current_sequence.clear();
+                    self.current_sequence.push_str("<ESC>");
+                    self.state = AnsiState::Default;
+                    self.state = AnsiState::GotEscape;
                 }
-            }
+                '\x00' | '\u{00FF}' => {
+                    caret.attr = TextAttribute::default();
+                }
+                LF => caret.lf(buf),
+                FF => caret.ff(buf),
+                CR => caret.cr(buf),
+                BS => caret.bs(buf),
+                '\x7F' => caret.del(buf),
+                _ => {
+                    let mut ch =
+                        AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
+                    ch.set_font_page(self.current_font_page);
+                    buf.print_char(caret, ch);
+                }
+            },
         }
 
         Ok(CallbackAction::None)
     }
-
 }
-
 
 impl AnsiParser {
     fn read_sixel_data(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
         match ch {
-            ANSI_ESC => {
-                self.state = AnsiState::ReadSixel(SixelState::EndSequence)
-            },
+            ANSI_ESC => self.state = AnsiState::ReadSixel(SixelState::EndSequence),
 
-            '#' =>  {
+            '#' => {
                 self.parsed_numbers.clear();
                 self.state = AnsiState::ReadSixel(SixelState::ReadColor);
-            },
-            '!' =>  {
+            }
+            '!' => {
                 self.parsed_numbers.clear();
                 self.state = AnsiState::ReadSixel(SixelState::Repeat);
-            },
-            '-' =>  {
+            }
+            '-' => {
                 self.sixel_cursor.x = 0;
                 self.sixel_cursor.y += 1;
-            },
-            '$' =>  {
+            }
+            '$' => {
                 self.sixel_cursor.x = 0;
-            },
+            }
             '"' => {
                 self.parsed_numbers.clear();
                 self.state = AnsiState::ReadSixel(SixelState::ReadSize);

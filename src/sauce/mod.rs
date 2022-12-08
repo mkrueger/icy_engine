@@ -2,7 +2,7 @@
 
 use std::io;
 
-use crate::{BufferType, CP437_TO_UNICODE, Size, EngineResult};
+use crate::{BufferType, EngineResult, Size, CP437_TO_UNICODE};
 
 use super::Buffer;
 
@@ -97,12 +97,11 @@ pub struct SauceData {
     pub use_ice: bool,
     pub sauce_header_len: usize,
 
-    pub sauce_file_type: SauceFileType
+    pub sauce_file_type: SauceFileType,
 }
 
 impl SauceData {
-    pub fn extract(data: &[u8]) -> EngineResult<SauceData> 
-    {
+    pub fn extract(data: &[u8]) -> EngineResult<SauceData> {
         if data.len() < SAUCE_LEN {
             return Err(Box::new(SauceError::FileTooShort));
         }
@@ -114,13 +113,15 @@ impl SauceData {
         o += 5;
 
         if b"00" != &data[o..(o + 2)] {
-            return Err(Box::new(SauceError::UnsupportedSauceVersion(String::from_utf8_lossy(&data[o..(o + 2)]).to_string())));
+            return Err(Box::new(SauceError::UnsupportedSauceVersion(
+                String::from_utf8_lossy(&data[o..(o + 2)]).to_string(),
+            )));
         }
 
         let mut title = SauceString::<35, b' '>::new();
         let mut author = SauceString::<20, b' '>::new();
         let mut group = SauceString::<20, b' '>::new();
-        let mut comments: Vec<SauceString<64, 0>> = Vec::new();        
+        let mut comments: Vec<SauceString<64, 0>> = Vec::new();
         let mut buffer_size = Size::<u16>::new(80, 25);
         let mut font_opt = None;
         let mut use_ice = false;
@@ -164,7 +165,7 @@ impl SauceData {
                 buffer_size.width = (file_type as u16) << 1;
                 sauce_file_type = SauceFileType::Bin;
                 use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
-                font_opt =  Some(t_info_str.to_string());
+                font_opt = Some(t_info_str.to_string());
             }
             SauceDataType::XBin => {
                 buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
@@ -191,7 +192,7 @@ impl SauceData {
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         font_opt = Some(t_info_str.to_string());
                     }
-                    
+
                     SAUCE_FILE_TYPE_PCBOARD => {
                         buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
                         sauce_file_type = SauceFileType::PCBoard;
@@ -223,7 +224,9 @@ impl SauceData {
                 let comment_start = (data.len() - SAUCE_LEN) - num_comments as usize * 64 - 5;
                 o = comment_start;
                 if SAUCE_COMMENT_ID != data[o..(o + 5)] {
-                    return Err(Box::new(SauceError::InvalidCommentId(String::from_utf8_lossy(&data[o..(o + 5)]).to_string())));
+                    return Err(Box::new(SauceError::InvalidCommentId(
+                        String::from_utf8_lossy(&data[o..(o + 5)]).to_string(),
+                    )));
                 }
                 o += 5;
                 for _ in 0..num_comments {
@@ -249,7 +252,7 @@ impl SauceData {
             font_opt,
             use_ice,
             sauce_header_len: data.len() - offset,
-            sauce_file_type
+            sauce_file_type,
         })
     }
 }
@@ -446,12 +449,12 @@ impl Buffer {
                 self.set_buffer_width((file_type as i32) << 1);
                 sauce_file_type = SauceFileType::Bin;
                 let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
-                if use_ice { 
+                if use_ice {
                     self.buffer_type = BufferType::LegacyIce;
-                } else { 
+                } else {
                     self.buffer_type = BufferType::LegacyDos;
                 }
-               // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
             }
             SauceDataType::XBin => {
                 self.set_buffer_width(t_info1);
@@ -465,37 +468,40 @@ impl Buffer {
                         self.set_buffer_width(t_info1);
                         self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::Ascii;
-                        let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
-                        if use_ice { 
+                        let use_ice =
+                            (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                        if use_ice {
                             self.buffer_type = BufferType::LegacyIce;
-                        } else { 
+                        } else {
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                       // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                        // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_ANSI => {
                         self.set_buffer_width(t_info1);
                         self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::Ansi;
-                        let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
-                        if use_ice { 
+                        let use_ice =
+                            (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                        if use_ice {
                             self.buffer_type = BufferType::LegacyIce;
-                        } else { 
+                        } else {
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                       // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                        // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
                         self.set_buffer_width(t_info1);
                         self.set_buffer_height(t_info2);
                         sauce_file_type = SauceFileType::ANSiMation;
-                        let use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
-                        if use_ice { 
+                        let use_ice =
+                            (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+                        if use_ice {
                             self.buffer_type = BufferType::LegacyIce;
-                        } else { 
+                        } else {
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                      //  self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                        //  self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
                     }
                     SAUCE_FILE_TYPE_PCBOARD => {
                         self.set_buffer_width(t_info1);
@@ -683,7 +689,6 @@ mod tests {
 
     #[test]
     fn test_sauce_string_string_conversion() {
-
         let str = SauceString::<20, 0>::from("Hello World!");
         assert_eq!("Hello World!", str.to_string());
     }

@@ -1,7 +1,7 @@
-use std::{ cmp::{max, min}};
-use crate::{Line, EngineResult};
+use crate::{EngineResult, Line};
+use std::cmp::{max, min};
 
-use super::{Buffer, Caret, Position, AttributedChar};
+use super::{AttributedChar, Buffer, Caret, Position};
 
 mod parser_errors;
 pub use parser_errors::*;
@@ -31,31 +31,32 @@ pub const CR: char = '\r';
 pub const BS: char = '\x08';
 pub const FF: char = '\x0C';
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MusicStyle {
     Foreground,
     Background,
     Normal,
     Legato,
-    Staccato
+    Staccato,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MusicAction {
-    PlayNote(f32, u32), // freq / note length 
+    PlayNote(f32, u32), // freq / note length
     Pause(u32),
     SetStyle(MusicStyle),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AnsiMusic {
-    pub music_actions: Vec<MusicAction> 
+    pub music_actions: Vec<MusicAction>,
 }
 
 impl Default for AnsiMusic {
     fn default() -> Self {
-        Self { music_actions: Default::default() }
+        Self {
+            music_actions: Default::default(),
+        }
     }
 }
 
@@ -63,7 +64,7 @@ impl Default for AnsiMusic {
 pub enum CallbackAction {
     None,
     SendString(String),
-    PlayMusic(AnsiMusic)
+    PlayMusic(AnsiMusic),
 }
 
 pub trait BufferParser {
@@ -71,7 +72,12 @@ pub trait BufferParser {
     fn to_unicode(&self, ch: char) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
-    fn print_char(&mut self, buffer: &mut Buffer, caret: &mut Caret, c: char) -> EngineResult<CallbackAction>;
+    fn print_char(
+        &mut self,
+        buffer: &mut Buffer,
+        caret: &mut Caret,
+        c: char,
+    ) -> EngineResult<CallbackAction>;
 }
 
 impl Caret {
@@ -90,7 +96,7 @@ impl Caret {
             self.check_scrolling_on_caret_down(buf, false);
         }
     }
-    
+
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
     pub fn ff(&mut self, buf: &mut Buffer) {
         buf.terminal_state.reset();
@@ -121,8 +127,8 @@ impl Caret {
 
     pub fn del(&mut self, buf: &mut Buffer) {
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
-            let i = self.pos.x as usize ;
-            if i < line.chars.len(){ 
+            let i = self.pos.x as usize;
+            if i < line.chars.len() {
                 line.chars.remove(i);
             }
         }
@@ -131,27 +137,27 @@ impl Caret {
     pub fn ins(&mut self, buf: &mut Buffer) {
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
             let i = self.pos.x as usize;
-            if i < line.chars.len(){ 
-                line.chars.insert(i, Some(AttributedChar::new(' ', self.attr)));
+            if i < line.chars.len() {
+                line.chars
+                    .insert(i, Some(AttributedChar::new(' ', self.attr)));
             }
         }
     }
 
     pub fn erase_charcter(&mut self, buf: &mut Buffer, number: i32) {
-        
         let mut i = self.pos.x as usize;
         let number = min(buf.get_buffer_width() - i as i32, number);
         if number <= 0 {
             return;
         }
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
-            for _ in 0..number  {
+            for _ in 0..number {
                 line.set_char(i as i32, Some(AttributedChar::new(' ', self.attr)));
                 i += 1;
             }
         }
     }
-    
+
     pub fn left(&mut self, buf: &mut Buffer, num: i32) {
         self.pos.x = self.pos.x.saturating_sub(num);
         buf.terminal_state.limit_caret_pos(buf, self);
@@ -184,7 +190,7 @@ impl Caret {
         self.check_scrolling_on_caret_down(buf, true);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
-    
+
     /// Moves the cursor up one line in the same column. If the cursor is at the top margin, the page scrolls down.
     pub fn reverse_index(&mut self, buf: &mut Buffer) {
         self.pos.y = self.pos.y.saturating_sub(1);
@@ -219,26 +225,25 @@ impl Caret {
 }
 
 impl Buffer {
-    fn print_value(&mut self, caret: &mut Caret, ch: u16)
-    {
+    fn print_value(&mut self, caret: &mut Caret, ch: u16) {
         let ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
         self.print_char(caret, ch);
     }
 
-    fn print_char(&mut self, caret: &mut Caret, ch: AttributedChar)
-    {
+    fn print_char(&mut self, caret: &mut Caret, ch: AttributedChar) {
         if caret.insert_mode {
             let layer = &mut self.layers[0];
             if layer.lines.len() < caret.pos.y as usize + 1 {
                 layer.lines.resize(caret.pos.y as usize + 1, Line::new());
             }
-            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, Some(AttributedChar::default()));
+            layer.lines[caret.pos.y as usize]
+                .insert_char(caret.pos.x, Some(AttributedChar::default()));
         }
         if caret.pos.x >= self.get_buffer_width() as i32 {
-            if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode  {
+            if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self);
             } else {
-                caret.pos.x -=  1;
+                caret.pos.x -= 1;
             }
         }
 
@@ -247,7 +252,7 @@ impl Buffer {
         caret.pos.x += 1;
     }
 
-    /*fn get_buffer_last_line(&mut self) -> i32 
+    /*fn get_buffer_last_line(&mut self) -> i32
     {
         if let Some((_, end)) = self.terminal_state.margins {
             self.get_first_visible_line() + end
@@ -256,8 +261,7 @@ impl Buffer {
         }
     }*/
 
-    fn scroll_down(&mut self)
-    {
+    fn scroll_down(&mut self) {
         let start = self.get_first_editable_line();
         let end = self.get_last_editable_line();
         //println!("scroll down {}-{}", start, end);
@@ -272,8 +276,7 @@ impl Buffer {
         }
     }
 
-    fn scroll_up(&mut self)
-    {
+    fn scroll_up(&mut self) {
         let start = self.get_first_editable_line();
         let end = self.get_last_editable_line();
         for layer in &mut self.layers {
@@ -285,8 +288,7 @@ impl Buffer {
         }
     }
 
-    fn clear_screen(&mut self, caret: &mut Caret)
-    {
+    fn clear_screen(&mut self, caret: &mut Caret) {
         caret.pos = Position::default();
         self.clear();
         self.clear_buffer_down(caret)
@@ -353,11 +355,10 @@ impl Buffer {
         self.layers[0].remove_line(line);
         if let Some((_, end)) = self.terminal_state.margins {
             self.layers[0].insert_line(end, Line::new());
-        } 
+        }
     }
-    
-    fn insert_terminal_line(&mut self, line: i32) {
 
+    fn insert_terminal_line(&mut self, line: i32) {
         if let Some((_, end)) = self.terminal_state.margins {
             if end < self.layers[0].lines.len() as i32 {
                 self.layers[0].lines.remove(end as usize);

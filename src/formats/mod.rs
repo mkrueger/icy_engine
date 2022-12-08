@@ -35,14 +35,14 @@ use super::{Position, TextAttribute};
 pub enum ScreenPreperation {
     None,
     ClearScreen,
-    Home
+    Home,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CompressionLevel {
     Off,
     Medium,
-    High
+    High,
 }
 
 #[derive(Clone, Debug)]
@@ -50,7 +50,7 @@ pub struct SaveOptions {
     pub screen_preparation: ScreenPreperation,
     pub modern_terminal_output: bool,
     pub save_sauce: bool,
-    pub compression_level: CompressionLevel
+    pub compression_level: CompressionLevel,
 }
 
 impl SaveOptions {
@@ -59,7 +59,7 @@ impl SaveOptions {
             screen_preparation: ScreenPreperation::None,
             modern_terminal_output: false,
             save_sauce: false,
-            compression_level: CompressionLevel::High
+            compression_level: CompressionLevel::High,
         }
     }
 }
@@ -70,23 +70,27 @@ impl Default for SaveOptions {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use crate::{Buffer, SaveOptions};
+    use std::path::PathBuf;
 
-    fn test_ansi(data: &[u8])
-    {
-        let buf = Buffer::from_bytes(&PathBuf::from("test.ans"),data).unwrap();
+    fn test_ansi(data: &[u8]) {
+        let buf = Buffer::from_bytes(&PathBuf::from("test.ans"), data).unwrap();
         let converted = super::convert_to_ans(&buf, &SaveOptions::new()).unwrap();
 
         // more gentle output.
-        let b : Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
-        let converted  = String::from_utf8_lossy(b.as_slice());
+        let b: Vec<u8> = converted
+            .iter()
+            .map(|&x| if x == 27 { b'x' } else { x })
+            .collect();
+        let converted = String::from_utf8_lossy(b.as_slice());
 
-        let b : Vec<u8> = data.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
-        let expected  = String::from_utf8_lossy(b.as_slice());
+        let b: Vec<u8> = data
+            .iter()
+            .map(|&x| if x == 27 { b'x' } else { x })
+            .collect();
+        let expected = String::from_utf8_lossy(b.as_slice());
 
         assert_eq!(expected, converted);
     }

@@ -1,10 +1,9 @@
 use std::io;
 
-use crate::{Buffer, AttributedChar};
-use super::{ Position, TextAttribute, SaveOptions};
+use super::{Position, SaveOptions, TextAttribute};
+use crate::{AttributedChar, Buffer};
 
-pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool>
-{
+pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
     let mut o = 0;
     let mut pos = Position::default();
     loop {
@@ -15,10 +14,20 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
             }
 
             if o + 1 > file_size {
-                return Err(io::Error::new(io::ErrorKind::UnexpectedEof, "invalid file - needs to be % 2 == 0"));
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "invalid file - needs to be % 2 == 0",
+                ));
             }
 
-            result.set_char(0, pos, Some(AttributedChar::new(char::from_u32(bytes[o] as u32).unwrap(), TextAttribute::from_u8(bytes[o + 1], result.buffer_type))));
+            result.set_char(
+                0,
+                pos,
+                Some(AttributedChar::new(
+                    char::from_u32(bytes[o] as u32).unwrap(),
+                    TextAttribute::from_u8(bytes[o + 1], result.buffer_type),
+                )),
+            );
             pos.x += 1;
             o += 2;
         }
@@ -27,13 +36,14 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
     }
 }
 
-pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
-{
+pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
 
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {
-            let ch = buf.get_char(Position::new(x as i32, y as i32)).unwrap_or_default();
+            let ch = buf
+                .get_char(Position::new(x as i32, y as i32))
+                .unwrap_or_default();
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(buf.buffer_type));
         }
@@ -44,13 +54,14 @@ pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<
     Ok(result)
 }
 
-pub fn get_save_sauce_default_binary(buf: &Buffer) -> (bool, String)
-{
+pub fn get_save_sauce_default_binary(buf: &Buffer) -> (bool, String) {
     if buf.get_buffer_width() != 160 {
-        return (true, "width != 160".to_string() );
+        return (true, "width != 160".to_string());
     }
 
-    if buf.has_sauce_relevant_data() { return (true, String::new()); }
+    if buf.has_sauce_relevant_data() {
+        return (true, String::new());
+    }
 
-    ( false, String::new() )
+    (false, String::new())
 }
