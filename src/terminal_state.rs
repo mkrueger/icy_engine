@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::{cmp::{max, min}, backtrace::Backtrace};
 
 use crate::{Buffer, Caret};
 
@@ -80,8 +80,11 @@ impl TerminalState {
         match self.origin_mode {
             crate::OriginMode::UpperLeftCorner => {
                 let first = buf.get_first_visible_line();
-                let n = min(first + buf.get_buffer_height() - 1, max(first, caret.pos.y));
-                caret.pos.y = n;
+         /*       let n = min(first + buf.get_buffer_height() - 1, max(first, caret.pos.y));
+                if n < caret.pos.y {
+                    println!("limit! {}", Backtrace::force_capture());
+                }
+                caret.pos.y = n;*/
                 caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
             }
             crate::OriginMode::WithinMargins => {

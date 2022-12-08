@@ -84,11 +84,15 @@ impl Caret {
     /// (line feed, LF, \n, ^J), moves the print head down one line, or to the left edge and down. Used as the end of line marker in most UNIX systems and variants.
     pub fn lf(&mut self, buf: &mut Buffer) {
         let was_ooe = self.pos.y > buf.get_last_editable_line();
+
         self.pos.x = 0;
         self.pos.y += 1;
         while self.pos.y >= buf.layers[0].lines.len() as i32 {
             let len = buf.layers[0].lines.len();
             buf.layers[0].lines.insert(len, Line::new());
+        }
+        if !buf.is_terminal_buffer {
+            return;
         }
         if was_ooe {
             buf.terminal_state.limit_caret_pos(buf, self);
@@ -167,6 +171,10 @@ impl Caret {
         self.pos.x = self.pos.x + num;
         if self.pos.x > buf.get_buffer_width() && self.pos.y < buf.get_last_editable_line() {
             self.pos.y += self.pos.x / buf.get_buffer_width();
+            while self.pos.y >= buf.layers[0].lines.len() as i32 {
+                let len = buf.layers[0].lines.len();
+                buf.layers[0].lines.insert(len, Line::new());
+            }
             self.pos.x %= buf.get_buffer_width();
         }
         buf.terminal_state.limit_caret_pos(buf, self);
