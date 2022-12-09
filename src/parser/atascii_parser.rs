@@ -51,7 +51,7 @@ impl BufferParser for AtasciiParser {
             '\u{009D}' => buf.insert_terminal_line(caret.pos.y),
             '\u{009E}' => { /* clear TAB stops TODO */ }
             '\u{009F}' => { /* set TAB stops TODO */ }
-            '\u{00FD}' => { /* Buzzer TODO */ }
+            '\u{00FD}' => return Ok(CallbackAction::Beep),
             '\u{00FE}' => caret.del(buf),
             '\u{00FF}' => caret.ins(buf),
             '\x1B' => {

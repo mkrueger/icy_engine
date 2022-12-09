@@ -1,5 +1,5 @@
 use super::BufferParser;
-use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, BS, CR, FF, LF};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, BEL, BS, CR, FF, LF};
 pub struct AsciiParser {}
 
 impl AsciiParser {
@@ -33,6 +33,9 @@ impl BufferParser for AsciiParser {
         match ch {
             '\x00' | '\u{00FF}' => {
                 caret.attr = TextAttribute::default();
+            }
+            BEL => {
+                return Ok(CallbackAction::Beep);
             }
             LF => caret.lf(buf),
             FF => caret.ff(buf),

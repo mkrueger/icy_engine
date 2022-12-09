@@ -161,9 +161,9 @@ impl BitFont {
 
     const PSF1_MAGIC: u16 = 0x0436;
     const PSF1_MODE512: u8 = 0x01;
-    const PSF1_MODEHASTAB: u8 = 0x02;
-    const PSF1_MODEHASSEQ: u8 = 0x04;
-    const PSF1_MAXMODE: u8 = 0x05;
+    // const PSF1_MODEHASTAB: u8 = 0x02;
+    // const PSF1_MODEHASSEQ: u8 = 0x04;
+    // const PSF1_MAXMODE: u8 = 0x05;
 
     fn load_psf1(font_name: &str, data: &[u8]) -> EngineResult<Self> {
         let mode = data[2];
@@ -187,12 +187,12 @@ impl BitFont {
 
     const PSF2_MAGIC: u32 = 0x864ab572;
     // bits used in flags
-    const PSF2_HAS_UNICODE_TABLE: u8 = 0x01;
+    //const PSF2_HAS_UNICODE_TABLE: u8 = 0x01;
     // max version recognized so far
     const PSF2_MAXVERSION: u32 = 0x00;
     // UTF8 separators
-    const PSF2_SEPARATOR: u8 = 0xFF;
-    const PSF2_STARTSEQ: u8 = 0xFE;
+    //const PSF2_SEPARATOR: u8 = 0xFF;
+    //const PSF2_STARTSEQ: u8 = 0xFE;
 
     fn load_psf2(font_name: &str, data: &[u8]) -> EngineResult<Self> {
         let version = u32::from_le_bytes(data[4..8].try_into().unwrap());

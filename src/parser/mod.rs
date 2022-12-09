@@ -26,6 +26,7 @@ pub use rip_parser::*;
 #[cfg(test)]
 mod tests;
 
+pub const BEL: char = '\x07';
 pub const LF: char = '\n';
 pub const CR: char = '\r';
 pub const BS: char = '\x08';
@@ -63,6 +64,7 @@ impl Default for AnsiMusic {
 #[derive(Debug, PartialEq)]
 pub enum CallbackAction {
     None,
+    Beep,
     SendString(String),
     PlayMusic(AnsiMusic),
 }

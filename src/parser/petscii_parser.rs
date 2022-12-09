@@ -207,6 +207,7 @@ impl BufferParser for PETSCIIParser {
         match ch {
             0x02 => self.underline_mode = true, // C128
             0x05 => caret.set_foreground(WHITE),
+            0x07 => return Ok(CallbackAction::Beep),
             0x08 => self.c_shift = false,
             0x09 => self.c_shift = true,
             0x0A => caret.cr(buf),

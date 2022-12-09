@@ -8,7 +8,7 @@ use std::{
 use crate::{
     AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, EngineResult,
     MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position, Sixel,
-    SixelReadStatus, TerminalScrolling, TextAttribute, BS, CR, FF, LF, XTERM_256_PALETTE,
+    SixelReadStatus, TerminalScrolling, TextAttribute, BS, CR, FF, LF, XTERM_256_PALETTE, BEL,
 };
 
 use super::{AsciiParser, BufferParser};
@@ -1498,6 +1498,7 @@ impl BufferParser for AnsiParser {
                 FF => caret.ff(buf),
                 CR => caret.cr(buf),
                 BS => caret.bs(buf),
+                BEL => { return Ok(CallbackAction::Beep) }
                 '\x7F' => caret.del(buf),
                 _ => {
                     let mut ch =
