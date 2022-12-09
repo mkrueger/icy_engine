@@ -44,14 +44,14 @@ impl Caret {
         self.attr = attr;
     }
 
-    pub(super) fn set_foreground(&mut self, color: u32) {
+    pub fn set_foreground(&mut self, color: u32) {
         self.attr.set_foreground(color);
     }
-    /*
-    pub(super) fn set_background(&mut self, color: u8)
+    
+    pub fn set_background(&mut self, color: u32)
     {
         self.attr.set_background(color);
-    }*/
+    }
 }
 
 impl std::fmt::Debug for Caret {

@@ -8,7 +8,7 @@
     clippy::cast_precision_loss
 )]
 mod text_attribute;
-use std::error::Error;
+use std::{error::Error, cmp::min};
 
 pub use text_attribute::*;
 
@@ -105,6 +105,34 @@ impl Rectangle {
             start: Position::new(x, y),
             size: Size::new(width, height),
         }
+    }
+
+    pub fn from_coords(x1: i32, y1: i32, x2: i32, y2: i32) -> Self
+    {
+        assert!(x1 <= x2);
+        assert!(y1 <= y2);
+        Rectangle {
+            start: Position::new(x1, y1), 
+            size: Size::new((x2 - x1) + 1, (y2 - y1) + 1) 
+        }
+    }
+
+    pub fn from_pt(p1: Position, p2: Position) -> Self
+    {
+        let start = Position::new(min(p1.x, p2.x), min(p1.y, p2.y));
+
+        Rectangle {
+            start, 
+            size: Size::new((p1.x - p2.x).abs() + 1, (p1.y - p2.y).abs() + 1) 
+        }
+    }
+
+    pub fn is_inside(&self, p: Position) -> bool
+    {
+        self.start.x <= p.x && 
+        self.start.y <= p.y && 
+        p.x < self.start.x + self.size.width as i32 &&
+        p.y < self.start.y + self.size.height as i32
     }
 
     pub fn lower_right(&self) -> Position {
