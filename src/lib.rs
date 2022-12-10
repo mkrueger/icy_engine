@@ -48,9 +48,6 @@ pub use tdf_font::*;
 mod sauce;
 pub use sauce::*;
 
-mod undo_stack;
-pub use undo_stack::*;
-
 mod crc;
 pub use crc::*;
 

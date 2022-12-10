@@ -296,14 +296,6 @@ impl Buffer {
         Buffer::from_bytes(file_name, &bytes)
     }
 
-    pub fn clear_layer(&mut self, layer_num: i32) -> super::ClearLayerOperation {
-        let layers = std::mem::take(&mut self.layers[layer_num as usize].lines);
-        super::ClearLayerOperation {
-            layer_num,
-            lines: layers,
-        }
-    }
-
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> io::Result<Vec<u8>> {
         match extension {
             "mdf" => super::convert_to_mdf(self),
