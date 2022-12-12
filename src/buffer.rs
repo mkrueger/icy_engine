@@ -6,6 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use num::NumCast;
+
 use crate::{
     AnsiParser, AsciiParser, AvatarParser, BufferParser, Caret, EngineResult, Glyph, PCBoardParser,
     PETSCIIParser, TerminalState,
@@ -138,12 +140,17 @@ impl Buffer {
         }
     }
 
-    pub fn set_buffer_width(&mut self, width: i32) {
-        self.terminal_state.width = width;
+    pub fn set_buffer_size<T: NumCast>(&mut self, size: Size<T>) {
+        self.terminal_state.width = num::cast(size.width).unwrap();
+        self.terminal_state.height = num::cast(size.height).unwrap();
     }
 
-    pub fn set_buffer_height(&mut self, height: i32) {
-        self.terminal_state.height = height;
+    pub fn set_buffer_width<T: NumCast>(&mut self, width: T) {
+        self.terminal_state.width = num::cast(width).unwrap();
+    }
+
+    pub fn set_buffer_height<T: NumCast>(&mut self, height: T) {
+        self.terminal_state.height = num::cast(height).unwrap();
     }
 
     pub fn clear(&mut self) {

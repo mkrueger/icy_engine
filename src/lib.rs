@@ -10,6 +10,7 @@
 mod text_attribute;
 use std::{error::Error, cmp::min};
 
+use ::num::NumCast;
 pub use text_attribute::*;
 
 mod attributed_char;
@@ -63,14 +64,14 @@ pub use selection::*;
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct Size<T> {
+pub struct Size<T: NumCast> {
     pub width: T,
     pub height: T,
 }
 
 impl<T> PartialEq for Size<T>
 where
-    T: PartialEq,
+    T: NumCast + Eq
 {
     fn eq(&self, other: &Size<T>) -> bool {
         self.width == other.width && self.height == other.height
@@ -79,7 +80,7 @@ where
 
 impl<T> Size<T>
 where
-    T: Default,
+    T: NumCast,
 {
     pub fn new(width: T, height: T) -> Self {
         Size { width, height }
