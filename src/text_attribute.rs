@@ -55,6 +55,15 @@ impl std::fmt::Display for TextAttribute {
 }
 
 impl TextAttribute {
+    
+    pub fn new(foreground_color: u32, background_color: u32) -> Self {
+        TextAttribute {
+            foreground_color,
+            background_color,
+            ..Default::default()
+        }
+    }
+
     pub fn from_u8(attr: u8, buffer_type: BufferType) -> Self {
         let mut blink = false;
         let background_color = if buffer_type.use_ice_colors() {
