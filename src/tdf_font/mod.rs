@@ -1,5 +1,7 @@
 use std::{fs::File, io::Read, path::Path};
 
+use crate::{Position, TextAttribute, Size, Buffer, AttributedChar, BufferType};
+
 #[derive(Copy, Clone, Debug)]
 pub enum TheDrawFontType {
     Outline,
@@ -121,52 +123,52 @@ impl TheDrawFont {
         let char_offset = self.char_table[char_offset as usize];
         char_offset != 0xFFFF
     }
-    /*
-        pub fn render(&self, editor: &mut std::cell::RefMut<Editor>, pos: Position, color: TextAttribute, char_code: u8) -> Option<Size<i32>>
-        {
-            let char_offset = (char_code as i32) - b' '  as i32 - 1;
-            if char_offset < 0 || char_offset > self.char_table.len() as i32 {
-                return None;
-            }
-            let mut char_offset = self.char_table[char_offset as usize] as usize;
-            if char_offset == 0xFFFF {
-                return None;
-            }
-            let max_x = self.font_data[char_offset];
-            char_offset += 1;
-            // let max_y = self.font_data[char_offset];
-            char_offset += 1;
-            let mut cur = pos;
-            loop {
-                let ch = self.font_data[char_offset];
-                char_offset += 1;
-                if ch == 0 { break; }
-                if ch == 13 {
-                    cur.x = pos.x;
-                    cur.y += 1;
-                } else {
-                    let dos_char = match self.font_type {
-                        TheDrawFontType::Outline => {
-                            DosChar { char_code: TheDrawFont::transform_outline(unsafe { WORKSPACE.settings.outline_font_style }, ch) as u16, attribute: color }
-                        }
-                        TheDrawFontType::Block => {
-                            DosChar { char_code: ch as u16, attribute: color }
-                        }
-                        TheDrawFontType::Color => {
-                            let ch_attr = TextAttribute::from_u8(self.font_data[char_offset], BufferType::LegacyIce); // tdf fonts don't support ice mode by default
-                            char_offset += 1;
-                            DosChar { char_code: ch as u16, attribute: ch_attr }
-                        }
-                    };
-                    if cur.x >= 0 && cur.y >= 0 && cur.x < editor.buf.width as i32 && cur.y < editor.buf.height as i32 {
-                        editor.set_char(cur, Some(dos_char));
-                    }
-                    cur.x += 1;
-                }
-            }
-            Some(Size::from(max_x as i32, cur.y - pos.y + 1))
+    
+    pub fn render(&self, buffer: &mut Buffer, layer: usize, pos: Position, color: TextAttribute, outline_style: usize, char_code: u8) -> Option<Size<i32>>
+    {
+        let char_offset = (char_code as i32) - b' '  as i32 - 1;
+        if char_offset < 0 || char_offset > self.char_table.len() as i32 {
+            return None;
         }
-    */
+        let mut char_offset = self.char_table[char_offset as usize] as usize;
+        if char_offset == 0xFFFF {
+            return None;
+        }
+        let max_x = self.font_data[char_offset];
+        char_offset += 1;
+        // let max_y = self.font_data[char_offset];
+        char_offset += 1;
+        let mut cur = pos;
+        loop {
+            let ch = self.font_data[char_offset];
+            char_offset += 1;
+            if ch == 0 { break; }
+            if ch == 13 {
+                cur.x = pos.x;
+                cur.y += 1;
+            } else {
+                let dos_char = match self.font_type {
+                    TheDrawFontType::Outline => {
+                        AttributedChar::new(unsafe { char::from_u32_unchecked(TheDrawFont::transform_outline(outline_style, ch) as u32) }, color)
+                    }
+                    TheDrawFontType::Block => {
+                        AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, color)
+                    }
+                    TheDrawFontType::Color => {
+                        let ch_attr = TextAttribute::from_u8(self.font_data[char_offset], BufferType::LegacyIce); // tdf fonts don't support ice mode by default
+                        char_offset += 1;
+                        AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, ch_attr)
+                    }
+                };
+                if cur.x >= 0 && cur.y >= 0 && cur.x < buffer.get_buffer_width() as i32 && cur.y < buffer.get_real_buffer_height() as i32 {
+                    buffer.set_char(layer, cur, Some(dos_char));
+                }
+                cur.x += 1;
+            }
+        }
+        Some(Size::new(max_x as i32, cur.y - pos.y + 1))
+    }
+    
     pub const OUTLINE_STYLES: usize = 19;
     const OUTLINE_CHAR_SET: [[u8; 17]; TheDrawFont::OUTLINE_STYLES] = [
         [

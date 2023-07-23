@@ -221,6 +221,9 @@ impl Buffer {
         res.set_buffer_height(height);
         res.layers[0].is_locked = true;
         res.layers[0].is_transparent = false;
+        res.layers[0]
+            .lines
+            .resize(height as usize, crate::Line::create(width as u16));
 
         let mut editing_layer = Layer::new();
         editing_layer.title = "Editing".to_string();

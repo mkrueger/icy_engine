@@ -9,6 +9,12 @@ impl Line {
         Line { chars: Vec::new() }
     }
 
+    pub fn create(width: u16) -> Self {
+        let mut chars = Vec::new();
+        chars.resize(width as usize, Some(AttributedChar::default()));
+        Line { chars }
+    }
+
     pub fn get_line_length(&self) -> usize {
         for i in 0..self.chars.len() {
             let idx = self.chars.len() - 1 - i;
