@@ -81,7 +81,7 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
     buf.font_table[0].convert_to_u8_data(&mut result);
 
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_real_buffer_height() {
         for x in 0..buf.get_buffer_width() {
             let ch = buf
                 .get_char(Position::new(x as i32, y as i32))

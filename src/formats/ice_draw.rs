@@ -111,11 +111,11 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.push(w as u8);
     result.push((w >> 8) as u8);
 
-    let h = buf.get_buffer_height() - 1;
+    let h = buf.get_real_buffer_height() - 1;
     result.push(h as u8);
     result.push((h >> 8) as u8);
 
-    let len = (buf.get_buffer_height() * buf.get_buffer_width()) as i32;
+    let len = (buf.get_real_buffer_height() * buf.get_buffer_width()) as i32;
     let mut x = 0;
     while x < len {
         let ch = buf

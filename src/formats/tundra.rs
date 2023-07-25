@@ -47,7 +47,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         if cmd == TUNDRA_POSITION {
             pos.y = to_u32(&bytes[o..]);
             if pos.y >= (u16::MAX) as i32 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_buffer_height())));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_real_buffer_height())));
             }
             o += 4;
             pos.x = to_u32(&bytes[o..]);
@@ -110,7 +110,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     let mut background = crate::Layer::new();
     background.title = "Background".to_string();
 
-    for _ in 0..result.get_buffer_height() {
+    for _ in 0..result.get_real_buffer_height() {
         let mut line = crate::Line::new();
         line.chars.resize(
             result.get_buffer_width() as usize,
@@ -144,7 +144,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.extend(TUNDRA_HEADER);
     let mut attr = TextAttribute::from_u8(0, buf.buffer_type);
     let mut skip_pos = None;
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_real_buffer_height() {
         for x in 0..buf.get_buffer_width() {
             let pos = Position::new(x as i32, y as i32);
             let ch = buf.get_char(pos);
@@ -220,7 +220,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     if let Some(pos2) = skip_pos {
         let pos = Position::new(
             (buf.get_buffer_width() - 1) as i32,
-            (buf.get_buffer_height() - 1) as i32,
+            (buf.get_real_buffer_height() - 1) as i32,
         );
 
         let skip_len = (pos.x + pos.y * buf.get_buffer_width() as i32)

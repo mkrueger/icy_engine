@@ -117,11 +117,10 @@ impl BitFont {
         }
     }
 
-    pub fn convert_to_u8_data(&self, data: &mut [u8]) {
+    pub fn convert_to_u8_data(&self, data: &mut Vec<u8>) {
         for ch in 0..self.length {
             if let Some(glyph) = self.get_glyph(unsafe { char::from_u32_unchecked(ch as u32) }) {
-                let o = ch as usize * self.size.height as usize;
-                data[o..].copy_from_slice(&glyph.data);
+                data.extend_from_slice(&glyph.data);
             }
         }
     }

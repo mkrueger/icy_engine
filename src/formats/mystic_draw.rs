@@ -410,7 +410,7 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
     buf.author.append_to(&mut result);
     buf.group.append_to(&mut result);
     result.extend(u16::to_be_bytes(buf.get_buffer_width() as u16));
-    result.extend(u16::to_be_bytes(buf.get_buffer_height() as u16));
+    result.extend(u16::to_be_bytes(buf.get_real_buffer_height() as u16));
 
     let flags = buf.buffer_type as u16;
     result.extend(u16::to_be_bytes(flags));

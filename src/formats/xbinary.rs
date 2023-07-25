@@ -278,8 +278,8 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
 
     result.push(buf.get_buffer_width() as u8);
     result.push((buf.get_buffer_width() >> 8) as u8);
-    result.push(buf.get_buffer_height() as u8);
-    result.push((buf.get_buffer_height() >> 8) as u8);
+    result.push(buf.get_real_buffer_height() as u8);
+    result.push((buf.get_real_buffer_height() >> 8) as u8);
 
     let mut flags = 0;
     let font = &buf.font_table[0];
@@ -325,7 +325,7 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
         CompressionLevel::Medium => compress_greedy(&mut result, buf, buf.buffer_type),
         CompressionLevel::High => compress_backtrack(&mut result, buf, buf.buffer_type),
         CompressionLevel::Off => {
-            for y in 0..buf.get_buffer_height() {
+            for y in 0..buf.get_real_buffer_height() {
                 for x in 0..buf.get_buffer_width() {
                     let ch = buf
                         .get_char(Position::new(x as i32, y as i32))
@@ -349,7 +349,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = (buffer.get_buffer_height() * buffer.get_buffer_width()) as i32;
+    let len = (buffer.get_real_buffer_height() * buffer.get_buffer_width()) as i32;
     for x in 0..len {
         let cur = buffer
             .get_char(Position::from_index(buffer, x))
@@ -481,7 +481,7 @@ fn count_length(
 ) -> i32 {
     let len = min(
         x + 256,
-        (buffer.get_buffer_height() * buffer.get_buffer_width()) as i32 - 1,
+        (buffer.get_real_buffer_height() * buffer.get_buffer_width()) as i32 - 1,
     );
     let mut count = 0;
     while x < len {
@@ -593,7 +593,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = (buffer.get_buffer_height() * buffer.get_buffer_width()) as i32;
+    let len = (buffer.get_real_buffer_height() * buffer.get_buffer_width()) as i32;
     for x in 0..len {
         let cur = buffer
             .get_char(Position::from_index(buffer, x))
