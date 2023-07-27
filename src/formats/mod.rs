@@ -31,7 +31,7 @@ pub use mystic_draw::*;
 
 use super::{Position, TextAttribute};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ScreenPreperation {
     None,
     ClearScreen,
