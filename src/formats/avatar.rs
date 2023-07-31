@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn test_clear() {
         let buf =
-            Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), &[b'X', 12, b'X']).unwrap();
+            Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false,&[b'X', 12, b'X']).unwrap();
         assert_eq!(1, buf.get_buffer_height());
         assert_eq!(1, buf.get_buffer_width());
     }
@@ -132,6 +132,7 @@ mod tests {
     fn test_repeat() {
         let buf = Buffer::from_bytes(
             &std::path::PathBuf::from("test.avt"),
+            false,
             &[b'X', 25, b'b', 3, b'X'],
         )
         .unwrap();
@@ -162,7 +163,7 @@ mod tests {
     #[test]
     fn test_zero_repeat() {
         let buf =
-            Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), &[25, b'b', 0]).unwrap();
+            Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false,&[25, b'b', 0]).unwrap();
         assert_eq!(0, buf.get_buffer_height());
         assert_eq!(0, buf.get_buffer_width());
     }
@@ -171,6 +172,7 @@ mod tests {
     fn test_linebreak_bug() {
         let buf = Buffer::from_bytes(
             &std::path::PathBuf::from("test.avt"),
+            false,
             &[
                 12, 22, 1, 8, 32, 88, 22, 1, 15, 88, 25, 32, 4, 88, 22, 1, 8, 88, 32, 32, 32, 22,
                 1, 3, 88, 88, 22, 1, 57, 88, 88, 88, 25, 88, 7, 22, 1, 9, 25, 88, 4, 22, 1, 25, 88,
@@ -217,7 +219,7 @@ mod tests {
     }
 
     fn test_avt(data: &[u8]) {
-        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), data).unwrap();
+        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, data).unwrap();
         let converted = super::convert_to_avt(&buf, &SaveOptions::new()).unwrap();
 
         // more gentle output.

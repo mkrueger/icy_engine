@@ -298,12 +298,12 @@ impl Buffer {
         None
     }
 
-    pub fn load_buffer(file_name: &Path) -> EngineResult<Buffer> {
+    pub fn load_buffer(file_name: &Path, skip_errors: bool) -> EngineResult<Buffer> {
         let mut f = File::open(file_name)?;
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes)?;
 
-        Buffer::from_bytes(file_name, &bytes)
+        Buffer::from_bytes(file_name, skip_errors, &bytes)
     }
 
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> io::Result<Vec<u8>> {
@@ -344,7 +344,7 @@ impl Buffer {
                 && self.font_table[0].name.to_string() != super::ALT_DEFAULT_FONT_NAME
     }
 
-    pub fn from_bytes(file_name: &Path, bytes: &[u8]) -> EngineResult<Buffer> {
+    pub fn from_bytes(file_name: &Path, skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
         let mut result = Buffer::new();
         result.is_terminal_buffer = false;
         result.file_name = Some(file_name.to_path_buf());
@@ -473,11 +473,14 @@ impl Buffer {
 
         let mut caret = Caret::default();
         for b in bytes.iter().take(file_size) {
-            interpreter.as_mut().print_char(
+            let res = interpreter.as_mut().print_char(
                 &mut result,
                 &mut caret,
                 char::from_u32(*b as u32).unwrap(),
-            )?;
+            );
+            if !skip_errors && res.is_err() {
+                res?;
+            }
         }
         Ok(result)
     }

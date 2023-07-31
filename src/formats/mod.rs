@@ -76,7 +76,7 @@ mod tests {
     use std::path::PathBuf;
 
     fn test_ansi(data: &[u8]) {
-        let buf = Buffer::from_bytes(&PathBuf::from("test.ans"), data).unwrap();
+        let buf = Buffer::from_bytes(&PathBuf::from("test.ans"), false, data).unwrap();
         let converted = super::convert_to_ans(&buf, &SaveOptions::new()).unwrap();
 
         // more gentle output.
