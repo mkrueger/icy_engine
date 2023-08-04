@@ -3,16 +3,22 @@ use crate::{
     AnsiParser, AnsiState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle,
 };
 
+#[derive(Default)]
 enum RipState {
+    #[default]
     Default,
     GotRipStart,
     ReadCommand,
 }
 
+#[derive(Default)]
 pub enum RipWriteMode {
+    #[default]
     Normal,
     Xor,
 }
+
+#[derive(Default)]
 pub struct RipParser {
     ansi_parser: AnsiParser,
     enable_rip: bool,
@@ -24,17 +30,6 @@ pub struct RipParser {
 }
 
 impl RipParser {
-    pub fn new() -> Self {
-        Self {
-            ansi_parser: AnsiParser::new(),
-            enable_rip: true,
-            state: RipState::Default,
-            text_window: None,
-            viewport: None,
-            _current_write_mode: RipWriteMode::Normal,
-        }
-    }
-
     pub fn clear(&mut self) {
         // clear viewport
     }
@@ -43,12 +38,12 @@ impl RipParser {
 static RIP_TERMINAL_ID: &str = "RIPSCRIP01540\0";
 
 impl BufferParser for RipParser {
-    fn from_unicode(&self, ch: char) -> char {
-        self.ansi_parser.from_unicode(ch)
+    fn convert_from_unicode(&self, ch: char) -> char {
+        self.ansi_parser.convert_from_unicode(ch)
     }
 
-    fn to_unicode(&self, ch: char) -> char {
-        self.ansi_parser.to_unicode(ch)
+    fn convert_to_unicode(&self, ch: char) -> char {
+        self.ansi_parser.convert_to_unicode(ch)
     }
 
     fn print_char(
@@ -101,7 +96,7 @@ impl BufferParser for RipParser {
                     '>' => {
                         // RIP_ERASE_EOL
                         self.state = RipState::Default;
-                        buf.clear_line_end(&caret);
+                        buf.clear_line_end(caret);
                         return Ok(CallbackAction::None);
                     }
                     'c' => {
@@ -272,40 +267,35 @@ impl BufferParser for RipParser {
                 self.state = RipState::ReadCommand;
                 return Ok(CallbackAction::None);
             }
-            _ => {
+            RipState::Default => {
                 match self.ansi_parser.state {
                     crate::AnsiState::ReadSequence => {
-                        match ch {
-                            '!' => {
-                                // Select Graphic Rendition
-                                self.ansi_parser.state = AnsiState::Default;
-                                if self.ansi_parser.parsed_numbers.is_empty() {
+                        if let '!' = ch {
+                            // Select Graphic Rendition
+                            self.ansi_parser.state = AnsiState::Default;
+                            if self.ansi_parser.parsed_numbers.is_empty() {
+                                return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
+                            }
+
+                            match self.ansi_parser.parsed_numbers.first() {
+                                Some(0) => {
                                     return Ok(CallbackAction::SendString(
                                         RIP_TERMINAL_ID.to_string(),
                                     ));
                                 }
-
-                                match self.ansi_parser.parsed_numbers[0] {
-                                    0 => {
-                                        return Ok(CallbackAction::SendString(
-                                            RIP_TERMINAL_ID.to_string(),
-                                        ));
-                                    }
-                                    1 => {
-                                        self.enable_rip = false;
-                                    }
-                                    2 => {
-                                        self.enable_rip = true;
-                                    }
-                                    _ => {
-                                        return Err(Box::new(ParserError::InvalidRipAnsiQuery(
-                                            self.ansi_parser.parsed_numbers[0],
-                                        )));
-                                    }
+                                Some(1) => {
+                                    self.enable_rip = false;
                                 }
-                                return Ok(CallbackAction::None);
+                                Some(2) => {
+                                    self.enable_rip = true;
+                                }
+                                _ => {
+                                    return Err(Box::new(ParserError::InvalidRipAnsiQuery(
+                                        self.ansi_parser.parsed_numbers[0],
+                                    )));
+                                }
                             }
-                            _ => {}
+                            return Ok(CallbackAction::None);
                         }
                     }
                     crate::AnsiState::Default => {
@@ -313,12 +303,9 @@ impl BufferParser for RipParser {
                             return self.ansi_parser.print_char(buf, caret, ch);
                         }
 
-                        match ch {
-                            '!' => {
-                                self.state = RipState::GotRipStart;
-                                return Ok(CallbackAction::None);
-                            }
-                            _ => {}
+                        if let '!' = ch {
+                            self.state = RipState::GotRipStart;
+                            return Ok(CallbackAction::None);
                         }
                     }
                     _ => {}

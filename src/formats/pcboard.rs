@@ -6,11 +6,16 @@ use super::SaveOptions;
 
 const HEX_TABLE: &[u8; 16] = b"0123456789ABCDEF";
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height() as i32;
+    let height = buf.get_real_buffer_height();
     let mut first_char = true;
 
     match options.screen_preparation {
@@ -39,7 +44,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
 
         // do not end with eol
-        if pos.x < buf.get_buffer_width() as i32 && pos.y + 1 < height {
+        if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }

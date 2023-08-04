@@ -1,8 +1,9 @@
+#![allow(clippy::float_cmp)]
 use crate::{
     convert_to_ans,
-    parser::tests::{create_buffer, get_action, update_buffer},
-    AnsiParser, BufferType, CallbackAction, Caret, Color, MusicAction, Position, SaveOptions,
-    TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
+    parsers::tests::{create_buffer, get_action, update_buffer},
+    AnsiMusic, AnsiMusicOption, AnsiParser, BufferType, CallbackAction, Caret, Color, MusicAction,
+    Position, SaveOptions, TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
 };
 
 #[test]
@@ -276,21 +277,21 @@ fn test_delete_character_default() {
     let (mut buf, _) = create_buffer(&mut AnsiParser::new(), b"test");
     update_buffer(
         &mut buf,
-        &mut &mut Caret::new_xy(0, 0),
+        &mut Caret::new_xy(0, 0),
         &mut AnsiParser::new(),
         b"\x1b[P",
     );
     assert_eq!(b'e', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
     update_buffer(
         &mut buf,
-        &mut &mut Caret::new_xy(0, 0),
+        &mut Caret::new_xy(0, 0),
         &mut AnsiParser::new(),
         b"\x1b[P",
     );
     assert_eq!(b's', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
     update_buffer(
         &mut buf,
-        &mut &mut Caret::new_xy(0, 0),
+        &mut Caret::new_xy(0, 0),
         &mut AnsiParser::new(),
         b"\x1b[P",
     );
@@ -302,7 +303,7 @@ fn test_delete_n_character() {
     let (mut buf, _) = create_buffer(&mut AnsiParser::new(), b"testme");
     update_buffer(
         &mut buf,
-        &mut &mut Caret::new_xy(0, 0),
+        &mut Caret::new_xy(0, 0),
         &mut AnsiParser::new(),
         b"\x1b[4P",
     );
@@ -334,17 +335,17 @@ fn test_reset_cursor() {
 #[test]
 fn test_cursor_visibilty() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[?25l");
-    assert_eq!(false, caret.is_visible);
+    assert!(!caret.is_visible);
     update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x1b[?25h");
-    assert_eq!(true, caret.is_visible);
+    assert!(caret.is_visible);
 }
 
 #[test]
 fn test_cursor_visibilty_reset() {
     let (mut buf, mut caret) = create_buffer(&mut AnsiParser::new(), b"\x1b[?25l");
-    assert_eq!(false, caret.is_visible);
+    assert!(!caret.is_visible);
     update_buffer(&mut buf, &mut caret, &mut AnsiParser::new(), b"\x0C"); // FF
-    assert_eq!(true, caret.is_visible);
+    assert!(caret.is_visible);
 }
 
 #[test]
@@ -616,7 +617,9 @@ fn test_font_switch() {
 
 #[test]
 fn test_music() {
-    let action = get_action(&mut AnsiParser::new(), b"\x1B[NC\x0E");
+    let mut p = AnsiParser::new();
+    p.ansi_music = AnsiMusicOption::Both;
+    let action = get_action(&mut p, b"\x1B[NC\x0E");
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
     assert_eq!(1, music.music_actions.len());
     let MusicAction::PlayNote(f, len) = music.music_actions[0] else { panic!(); };
@@ -626,7 +629,9 @@ fn test_music() {
 
 #[test]
 fn test_set_length() {
-    let action = get_action(&mut AnsiParser::new(), b"\x1B[NNL8C\x0E");
+    let mut p = AnsiParser::new();
+    p.ansi_music = AnsiMusicOption::Both;
+    let action = get_action(&mut p, b"\x1B[NNL8C\x0E");
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
     assert_eq!(2, music.music_actions.len());
     let MusicAction::PlayNote(f, len) = music.music_actions[1] else { panic!(); };
@@ -636,14 +641,18 @@ fn test_set_length() {
 
 #[test]
 fn test_tempo() {
-    let action = get_action(&mut AnsiParser::new(), b"\x1B[NT123C\x0E");
+    let mut p = AnsiParser::new();
+    p.ansi_music = AnsiMusicOption::Both;
+    let action = get_action(&mut p, b"\x1B[NT123C\x0E");
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
     assert_eq!(1, music.music_actions.len());
 }
 
 #[test]
 fn test_pause() {
-    let action = get_action(&mut AnsiParser::new(), b"\x1B[NP32.\x0E");
+    let mut p = AnsiParser::new();
+    p.ansi_music = AnsiMusicOption::Both;
+    let action = get_action(&mut p, b"\x1B[NP32.\x0E");
     let CallbackAction::PlayMusic(music) = action else { panic!(); };
     assert_eq!(1, music.music_actions.len());
     let MusicAction::Pause(t) = music.music_actions[0] else { panic!(); };
@@ -652,8 +661,10 @@ fn test_pause() {
 
 #[test]
 fn test_melody() {
+    let mut p = AnsiParser::new();
+    p.ansi_music = AnsiMusicOption::Both;
     let action = get_action(
-        &mut AnsiParser::new(),
+        &mut p,
         b"\x1B[MFT225O3L8GL8GL8GL2E-P8L8FL8FL8FMLL2DL2DMNP8\x0E",
     );
     let CallbackAction::PlayMusic(music) = action else { panic!(); };

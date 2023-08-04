@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::cmp::max;
 
 use crate::{Buffer, Caret};
 
@@ -85,14 +85,14 @@ impl TerminalState {
                     println!("limit! {}", Backtrace::force_capture());
                 }
                 caret.pos.y = n;*/
-                caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
+                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width - 1));
             }
             crate::OriginMode::WithinMargins => {
                 let first = buf.get_first_editable_line();
                 let height = buf.get_last_editable_line() - first;
-                let n = min(first + height - 1, max(first, caret.pos.y));
+                let n = caret.pos.y.clamp(first, max(first, first + height - 1));
                 caret.pos.y = n;
-                caret.pos.x = min(self.width - 1, max(0, caret.pos.x));
+                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width - 1));
             }
         }
     }

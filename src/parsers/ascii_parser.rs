@@ -1,15 +1,10 @@
 use super::BufferParser;
 use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, BEL, BS, CR, FF, LF};
+#[derive(Default)]
 pub struct AsciiParser {}
 
-impl AsciiParser {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
 impl BufferParser for AsciiParser {
-    fn from_unicode(&self, ch: char) -> char {
+    fn convert_from_unicode(&self, ch: char) -> char {
         if let Some(tch) = UNICODE_TO_CP437.get(&ch) {
             *tch
         } else {
@@ -17,7 +12,7 @@ impl BufferParser for AsciiParser {
         }
     }
 
-    fn to_unicode(&self, ch: char) -> char {
+    fn convert_to_unicode(&self, ch: char) -> char {
         match CP437_TO_UNICODE.get(ch as usize) {
             Some(out_ch) => *out_ch,
             _ => ch,
@@ -51,9 +46,9 @@ impl BufferParser for AsciiParser {
 lazy_static::lazy_static! {
     static ref UNICODE_TO_CP437: std::collections::HashMap<char,char> = {
         let mut res = std::collections::HashMap::new();
-        for a in 0..256 {
+        (0..256).for_each(|a| {
             res.insert(CP437_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
-        }
+        });
         res
     };
 }

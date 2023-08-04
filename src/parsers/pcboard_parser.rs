@@ -1,6 +1,7 @@
 use super::BufferParser;
 use crate::{AnsiParser, Buffer, CallbackAction, Caret, EngineResult, TextAttribute};
 
+#[derive(Default)]
 pub struct PCBoardParser {
     ansi_parser: AnsiParser,
 
@@ -11,25 +12,13 @@ pub struct PCBoardParser {
     pub pcb_pos: i32,
 }
 
-impl PCBoardParser {
-    pub fn new() -> Self {
-        PCBoardParser {
-            ansi_parser: AnsiParser::new(),
-            pcb_code: false,
-            pcb_color: false,
-            pcb_value: 0,
-            pcb_pos: 0,
-        }
-    }
-}
-
 impl BufferParser for PCBoardParser {
-    fn from_unicode(&self, ch: char) -> char {
-        self.ansi_parser.from_unicode(ch)
+    fn convert_from_unicode(&self, ch: char) -> char {
+        self.ansi_parser.convert_from_unicode(ch)
     }
 
-    fn to_unicode(&self, ch: char) -> char {
-        self.ansi_parser.to_unicode(ch)
+    fn convert_to_unicode(&self, ch: char) -> char {
+        self.ansi_parser.convert_to_unicode(ch)
     }
 
     fn print_char(
@@ -82,7 +71,7 @@ impl BufferParser for PCBoardParser {
 }
 
 fn conv_ch(ch: char) -> u8 {
-    if ('0'..='9').contains(&ch) {
+    if ch.is_ascii_digit() {
         return ch as u8 - b'0';
     }
     if ('a'..='f').contains(&ch) {

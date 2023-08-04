@@ -13,6 +13,15 @@ const IDF_V1_4_HEADER: &[u8] = b"\x041.4";
 const FONT_SIZE: usize = 4096;
 const PALETTE_SIZE: usize = 3 * 16;
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
     if file_size < HEADER_SIZE + FONT_SIZE + PALETTE_SIZE {
         return Err(io::Error::new(
@@ -96,6 +105,11 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     Ok(true)
 }
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = IDF_V1_4_HEADER.to_vec();
 
@@ -115,7 +129,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.push(h as u8);
     result.push((h >> 8) as u8);
 
-    let len = (buf.get_real_buffer_height() * buf.get_buffer_width()) as i32;
+    let len = buf.get_real_buffer_height() * buf.get_buffer_width();
     let mut x = 0;
     while x < len {
         let ch = buf

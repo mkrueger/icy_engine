@@ -4,10 +4,15 @@ use crate::{Buffer, Position};
 
 use super::SaveOptions;
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height() as i32;
+    let height = buf.get_real_buffer_height();
 
     while pos.y < height {
         let line_length = buf.get_line_length(pos.y);
@@ -18,7 +23,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
 
         // do not end with eol
-        if pos.x < buf.get_buffer_width() as i32 && pos.y + 1 < height {
+        if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }

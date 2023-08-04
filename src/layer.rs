@@ -85,6 +85,11 @@ impl Layer {
         }
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn remove_line(&mut self, index: i32) {
         if self.is_locked || !self.is_visible {
             return;
@@ -96,6 +101,11 @@ impl Layer {
         self.lines.remove(index as usize);
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn insert_line(&mut self, index: i32, line: Line) {
         if self.is_locked || !self.is_visible {
             return;

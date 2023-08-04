@@ -6,7 +6,7 @@ use crate::{BufferType, EngineResult, Size, CP437_TO_UNICODE};
 
 use super::Buffer;
 
-use sauce_errors::*;
+use sauce_errors::SauceError;
 mod sauce_errors;
 
 #[repr(u8)]
@@ -56,7 +56,7 @@ impl SauceDataType {
             7 => SauceDataType::Archive,
             8 => SauceDataType::Executable,
             _ => {
-                eprintln!("unknown sauce data type {}", b);
+                eprintln!("unknown sauce data type {b}");
                 SauceDataType::Undefined
             }
         }
@@ -101,6 +101,12 @@ pub struct SauceData {
 }
 
 impl SauceData {
+    /// .
+    ///
+    /// # Panics
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn extract(data: &[u8]) -> EngineResult<SauceData> {
         if data.len() < SAUCE_LEN {
             return Err(Box::new(SauceError::FileTooShort));
@@ -220,22 +226,21 @@ impl SauceData {
         let len = if num_comments > 0 {
             if (data.len() - SAUCE_LEN) as i32 - num_comments as i32 * 64 - 5 < 0 {
                 return Err(Box::new(SauceError::InvalidCommentBlock));
-            } else {
-                let comment_start = (data.len() - SAUCE_LEN) - num_comments as usize * 64 - 5;
-                o = comment_start;
-                if SAUCE_COMMENT_ID != data[o..(o + 5)] {
-                    return Err(Box::new(SauceError::InvalidCommentId(
-                        String::from_utf8_lossy(&data[o..(o + 5)]).to_string(),
-                    )));
-                }
-                o += 5;
-                for _ in 0..num_comments {
-                    let mut comment: SauceString<64, 0> = SauceString::new();
-                    o += comment.read(&data[o..]);
-                    comments.push(comment);
-                }
-                comment_start // -1 is from the EOF char
             }
+            let comment_start = (data.len() - SAUCE_LEN) - num_comments as usize * 64 - 5;
+            o = comment_start;
+            if SAUCE_COMMENT_ID != data[o..(o + 5)] {
+                return Err(Box::new(SauceError::InvalidCommentId(
+                    String::from_utf8_lossy(&data[o..(o + 5)]).to_string(),
+                )));
+            }
+            o += 5;
+            for _ in 0..num_comments {
+                let mut comment: SauceString<64, 0> = SauceString::new();
+                o += comment.read(&data[o..]);
+                comments.push(comment);
+            }
+            comment_start // -1 is from the EOF char
         } else {
             data.len() - SAUCE_LEN
         };
@@ -275,7 +280,7 @@ impl<const LEN: usize, const EMPTY: u8> std::fmt::Display for SauceString<LEN, E
             let b = self.0[i];
             str.push(CP437_TO_UNICODE[b as usize]);
         }
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
 
@@ -344,6 +349,10 @@ impl<const LEN: usize, const EMPTY: u8> SauceString<LEN, EMPTY> {
         len
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     #[allow(clippy::unused_self)]
     pub fn max_len(&self) -> usize {
         LEN
@@ -388,6 +397,15 @@ const ANSI_FLAG_NON_BLINK_MODE: u8 = 1;
 static EMPTY_TINFO: SauceString<22, 0> = SauceString(Vec::new());
 
 impl Buffer {
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn read_sauce_info(&mut self, data: &[u8]) -> io::Result<(SauceFileType, usize)> {
         if data.len() < SAUCE_LEN {
             return Ok((SauceFileType::Undefined, data.len()));
@@ -560,6 +578,11 @@ impl Buffer {
         }
     }
 
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn write_sauce_info(
         &self,
         sauce_file_type: &SauceFileType,

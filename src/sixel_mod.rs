@@ -1,17 +1,12 @@
 use crate::{Color, Position, Rectangle, Size};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SixelReadStatus {
+    #[default]
     NotStarted,
     Finished,
     Error,
     Position(i32, i32),
-}
-
-impl Default for SixelReadStatus {
-    fn default() -> Self {
-        SixelReadStatus::NotStarted
-    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -31,7 +26,7 @@ impl Sixel {
             aspect_ratio,
             background_color: None,
             picture: Vec::new(),
-            read_status: Default::default(),
+            read_status: SixelReadStatus::default(),
             len: 0,
         }
     }
@@ -57,5 +52,9 @@ impl Sixel {
 
     pub fn len(&self) -> usize {
         self.len
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
     }
 }

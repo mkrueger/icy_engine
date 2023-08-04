@@ -3,6 +3,7 @@ use crate::{
     AsciiParser, AttributedChar, CallbackAction, Caret, EngineResult, ParserError, Position,
 };
 
+#[derive(Default)]
 pub struct PETSCIIParser {
     underline_mode: bool,
     reverse_mode: bool,
@@ -12,16 +13,6 @@ pub struct PETSCIIParser {
 }
 
 impl PETSCIIParser {
-    pub fn new() -> Self {
-        PETSCIIParser {
-            shift_mode: false,
-            underline_mode: false,
-            reverse_mode: false,
-            got_esc: false,
-            c_shift: false,
-        }
-    }
-
     pub fn handle_reverse_mode(&self, ch: u8) -> u8 {
         if self.reverse_mode {
             ch + 0x80
@@ -30,6 +21,11 @@ impl PETSCIIParser {
         }
     }
 
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn handle_c128_escapes(
         &mut self,
         buf: &mut Buffer,
@@ -58,10 +54,10 @@ impl PETSCIIParser {
             } // Move to end of current line
 
             b'A' => {
-                eprintln!("auto insert mode unsupported.");
+                eprintln!("enable auto insert mode unsupported.");
             } // Enable auto-insert mode
             b'C' => {
-                eprintln!("auto insert mode unsupported.");
+                eprintln!("disable auto insert mode unsupported.");
             } // Disable auto-insert mode
 
             b'D' => {
@@ -136,10 +132,10 @@ impl PETSCIIParser {
                     "Unknown C128 escape code: 0x{:02X}/{:?} ",
                     ch,
                     char::from_u32(ch as u32)
-                )
+                );
             }
         }
-        return Ok(CallbackAction::None);
+        Ok(CallbackAction::None)
     }
 
     pub fn update_shift_mode(&mut self, buf: &mut Buffer, shift_mode: bool) {
@@ -149,9 +145,9 @@ impl PETSCIIParser {
         self.shift_mode = shift_mode;
         for y in 0..buf.get_buffer_height() {
             for x in 0..buf.get_buffer_width() {
-                if let Some(ch) = &mut buf.get_char(Position::new(x as i32, y as i32)) {
-                    ch.set_font_page(if shift_mode { 1 } else { 0 });
-                    buf.set_char(0, Position::new(x as i32, y as i32), Some(*ch));
+                if let Some(ch) = &mut buf.get_char(Position::new(x, y)) {
+                    ch.set_font_page(usize::from(shift_mode));
+                    buf.set_char(0, Position::new(x, y), Some(*ch));
                 }
             }
         }
@@ -176,7 +172,7 @@ const LIGHT_BLUE: u32 = 0x0e;
 const GREY3: u32 = 0x0f;
 
 impl BufferParser for PETSCIIParser {
-    fn from_unicode(&self, ch: char) -> char {
+    fn convert_from_unicode(&self, ch: char) -> char {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
             if let Some(out_ch) = char::from_u32(*tch as u32) {
                 out_ch
@@ -188,9 +184,9 @@ impl BufferParser for PETSCIIParser {
         }
     }
 
-    fn to_unicode(&self, ch: char) -> char {
+    fn convert_to_unicode(&self, ch: char) -> char {
         // TODO
-        AsciiParser::new().to_unicode(ch)
+        AsciiParser::default().convert_to_unicode(ch)
     }
 
     fn print_char(
@@ -248,9 +244,8 @@ impl BufferParser for PETSCIIParser {
             _ => {
                 let tch = match ch {
                     0x20..=0x3F => ch,
-                    0x40..=0x5F => ch - 0x40,
+                    0x40..=0x5F | 0xA0..=0xBF => ch - 0x40,
                     0x60..=0x7F => ch - 0x20,
-                    0xA0..=0xBF => ch - 0x40,
                     0xC0..=0xFE => ch - 0x80,
                     _ => {
                         return Err(Box::new(ParserError::UnsupportedControlCode(ch as u32)));
@@ -260,7 +255,7 @@ impl BufferParser for PETSCIIParser {
                     char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(),
                     caret.attr,
                 );
-                ch.set_font_page(if self.shift_mode { 1 } else { 0 });
+                ch.set_font_page(usize::from(self.shift_mode));
                 buf.print_char(caret, ch);
             }
         }

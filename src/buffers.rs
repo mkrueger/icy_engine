@@ -37,30 +37,33 @@ enum CharInterpreter {
 }
 
 impl BufferType {
+    #[must_use]
     pub fn use_ice_colors(self) -> bool {
         self == BufferType::LegacyIce || self == BufferType::ExtFontIce
     }
 
+    #[must_use]
     pub fn use_blink(self) -> bool {
         self == BufferType::LegacyDos || self == BufferType::ExtFont || self == BufferType::NoLimits
     }
 
+    #[must_use]
     pub fn use_extended_font(self) -> bool {
         self == BufferType::ExtFont || self == BufferType::ExtFontIce
     }
 
+    #[must_use]
     pub fn get_fg_colors(self) -> u8 {
         match self {
             BufferType::LegacyDos | BufferType::LegacyIce | BufferType::NoLimits => 16, // may change in the future
-
             BufferType::ExtFont | BufferType::ExtFontIce => 8,
         }
     }
 
+    #[must_use]
     pub fn get_bg_colors(self) -> u8 {
         match self {
             BufferType::LegacyDos | BufferType::ExtFont => 8,
-
             BufferType::LegacyIce | BufferType::ExtFontIce | BufferType::NoLimits => 16, // may change in the future
         }
     }
@@ -140,15 +143,40 @@ impl Buffer {
         }
     }
 
+    pub fn get_real_buffer_width(&self) -> i32 {
+        let mut w = 0;
+        for layer in &self.layers {
+            for line in &layer.lines {
+                w = max(w, line.get_line_length());
+            }
+        }
+        (w as i32) + 1
+    }
+
+    /// Sets the buffer size of this [`Buffer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn set_buffer_size<T: NumCast>(&mut self, size: Size<T>) {
         self.terminal_state.width = num::cast(size.width).unwrap();
         self.terminal_state.height = num::cast(size.height).unwrap();
     }
 
+    /// Sets the buffer width of this [`Buffer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn set_buffer_width<T: NumCast>(&mut self, width: T) {
         self.terminal_state.width = num::cast(width).unwrap();
     }
 
+    /// Sets the buffer height of this [`Buffer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn set_buffer_height<T: NumCast>(&mut self, height: T) {
         self.terminal_state.height = num::cast(height).unwrap();
     }
@@ -157,23 +185,27 @@ impl Buffer {
         self.layers[0].clear();
         self.layers[0].sixels.clear();
     }
+
     /// terminal buffers have a viewport on the bottom of the buffer
     /// this function gives back the first visible line.
+    #[must_use]
     pub fn get_first_visible_line(&self) -> i32 {
-        return if self.is_terminal_buffer {
+        if self.is_terminal_buffer {
             max(
                 0,
                 self.layers[0].lines.len() as i32 - self.get_buffer_height(),
             )
         } else {
             0
-        };
+        }
     }
 
+    #[must_use]
     pub fn get_last_visible_line(&self) -> i32 {
         self.get_first_visible_line() + self.get_buffer_height()
     }
 
+    #[must_use]
     pub fn get_first_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
             if let Some((start, _)) = self.terminal_state.margins {
@@ -183,12 +215,14 @@ impl Buffer {
         self.get_first_visible_line()
     }
 
+    #[must_use]
     pub fn needs_scrolling(&self) -> bool {
-        self.is_terminal_buffer && self.terminal_state.margins.is_some()
+        self.is_terminal_buffer /*&& self.terminal_state.margins.is_some()*/
     }
 
+    #[must_use]
     pub fn get_last_editable_line(&self) -> i32 {
-        return if self.is_terminal_buffer {
+        if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.margins {
                 self.get_first_visible_line() + end
             } else {
@@ -199,9 +233,10 @@ impl Buffer {
                 self.layers[0].lines.len() as i32,
                 self.get_buffer_height() - 1,
             )
-        };
+        }
     }
 
+    #[must_use]
     pub fn upper_left_position(&self) -> Position {
         match self.terminal_state.origin_mode {
             crate::OriginMode::UpperLeftCorner => Position {
@@ -215,6 +250,7 @@ impl Buffer {
         }
     }
 
+    #[must_use]
     pub fn create(width: i32, height: i32) -> Self {
         let mut res = Buffer::new();
         res.set_buffer_width(width);
@@ -228,7 +264,6 @@ impl Buffer {
         let mut editing_layer = Layer::new();
         editing_layer.title = "Editing".to_string();
         res.layers.insert(0, editing_layer);
-
         res
     }
 
@@ -244,6 +279,7 @@ impl Buffer {
         std::mem::replace(&mut self.overlay_layer, None)
     }
 
+    #[must_use]
     pub fn get_glyph(&self, ch: &AttributedChar) -> Option<&Glyph> {
         if let Some(ext) = &self.font_table.get(ch.get_font_page()) {
             return ext.get_glyph(ch.ch);
@@ -251,6 +287,7 @@ impl Buffer {
         None
     }
 
+    #[must_use]
     pub fn get_font_dimensions(&self) -> Size<u8> {
         self.font_table[0].size
     }
@@ -298,6 +335,11 @@ impl Buffer {
         None
     }
 
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn load_buffer(file_name: &Path, skip_errors: bool) -> EngineResult<Buffer> {
         let mut f = File::open(file_name)?;
         let mut bytes = Vec::new();
@@ -306,6 +348,11 @@ impl Buffer {
         Buffer::from_bytes(file_name, skip_errors, &bytes)
     }
 
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> io::Result<Vec<u8>> {
         match extension {
             "mdf" => super::convert_to_mdf(self),
@@ -336,14 +383,23 @@ impl Buffer {
     }
 
     pub fn has_sauce_relevant_data(&self) -> bool {
-        self.title.len() > 0
-            || self.group.len() > 0
-            || self.author.len() > 0
+        !self.title.is_empty()
+            || !self.group.is_empty()
+            || !self.author.is_empty()
             || !self.comments.is_empty()
             || self.font_table[0].name.to_string() != super::DEFAULT_FONT_NAME
                 && self.font_table[0].name.to_string() != super::ALT_DEFAULT_FONT_NAME
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn from_bytes(file_name: &Path, skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
         let mut result = Buffer::new();
         result.is_terminal_buffer = false;
@@ -464,11 +520,11 @@ impl Buffer {
         result.set_buffer_height(25);
 
         let mut interpreter: Box<dyn BufferParser> = match interpreter {
-            CharInterpreter::Ascii => Box::new(AsciiParser::new()),
+            CharInterpreter::Ascii => Box::<AsciiParser>::default(),
             CharInterpreter::Ansi => Box::new(AnsiParser::new()),
             CharInterpreter::Avatar => Box::new(AvatarParser::new(false)),
-            CharInterpreter::Pcb => Box::new(PCBoardParser::new()),
-            CharInterpreter::Petscii => Box::new(PETSCIIParser::new()),
+            CharInterpreter::Pcb => Box::<PCBoardParser>::default(),
+            CharInterpreter::Petscii => Box::<PETSCIIParser>::default(),
         };
 
         let mut caret = Caret::default();
@@ -498,7 +554,7 @@ impl Buffer {
     pub fn get_line_length(&self, line: i32) -> i32 {
         let mut length = 0;
         let mut pos = Position::new(0, line);
-        for x in 0..(self.get_buffer_width() as i32) {
+        for x in 0..self.get_buffer_width() {
             pos.x = x;
             if let Some(ch) = self.get_char(pos) {
                 /*if x > 0 && ch.is_transparent() {

@@ -10,6 +10,15 @@ const ID_SIZE: usize = 4;
 const HEADER_SIZE: usize = 83;
 const CRC32_SIZE: usize = 4;
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
     if bytes.len() < ID_SIZE + CRC32_SIZE + HEADER_SIZE {
         return Err(io::Error::new(
@@ -98,8 +107,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                     Ok(font) => font,
                     Err(err) => {
                         eprintln!(
-                            "Font {} can't be found ({}). Falling back to default.",
-                            font_name, err
+                            "Font {font_name} can't be found ({err}). Falling back to default."
                         );
                         BitFont::from_name(DEFAULT_FONT_NAME).unwrap()
                     }
@@ -228,7 +236,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Invalid MDF.\nUnsupported block type {}", block),
+                    format!("Invalid MDF.\nUnsupported block type {block}"),
                 ));
             }
         }
@@ -395,6 +403,15 @@ const ATTR_MODE_255: u16 = 0b_0010;
 const ATTR_MODE_U16: u16 = 0b_0100;
 const ATTR_MODE_U32: u16 = 0b_0110;
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
     let mut result = MDF_HEADER.to_vec();
     result.push(0x1A); // CP/M EOF char (^Z) - used by DOS as well
@@ -533,7 +550,7 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
                                     y: i / (width as i32),
                                 })
                                 .unwrap();
-                            if buf.font_table.len() > 0 {
+                            if !buf.font_table.is_empty() {
                                 result.push(((ch.ch as u16) >> 8) as u8);
                             }
                             write_char(&mut result, ch.ch as u16, buf.buffer_type);
@@ -563,8 +580,8 @@ fn push_font(result: &mut Vec<u8>, font: &BitFont) {
     } else {
         result.push(BLK_FONT);
         font.name.append_to(result);
-        result.push(font.size.width as u8);
-        result.push(font.size.height as u8);
+        result.push(font.size.width);
+        result.push(font.size.height);
         result.push(0);
         font.convert_to_u8_data(result);
     }
@@ -589,8 +606,8 @@ fn encode_attribte(
             result.extend(u16::to_be_bytes(ch.attribute.get_background() as u16));
         }
         ATTR_MODE_U32 => {
-            result.extend(u32::to_be_bytes(ch.attribute.get_foreground() as u32));
-            result.extend(u32::to_be_bytes(ch.attribute.get_background() as u32));
+            result.extend(u32::to_be_bytes(ch.attribute.get_foreground()));
+            result.extend(u32::to_be_bytes(ch.attribute.get_background()));
         }
         _ => {
             panic!("unsupported attr_mode.");

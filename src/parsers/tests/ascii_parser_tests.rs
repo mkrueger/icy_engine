@@ -1,11 +1,11 @@
 use crate::{
     convert_to_asc,
-    parser::tests::{create_buffer, update_buffer},
+    parsers::tests::{create_buffer, update_buffer},
     AsciiParser, Position, SaveOptions,
 };
 
 fn test_ascii(data: &[u8]) {
-    let (buf, _) = create_buffer(&mut AsciiParser::new(), data);
+    let (buf, _) = create_buffer(&mut AsciiParser::default(), data);
     let converted = convert_to_asc(&buf, &SaveOptions::new()).unwrap();
 
     // more gentle output.
@@ -28,10 +28,10 @@ fn test_ascii(data: &[u8]) {
 fn test_full_line_height() {
     let mut vec = Vec::new();
     vec.resize(80, b'-');
-    let (mut buf, mut caret) = create_buffer(&mut AsciiParser::new(), &vec);
+    let (mut buf, mut caret) = create_buffer(&mut AsciiParser::default(), &vec);
     assert_eq!(1, buf.get_real_buffer_height());
     vec.push(b'-');
-    update_buffer(&mut buf, &mut caret, &mut AsciiParser::new(), &vec);
+    update_buffer(&mut buf, &mut caret, &mut AsciiParser::default(), &vec);
     assert_eq!(3, buf.get_real_buffer_height());
 }
 
@@ -40,7 +40,7 @@ fn test_emptylastline_height() {
     let mut vec = Vec::new();
     vec.resize(80, b'-');
     vec.resize(80 * 2, b' ');
-    let (buf, _) = create_buffer(&mut AsciiParser::new(), &vec);
+    let (buf, _) = create_buffer(&mut AsciiParser::default(), &vec);
     assert_eq!(2, buf.get_real_buffer_height());
 }
 
@@ -62,7 +62,7 @@ fn test_emptylastline_roundtrip() {
 #[test]
 fn test_eol() {
     let data = b"foo\r\n";
-    let (buf, _) = create_buffer(&mut AsciiParser::new(), data);
+    let (buf, _) = create_buffer(&mut AsciiParser::default(), data);
     assert_eq!(2, buf.get_real_buffer_height());
 }
 /*
@@ -87,12 +87,12 @@ fn test_eol_start() {
 #[test]
 fn test_eol_line_break() {
     let (mut buf, mut caret) = create_buffer(
-        &mut AsciiParser::new(),
+        &mut AsciiParser::default(),
         b"################################################################################\r\n",
     );
     assert_eq!(Position::new(0, 1), caret.pos);
 
-    update_buffer(&mut buf, &mut caret, &mut AsciiParser::new(), b"#");
+    update_buffer(&mut buf, &mut caret, &mut AsciiParser::default(), b"#");
     assert_eq!(Position::new(1, 1), caret.pos);
     assert_eq!(b'#', buf.get_char(Position::new(0, 1)).unwrap().ch as u8);
 }

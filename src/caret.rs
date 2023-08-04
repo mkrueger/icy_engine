@@ -33,7 +33,7 @@ impl Caret {
     }
 
     pub fn set_position(&mut self, pos: Position) {
-        self.pos = pos
+        self.pos = pos;
     }
 
     pub fn set_position_xy(&mut self, x: i32, y: i32) {
@@ -47,9 +47,8 @@ impl Caret {
     pub fn set_foreground(&mut self, color: u32) {
         self.attr.set_foreground(color);
     }
-    
-    pub fn set_background(&mut self, color: u32)
-    {
+
+    pub fn set_background(&mut self, color: u32) {
         self.attr.set_background(color);
     }
 }
@@ -67,8 +66,8 @@ impl std::fmt::Debug for Caret {
 impl Default for Caret {
     fn default() -> Self {
         Self {
-            pos: Default::default(),
-            attr: Default::default(),
+            pos: Position::default(),
+            attr: TextAttribute::default(),
             insert_mode: false,
             is_visible: true,
             is_blinking: true,

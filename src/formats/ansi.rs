@@ -1,5 +1,3 @@
-use std::io;
-
 use crate::TextAttribute;
 use crate::{Buffer, Position};
 
@@ -8,11 +6,16 @@ use super::SaveOptions;
 const FG_TABLE: [&[u8; 2]; 8] = [b"30", b"34", b"32", b"36", b"31", b"35", b"33", b"37"];
 const BG_TABLE: [&[u8; 2]; 8] = [b"40", b"44", b"42", b"46", b"41", b"45", b"43", b"47"];
 
-pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
+pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height() as i32;
+    let height = buf.get_real_buffer_height();
     let mut first_char = true;
     match options.screen_preparation {
         super::ScreenPreperation::None => {}
@@ -26,7 +29,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
     while pos.y < height {
         let line_length = if options.modern_terminal_output {
-            buf.get_buffer_width() as i32
+            buf.get_buffer_width()
         } else {
             buf.get_line_length(pos.y)
         };
@@ -165,7 +168,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             result.extend_from_slice(b"\x1b[0m");
             result.push(10);
             first_char = true;
-        } else if pos.x < buf.get_buffer_width() as i32 && pos.y + 1 < height {
+        } else if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }

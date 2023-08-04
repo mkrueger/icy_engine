@@ -21,6 +21,11 @@ enum Compression {
     Full = 0b1100_0000,
 }
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
     if file_size < XBIN_HEADER_SIZE {
         return Err(io::Error::new(
@@ -103,7 +108,7 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
 
 fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     pos.x += 1;
-    if pos.x >= result.get_buffer_width() as i32 {
+    if pos.x >= result.get_buffer_width() {
         pos.x = 0;
         pos.y += 1;
     }
@@ -270,6 +275,11 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -
     Ok(true)
 }
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
 
@@ -287,8 +297,8 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
         return Err(io::Error::new(io::ErrorKind::InvalidData, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."));
     }
 
-    result.push(font.size.height as u8);
-    if !font.is_default() || buf.font_table.len() > 0 {
+    result.push(font.size.height);
+    if !font.is_default() || !buf.font_table.is_empty() {
         flags |= FLAG_FONT;
     }
 
@@ -327,9 +337,7 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
         CompressionLevel::Off => {
             for y in 0..buf.get_real_buffer_height() {
                 for x in 0..buf.get_buffer_width() {
-                    let ch = buf
-                        .get_char(Position::new(x as i32, y as i32))
-                        .unwrap_or_default();
+                    let ch = buf.get_char(Position::new(x, y)).unwrap_or_default();
 
                     result.push(ch.ch as u8);
                     result.push(encode_attr(ch.ch as u16, ch.attribute, buf.buffer_type));
@@ -349,7 +357,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = (buffer.get_real_buffer_height() * buffer.get_buffer_width()) as i32;
+    let len = buffer.get_real_buffer_height() * buffer.get_buffer_width();
     for x in 0..len {
         let cur = buffer
             .get_char(Position::from_index(buffer, x))
@@ -481,7 +489,7 @@ fn count_length(
 ) -> i32 {
     let len = min(
         x + 256,
-        (buffer.get_real_buffer_height() * buffer.get_buffer_width()) as i32 - 1,
+        (buffer.get_real_buffer_height() * buffer.get_buffer_width()) - 1,
     );
     let mut count = 0;
     while x < len {
@@ -593,7 +601,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = (buffer.get_real_buffer_height() * buffer.get_buffer_width()) as i32;
+    let len = buffer.get_real_buffer_height() * buffer.get_buffer_width();
     for x in 0..len {
         let cur = buffer
             .get_char(Position::from_index(buffer, x))

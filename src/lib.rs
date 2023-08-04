@@ -5,10 +5,13 @@
     clippy::cast_possible_wrap,
     clippy::too_many_lines,
     clippy::cast_lossless,
-    clippy::cast_precision_loss
+    clippy::cast_precision_loss,
+    clippy::must_use_candidate,
+    clippy::struct_excessive_bools,
+    clippy::return_self_not_must_use
 )]
 mod text_attribute;
-use std::{error::Error, cmp::min};
+use std::{cmp::min, error::Error};
 
 use ::num::NumCast;
 pub use text_attribute::*;
@@ -25,8 +28,8 @@ pub use line::*;
 mod position;
 pub use position::*;
 
-mod buffer;
-pub use buffer::*;
+mod buffers;
+pub use buffers::*;
 
 mod palette_handling;
 pub use palette_handling::*;
@@ -34,8 +37,8 @@ pub use palette_handling::*;
 mod fonts;
 pub use fonts::*;
 
-mod parser;
-pub use parser::*;
+mod parsers;
+pub use parsers::*;
 
 mod caret;
 pub use caret::*;
@@ -46,8 +49,8 @@ pub use formats::*;
 mod tdf_font;
 pub use tdf_font::*;
 
-mod sauce;
-pub use sauce::*;
+mod sauce_mod;
+pub use sauce_mod::*;
 
 mod crc;
 pub use crc::*;
@@ -55,8 +58,8 @@ pub use crc::*;
 mod terminal_state;
 pub use terminal_state::*;
 
-mod sixel;
-pub use sixel::*;
+mod sixel_mod;
+pub use sixel_mod::*;
 
 mod selection;
 pub use selection::*;
@@ -71,7 +74,7 @@ pub struct Size<T: NumCast> {
 
 impl<T> PartialEq for Size<T>
 where
-    T: NumCast + Eq
+    T: NumCast + Eq,
 {
     fn eq(&self, other: &Size<T>) -> bool {
         self.width == other.width && self.height == other.height
@@ -105,32 +108,34 @@ impl Rectangle {
         }
     }
 
-    pub fn from_coords(x1: i32, y1: i32, x2: i32, y2: i32) -> Self
-    {
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    pub fn from_coords(x1: i32, y1: i32, x2: i32, y2: i32) -> Self {
         assert!(x1 <= x2);
         assert!(y1 <= y2);
         Rectangle {
-            start: Position::new(x1, y1), 
-            size: Size::new((x2 - x1) + 1, (y2 - y1) + 1) 
+            start: Position::new(x1, y1),
+            size: Size::new((x2 - x1) + 1, (y2 - y1) + 1),
         }
     }
 
-    pub fn from_pt(p1: Position, p2: Position) -> Self
-    {
+    pub fn from_pt(p1: Position, p2: Position) -> Self {
         let start = Position::new(min(p1.x, p2.x), min(p1.y, p2.y));
 
         Rectangle {
-            start, 
-            size: Size::new((p1.x - p2.x).abs(), (p1.y - p2.y).abs()) 
+            start,
+            size: Size::new((p1.x - p2.x).abs(), (p1.y - p2.y).abs()),
         }
     }
 
-    pub fn is_inside(&self, p: Position) -> bool
-    {
-        self.start.x <= p.x && 
-        self.start.y <= p.y && 
-        p.x < self.start.x + self.size.width as i32 &&
-        p.y < self.start.y + self.size.height as i32
+    pub fn is_inside(&self, p: Position) -> bool {
+        self.start.x <= p.x
+            && self.start.y <= p.y
+            && p.x < self.start.x + self.size.width
+            && p.y < self.start.y + self.size.height
     }
 
     pub fn lower_right(&self) -> Position {

@@ -18,6 +18,7 @@ impl Default for AttributedChar {
 }
 
 impl AttributedChar {
+    #[must_use]
     pub fn new(ch: char, attribute: TextAttribute) -> Self {
         AttributedChar {
             ch,
@@ -26,15 +27,16 @@ impl AttributedChar {
         }
     }
 
-    #[inline(always)]
+    #[must_use]
     pub fn is_transparent(self) -> bool {
         (self.ch == '\0' || self.ch == ' ') && self.attribute.get_background() == 0
     }
 
-    #[inline(always)]
+    #[must_use]
     pub fn get_font_page(&self) -> usize {
         self.font_page
     }
+
     pub fn set_font_page(&mut self, page: usize) {
         self.font_page = page;
     }

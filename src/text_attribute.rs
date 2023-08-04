@@ -55,7 +55,6 @@ impl std::fmt::Display for TextAttribute {
 }
 
 impl TextAttribute {
-    
     pub fn new(foreground_color: u32, background_color: u32) -> Self {
         TextAttribute {
             foreground_color,
@@ -90,7 +89,7 @@ impl TextAttribute {
         attr.set_is_bold(bold);
         attr.set_is_blinking(blink);
 
-        return attr;
+        attr
     }
 
     pub fn from_color(fg: u8, bg: u8) -> Self {
@@ -115,27 +114,22 @@ impl TextAttribute {
         (fg | bg << 4) as u8
     }
 
-    #[inline(always)]
     pub fn get_foreground(self) -> u32 {
         self.foreground_color
     }
 
-    #[inline(always)]
     pub fn set_foreground(&mut self, color: u32) {
         self.foreground_color = color;
     }
 
-    #[inline(always)]
     pub fn get_background(self) -> u32 {
         self.background_color
     }
 
-    #[inline(always)]
     pub fn set_background(&mut self, color: u32) {
         self.background_color = color;
     }
 
-    #[inline(always)]
     pub fn is_bold(self) -> bool {
         (self.attr & attribute::BOLD) == attribute::BOLD
     }
@@ -148,7 +142,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_faint(self) -> bool {
         (self.attr & attribute::FAINT) == attribute::FAINT
     }
@@ -161,7 +154,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_italic(self) -> bool {
         (self.attr & attribute::ITALIC) == attribute::ITALIC
     }
@@ -174,7 +166,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_blinking(self) -> bool {
         (self.attr & attribute::BLINK) == attribute::BLINK
     }
@@ -187,7 +178,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_double_height(self) -> bool {
         (self.attr & attribute::DOUBLE_HEIGHT) == attribute::DOUBLE_HEIGHT
     }
@@ -200,7 +190,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_crossed_out(self) -> bool {
         (self.attr & attribute::CROSSED_OUT) == attribute::CROSSED_OUT
     }
@@ -213,7 +202,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_underlined(self) -> bool {
         (self.attr & attribute::UNDERLINE) == attribute::UNDERLINE
     }
@@ -226,7 +214,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_double_underlined(self) -> bool {
         (self.attr & attribute::DOUBLE_UNDERLINE) == attribute::DOUBLE_UNDERLINE
     }
@@ -239,7 +226,6 @@ impl TextAttribute {
         }
     }
 
-    #[inline(always)]
     pub fn is_concealed(self) -> bool {
         (self.attr & attribute::CONCEAL) == attribute::CONCEAL
     }

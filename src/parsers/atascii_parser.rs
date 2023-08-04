@@ -5,21 +5,15 @@ pub struct AtasciiParser {
     got_escape: bool,
 }
 
-impl AtasciiParser {
-    pub fn new() -> Self {
-        Self { got_escape: false }
-    }
-}
-
 impl BufferParser for AtasciiParser {
-    fn from_unicode(&self, ch: char) -> char {
+    fn convert_from_unicode(&self, ch: char) -> char {
         match UNICODE_TO_ATARI.get(&ch) {
             Some(out_ch) => *out_ch,
             _ => ch,
         }
     }
 
-    fn to_unicode(&self, ch: char) -> char {
+    fn convert_to_unicode(&self, ch: char) -> char {
         match ATARI_TO_UNICODE.get(ch as usize) {
             Some(out_ch) => *out_ch,
             _ => ch,
@@ -45,12 +39,12 @@ impl BufferParser for AtasciiParser {
             '\x1F' => caret.right(buf, 1),
             '\x7D' => buf.clear_screen(caret),
             '\x7E' => caret.bs(buf),
-            '\x7F' => { /* TAB TODO */ }
+            '\x7F' | '\u{009E}' | '\u{009F}' => { /* TAB TODO */ }
             '\u{009B}' => caret.lf(buf),
             '\u{009C}' => buf.remove_terminal_line(caret.pos.y),
             '\u{009D}' => buf.insert_terminal_line(caret.pos.y),
-            '\u{009E}' => { /* clear TAB stops TODO */ }
-            '\u{009F}' => { /* set TAB stops TODO */ }
+            //   '\u{009E}' => { /* clear TAB stops TODO */ }
+            //   '\u{009F}' => { /* set TAB stops TODO */ }
             '\u{00FD}' => return Ok(CallbackAction::Beep),
             '\u{00FE}' => caret.del(buf),
             '\u{00FF}' => caret.ins(buf),
@@ -66,11 +60,11 @@ impl BufferParser for AtasciiParser {
 lazy_static::lazy_static! {
     static ref UNICODE_TO_ATARI: std::collections::HashMap<char, char> = {
         let mut res = std::collections::HashMap::new();
-        for a in 0..128 {
+        (0..128).for_each(|a| {
             if let Some(ch) = char::from_u32(a as u32) {
                 res.insert(ATARI_TO_UNICODE[a], ch);
             }
-        }
+        });
         res
     };
 }

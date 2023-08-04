@@ -48,17 +48,9 @@ pub enum MusicAction {
     SetStyle(MusicStyle),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct AnsiMusic {
     pub music_actions: Vec<MusicAction>,
-}
-
-impl Default for AnsiMusic {
-    fn default() -> Self {
-        Self {
-            music_actions: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -70,10 +62,14 @@ pub enum CallbackAction {
 }
 
 pub trait BufferParser {
-    fn from_unicode(&self, ch: char) -> char;
-    fn to_unicode(&self, ch: char) -> char;
+    fn convert_from_unicode(&self, ch: char) -> char;
+    fn convert_to_unicode(&self, ch: char) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     fn print_char(
         &mut self,
         buffer: &mut Buffer,
@@ -118,7 +114,7 @@ impl Caret {
     }
 
     pub fn eol(&mut self, buf: &mut Buffer) {
-        self.pos.x = buf.get_buffer_width() as i32 - 1;
+        self.pos.x = buf.get_buffer_width() - 1;
     }
 
     pub fn home(&mut self, buf: &mut Buffer) {
@@ -170,7 +166,7 @@ impl Caret {
     }
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
-        self.pos.x = self.pos.x + num;
+        self.pos.x += num;
         if self.pos.x > buf.get_buffer_width() && self.pos.y < buf.get_last_editable_line() {
             self.pos.y += self.pos.x / buf.get_buffer_width();
             while self.pos.y >= buf.layers[0].lines.len() as i32 {
@@ -189,14 +185,14 @@ impl Caret {
     }
 
     pub fn down(&mut self, buf: &mut Buffer, num: i32) {
-        self.pos.y = self.pos.y + num;
+        self.pos.y += num;
         self.check_scrolling_on_caret_down(buf, false);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
     /// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up.
     pub fn index(&mut self, buf: &mut Buffer) {
-        self.pos.y = self.pos.y + 1;
+        self.pos.y += 1;
         self.check_scrolling_on_caret_down(buf, true);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
@@ -209,7 +205,7 @@ impl Caret {
     }
 
     pub fn next_line(&mut self, buf: &mut Buffer) {
-        self.pos.y = self.pos.y + 1;
+        self.pos.y += 1;
         self.pos.x = 0;
         self.check_scrolling_on_caret_down(buf, true);
         buf.terminal_state.limit_caret_pos(buf, self);
@@ -225,11 +221,9 @@ impl Caret {
     }
 
     fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer, force: bool) {
-        if buf.needs_scrolling() || force {
-            if self.pos.y > buf.get_last_editable_line() {
-                buf.scroll_down();
-                self.pos.y -= 1;
-            }
+        if (buf.needs_scrolling() || force) && self.pos.y > buf.get_last_editable_line() {
+            buf.scroll_down();
+            self.pos.y -= 1;
         }
     }
 }
@@ -249,7 +243,7 @@ impl Buffer {
             layer.lines[caret.pos.y as usize]
                 .insert_char(caret.pos.x, Some(AttributedChar::default()));
         }
-        if caret.pos.x >= self.get_buffer_width() as i32 {
+        if caret.pos.x >= self.get_buffer_width() {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self);
             } else {
@@ -301,7 +295,7 @@ impl Buffer {
     fn clear_screen(&mut self, caret: &mut Caret) {
         caret.pos = Position::default();
         self.clear();
-        self.clear_buffer_down(caret)
+        self.clear_buffer_down(caret);
     }
 
     fn clear_buffer_down(&mut self, caret: &Caret) {
@@ -309,8 +303,8 @@ impl Buffer {
         let mut ch = AttributedChar::default();
         ch.attribute = caret.attr;
 
-        for y in pos.y..self.get_last_visible_line() as i32 {
-            for x in 0..self.get_buffer_width() as i32 {
+        for y in pos.y..self.get_last_visible_line() {
+            for x in 0..self.get_buffer_width() {
                 self.set_char(0, Position::new(x, y), Some(ch));
             }
         }
@@ -322,7 +316,7 @@ impl Buffer {
         ch.attribute = caret.attr;
 
         for y in self.get_first_visible_line()..pos.y {
-            for x in 0..self.get_buffer_width() as i32 {
+            for x in 0..self.get_buffer_width() {
                 self.set_char(0, Position::new(x, y), Some(ch));
             }
         }
@@ -332,7 +326,7 @@ impl Buffer {
         let mut pos = caret.get_position();
         let mut ch = AttributedChar::default();
         ch.attribute = caret.attr;
-        for x in 0..self.get_buffer_width() as i32 {
+        for x in 0..self.get_buffer_width() {
             pos.x = x;
             self.set_char(0, pos, Some(ch));
         }
@@ -342,7 +336,7 @@ impl Buffer {
         let mut pos = caret.get_position();
         let mut ch = AttributedChar::default();
         ch.attribute = caret.attr;
-        for x in pos.x..self.get_buffer_width() as i32 {
+        for x in pos.x..self.get_buffer_width() {
             pos.x = x;
             self.set_char(0, pos, Some(ch));
         }

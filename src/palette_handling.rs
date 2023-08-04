@@ -1,3 +1,4 @@
+#![allow(clippy::many_single_char_names)]
 use std::fmt::Display;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -37,7 +38,6 @@ impl Color {
         )
     }
 
-    #[inline(always)]
     pub fn get_rgb(self) -> (u8, u8, u8) {
         (self.r, self.g, self.b)
     }
@@ -2004,6 +2004,10 @@ impl Palette {
 
     pub fn len(&self) -> u32 {
         self.colors.len() as u32
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty()
     }
 
     pub fn clear(&mut self) {

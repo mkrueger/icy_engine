@@ -6,7 +6,7 @@ mod viewdata_parser_tests;
 use crate::{Buffer, BufferParser, CallbackAction, Caret};
 
 fn get_string_from_buffer(buf: &Buffer) -> String {
-    let converted = crate::convert_to_asc(&buf, &crate::SaveOptions::new()).unwrap(); // test code
+    let converted = crate::convert_to_asc(buf, &crate::SaveOptions::new()).unwrap(); // test code
     let b: Vec<u8> = converted
         .iter()
         .map(|&x| if x == 27 { b'x' } else { x })
@@ -24,6 +24,7 @@ fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Care
     buf.layers.remove(0);
     buf.layers[0].is_locked = false;
     buf.layers[0].is_transparent = false;
+    buf.layers.first_mut().unwrap().lines.clear();
 
     update_buffer(&mut buf, &mut caret, parser, input);
 

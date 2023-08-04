@@ -3,6 +3,15 @@ use std::io;
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{AttributedChar, Buffer};
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
     let mut o = 0;
     let mut pos = Position::default();
@@ -36,14 +45,17 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
     }
 }
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
 
     for y in 0..buf.get_buffer_height() {
         for x in 0..buf.get_buffer_width() {
-            let ch = buf
-                .get_char(Position::new(x as i32, y as i32))
-                .unwrap_or_default();
+            let ch = buf.get_char(Position::new(x, y)).unwrap_or_default();
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(buf.buffer_type));
         }

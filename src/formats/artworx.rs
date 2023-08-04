@@ -13,6 +13,15 @@ use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Size};
 // A very simple format with a weird palette storage. Only 16 colors got used but a full 64 color palette is stored.
 // Maybe useful for DOS demos running in text mode.
 
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
     result.set_buffer_width(80);
     result.buffer_type = BufferType::LegacyIce;
@@ -29,7 +38,7 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     if version != 1 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("Unsupported ADF version {}", version),
+            format!("Unsupported ADF version {version}"),
         ));
     }
     o += 1;
@@ -68,6 +77,11 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     }
 }
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = vec![1]; // version
 
@@ -83,9 +97,7 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
     for y in 0..buf.get_real_buffer_height() {
         for x in 0..buf.get_buffer_width() {
-            let ch = buf
-                .get_char(Position::new(x as i32, y as i32))
-                .unwrap_or_default();
+            let ch = buf.get_char(Position::new(x, y)).unwrap_or_default();
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(BufferType::LegacyIce));
         }

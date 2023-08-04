@@ -35,7 +35,7 @@ pub struct AvatarParser {
 impl AvatarParser {
     pub fn new(use_ansi_parser: bool) -> Self {
         Self {
-            ascii_parser: AsciiParser::new(),
+            ascii_parser: AsciiParser::default(),
             ansi_parser: AnsiParser::new(),
             use_ansi_parser,
 
@@ -60,12 +60,12 @@ impl AvatarParser {
 }
 
 impl BufferParser for AvatarParser {
-    fn from_unicode(&self, ch: char) -> char {
-        self.ascii_parser.from_unicode(ch)
+    fn convert_from_unicode(&self, ch: char) -> char {
+        self.ascii_parser.convert_from_unicode(ch)
     }
 
-    fn to_unicode(&self, ch: char) -> char {
-        self.ascii_parser.to_unicode(ch)
+    fn convert_to_unicode(&self, ch: char) -> char {
+        self.ascii_parser.convert_to_unicode(ch)
     }
 
     fn print_char(
@@ -87,7 +87,7 @@ impl BufferParser for AvatarParser {
                     }
                     _ => return self.print_fallback(buf, caret, ch),
                 }
-                return Ok(CallbackAction::None);
+                Ok(CallbackAction::None)
             }
             AvtReadState::ReadCommand => {
                 match ch as u16 {
@@ -128,13 +128,13 @@ impl BufferParser for AvatarParser {
                     }
                 }
                 self.avt_state = AvtReadState::Chars;
-                return Ok(CallbackAction::None);
+                Ok(CallbackAction::None)
             }
             AvtReadState::RepeatChars => match self.avatar_state {
                 1 => {
                     self.avt_repeat_char = ch;
                     self.avatar_state = 2;
-                    return Ok(CallbackAction::None);
+                    Ok(CallbackAction::None)
                 }
                 2 => {
                     self.avatar_state = 3;
@@ -144,38 +144,36 @@ impl BufferParser for AvatarParser {
                             .print_char(buf, caret, self.avt_repeat_char)?;
                     }
                     self.avt_state = AvtReadState::Chars;
-                    return Ok(CallbackAction::None);
+                    Ok(CallbackAction::None)
                 }
                 _ => {
                     self.avt_state = AvtReadState::Chars;
-                    return Err(Box::new(ParserError::Description(
+                    Err(Box::new(ParserError::Description(
                         "error in reading avt state",
-                    )));
+                    )))
                 }
             },
             AvtReadState::ReadColor => {
                 caret.attr = TextAttribute::from_u8(ch as u8, buf.buffer_type);
                 self.avt_state = AvtReadState::Chars;
-                return Ok(CallbackAction::None);
+                Ok(CallbackAction::None)
             }
             AvtReadState::MoveCursor => match self.avatar_state {
                 1 => {
                     self.avt_repeat_char = ch;
                     self.avatar_state = 2;
-                    return Ok(CallbackAction::None);
+                    Ok(CallbackAction::None)
                 }
                 2 => {
                     caret.pos.x = self.avt_repeat_char as i32;
                     caret.pos.y = ch as i32;
 
                     self.avt_state = AvtReadState::Chars;
-                    return Ok(CallbackAction::None);
+                    Ok(CallbackAction::None)
                 }
-                _ => {
-                    return Err(Box::new(ParserError::Description(
-                        "error in reading avt avt_gotoxy",
-                    )));
-                }
+                _ => Err(Box::new(ParserError::Description(
+                    "error in reading avt avt_gotoxy",
+                ))),
             },
         }
     }

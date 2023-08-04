@@ -1,7 +1,8 @@
+#![allow(clippy::match_same_arms)]
 use super::BufferParser;
 use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position, TextAttribute};
 
-/// https://www.blunham.com/Radar/Teletext/PDFs/Viewdata1976Spec.pdf
+/// <https://www.blunham.com/Radar/Teletext/PDFs/Viewdata1976Spec.pdf>
 #[derive(Default)]
 pub struct ViewdataParser {
     got_esc: bool,
@@ -36,7 +37,7 @@ impl ViewdataParser {
         self.alpha_bg = 0;
     }
 
-    fn fill_to_eol(&self, buf: &mut Buffer, caret: &Caret) {
+    fn fill_to_eol(buf: &mut Buffer, caret: &Caret) {
         if caret.get_position().x <= 0 {
             return;
         }
@@ -74,7 +75,7 @@ impl ViewdataParser {
         self.reset_on_row_change(caret);
     }
 
-    fn caret_up(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+    fn caret_up(buf: &mut Buffer, caret: &mut Caret) {
         if caret.pos.y > 0 {
             caret.pos.y = caret.pos.y.saturating_sub(1);
         } else {
@@ -95,40 +96,35 @@ impl ViewdataParser {
             caret.pos.x = caret.pos.x.saturating_sub(1);
         } else {
             caret.pos.x = buf.get_buffer_width() - 1;
-            self.caret_up(buf, caret);
+            ViewdataParser::caret_up(buf, caret);
         }
     }
 
-    fn interpret_char(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-        ch: u8,
-    ) -> EngineResult<CallbackAction> {
+    fn interpret_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: u8) -> CallbackAction {
         if self.got_esc {
             match ch {
                 b'\\' => {
                     // Black Background
                     caret.attr.set_is_concealed(false);
                     caret.attr.set_background(0);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
                 b']' => {
                     caret.attr.set_background(caret.attr.get_foreground());
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
                 b'I' => {
                     caret.attr.set_is_blinking(false);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
                 b'L' => {
                     caret.attr.set_is_double_height(false);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
                 b'X' => {
                     if !self.is_in_graphic_mode {
                         caret.attr.set_is_concealed(true);
-                        self.fill_to_eol(buf, caret);
+                        ViewdataParser::fill_to_eol(buf, caret);
                     }
                 }
                 b'Y' => {
@@ -154,23 +150,21 @@ impl ViewdataParser {
             } else {
                 b' '
             };
-        } else {
-            if self.is_in_graphic_mode {
-                if ch >= 0x20 && ch < 0x40 || ch >= 0x60 && ch < 0x80 {
-                    if print_ch < 0x40 {
-                        print_ch -= 0x20;
-                    } else {
-                        print_ch -= 0x40;
-                    }
-
-                    if self.is_contiguous {
-                        print_ch += 0x80;
-                    } else {
-                        print_ch += 0xC0;
-                    }
+        } else if self.is_in_graphic_mode {
+            if (0x20..0x40).contains(&ch) || (0x60..0x80).contains(&ch) {
+                if print_ch < 0x40 {
+                    print_ch -= 0x20;
+                } else {
+                    print_ch -= 0x40;
                 }
-                self.held_graphics_character = unsafe { char::from_u32_unchecked(print_ch as u32) };
+
+                if self.is_contiguous {
+                    print_ch += 0x80;
+                } else {
+                    print_ch += 0xC0;
+                }
             }
+            self.held_graphics_character = unsafe { char::from_u32_unchecked(print_ch as u32) };
         }
         // println!("print : '{}' ({}) esc:{}  attr:{}", unsafe { char::from_u32_unchecked(print_ch as u32) }, ch, self.got_esc, caret.attr);
         let ach = AttributedChar::new(
@@ -187,7 +181,7 @@ impl ViewdataParser {
                     caret.attr.set_is_concealed(false);
                     self.held_graphics_character = ' ';
                     caret.attr.set_foreground(1 + (ch - b'A') as u32);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
                 b'Q'..=b'W' => {
                     // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, White
@@ -197,16 +191,16 @@ impl ViewdataParser {
                     }
                     caret.attr.set_is_concealed(false);
                     caret.attr.set_foreground(1 + (ch - b'Q') as u32);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
                 b'H' => {
                     caret.attr.set_is_blinking(true);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
 
                 b'M' => {
                     caret.attr.set_is_double_height(true);
-                    self.fill_to_eol(buf, caret);
+                    ViewdataParser::fill_to_eol(buf, caret);
                 }
 
                 b'_' => {
@@ -217,12 +211,12 @@ impl ViewdataParser {
             }
             self.got_esc = false;
         }
-        Ok(CallbackAction::None)
+        CallbackAction::None
     }
 }
 
 impl BufferParser for ViewdataParser {
-    fn from_unicode(&self, ch: char) -> char {
+    fn convert_from_unicode(&self, ch: char) -> char {
         if ch == ' ' {
             return ' ';
         }
@@ -232,7 +226,7 @@ impl BufferParser for ViewdataParser {
         }
     }
 
-    fn to_unicode(&self, ch: char) -> char {
+    fn convert_to_unicode(&self, ch: char) -> char {
         match VIEWDATA_TO_UNICODE.get(ch as usize) {
             Some(out_ch) => *out_ch,
             _ => ch,
@@ -270,7 +264,7 @@ impl BufferParser for ViewdataParser {
             }
             0b000_1011 => {
                 // Caret up 0x0B
-                self.caret_up(buf, caret);
+                ViewdataParser::caret_up(buf, caret);
             }
             0b000_1100 => {
                 // 12 / 0x0C
@@ -316,11 +310,11 @@ impl BufferParser for ViewdataParser {
             } // TODO: SS3 - switch to G3 char set
             0b001_1110 => {
                 // 28 / 0x1E
-                caret.home(buf)
+                caret.home(buf);
             }
             0b001_1111 => {} // ignore
             _ => {
-                return self.interpret_char(buf, caret, ch);
+                return Ok(self.interpret_char(buf, caret, ch));
             }
         }
         self.got_esc = false;
@@ -331,9 +325,9 @@ impl BufferParser for ViewdataParser {
 lazy_static::lazy_static! {
     static ref UNICODE_TO_VIEWDATA: std::collections::HashMap<char,char> = {
         let mut res = std::collections::HashMap::new();
-        for a in 0..256 {
+        (0..256).for_each(|a| {
             res.insert(VIEWDATA_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
-        }
+        });
         res
     };
 }

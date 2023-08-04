@@ -26,15 +26,15 @@ impl Display for Glyph {
         let mut s = String::new();
         for b in &self.data {
             for i in 0..8 {
-                if *b & (128 >> i) != 0 {
-                    s.push('#');
-                } else {
+                if *b & (128 >> i) == 0 {
                     s.push('-');
+                } else {
+                    s.push('#');
                 }
             }
             s.push('\n');
         }
-        write!(f, "{}---", s)
+        write!(f, "{s}---")
     }
 }
 
@@ -108,7 +108,7 @@ impl BitFont {
 
     pub fn set_glyphs_from_u8_data(&mut self, data: &[u8]) {
         for ch in 0..self.length {
-            let o = ch as usize * self.size.height as usize;
+            let o = ch * self.size.height as usize;
             let glyph = Glyph {
                 data: data[o..(o + self.size.height as usize)].into(),
             };
@@ -164,7 +164,7 @@ impl BitFont {
     // const PSF1_MODEHASSEQ: u8 = 0x04;
     // const PSF1_MAXMODE: u8 = 0x05;
 
-    fn load_psf1(font_name: &str, data: &[u8]) -> EngineResult<Self> {
+    fn load_psf1(font_name: &str, data: &[u8]) -> Self {
         let mode = data[2];
         let charsize = data[3];
         let length = if mode & BitFont::PSF1_MODE512 == BitFont::PSF1_MODE512 {
@@ -181,10 +181,10 @@ impl BitFont {
             glyphs: HashMap::new(),
         };
         r.set_glyphs_from_u8_data(&data[4..]);
-        Ok(r)
+        r
     }
 
-    const PSF2_MAGIC: u32 = 0x864ab572;
+    const PSF2_MAGIC: u32 = 0x864a_b572;
     // bits used in flags
     //const PSF2_HAS_UNICODE_TABLE: u8 = 0x01;
     // max version recognized so far
@@ -222,6 +222,15 @@ impl BitFont {
         Ok(r)
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn to_bytes(&self) -> EngineResult<Vec<u8>> {
         let mut data = Vec::new();
         // Write PSF2 header.
@@ -247,25 +256,43 @@ impl BitFont {
         Ok(data)
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn from_bytes(font_name: &str, data: &[u8]) -> EngineResult<Self> {
         let magic16 = u16::from_le_bytes(data[0..2].try_into().unwrap());
         if magic16 == BitFont::PSF1_MAGIC {
-            return BitFont::load_psf1(font_name, data);
+            return Ok(BitFont::load_psf1(font_name, data));
         }
 
         let magic32 = u32::from_le_bytes(data[0..4].try_into().unwrap());
         if magic32 == BitFont::PSF2_MAGIC {
             BitFont::load_psf2(font_name, data)
         } else {
-            return Err(Box::new(FontError::MagicNumberMismatch));
+            Err(Box::new(FontError::MagicNumberMismatch))
         }
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn from_name(font_name: &str) -> EngineResult<Self> {
         if let Some(data) = get_font_data(font_name) {
             BitFont::from_bytes(font_name, data)
         } else {
-            return Err(Box::new(FontError::FontNotFound));
+            Err(Box::new(FontError::FontNotFound))
         }
 
         /* else {
@@ -302,6 +329,15 @@ impl BitFont {
         }*/
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn import(path: &Path) -> io::Result<String> {
         let file_name = path.file_name();
         if file_name.is_none() {
@@ -784,9 +820,9 @@ impl std::fmt::Display for FontError {
         match self {
             FontError::FontNotFound => write!(f, "font not found."),
             FontError::MagicNumberMismatch => write!(f, "not a valid .psf file."),
-            FontError::UnsupportedVersion(ver) => write!(f, "version {} not supported", ver),
+            FontError::UnsupportedVersion(ver) => write!(f, "version {ver} not supported"),
             FontError::LengthMismatch(actual, calculated) => {
-                write!(f, "length should be {} was {}", calculated, actual)
+                write!(f, "length should be {calculated} was {actual}")
             }
         }
     }
