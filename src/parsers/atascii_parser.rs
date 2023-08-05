@@ -1,6 +1,7 @@
 use super::BufferParser;
 use crate::{Buffer, CallbackAction, Caret, EngineResult};
 
+#[derive(Default)]
 pub struct AtasciiParser {
     got_escape: bool,
 }
