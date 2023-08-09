@@ -630,25 +630,31 @@ impl BufferParser for AnsiParser {
                 match state {
                     SixelState::EndSequence => {
                         let layer = &mut buf.layers[0];
-                        let sixel = &mut layer.sixels[self.current_sixel];
-                        sixel.read_status = SixelReadStatus::Finished;
+                        let new_sixel_rect = layer.sixels[self.current_sixel].get_rect();
+                        layer.sixels[self.current_sixel].read_status = SixelReadStatus::Finished;
 
-                        // remove sixels that are shadowed by the new one
-                        /*if self.current_sixel > 0 {
-                            let cur_rect = sixel.get_rect();
-                            let mut i = self.current_sixel - 1;
-                            loop {
-                                let other_rect = layer.sixels[i].get_rect();
-                                if cur_rect.contains(other_rect) {
-                                    layer.sixels.remove(i);
-                                    println!("remove sixel! {} {:?}", layer.sixels.len(), layer.sixels[0].read_status);
+                        // Draw Sixel upon each other.
+                        if self.current_sixel > 0 {
+                            for i in 0..self.current_sixel {
+                                let old_sixel_rect = layer.sixels[i].get_rect();
+                                if old_sixel_rect.start.x <= new_sixel_rect.start.x && new_sixel_rect.start.x * 8 + new_sixel_rect.size.width <= old_sixel_rect.start.x * 8 + old_sixel_rect.size.width &&
+                                   old_sixel_rect.start.y <= new_sixel_rect.start.y && new_sixel_rect.start.y * 16 + new_sixel_rect.size.height <= old_sixel_rect.start.y *  18 + old_sixel_rect.size.height {
+                                    let replace_sixel = layer.sixels.remove(self.current_sixel);
+
+                                    let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y) * 16;
+                                    let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x) * 8;
+                                    let sx = &mut layer.sixels[i];
+                                    println!("new:{:?} old:{:?}", start_y, start_x);
+                                    
+                                    for y in start_y..new_sixel_rect.size.height {
+                                        for x in start_x..new_sixel_rect.size.width {
+                                            sx.picture[x as usize][y as usize] =
+                                                replace_sixel.picture[x as usize][(y + start_y) as usize];
+                                        }
+                                    }
                                 }
-                                if i == 0 {
-                                    break;
-                                }
-                                i -= 1;
                             }
-                        }*/
+                        }
 
                         if ch == '\\' {
                             self.state = AnsiState::Default;
