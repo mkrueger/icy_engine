@@ -103,7 +103,6 @@ pub struct AnsiParser {
     saved_cursor_opt: Option<Caret>,
     pub(crate) parsed_numbers: Vec<i32>,
 
-    current_sixel: usize,
     sixel_cursor: Position,
     current_sixel_palette: Palette,
 
@@ -182,7 +181,6 @@ impl AnsiParser {
             current_sixel_palette: Palette::default(),
             current_sixel_color: 0,
             sixel_cursor: Position::default(),
-            current_sixel: 0,
             ansi_music: AnsiMusicOption::Off,
             cur_music: None,
             cur_octave: 3,
@@ -252,7 +250,9 @@ impl AnsiParser {
     }
 
     fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
-        let sixel = &mut buf.layers[0].sixels[self.current_sixel];
+        let current_sixel =  buf.layers[0].sixels.len() - 1;
+
+        let sixel = &mut buf.layers[0].sixels[current_sixel];
         if ch < '?' {
             sixel.read_status = SixelReadStatus::Error;
             return Err(Box::new(ParserError::InvalidSixelChar(ch)));
@@ -600,7 +600,6 @@ impl BufferParser for AnsiParser {
                         _ => sixel.background_color = None,
                     };
 
-                    self.current_sixel = buf.layers[0].sixels.len();
                     buf.layers[0].sixels.push(sixel);
                     self.sixel_cursor = Position::default();
                     self.current_sixel_palette.clear();
@@ -618,7 +617,7 @@ impl BufferParser for AnsiParser {
                     } else {
                         self.state = AnsiState::Default;
                         self.current_sequence.push(ch);
-                        buf.layers[0].sixels[self.current_sixel].read_status =
+                        buf.layers[0].sixels.last_mut().unwrap().read_status =
                             SixelReadStatus::Error;
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                             self.current_sequence.clone(),
@@ -629,28 +628,39 @@ impl BufferParser for AnsiParser {
             AnsiState::ReadSixel(state) => {
                 match state {
                     SixelState::EndSequence => {
+                        let current_sixel = buf.layers[0].sixels.len() - 1;
                         let layer = &mut buf.layers[0];
-                        let new_sixel_rect = layer.sixels[self.current_sixel].get_rect();
-                        layer.sixels[self.current_sixel].read_status = SixelReadStatus::Finished;
+                        let new_sixel_rect = layer.sixels[current_sixel].get_rect();
+                        layer.sixels[current_sixel].read_status = SixelReadStatus::Finished;
 
+                        let char_width = 8;
+                        let char_height = 16;
                         // Draw Sixel upon each other.
-                        if self.current_sixel > 0 {
-                            for i in 0..self.current_sixel {
+                        if current_sixel > 0 {
+                            for i in 0..current_sixel {
                                 let old_sixel_rect = layer.sixels[i].get_rect();
-                                if old_sixel_rect.start.x <= new_sixel_rect.start.x && new_sixel_rect.start.x * 8 + new_sixel_rect.size.width <= old_sixel_rect.start.x * 8 + old_sixel_rect.size.width &&
-                                   old_sixel_rect.start.y <= new_sixel_rect.start.y && new_sixel_rect.start.y * 16 + new_sixel_rect.size.height <= old_sixel_rect.start.y *  18 + old_sixel_rect.size.height {
-                                    let replace_sixel = layer.sixels.remove(self.current_sixel);
+                                if old_sixel_rect.start.x <= new_sixel_rect.start.x && new_sixel_rect.start.x * char_width + new_sixel_rect.size.width <= old_sixel_rect.start.x * char_width + old_sixel_rect.size.width &&
+                                   old_sixel_rect.start.y <= new_sixel_rect.start.y && new_sixel_rect.start.y * char_height + new_sixel_rect.size.height <= old_sixel_rect.start.y * char_height + old_sixel_rect.size.height {
+                                    let replace_sixel = layer.sixels.pop().unwrap();
 
-                                    let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y) * 16;
-                                    let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x) * 8;
+                                    let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y) * char_height;
+                                    let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x) * char_width;
                                     let sx = &mut layer.sixels[i];
                                     
                                     for y in start_y..new_sixel_rect.size.height {
                                         for x in start_x..new_sixel_rect.size.width {
-                                            sx.picture[x as usize][y as usize] =
-                                                replace_sixel.picture[x as usize][(y + start_y) as usize];
+                                            let col: usize = x as usize;
+                                            let line = (y + start_y) as usize;
+                                            if col >= sx.picture.len() {
+                                                println!("col out of bounds.");
+                                            }
+                                            while line >= sx.picture[col].len() {
+                                                sx.picture.push(vec![None; old_sixel_rect.size.width as usize]);
+                                            }
+                                            sx.picture[col][line] = replace_sixel.picture[col][line];
                                         }
                                     }
+                                    sx.read_status = SixelReadStatus::Updated;
                                 }
                             }
                         }
@@ -699,7 +709,7 @@ impl BufferParser for AnsiParser {
                                         );
                                     }
                                     n => {
-                                        let sixel = &mut buf.layers[0].sixels[self.current_sixel];
+                                        let sixel = buf.layers[0].sixels.last_mut().unwrap();
                                         sixel.read_status = SixelReadStatus::Error;
                                         return Err(Box::new(
                                             ParserError::UnsupportedSixelColorformat(*n),
@@ -720,7 +730,7 @@ impl BufferParser for AnsiParser {
                         } else if ch == ';' {
                             self.parsed_numbers.push(0);
                         } else {
-                            let sixel = &mut buf.layers[0].sixels[self.current_sixel];
+                            let sixel = buf.layers[0].sixels.last_mut().unwrap();
                             if self.parsed_numbers.len() != 4 {
                                 self.state = AnsiState::ReadSixel(SixelState::Read);
                                 sixel.read_status = SixelReadStatus::Error;
@@ -757,7 +767,7 @@ impl BufferParser for AnsiParser {
                                 }
                             } else {
                                 self.state = AnsiState::Default;
-                                let sixel = &mut buf.layers[0].sixels[self.current_sixel];
+                                let sixel = buf.layers[0].sixels.last_mut().unwrap();
                                 sixel.read_status = SixelReadStatus::Error;
                                 return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
                             }
