@@ -8,7 +8,7 @@ use std::{
 use crate::{
     AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, EngineResult,
     MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position, Sixel,
-    SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
+    SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE, line,
 };
 
 use super::{AsciiParser, BufferParser};
@@ -270,8 +270,8 @@ impl AnsiParser {
         }
         let cur_line = &mut sixel.picture[offset];
         let line_offset = self.sixel_cursor.y as usize * 6;
-        if cur_line.len() < line_offset + 6 {
-            cur_line.resize(line_offset + 6, None);
+        if cur_line.len() < line_offset{
+            cur_line.resize(line_offset, None);
         }
 
         for i in 0..6 {
@@ -739,7 +739,6 @@ impl BufferParser for AnsiParser {
                             unsafe {
                                 let width = *self.parsed_numbers.get_unchecked(2);
                                 let height = *self.parsed_numbers.get_unchecked(3);
-
                                 if (sixel.picture.len() as i32) < width {
                                     sixel.picture.resize(width as usize, Vec::new());
                                 }
