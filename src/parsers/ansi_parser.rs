@@ -644,7 +644,6 @@ impl BufferParser for AnsiParser {
                                     let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y) * 16;
                                     let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x) * 8;
                                     let sx = &mut layer.sixels[i];
-                                    println!("new:{:?} old:{:?}", start_y, start_x);
                                     
                                     for y in start_y..new_sixel_rect.size.height {
                                         for x in start_x..new_sixel_rect.size.width {
