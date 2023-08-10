@@ -651,9 +651,6 @@ impl BufferParser for AnsiParser {
                                         for x in start_x..new_sixel_rect.size.width {
                                             let col: usize = x as usize;
                                             let line = (y + start_y) as usize;
-                                            if col >= sx.picture.len() {
-                                                println!("col out of bounds.");
-                                            }
                                             while line >= sx.picture[col].len() {
                                                 sx.picture.push(vec![None; old_sixel_rect.size.width as usize]);
                                             }
@@ -1358,6 +1355,10 @@ impl BufferParser for AnsiParser {
                     'c' => {
                         // device attributes
                         self.state = AnsiState::Default;
+                        if let Some(0) = self.parsed_numbers.first() {
+                            return Ok(CallbackAction::SendString("\x1b[=67;84;101;114;109;1;315c".to_string()));
+                        }
+
                         return Ok(CallbackAction::SendString("\x1b[?1;0c".to_string()));
                     }
 
