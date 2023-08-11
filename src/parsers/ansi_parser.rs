@@ -617,8 +617,9 @@ impl BufferParser for AnsiParser {
                     } else {
                         self.state = AnsiState::Default;
                         self.current_sequence.push(ch);
-                        buf.layers[0].sixels.last_mut().unwrap().read_status =
-                            SixelReadStatus::Error;
+                        if let Some(sixel) = buf.layers[0].sixels.last_mut() {
+                            sixel.read_status = SixelReadStatus::Error;
+                        }
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                             self.current_sequence.clone(),
                         )));
