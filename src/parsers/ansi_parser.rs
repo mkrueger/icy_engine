@@ -1355,10 +1355,10 @@ impl BufferParser for AnsiParser {
 
                     'c' => {
                         // device attributes
-                        self.state = AnsiState::Default;
+                        self.state = AnsiState::Default;/* 
                         if let Some(0) = self.parsed_numbers.first() {
                             return Ok(CallbackAction::SendString("\x1b[=67;84;101;114;109;1;315c".to_string()));
-                        }
+                        }*/
 
                         return Ok(CallbackAction::SendString("\x1b[?1;0c".to_string()));
                     }
