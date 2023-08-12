@@ -745,6 +745,7 @@ impl BufferParser for AnsiParser {
                 if *old_char == '!' && ch == 'z' {
                     if let Some(pid) = self.parsed_numbers.first() {
                         if let Some(pdt) = self.parsed_numbers.get(1) {
+
                             // 0 - or omitted overwrites macro
                             // 1 - clear all macros before defining this macro
                             if *pdt == 1 {
@@ -763,9 +764,7 @@ impl BufferParser for AnsiParser {
                     }
                 }
                 self.state = AnsiState::Default;
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                    "{ch}"
-                ))));
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("{ch}"))));
             }
             AnsiState::GotDCS => match ch {
                 'q' => {
@@ -793,8 +792,7 @@ impl BufferParser for AnsiParser {
                 '!' => {
                     self.state = AnsiState::EndDCS('!');
                 }
-                '\x1B' => {
-                    // buggy sequence, restart escape sequence
+                '\x1B' => { // buggy sequence, restart escape sequence
                     self.state = AnsiState::GotEscape;
                 }
                 _ => {
@@ -812,10 +810,9 @@ impl BufferParser for AnsiParser {
                         if let Some(sixel) = buf.layers[0].sixels.last_mut() {
                             sixel.read_status = SixelReadStatus::Error;
                         }
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "sequence: {}",
-                            self.current_sequence
-                        ))));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(
+                            format!("sequence: {}", self.current_sequence),
+                        )));
                     }
                 }
             },
@@ -1008,6 +1005,10 @@ impl BufferParser for AnsiParser {
                             Some(25) => caret.is_visible = false,
                             Some(33) => buf.terminal_state.set_use_ice_colors(false),
                             Some(35) => caret.is_blinking = true,
+                            Some(9 | 1000..=1007 | 1015 | 1016) => {
+                                buf.terminal_state.mouse_mode = MouseMode::Default;
+
+                            }
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                     self.current_sequence.clone(),
@@ -1033,9 +1034,7 @@ impl BufferParser for AnsiParser {
                             // Mouse tracking see https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
                             Some(9) => buf.terminal_state.mouse_mode = MouseMode::X10,
                             Some(1000) => buf.terminal_state.mouse_mode = MouseMode::VT200,
-                            Some(1001) => {
-                                buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight
-                            }
+                            Some(1001) => buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight,
                             Some(1002) => buf.terminal_state.mouse_mode = MouseMode::ButtonEvents,
                             Some(1003) => buf.terminal_state.mouse_mode = MouseMode::AnyEvents,
 
