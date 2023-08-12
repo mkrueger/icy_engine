@@ -45,6 +45,7 @@ pub enum AnsiState {
     ControlFunction(char),
     StartFontSelector,
     GotDCS,
+    GotPossibleMacroInsideDCS(u8),
     EndDCS(char),
     ReadSixel(SixelState),
     ReadMacro(usize, HexMacroState),
@@ -297,18 +298,31 @@ impl AnsiParser {
                 [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()],
         );
         let offset = self.sixel_cursor.x as usize;
+
         if sixel.picture.len() <= offset {
-            sixel.picture.resize(offset + 1, Vec::new());
+            sixel.picture.resize(offset + 1,  vec![None; sixel.defined_height.unwrap_or(0)]);
         }
         let cur_line = &mut sixel.picture[offset];
         let line_offset = self.sixel_cursor.y as usize * 6;
-        if cur_line.len() < line_offset {
-            cur_line.resize(line_offset, None);
+
+        let mut last_line = line_offset + 6;
+        if let Some(defined_height) = sixel.defined_height {
+            if last_line > defined_height{
+                last_line = defined_height;
+            }
+        }
+
+        if cur_line.len() < last_line {
+            cur_line.resize(last_line, None);
         }
 
         for i in 0..6 {
             if mask & (1 << i) != 0 {
-                cur_line[line_offset + i] = fg_color;
+                let j = line_offset + i;
+                if j  >= last_line {
+                    break;
+                }
+                cur_line[j] = fg_color;
             }
         }
         self.sixel_cursor.x += 1;
@@ -549,6 +563,18 @@ impl AnsiParser {
         }
         CallbackAction::None
     }
+
+    fn invoke_macro(&mut self, buf: &mut Buffer, caret: &mut Caret, id: i32) -> EngineResult<CallbackAction> {
+        let m = if let Some(m) = self.macros.get(&(id as usize)) {
+            m.clone()
+        } else {
+            return Ok(CallbackAction::None);
+        };
+        for ch in m.chars() {
+            self.print_char(buf, caret, ch)?;
+        }
+        Ok(CallbackAction::None)
+    }
 }
 
 impl Default for AnsiParser {
@@ -573,7 +599,6 @@ impl BufferParser for AnsiParser {
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
-        // println!("{:?} -> ch:{}", self.state, ch);
         match &self.state {
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
@@ -771,6 +796,59 @@ impl BufferParser for AnsiParser {
                 self.state = AnsiState::Default;
                 return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("{ch}"))));
             }
+            AnsiState::GotPossibleMacroInsideDCS(i) => {
+                // \x1B[<num>*z
+                // read macro inside dcs sequence, 3 states:´
+                // 0: [
+                // 1: <num>
+                // 2: *
+                // z
+
+                if ch.is_ascii_digit() {
+                    if *i != 1 {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected number got '{ch}'"))));
+                    }
+                    let d = match self.parsed_numbers.pop() {
+                        Some(number) => number,
+                        _ => 0,
+                    };
+                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    return Ok(CallbackAction::None);
+                }
+                if ch == '[' {
+                    if *i != 0 {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '[' got '{ch}'"))));
+                    }
+                    self.state = AnsiState::GotPossibleMacroInsideDCS(1);
+                    return Ok(CallbackAction::None);
+                }
+                if ch == '*' {
+                    if *i != 1 {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '*' got '{ch}'"))));
+                    }
+                    self.state = AnsiState::GotPossibleMacroInsideDCS(2);
+                    return Ok(CallbackAction::None);
+                } 
+                if ch == 'z' {
+                    if *i != 2 {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected 'z' got '{ch}'"))));
+                    }
+                    if self.parsed_numbers.len() != 1 {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Macro hasn't one number defined got '{}'", self.parsed_numbers.len()))));
+                    }
+                    self.state = AnsiState::GotDCS;
+                    return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
+    
+                }
+
+                self.state = AnsiState::Default;
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Invalid macro inside dcs '{ch}'"))));
+            }
             AnsiState::GotDCS => match ch {
                 'q' => {
                     let aspect_ratio = match self.parsed_numbers.first() {
@@ -797,8 +875,8 @@ impl BufferParser for AnsiParser {
                 '!' => {
                     self.state = AnsiState::EndDCS('!');
                 }
-                '\x1B' => { // buggy sequence, restart escape sequence
-                    self.state = AnsiState::GotEscape;
+                '\x1B' => { // maybe a macro inside the DCS sequence
+                    self.state = AnsiState::GotPossibleMacroInsideDCS(0);
                 }
                 _ => {
                     if ch.is_ascii_digit() {
@@ -948,8 +1026,10 @@ impl BufferParser for AnsiParser {
                             unsafe {
                                 let width = *self.parsed_numbers.get_unchecked(2);
                                 let height = *self.parsed_numbers.get_unchecked(3);
+                                sixel.defined_height = Some(height as usize);
+                                sixel.defined_width = Some(width as usize);
                                 if (sixel.picture.len() as i32) < width {
-                                    sixel.picture.resize(width as usize, Vec::new());
+                                    sixel.picture.resize(width as usize, vec![None; height as usize]);
                                 }
                                 for row in &mut sixel.picture {
                                     if (row.len() as i32) < height {
@@ -1087,20 +1167,10 @@ impl BufferParser for AnsiParser {
                         match ch {
                             'z' => {
                                 // DECINVM invoke macro
-                                self.state = AnsiState::Default;
-
-                                let content = if let Some(id) = self.parsed_numbers.first() {
-                                    Some(self.macros.get(&(*id as usize)).unwrap().clone())
-                                } else {
-                                    None
-                                };
-
-                                if let Some(content) = content {
-                                    for ch in content.chars() {
-                                        self.print_char(buf, caret, ch)?;
-                                    }
-                                }
-
+                                self.state = AnsiState::Default;    
+                                if let Some(id) = self.parsed_numbers.first() {
+                                    return self.invoke_macro(buf, caret, *id);
+                                } 
                                 return Ok(CallbackAction::None);
                             }
                             _ => {}

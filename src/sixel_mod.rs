@@ -18,6 +18,9 @@ pub struct Sixel {
     pub picture: Vec<Vec<Option<Color>>>,
     pub len: usize,
     pub read_status: SixelReadStatus,
+    
+    pub defined_height: Option<usize>,
+    pub defined_width: Option<usize>,
 }
 
 impl Sixel {
@@ -29,6 +32,8 @@ impl Sixel {
             picture: Vec::new(),
             read_status: SixelReadStatus::default(),
             len: 0,
+            defined_height: None,
+            defined_width: None,
         }
     }
 
