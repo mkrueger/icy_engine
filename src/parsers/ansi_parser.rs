@@ -607,7 +607,7 @@ impl BufferParser for AnsiParser {
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
-        match &self.state {
+                match &self.state {
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
             }
@@ -1243,6 +1243,37 @@ impl BufferParser for AnsiParser {
                                 self.state = AnsiState::Default;
                                 if let Some(id) = self.parsed_numbers.first() {
                                     return self.invoke_macro(buf, caret, *id);
+                                }
+                                return Ok(CallbackAction::None);
+                            }
+                            'r' => {
+                                // DECSCS—Select Communication Speed https://vt100.net/docs/vt510-rm/DECSCS.html
+                                self.state = AnsiState::Default;
+                                let ps1 = self.parsed_numbers.first().unwrap_or(&0);
+                                if *ps1 != 0 && *ps1 != 1 {
+                                    // silently ignore all other options
+                                    // 2 	Host Receive
+                                    // 3 	Printer
+                                    // 4 	Modem Hi
+                                    // 5 	Modem Lo
+                                    return Ok(CallbackAction::None);
+                                }
+
+                                if let Some(ps2) = self.parsed_numbers.get(1) {
+                                    match ps2 {
+                                        1 => buf.terminal_state.set_baud_rate(300),
+                                        2 => buf.terminal_state.set_baud_rate(600),
+                                        3 => buf.terminal_state.set_baud_rate(1200),
+                                        4 => buf.terminal_state.set_baud_rate(2400),
+                                        5 => buf.terminal_state.set_baud_rate(4800),
+                                        6 => buf.terminal_state.set_baud_rate(9600),
+                                        7 => buf.terminal_state.set_baud_rate(19200),
+                                        8 => buf.terminal_state.set_baud_rate(38400),
+                                        9 => buf.terminal_state.set_baud_rate(57600),
+                                        10 => buf.terminal_state.set_baud_rate(76800),
+                                        11 => buf.terminal_state.set_baud_rate(115_200),
+                                        _ => buf.terminal_state.set_baud_rate(0),
+                                    }
                                 }
                                 return Ok(CallbackAction::None);
                             }

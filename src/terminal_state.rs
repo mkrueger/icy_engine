@@ -33,6 +33,7 @@ pub struct TerminalState {
     pub mouse_mode: MouseMode,
     pub dec_margin_mode_left_right: bool,
     use_ice: bool,
+    baud_rate: u32
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,7 +72,16 @@ impl TerminalState {
             margins_left_right: None,
             use_ice: false,
             dec_margin_mode_left_right: false,
+            baud_rate: 0
         }
+    }
+
+    pub fn get_baud_rate(&self) -> u32 {
+        self.baud_rate
+    }
+
+    pub fn set_baud_rate(&mut self, baud_rate: u32) {
+        self.baud_rate = baud_rate;
     }
 
     pub fn reset(&mut self) {

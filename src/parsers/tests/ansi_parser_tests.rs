@@ -976,3 +976,12 @@ fn test_scroll_down_with_margins() {
         }
     }
 }
+
+#[test]
+fn test_select_communication_speed() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    assert_eq!(0, buf.terminal_state.get_baud_rate());
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[0;8*r");
+    assert_eq!(38400, buf.terminal_state.get_baud_rate());
+}
