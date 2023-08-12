@@ -45,6 +45,7 @@ pub enum MouseMode {
     /// VT200 mode (1000)
     VT200,
     /// VT200 highlight mode (1001)
+    #[allow(non_camel_case_types)]
     VT200_Highlight,
 
     ButtonEvents,

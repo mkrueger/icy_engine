@@ -13,9 +13,12 @@ pub enum SixelReadStatus {
 #[derive(Clone, Debug, Default)]
 pub struct Sixel {
     pub position: Position,
-    pub aspect_ratio: u8,
+
+    pub vertical_size: i32,
+    pub horizontal_size: i32,
+
     pub background_color: Option<Color>,
-    pub picture: Vec<Vec<Option<Color>>>,
+    pub picture_data: Vec<Vec<Color>>,
     pub len: usize,
     pub read_status: SixelReadStatus,
 
@@ -24,12 +27,13 @@ pub struct Sixel {
 }
 
 impl Sixel {
-    pub fn new(position: Position, aspect_ratio: u8) -> Self {
+    pub fn new(position: Position) -> Self {
         Self {
             position,
-            aspect_ratio,
+            vertical_size: 1,
+            horizontal_size: 1,
             background_color: None,
-            picture: Vec::new(),
+            picture_data: Vec::new(),
             read_status: SixelReadStatus::default(),
             len: 0,
             defined_height: None,
@@ -45,15 +49,15 @@ impl Sixel {
     }
 
     pub fn width(&self) -> u32 {
-        self.picture.len() as u32
-    }
-
-    pub fn height(&self) -> u32 {
-        if let Some(first_line) = self.picture.get(0) {
+        if let Some(first_line) = self.picture_data.get(0) {
             first_line.len() as u32
         } else {
             0
         }
+    }
+
+    pub fn height(&self) -> u32 {
+        self.picture_data.len() as u32
     }
 
     pub fn len(&self) -> usize {

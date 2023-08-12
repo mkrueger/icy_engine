@@ -8,9 +8,9 @@ use std::{
 };
 
 use crate::{
-    AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, EngineResult,
-    MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position, Sixel,
-    SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE, LF,
+    AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, Color,
+    EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position,
+    Sixel, SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE, LF,
     XTERM_256_PALETTE,
 };
 
@@ -293,38 +293,39 @@ impl AnsiParser {
         let mask = ch as u8 - b'?';
 
         sixel.len += 1;
-        let fg_color = Some(
-            self.current_sixel_palette.colors
-                [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()],
-        );
-        let offset = self.sixel_cursor.x as usize;
+        let fg_color = self.current_sixel_palette.colors
+            [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()];
+        let x_pos = self.sixel_cursor.x as usize;
+        let y_pos = self.sixel_cursor.y as usize * 6;
 
-        if sixel.picture.len() <= offset {
-            sixel
-                .picture
-                .resize(offset + 1, vec![None; sixel.defined_height.unwrap_or(0)]);
-        }
-        let cur_line = &mut sixel.picture[offset];
-        let line_offset = self.sixel_cursor.y as usize * 6;
-
-        let mut last_line = line_offset + 6;
+        let mut last_line = y_pos + 6;
         if let Some(defined_height) = sixel.defined_height {
             if last_line > defined_height {
                 last_line = defined_height;
             }
         }
 
-        if cur_line.len() < last_line {
-            cur_line.resize(last_line, None);
+        if sixel.picture_data.len() < last_line {
+            sixel.picture_data.resize(
+                last_line,
+                vec![Color::default(); sixel.defined_width.unwrap_or(0)],
+            );
         }
 
         for i in 0..6 {
             if mask & (1 << i) != 0 {
-                let j = line_offset + i;
-                if j >= last_line {
+                let translated_line = y_pos + i;
+                if translated_line >= last_line {
                     break;
                 }
-                cur_line[j] = fg_color;
+
+                let cur_line = &mut sixel.picture_data[translated_line];
+
+                if cur_line.len() <= x_pos {
+                    cur_line.resize(x_pos + 1, Color::default());
+                }
+
+                cur_line[x_pos] = fg_color;
             }
         }
         self.sixel_cursor.x += 1;
@@ -894,13 +895,15 @@ impl BufferParser for AnsiParser {
             AnsiState::GotDCS => match ch {
                 'q' => {
                     let aspect_ratio = match self.parsed_numbers.first() {
-                        Some(0 | 1) => 5,
-                        Some(2) => 3,
-                        Some(7..=9) => 1,
-                        _ => 2,
+                        Some(0 | 1 | 5 | 6) => 2,
+                        Some(2) => 5,
+                        Some(3 | 4) => 3,
+                        _ => 1,
                     };
 
-                    let mut sixel = Sixel::new(caret.pos, aspect_ratio);
+                    let mut sixel = Sixel::new(caret.pos);
+                    sixel.vertical_size = aspect_ratio;
+
                     match self.parsed_numbers.first() {
                         Some(1) => {
                             sixel.background_color =
@@ -970,25 +973,35 @@ impl BufferParser for AnsiParser {
                                 {
                                     let replace_sixel = layer.sixels.pop().unwrap();
 
-                                    let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y)
-                                        * char_height;
-                                    let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x)
-                                        * char_width;
+                                    let start_y = ((new_sixel_rect.start.y
+                                        - old_sixel_rect.start.y)
+                                        * char_height)
+                                        as usize;
+                                    let start_x = ((new_sixel_rect.start.x
+                                        - old_sixel_rect.start.x)
+                                        * char_width)
+                                        as usize;
                                     let sx = &mut layer.sixels[i];
 
-                                    for y in start_y..new_sixel_rect.size.height {
-                                        for x in start_x..new_sixel_rect.size.width {
-                                            let col: usize = x as usize;
-                                            let line = (y + start_y) as usize;
-                                            while line >= sx.picture[col].len() {
-                                                sx.picture.push(vec![
-                                                    None;
-                                                    old_sixel_rect.size.width
-                                                        as usize
-                                                ]);
+                                    if sx.picture_data.len() < new_sixel_rect.size.height as usize {
+                                        sx.picture_data
+                                            .resize(new_sixel_rect.size.height as usize, vec![]);
+                                    }
+
+                                    let end_y = start_y + new_sixel_rect.size.height as usize;
+                                    let end_x = start_x + new_sixel_rect.size.width as usize;
+
+                                    for y in start_y..end_y {
+                                        if sx.picture_data[y].len() < end_x - start_x {
+                                            sx.picture_data[y]
+                                                .resize(end_x - start_x, Color::default());
+                                        }
+
+                                        for x in start_x..end_x {
+                                            let line = &replace_sixel.picture_data[y - start_y];
+                                            if line.len() > x - start_x {
+                                                sx.picture_data[y][x] = line[x - start_x];
                                             }
-                                            sx.picture[col][line] =
-                                                replace_sixel.picture[col][line];
                                         }
                                     }
                                     sx.read_status = SixelReadStatus::Updated;
@@ -1062,27 +1075,31 @@ impl BufferParser for AnsiParser {
                             self.parsed_numbers.push(0);
                         } else {
                             let sixel = buf.layers[0].sixels.last_mut().unwrap();
-                            if self.parsed_numbers.len() != 4 {
+                            if self.parsed_numbers.len() < 2 || self.parsed_numbers.len() > 4 {
                                 self.state = AnsiState::ReadSixel(SixelState::Read);
                                 sixel.read_status = SixelReadStatus::Error;
                                 return Err(Box::new(ParserError::InvalidPictureSize));
                             }
-                            unsafe {
-                                let width = *self.parsed_numbers.get_unchecked(2);
-                                let height = *self.parsed_numbers.get_unchecked(3);
+                            sixel.vertical_size = self.parsed_numbers[0];
+                            sixel.horizontal_size = self.parsed_numbers[1];
+                            if self.parsed_numbers.len() == 3 {
+                                let height = self.parsed_numbers[2];
                                 sixel.defined_height = Some(height as usize);
-                                sixel.defined_width = Some(width as usize);
-                                if (sixel.picture.len() as i32) < width {
-                                    sixel
-                                        .picture
-                                        .resize(width as usize, vec![None; height as usize]);
-                                }
-                                for row in &mut sixel.picture {
-                                    if (row.len() as i32) < height {
-                                        row.resize(height as usize, None);
-                                    }
-                                }
+                                sixel.picture_data.resize(height as usize, Vec::new());
                             }
+
+                            if self.parsed_numbers.len() == 4 {
+                                let height = self.parsed_numbers[3];
+                                sixel.defined_height = Some(height as usize);
+
+                                let width = self.parsed_numbers[2];
+                                sixel.defined_width = Some(width as usize);
+                                sixel.picture_data.resize(
+                                    height as usize,
+                                    vec![Color::default(); width as usize],
+                                );
+                            }
+
                             self.read_sixel_data(buf, ch)?;
                         }
                     }
@@ -1173,7 +1190,7 @@ impl BufferParser for AnsiParser {
                             Some(9) => buf.terminal_state.mouse_mode = MouseMode::X10,
                             Some(1000) => buf.terminal_state.mouse_mode = MouseMode::VT200,
                             Some(1001) => {
-                                buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight
+                                buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight;
                             }
                             Some(1002) => buf.terminal_state.mouse_mode = MouseMode::ButtonEvents,
                             Some(1003) => buf.terminal_state.mouse_mode = MouseMode::AnyEvents,
