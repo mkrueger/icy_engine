@@ -104,6 +104,23 @@ impl std::fmt::Debug for Buffer {
     }
 }
 
+impl std::fmt::Display for Buffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut str = String::new();
+
+        let p = AnsiParser::new();
+        for y in 0..self.get_buffer_height() {
+            str.extend(format!("{y:3}: ").chars());
+            for x in 0..self.get_buffer_width() {
+                let ch = self.get_char_xy(x, y).unwrap_or_default();
+                str.push(p.convert_to_unicode(ch.ch));
+            }
+            str.push('\n');
+        }
+        write!(f, "{str}")
+    }
+}
+
 impl Buffer {
     pub fn new() -> Self {
         Buffer {
@@ -201,19 +218,35 @@ impl Buffer {
         }
     }
 
-    #[must_use]
     pub fn get_last_visible_line(&self) -> i32 {
         self.get_first_visible_line() + self.get_buffer_height()
     }
 
-    #[must_use]
     pub fn get_first_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
-            if let Some((start, _)) = self.terminal_state.margins {
+            if let Some((start, _)) = self.terminal_state.margins_up_down {
                 return self.get_first_visible_line() + start;
             }
         }
         self.get_first_visible_line()
+    }
+
+    pub fn get_first_editable_column(&self) -> i32 {
+        if self.is_terminal_buffer {
+            if let Some((start, _)) = self.terminal_state.margins_left_right {
+                return start;
+            }
+        }
+        0
+    }
+
+    pub fn get_last_editable_column(&self) -> i32 {
+        if self.is_terminal_buffer {
+            if let Some((_, end)) = self.terminal_state.margins_left_right {
+                return end;
+            }
+        }
+        self.get_buffer_width() - 1
     }
 
     #[must_use]
@@ -224,7 +257,7 @@ impl Buffer {
     #[must_use]
     pub fn get_last_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
-            if let Some((_, end)) = self.terminal_state.margins {
+            if let Some((_, end)) = self.terminal_state.margins_up_down {
                 self.get_first_visible_line() + end
             } else {
                 self.get_first_visible_line() + self.get_buffer_height() - 1

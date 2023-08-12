@@ -18,7 +18,7 @@ pub struct Sixel {
     pub picture: Vec<Vec<Option<Color>>>,
     pub len: usize,
     pub read_status: SixelReadStatus,
-    
+
     pub defined_height: Option<usize>,
     pub defined_width: Option<usize>,
 }

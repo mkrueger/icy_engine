@@ -214,7 +214,7 @@ impl Caret {
     fn check_scrolling_on_caret_up(&mut self, buf: &mut Buffer, force: bool) {
         if buf.needs_scrolling() || force {
             while self.pos.y < buf.get_first_editable_line() {
-                buf.scroll_up();
+                buf.scroll_down();
                 self.pos.y += 1;
             }
         }
@@ -222,7 +222,7 @@ impl Caret {
 
     fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer, force: bool) {
         if (buf.needs_scrolling() || force) && self.pos.y > buf.get_last_editable_line() {
-            buf.scroll_down();
+            buf.scroll_up();
             self.pos.y -= 1;
         }
     }
@@ -265,30 +265,80 @@ impl Buffer {
         }
     }*/
 
-    fn scroll_down(&mut self) {
-        let start = self.get_first_editable_line();
-        let end = self.get_last_editable_line();
-        //println!("scroll down {}-{}", start, end);
-        //println!("{}", Backtrace::force_capture());
+    fn scroll_up(&mut self) {
+        let start_line: i32 = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
+
+        let start_column = self.get_first_editable_column();
+        let end_column = self.get_last_editable_column();
+
         for layer in &mut self.layers {
-            if layer.lines.len() as i32 > start {
-                layer.lines.remove(start as usize);
-            }
-            if (layer.lines.len() as i32) >= end {
-                layer.lines.insert(end as usize, Line::new());
+            for x in start_column..=end_column {
+                (start_line..end_line).for_each(|y| {
+                    let ch = layer.get_char(Position::new(x, y + 1));
+                    layer.set_char(Position::new(x, y), ch);
+                });
+                layer.set_char(Position::new(x, end_line), Some(AttributedChar::default()));
             }
         }
     }
 
-    fn scroll_up(&mut self) {
-        let start = self.get_first_editable_line();
-        let end = self.get_last_editable_line();
+    fn scroll_down(&mut self) {
+        let start_line: i32 = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
+
+        let start_column = self.get_first_editable_column();
+        let end_column = self.get_last_editable_column();
+
         for layer in &mut self.layers {
-            if (layer.lines.len() as i32) <= end {
-                layer.lines.resize(end as usize + 1, Line::new());
+            for x in start_column..=end_column {
+                ((start_line + 1)..=end_line).rev().for_each(|y| {
+                    let ch = layer.get_char(Position::new(x, y - 1));
+                    layer.set_char(Position::new(x, y), ch);
+                });
+                layer.set_char(
+                    Position::new(x, start_line),
+                    Some(AttributedChar::default()),
+                );
             }
-            layer.lines.remove(end as usize);
-            layer.lines.insert(start as usize, Line::new());
+        }
+    }
+
+    fn scroll_left(&mut self) {
+        let start_line: i32 = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
+
+        let start_column = self.get_first_editable_column() as usize;
+        let end_column = self.get_last_editable_column() as usize + 1;
+
+        for layer in &mut self.layers {
+            for i in start_line..=end_line {
+                let line = &mut layer.lines[i as usize];
+                if line.chars.len() > start_column {
+                    line.chars
+                        .insert(end_column, Some(AttributedChar::default()));
+                    line.chars.remove(start_column);
+                }
+            }
+        }
+    }
+
+    fn scroll_right(&mut self) {
+        let start_line = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
+
+        let start_column = self.get_first_editable_column() as usize;
+        let end_column = self.get_last_editable_column() as usize;
+
+        for layer in &mut self.layers {
+            for i in start_line..=end_line {
+                let line = &mut layer.lines[i as usize];
+                if line.chars.len() > start_column {
+                    line.chars
+                        .insert(start_column, Some(AttributedChar::default()));
+                    line.chars.remove(end_column + 1);
+                }
+            }
         }
     }
 
@@ -357,13 +407,13 @@ impl Buffer {
             return;
         }
         self.layers[0].remove_line(line);
-        if let Some((_, end)) = self.terminal_state.margins {
+        if let Some((_, end)) = self.terminal_state.margins_up_down {
             self.layers[0].insert_line(end, Line::new());
         }
     }
 
     fn insert_terminal_line(&mut self, line: i32) {
-        if let Some((_, end)) = self.terminal_state.margins {
+        if let Some((_, end)) = self.terminal_state.margins_up_down {
             if end < self.layers[0].lines.len() as i32 {
                 self.layers[0].lines.remove(end as usize);
             }

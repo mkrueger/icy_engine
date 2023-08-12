@@ -3,7 +3,7 @@
 use std::{
     cmp::{max, min},
     collections::HashMap,
-    fmt::{format, Display},
+    fmt::Display,
     mem,
 };
 
@@ -43,7 +43,7 @@ pub enum AnsiState {
     ReadSequence,
     ReadCustomCommand,
     ControlFunction(char),
-    StartFontSelector,
+    GotSpaceInEscapeSequence,
     GotDCS,
     GotPossibleMacroInsideDCS(u8),
     EndDCS(char),
@@ -300,14 +300,16 @@ impl AnsiParser {
         let offset = self.sixel_cursor.x as usize;
 
         if sixel.picture.len() <= offset {
-            sixel.picture.resize(offset + 1,  vec![None; sixel.defined_height.unwrap_or(0)]);
+            sixel
+                .picture
+                .resize(offset + 1, vec![None; sixel.defined_height.unwrap_or(0)]);
         }
         let cur_line = &mut sixel.picture[offset];
         let line_offset = self.sixel_cursor.y as usize * 6;
 
         let mut last_line = line_offset + 6;
         if let Some(defined_height) = sixel.defined_height {
-            if last_line > defined_height{
+            if last_line > defined_height {
                 last_line = defined_height;
             }
         }
@@ -319,7 +321,7 @@ impl AnsiParser {
         for i in 0..6 {
             if mask & (1 << i) != 0 {
                 let j = line_offset + i;
-                if j  >= last_line {
+                if j >= last_line {
                     break;
                 }
                 cur_line[j] = fg_color;
@@ -564,7 +566,12 @@ impl AnsiParser {
         CallbackAction::None
     }
 
-    fn invoke_macro(&mut self, buf: &mut Buffer, caret: &mut Caret, id: i32) -> EngineResult<CallbackAction> {
+    fn invoke_macro(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        id: i32,
+    ) -> EngineResult<CallbackAction> {
         let m = if let Some(m) = self.macros.get(&(id as usize)) {
             m.clone()
         } else {
@@ -604,9 +611,9 @@ impl BufferParser for AnsiParser {
                 return self.parse_ansi_music(ch);
             }
             AnsiState::GotEscape => return self.start_sequence(buf, caret, ch),
-            AnsiState::StartFontSelector => {
-                self.state = AnsiState::Default;
-                if let 'D' = ch {
+            AnsiState::GotSpaceInEscapeSequence => match ch {
+                'D' => {
+                    self.state = AnsiState::Default;
                     if self.parsed_numbers.len() != 2 {
                         self.current_sequence.push('D');
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -634,13 +641,35 @@ impl BufferParser for AnsiParser {
                             }
                         }
                     }
-                } else {
+                }
+                'A' => {
+                    // Scroll Right
+                    self.state = AnsiState::Default;
+                    let num = if let Some(number) = self.parsed_numbers.first() {
+                        *number
+                    } else {
+                        1
+                    };
+                    (0..num).for_each(|_| buf.scroll_right());
+                }
+                '@' => {
+                    // Scroll Left
+                    self.state = AnsiState::Default;
+                    let num = if let Some(number) = self.parsed_numbers.first() {
+                        *number
+                    } else {
+                        1
+                    };
+                    (0..num).for_each(|_| buf.scroll_left());
+                }
+                _ => {
+                    self.state = AnsiState::Default;
                     self.current_sequence.push(ch);
                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                         self.current_sequence.clone(),
                     )));
                 }
-            }
+            },
             AnsiState::ReadMacro(id, state) => {
                 match state {
                     HexMacroState::ReadSequence | HexMacroState::EscapeSequence => {
@@ -775,7 +804,6 @@ impl BufferParser for AnsiParser {
                 if *old_char == '!' && ch == 'z' {
                     if let Some(pid) = self.parsed_numbers.first() {
                         if let Some(pdt) = self.parsed_numbers.get(1) {
-
                             // 0 - or omitted overwrites macro
                             // 1 - clear all macros before defining this macro
                             if *pdt == 1 {
@@ -794,7 +822,9 @@ impl BufferParser for AnsiParser {
                     }
                 }
                 self.state = AnsiState::Default;
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("{ch}"))));
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    "{ch}"
+                ))));
             }
             AnsiState::GotPossibleMacroInsideDCS(i) => {
                 // \x1B[<num>*z
@@ -807,7 +837,9 @@ impl BufferParser for AnsiParser {
                 if ch.is_ascii_digit() {
                     if *i != 1 {
                         self.state = AnsiState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected number got '{ch}'"))));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected number got '{ch}'"
+                        ))));
                     }
                     let d = match self.parsed_numbers.pop() {
                         Some(number) => number,
@@ -819,7 +851,9 @@ impl BufferParser for AnsiParser {
                 if ch == '[' {
                     if *i != 0 {
                         self.state = AnsiState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '[' got '{ch}'"))));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected '[' got '{ch}'"
+                        ))));
                     }
                     self.state = AnsiState::GotPossibleMacroInsideDCS(1);
                     return Ok(CallbackAction::None);
@@ -827,27 +861,35 @@ impl BufferParser for AnsiParser {
                 if ch == '*' {
                     if *i != 1 {
                         self.state = AnsiState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '*' got '{ch}'"))));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected '*' got '{ch}'"
+                        ))));
                     }
                     self.state = AnsiState::GotPossibleMacroInsideDCS(2);
                     return Ok(CallbackAction::None);
-                } 
+                }
                 if ch == 'z' {
                     if *i != 2 {
                         self.state = AnsiState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected 'z' got '{ch}'"))));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected 'z' got '{ch}'"
+                        ))));
                     }
                     if self.parsed_numbers.len() != 1 {
                         self.state = AnsiState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Macro hasn't one number defined got '{}'", self.parsed_numbers.len()))));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Macro hasn't one number defined got '{}'",
+                            self.parsed_numbers.len()
+                        ))));
                     }
                     self.state = AnsiState::GotDCS;
                     return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
-    
                 }
 
                 self.state = AnsiState::Default;
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!("Invalid macro inside dcs '{ch}'"))));
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    "Invalid macro inside dcs '{ch}'"
+                ))));
             }
             AnsiState::GotDCS => match ch {
                 'q' => {
@@ -875,7 +917,8 @@ impl BufferParser for AnsiParser {
                 '!' => {
                     self.state = AnsiState::EndDCS('!');
                 }
-                '\x1B' => { // maybe a macro inside the DCS sequence
+                '\x1B' => {
+                    // maybe a macro inside the DCS sequence
                     self.state = AnsiState::GotPossibleMacroInsideDCS(0);
                 }
                 _ => {
@@ -893,9 +936,10 @@ impl BufferParser for AnsiParser {
                         if let Some(sixel) = buf.layers[0].sixels.last_mut() {
                             sixel.read_status = SixelReadStatus::Error;
                         }
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(
-                            format!("sequence: {}", self.current_sequence),
-                        )));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "sequence: {}",
+                            self.current_sequence
+                        ))));
                     }
                 }
             },
@@ -1029,7 +1073,9 @@ impl BufferParser for AnsiParser {
                                 sixel.defined_height = Some(height as usize);
                                 sixel.defined_width = Some(width as usize);
                                 if (sixel.picture.len() as i32) < width {
-                                    sixel.picture.resize(width as usize, vec![None; height as usize]);
+                                    sixel
+                                        .picture
+                                        .resize(width as usize, vec![None; height as usize]);
                                 }
                                 for row in &mut sixel.picture {
                                     if (row.len() as i32) < height {
@@ -1090,6 +1136,12 @@ impl BufferParser for AnsiParser {
                             Some(25) => caret.is_visible = false,
                             Some(33) => buf.terminal_state.set_use_ice_colors(false),
                             Some(35) => caret.is_blinking = true,
+
+                            Some(69) => {
+                                buf.terminal_state.dec_margin_mode_left_right = false;
+                                buf.terminal_state.margins_left_right = None;
+                            }
+
                             Some(9 | 1000..=1007 | 1015 | 1016) => {
                                 buf.terminal_state.mouse_mode = MouseMode::Default;
                             }
@@ -1115,10 +1167,14 @@ impl BufferParser for AnsiParser {
                             Some(33) => buf.terminal_state.set_use_ice_colors(true),
                             Some(35) => caret.is_blinking = false,
 
+                            Some(69) => buf.terminal_state.dec_margin_mode_left_right = true,
+
                             // Mouse tracking see https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
                             Some(9) => buf.terminal_state.mouse_mode = MouseMode::X10,
                             Some(1000) => buf.terminal_state.mouse_mode = MouseMode::VT200,
-                            Some(1001) => buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight,
+                            Some(1001) => {
+                                buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight
+                            }
                             Some(1002) => buf.terminal_state.mouse_mode = MouseMode::ButtonEvents,
                             Some(1003) => buf.terminal_state.mouse_mode = MouseMode::AnyEvents,
 
@@ -1167,10 +1223,10 @@ impl BufferParser for AnsiParser {
                         match ch {
                             'z' => {
                                 // DECINVM invoke macro
-                                self.state = AnsiState::Default;    
+                                self.state = AnsiState::Default;
                                 if let Some(id) = self.parsed_numbers.first() {
                                     return self.invoke_macro(buf, caret, *id);
-                                } 
+                                }
                                 return Ok(CallbackAction::None);
                             }
                             _ => {}
@@ -1334,9 +1390,30 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     's' => {
-                        // Save Current Cursor Position
-                        self.state = AnsiState::Default;
-                        self.saved_pos = caret.pos;
+                        if buf.terminal_state.dec_margin_mode_left_right {
+                            // Set Left and Right Margins
+                            self.state = AnsiState::Default;
+                            let (start, end) = match self.parsed_numbers.len() {
+                                2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
+                                1 => (0, self.parsed_numbers[0] - 1),
+                                0 => (0, buf.terminal_state.height),
+                                _ => {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )));
+                                }
+                            };
+                            if start > end {
+                                // undocumented behavior but CSI 1; 0 s seems to turn off on some terminals.
+                                buf.terminal_state.margins_left_right = None;
+                            } else {
+                                buf.terminal_state.margins_left_right = Some((start, end));
+                            }
+                        } else {
+                            // Save Current Cursor Position
+                            self.state = AnsiState::Default;
+                            self.saved_pos = caret.pos;
+                        }
                     }
                     'u' => {
                         // Restore Saved Cursor Position
@@ -1675,9 +1752,14 @@ impl BufferParser for AnsiParser {
 
                     'c' => {
                         // device attributes
-                        self.state = AnsiState::Default; 
+                        self.state = AnsiState::Default;
                         // respond with IcyTerm as ASCII followed by the package version.
-                        return Ok(CallbackAction::SendString(format!("\x1b[=73;99;121;84;101;114;109;{};{};{}c", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR"), env!("CARGO_PKG_VERSION_PATCH"))));
+                        return Ok(CallbackAction::SendString(format!(
+                            "\x1b[=73;99;121;84;101;114;109;{};{};{}c",
+                            env!("CARGO_PKG_VERSION_MAJOR"),
+                            env!("CARGO_PKG_VERSION_MINOR"),
+                            env!("CARGO_PKG_VERSION_PATCH")
+                        )));
                     }
                     'r' => {
                         // Set Top and Bottom Margins
@@ -1695,10 +1777,10 @@ impl BufferParser for AnsiParser {
 
                         if start > end {
                             // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
-                            buf.terminal_state.margins = None;
+                            buf.terminal_state.margins_up_down = None;
                         } else {
                             caret.pos = buf.upper_left_position();
-                            buf.terminal_state.margins = Some((start, end));
+                            buf.terminal_state.margins_up_down = Some((start, end));
                         }
                     }
                     'h' => {
@@ -1767,7 +1849,7 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     ' ' => {
-                        self.state = AnsiState::StartFontSelector;
+                        self.state = AnsiState::GotSpaceInEscapeSequence;
                     }
                     't' => {
                         self.state = AnsiState::Default;
@@ -1794,6 +1876,26 @@ impl BufferParser for AnsiParser {
                                 )))
                             }
                         }
+                    }
+                    'S' => {
+                        // Scroll Up
+                        self.state = AnsiState::Default;
+                        let num = if let Some(number) = self.parsed_numbers.first() {
+                            *number
+                        } else {
+                            1
+                        };
+                        (0..num).for_each(|_| buf.scroll_up());
+                    }
+                    'T' => {
+                        // Scroll Down
+                        self.state = AnsiState::Default;
+                        let num = if let Some(number) = self.parsed_numbers.first() {
+                            *number
+                        } else {
+                            1
+                        };
+                        (0..num).for_each(|_| buf.scroll_down());
                     }
                     _ => {
                         if ('\x40'..='\x7E').contains(&ch) {

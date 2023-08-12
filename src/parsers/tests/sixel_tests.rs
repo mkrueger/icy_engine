@@ -83,3 +83,25 @@ fn test_chess_update() {
         assert_eq!(31, buf.layers[0].sixels[i].height());
     }
 }
+
+#[test]
+fn test_macro_sixels() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP11;0;0!zq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\r\n");
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1BP12;0;0!zq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\r\n");
+    assert_eq!(2, parser.macros.len());
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[10;59f\x1BP\x1B[11*z\x1B\\",
+    );
+    assert_eq!(1, buf.layers[0].sixels.len());
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[0;59f\x1BP\x1B[11*z\x1B\\",
+    );
+    assert_eq!(2, buf.layers[0].sixels.len());
+}
