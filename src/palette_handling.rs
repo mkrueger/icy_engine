@@ -630,1281 +630,1537 @@ pub const EGA_PALETTE: [Color; 64] = [
 ];
 
 pub const XTERM_256_PALETTE: [Color; 256] = [
+    // 0: Black (SYSTEM)
     Color {
         r: 0x00,
         g: 0x00,
         b: 0x00,
     },
+    // 1: Maroon (SYSTEM)
     Color {
         r: 0x80,
         g: 0x00,
         b: 0x00,
     },
+    // 2: Green (SYSTEM)
     Color {
         r: 0x00,
         g: 0x80,
-        b: 0x80,
+        b: 0x00,
     },
+    // 3: Olive (SYSTEM)
     Color {
         r: 0x80,
         g: 0x80,
-        b: 0x80,
+        b: 0x00,
     },
+    // 4: Navy (SYSTEM)
     Color {
         r: 0x00,
         g: 0x00,
-        b: 0x00,
+        b: 0x80,
     },
+    // 5: Purple (SYSTEM)
     Color {
         r: 0x80,
         g: 0x00,
-        b: 0x00,
+        b: 0x80,
     },
+    // 6: Teal (SYSTEM)
     Color {
         r: 0x00,
         g: 0x80,
         b: 0x80,
     },
+    // 7: Silver (SYSTEM)
     Color {
         r: 0xc0,
         g: 0xc0,
         b: 0xc0,
     },
+    // 8: Grey (SYSTEM)
     Color {
         r: 0x80,
         g: 0x80,
         b: 0x80,
     },
+    // 9: Red (SYSTEM)
     Color {
         r: 0xff,
         g: 0x00,
         b: 0x00,
     },
+    // 10: Lime (SYSTEM)
+    Color {
+        r: 0x00,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 11: Yellow (SYSTEM)
+    Color {
+        r: 0xff,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 12: Blue (SYSTEM)
+    Color {
+        r: 0x00,
+        g: 0x00,
+        b: 0xff,
+    },
+    // 13: Fuchsia (SYSTEM)
+    Color {
+        r: 0xff,
+        g: 0x00,
+        b: 0xff,
+    },
+    // 14: Aqua (SYSTEM)
     Color {
         r: 0x00,
         g: 0xff,
         b: 0xff,
     },
+    // 15: White (SYSTEM)
     Color {
         r: 0xff,
         g: 0xff,
         b: 0xff,
     },
+    // 16: Grey0
     Color {
         r: 0x00,
         g: 0x00,
         b: 0x00,
     },
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0x00,
-    },
+    // 17: NavyBlue
     Color {
         r: 0x00,
-        g: 0xff,
+        g: 0x00,
+        b: 0x5f,
+    },
+    // 18: DarkBlue
+    Color {
+        r: 0x00,
+        g: 0x00,
+        b: 0x87,
+    },
+    // 19: Blue3
+    Color {
+        r: 0x00,
+        g: 0x00,
+        b: 0xaf,
+    },
+    // 20: Blue3
+    Color {
+        r: 0x00,
+        g: 0x00,
+        b: 0xd7,
+    },
+    // 21: Blue1
+    Color {
+        r: 0x00,
+        g: 0x00,
         b: 0xff,
     },
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 22: DarkGreen
     Color {
         r: 0x00,
-        g: 0x00,
+        g: 0x5f,
         b: 0x00,
     },
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
+    // 23: DeepSkyBlue4
     Color {
         r: 0x00,
         g: 0x5f,
         b: 0x5f,
     },
+    // 24: DeepSkyBlue4
     Color {
         r: 0x00,
         g: 0x5f,
-        b: 0x5f,
+        b: 0x87,
     },
+    // 25: DeepSkyBlue4
     Color {
         r: 0x00,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xaf,
     },
+    // 26: DodgerBlue3
     Color {
         r: 0x00,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xd7,
     },
+    // 27: DodgerBlue2
     Color {
         r: 0x00,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xff,
     },
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0x5f,
-    },
+    // 28: Green4
     Color {
         r: 0x00,
         g: 0x87,
-        b: 0x87,
+        b: 0x00,
     },
+    // 29: SpringGreen4
     Color {
         r: 0x00,
         g: 0x87,
-        b: 0x87,
+        b: 0x5f,
     },
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0x87,
-    },
+    // 30: Turquoise4
     Color {
         r: 0x00,
         g: 0x87,
         b: 0x87,
     },
+    // 31: DeepSkyBlue3
     Color {
         r: 0x00,
         g: 0x87,
-        b: 0x87,
+        b: 0xaf,
     },
+    // 32: DeepSkyBlue3
     Color {
         r: 0x00,
         g: 0x87,
+        b: 0xd7,
+    },
+    // 33: DodgerBlue1
+    Color {
+        r: 0x00,
+        g: 0x87,
+        b: 0xff,
+    },
+    // 34: Green3
+    Color {
+        r: 0x00,
+        g: 0xaf,
+        b: 0x00,
+    },
+    // 35: SpringGreen3
+    Color {
+        r: 0x00,
+        g: 0xaf,
+        b: 0x5f,
+    },
+    // 36: DarkCyan
+    Color {
+        r: 0x00,
+        g: 0xaf,
         b: 0x87,
     },
+    // 37: LightSeaGreen
     Color {
         r: 0x00,
         g: 0xaf,
         b: 0xaf,
     },
+    // 38: DeepSkyBlue2
     Color {
         r: 0x00,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xd7,
     },
+    // 39: DeepSkyBlue1
     Color {
         r: 0x00,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xff,
     },
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0xaf,
-    },
+    // 40: Green3
     Color {
         r: 0x00,
         g: 0xd7,
-        b: 0xd7,
+        b: 0x00,
     },
+    // 41: SpringGreen3
     Color {
         r: 0x00,
         g: 0xd7,
-        b: 0xd7,
+        b: 0x5f,
     },
+    // 42: SpringGreen2
     Color {
         r: 0x00,
         g: 0xd7,
-        b: 0xd7,
+        b: 0x87,
     },
+    // 43: Cyan3
+    Color {
+        r: 0x00,
+        g: 0xd7,
+        b: 0xaf,
+    },
+    // 44: DarkTurquoise
     Color {
         r: 0x00,
         g: 0xd7,
         b: 0xd7,
     },
+    // 45: Turquoise2
     Color {
         r: 0x00,
         g: 0xd7,
-        b: 0xd7,
+        b: 0xff,
     },
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0xd7,
-    },
+    // 46: Green1
     Color {
         r: 0x00,
         g: 0xff,
-        b: 0xff,
+        b: 0x00,
     },
+    // 47: SpringGreen2
+    Color {
+        r: 0x00,
+        g: 0xff,
+        b: 0x5f,
+    },
+    // 48: SpringGreen1
+    Color {
+        r: 0x00,
+        g: 0xff,
+        b: 0x87,
+    },
+    // 49: MediumSpringGreen
+    Color {
+        r: 0x00,
+        g: 0xff,
+        b: 0xaf,
+    },
+    // 50: Cyan2
+    Color {
+        r: 0x00,
+        g: 0xff,
+        b: 0xd7,
+    },
+    // 51: Cyan1
     Color {
         r: 0x00,
         g: 0xff,
         b: 0xff,
     },
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 52: DarkRed
     Color {
         r: 0x5f,
         g: 0x00,
         b: 0x00,
     },
+    // 53: DeepPink4
     Color {
         r: 0x5f,
         g: 0x00,
-        b: 0x00,
+        b: 0x5f,
     },
+    // 54: Purple4
     Color {
         r: 0x5f,
         g: 0x00,
-        b: 0x00,
+        b: 0x87,
     },
+    // 55: Purple4
     Color {
         r: 0x5f,
         g: 0x00,
-        b: 0x00,
+        b: 0xaf,
     },
+    // 56: Purple3
     Color {
         r: 0x5f,
         g: 0x00,
-        b: 0x00,
+        b: 0xd7,
     },
+    // 57: BlueViolet
     Color {
         r: 0x5f,
         g: 0x00,
+        b: 0xff,
+    },
+    // 58: Orange4
+    Color {
+        r: 0x5f,
+        g: 0x5f,
         b: 0x00,
     },
+    // 59: Grey37
     Color {
         r: 0x5f,
         g: 0x5f,
         b: 0x5f,
     },
+    // 60: MediumPurple4
     Color {
         r: 0x5f,
         g: 0x5f,
-        b: 0x5f,
+        b: 0x87,
     },
+    // 61: SlateBlue3
     Color {
         r: 0x5f,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xaf,
     },
+    // 62: SlateBlue3
     Color {
         r: 0x5f,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xd7,
     },
+    // 63: RoyalBlue1
     Color {
         r: 0x5f,
         g: 0x5f,
+        b: 0xff,
+    },
+    // 64: Chartreuse4
+    Color {
+        r: 0x5f,
+        g: 0x87,
+        b: 0x00,
+    },
+    // 65: DarkSeaGreen4
+    Color {
+        r: 0x5f,
+        g: 0x87,
         b: 0x5f,
     },
+    // 66: PaleTurquoise4
     Color {
         r: 0x5f,
-        g: 0x5f,
+        g: 0x87,
+        b: 0x87,
+    },
+    // 67: SteelBlue
+    Color {
+        r: 0x5f,
+        g: 0x87,
+        b: 0xaf,
+    },
+    // 68: SteelBlue3
+    Color {
+        r: 0x5f,
+        g: 0x87,
+        b: 0xd7,
+    },
+    // 69: CornflowerBlue
+    Color {
+        r: 0x5f,
+        g: 0x87,
+        b: 0xff,
+    },
+    // 70: Chartreuse3
+    Color {
+        r: 0x5f,
+        g: 0xaf,
+        b: 0x00,
+    },
+    // 71: DarkSeaGreen4
+    Color {
+        r: 0x5f,
+        g: 0xaf,
         b: 0x5f,
     },
+    // 72: CadetBlue
     Color {
         r: 0x5f,
-        g: 0x87,
+        g: 0xaf,
         b: 0x87,
     },
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x87,
-    },
+    // 73: CadetBlue
     Color {
         r: 0x5f,
         g: 0xaf,
         b: 0xaf,
     },
+    // 74: SkyBlue3
     Color {
         r: 0x5f,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xd7,
     },
+    // 75: SteelBlue1
     Color {
         r: 0x5f,
         g: 0xaf,
+        b: 0xff,
+    },
+    // 76: Chartreuse3
+    Color {
+        r: 0x5f,
+        g: 0xd7,
+        b: 0x00,
+    },
+    // 77: PaleGreen3
+    Color {
+        r: 0x5f,
+        g: 0xd7,
+        b: 0x5f,
+    },
+    // 78: SeaGreen3
+    Color {
+        r: 0x5f,
+        g: 0xd7,
+        b: 0x87,
+    },
+    // 79: Aquamarine3
+    Color {
+        r: 0x5f,
+        g: 0xd7,
         b: 0xaf,
     },
+    // 80: MediumTurquoise
     Color {
         r: 0x5f,
-        g: 0xaf,
+        g: 0xd7,
+        b: 0xd7,
+    },
+    // 81: SteelBlue1
+    Color {
+        r: 0x5f,
+        g: 0xd7,
+        b: 0xff,
+    },
+    // 82: Chartreuse2
+    Color {
+        r: 0x5f,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 83: SeaGreen2
+    Color {
+        r: 0x5f,
+        g: 0xff,
+        b: 0x5f,
+    },
+    // 84: SeaGreen1
+    Color {
+        r: 0x5f,
+        g: 0xff,
+        b: 0x87,
+    },
+    // 85: SeaGreen1
+    Color {
+        r: 0x5f,
+        g: 0xff,
         b: 0xaf,
     },
+    // 86: Aquamarine1
     Color {
         r: 0x5f,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xd7,
+        g: 0xff,
         b: 0xd7,
     },
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xd7,
-    },
+    // 87: DarkSlateGray2
     Color {
         r: 0x5f,
         g: 0xff,
         b: 0xff,
     },
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 88: DarkRed
     Color {
         r: 0x87,
         g: 0x00,
         b: 0x00,
     },
+    // 89: DeepPink4
     Color {
         r: 0x87,
         g: 0x00,
-        b: 0x00,
+        b: 0x5f,
     },
+    // 90: DarkMagenta
     Color {
         r: 0x87,
         g: 0x00,
-        b: 0x00,
+        b: 0x87,
     },
+    // 91: DarkMagenta
     Color {
         r: 0x87,
         g: 0x00,
-        b: 0x00,
+        b: 0xaf,
     },
+    // 92: DarkViolet
     Color {
         r: 0x87,
         g: 0x00,
-        b: 0x00,
+        b: 0xd7,
     },
+    // 93: Purple
     Color {
         r: 0x87,
         g: 0x00,
+        b: 0xff,
+    },
+    // 94: Orange4
+    Color {
+        r: 0x87,
+        g: 0x5f,
         b: 0x00,
     },
+    // 95: LightPink4
     Color {
         r: 0x87,
         g: 0x5f,
         b: 0x5f,
     },
+    // 96: Plum4
     Color {
         r: 0x87,
         g: 0x5f,
-        b: 0x5f,
+        b: 0x87,
     },
+    // 97: MediumPurple3
     Color {
         r: 0x87,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xaf,
     },
+    // 98: MediumPurple3
     Color {
         r: 0x87,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xd7,
     },
+    // 99: SlateBlue1
     Color {
         r: 0x87,
         g: 0x5f,
+        b: 0xff,
+    },
+    // 100: Yellow4
+    Color {
+        r: 0x87,
+        g: 0x87,
+        b: 0x00,
+    },
+    // 101: Wheat4
+    Color {
+        r: 0x87,
+        g: 0x87,
         b: 0x5f,
     },
+    // 102: Grey53
     Color {
         r: 0x87,
-        g: 0x5f,
+        g: 0x87,
+        b: 0x87,
+    },
+    // 103: LightSlateGrey
+    Color {
+        r: 0x87,
+        g: 0x87,
+        b: 0xaf,
+    },
+    // 104: MediumPurple
+    Color {
+        r: 0x87,
+        g: 0x87,
+        b: 0xd7,
+    },
+    // 105: LightSlateBlue
+    Color {
+        r: 0x87,
+        g: 0x87,
+        b: 0xff,
+    },
+    // 106: Yellow4
+    Color {
+        r: 0x87,
+        g: 0xaf,
+        b: 0x00,
+    },
+    // 107: DarkOliveGreen3
+    Color {
+        r: 0x87,
+        g: 0xaf,
         b: 0x5f,
     },
+    // 108: DarkSeaGreen
     Color {
         r: 0x87,
-        g: 0x87,
+        g: 0xaf,
         b: 0x87,
     },
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x87,
-    },
+    // 109: LightSkyBlue3
     Color {
         r: 0x87,
         g: 0xaf,
         b: 0xaf,
     },
+    // 110: LightSkyBlue3
     Color {
         r: 0x87,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xd7,
     },
+    // 111: SkyBlue2
     Color {
         r: 0x87,
         g: 0xaf,
+        b: 0xff,
+    },
+    // 112: Chartreuse2
+    Color {
+        r: 0x87,
+        g: 0xd7,
+        b: 0x00,
+    },
+    // 113: DarkOliveGreen3
+    Color {
+        r: 0x87,
+        g: 0xd7,
+        b: 0x5f,
+    },
+    // 114: PaleGreen3
+    Color {
+        r: 0x87,
+        g: 0xd7,
+        b: 0x87,
+    },
+    // 115: DarkSeaGreen3
+    Color {
+        r: 0x87,
+        g: 0xd7,
         b: 0xaf,
     },
+    // 116: DarkSlateGray3
     Color {
         r: 0x87,
-        g: 0xaf,
+        g: 0xd7,
+        b: 0xd7,
+    },
+    // 117: SkyBlue1
+    Color {
+        r: 0x87,
+        g: 0xd7,
+        b: 0xff,
+    },
+    // 118: Chartreuse1
+    Color {
+        r: 0x87,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 119: LightGreen
+    Color {
+        r: 0x87,
+        g: 0xff,
+        b: 0x5f,
+    },
+    // 120: LightGreen
+    Color {
+        r: 0x87,
+        g: 0xff,
+        b: 0x87,
+    },
+    // 121: PaleGreen1
+    Color {
+        r: 0x87,
+        g: 0xff,
         b: 0xaf,
     },
+    // 122: Aquamarine1
     Color {
         r: 0x87,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0x87,
-        g: 0xd7,
+        g: 0xff,
         b: 0xd7,
     },
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xd7,
-    },
+    // 123: DarkSlateGray1
     Color {
         r: 0x87,
         g: 0xff,
         b: 0xff,
     },
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 124: Red3
     Color {
         r: 0xaf,
         g: 0x00,
         b: 0x00,
     },
+    // 125: DeepPink4
     Color {
         r: 0xaf,
         g: 0x00,
-        b: 0x00,
+        b: 0x5f,
     },
+    // 126: MediumVioletRed
     Color {
         r: 0xaf,
         g: 0x00,
-        b: 0x00,
+        b: 0x87,
     },
+    // 127: Magenta3
     Color {
         r: 0xaf,
         g: 0x00,
-        b: 0x00,
+        b: 0xaf,
     },
+    // 128: DarkViolet
     Color {
         r: 0xaf,
         g: 0x00,
-        b: 0x00,
+        b: 0xd7,
     },
+    // 129: Purple
     Color {
         r: 0xaf,
         g: 0x00,
+        b: 0xff,
+    },
+    // 130: DarkOrange3
+    Color {
+        r: 0xaf,
+        g: 0x5f,
         b: 0x00,
     },
+    // 131: IndianRed
     Color {
         r: 0xaf,
         g: 0x5f,
         b: 0x5f,
     },
+    // 132: HotPink3
     Color {
         r: 0xaf,
         g: 0x5f,
-        b: 0x5f,
+        b: 0x87,
     },
+    // 133: MediumOrchid3
     Color {
         r: 0xaf,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xaf,
     },
+    // 134: MediumOrchid
     Color {
         r: 0xaf,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xd7,
     },
+    // 135: MediumPurple2
     Color {
         r: 0xaf,
         g: 0x5f,
+        b: 0xff,
+    },
+    // 136: DarkGoldenrod
+    Color {
+        r: 0xaf,
+        g: 0x87,
+        b: 0x00,
+    },
+    // 137: LightSalmon3
+    Color {
+        r: 0xaf,
+        g: 0x87,
         b: 0x5f,
     },
+    // 138: RosyBrown
     Color {
         r: 0xaf,
-        g: 0x5f,
+        g: 0x87,
+        b: 0x87,
+    },
+    // 139: Grey63
+    Color {
+        r: 0xaf,
+        g: 0x87,
+        b: 0xaf,
+    },
+    // 140: MediumPurple2
+    Color {
+        r: 0xaf,
+        g: 0x87,
+        b: 0xd7,
+    },
+    // 141: MediumPurple1
+    Color {
+        r: 0xaf,
+        g: 0x87,
+        b: 0xff,
+    },
+    // 142: Gold3
+    Color {
+        r: 0xaf,
+        g: 0xaf,
+        b: 0x00,
+    },
+    // 143: DarkKhaki
+    Color {
+        r: 0xaf,
+        g: 0xaf,
         b: 0x5f,
     },
+    // 144: NavajoWhite3
     Color {
         r: 0xaf,
-        g: 0x87,
+        g: 0xaf,
         b: 0x87,
     },
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x87,
-    },
+    // 145: Grey69
     Color {
         r: 0xaf,
         g: 0xaf,
         b: 0xaf,
     },
+    // 146: LightSteelBlue3
     Color {
         r: 0xaf,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xd7,
     },
+    // 147: LightSteelBlue
     Color {
         r: 0xaf,
         g: 0xaf,
+        b: 0xff,
+    },
+    // 148: Yellow3
+    Color {
+        r: 0xaf,
+        g: 0xd7,
+        b: 0x00,
+    },
+    // 149: DarkOliveGreen3
+    Color {
+        r: 0xaf,
+        g: 0xd7,
+        b: 0x5f,
+    },
+    // 150: DarkSeaGreen3
+    Color {
+        r: 0xaf,
+        g: 0xd7,
+        b: 0x87,
+    },
+    // 151: DarkSeaGreen2
+    Color {
+        r: 0xaf,
+        g: 0xd7,
         b: 0xaf,
     },
+    // 152: LightCyan3
     Color {
         r: 0xaf,
-        g: 0xaf,
+        g: 0xd7,
+        b: 0xd7,
+    },
+    // 153: LightSkyBlue1
+    Color {
+        r: 0xaf,
+        g: 0xd7,
+        b: 0xff,
+    },
+    // 154: GreenYellow
+    Color {
+        r: 0xaf,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 155: DarkOliveGreen2
+    Color {
+        r: 0xaf,
+        g: 0xff,
+        b: 0x5f,
+    },
+    // 156: PaleGreen1
+    Color {
+        r: 0xaf,
+        g: 0xff,
+        b: 0x87,
+    },
+    // 157: DarkSeaGreen2
+    Color {
+        r: 0xaf,
+        g: 0xff,
         b: 0xaf,
     },
+    // 158: DarkSeaGreen1
     Color {
         r: 0xaf,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xd7,
+        g: 0xff,
         b: 0xd7,
     },
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xd7,
-    },
+    // 159: PaleTurquoise1
     Color {
         r: 0xaf,
         g: 0xff,
         b: 0xff,
     },
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 160: Red3
     Color {
         r: 0xd7,
         g: 0x00,
         b: 0x00,
     },
+    // 161: DeepPink3
     Color {
         r: 0xd7,
         g: 0x00,
-        b: 0x00,
+        b: 0x5f,
     },
+    // 162: DeepPink3
     Color {
         r: 0xd7,
         g: 0x00,
-        b: 0x00,
+        b: 0x87,
     },
+    // 163: Magenta3
     Color {
         r: 0xd7,
         g: 0x00,
-        b: 0x00,
+        b: 0xaf,
     },
+    // 164: Magenta3
     Color {
         r: 0xd7,
         g: 0x00,
-        b: 0x00,
+        b: 0xd7,
     },
+    // 165: Magenta2
     Color {
         r: 0xd7,
         g: 0x00,
+        b: 0xff,
+    },
+    // 166: DarkOrange3
+    Color {
+        r: 0xd7,
+        g: 0x5f,
         b: 0x00,
     },
+    // 167: IndianRed
     Color {
         r: 0xd7,
         g: 0x5f,
         b: 0x5f,
     },
+    // 168: HotPink3
     Color {
         r: 0xd7,
         g: 0x5f,
-        b: 0x5f,
+        b: 0x87,
     },
+    // 169: HotPink2
     Color {
         r: 0xd7,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xaf,
     },
+    // 170: Orchid
     Color {
         r: 0xd7,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xd7,
     },
+    // 171: MediumOrchid1
     Color {
         r: 0xd7,
         g: 0x5f,
+        b: 0xff,
+    },
+    // 172: Orange3
+    Color {
+        r: 0xd7,
+        g: 0x87,
+        b: 0x00,
+    },
+    // 173: LightSalmon3
+    Color {
+        r: 0xd7,
+        g: 0x87,
         b: 0x5f,
     },
+    // 174: LightPink3
     Color {
         r: 0xd7,
-        g: 0x5f,
+        g: 0x87,
+        b: 0x87,
+    },
+    // 175: Pink3
+    Color {
+        r: 0xd7,
+        g: 0x87,
+        b: 0xaf,
+    },
+    // 176: Plum3
+    Color {
+        r: 0xd7,
+        g: 0x87,
+        b: 0xd7,
+    },
+    // 177: Violet
+    Color {
+        r: 0xd7,
+        g: 0x87,
+        b: 0xff,
+    },
+    // 178: Gold3
+    Color {
+        r: 0xd7,
+        g: 0xaf,
+        b: 0x00,
+    },
+    // 179: LightGoldenrod3
+    Color {
+        r: 0xd7,
+        g: 0xaf,
         b: 0x5f,
     },
+    // 180: Tan
     Color {
         r: 0xd7,
-        g: 0x87,
+        g: 0xaf,
         b: 0x87,
     },
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x87,
-    },
+    // 181: MistyRose3
     Color {
         r: 0xd7,
         g: 0xaf,
         b: 0xaf,
     },
+    // 182: Thistle3
     Color {
         r: 0xd7,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xd7,
     },
+    // 183: Plum2
     Color {
         r: 0xd7,
         g: 0xaf,
+        b: 0xff,
+    },
+    // 184: Yellow3
+    Color {
+        r: 0xd7,
+        g: 0xd7,
+        b: 0x00,
+    },
+    // 185: Khaki3
+    Color {
+        r: 0xd7,
+        g: 0xd7,
+        b: 0x5f,
+    },
+    // 186: LightGoldenrod2
+    Color {
+        r: 0xd7,
+        g: 0xd7,
+        b: 0x87,
+    },
+    // 187: LightYellow3
+    Color {
+        r: 0xd7,
+        g: 0xd7,
         b: 0xaf,
     },
+    // 188: Grey84
     Color {
         r: 0xd7,
-        g: 0xaf,
+        g: 0xd7,
+        b: 0xd7,
+    },
+    // 189: LightSteelBlue1
+    Color {
+        r: 0xd7,
+        g: 0xd7,
+        b: 0xff,
+    },
+    // 190: Yellow2
+    Color {
+        r: 0xd7,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 191: DarkOliveGreen1
+    Color {
+        r: 0xd7,
+        g: 0xff,
+        b: 0x5f,
+    },
+    // 192: DarkOliveGreen1
+    Color {
+        r: 0xd7,
+        g: 0xff,
+        b: 0x87,
+    },
+    // 193: DarkSeaGreen1
+    Color {
+        r: 0xd7,
+        g: 0xff,
         b: 0xaf,
     },
+    // 194: Honeydew2
     Color {
         r: 0xd7,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xd7,
+        g: 0xff,
         b: 0xd7,
     },
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xd7,
-    },
+    // 195: LightCyan1
     Color {
         r: 0xd7,
         g: 0xff,
         b: 0xff,
     },
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 196: Red1
     Color {
         r: 0xff,
         g: 0x00,
         b: 0x00,
     },
+    // 197: DeepPink2
     Color {
         r: 0xff,
         g: 0x00,
-        b: 0x00,
+        b: 0x5f,
     },
+    // 198: DeepPink1
     Color {
         r: 0xff,
         g: 0x00,
-        b: 0x00,
+        b: 0x87,
     },
+    // 199: DeepPink1
     Color {
         r: 0xff,
         g: 0x00,
-        b: 0x00,
+        b: 0xaf,
     },
+    // 200: Magenta2
     Color {
         r: 0xff,
         g: 0x00,
-        b: 0x00,
+        b: 0xd7,
     },
+    // 201: Magenta1
     Color {
         r: 0xff,
         g: 0x00,
+        b: 0xff,
+    },
+    // 202: OrangeRed1
+    Color {
+        r: 0xff,
+        g: 0x5f,
         b: 0x00,
     },
+    // 203: IndianRed1
     Color {
         r: 0xff,
         g: 0x5f,
         b: 0x5f,
     },
+    // 204: IndianRed1
     Color {
         r: 0xff,
         g: 0x5f,
-        b: 0x5f,
+        b: 0x87,
     },
+    // 205: HotPink
     Color {
         r: 0xff,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xaf,
     },
+    // 206: HotPink
     Color {
         r: 0xff,
         g: 0x5f,
-        b: 0x5f,
+        b: 0xd7,
     },
+    // 207: MediumOrchid1
     Color {
         r: 0xff,
         g: 0x5f,
+        b: 0xff,
+    },
+    // 208: DarkOrange
+    Color {
+        r: 0xff,
+        g: 0x87,
+        b: 0x00,
+    },
+    // 209: Salmon1
+    Color {
+        r: 0xff,
+        g: 0x87,
         b: 0x5f,
     },
+    // 210: LightCoral
     Color {
         r: 0xff,
-        g: 0x5f,
+        g: 0x87,
+        b: 0x87,
+    },
+    // 211: PaleVioletRed1
+    Color {
+        r: 0xff,
+        g: 0x87,
+        b: 0xaf,
+    },
+    // 212: Orchid2
+    Color {
+        r: 0xff,
+        g: 0x87,
+        b: 0xd7,
+    },
+    // 213: Orchid1
+    Color {
+        r: 0xff,
+        g: 0x87,
+        b: 0xff,
+    },
+    // 214: Orange1
+    Color {
+        r: 0xff,
+        g: 0xaf,
+        b: 0x00,
+    },
+    // 215: SandyBrown
+    Color {
+        r: 0xff,
+        g: 0xaf,
         b: 0x5f,
     },
+    // 216: LightSalmon1
     Color {
         r: 0xff,
-        g: 0x87,
+        g: 0xaf,
         b: 0x87,
     },
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x87,
-    },
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x87,
-    },
+    // 217: LightPink1
     Color {
         r: 0xff,
         g: 0xaf,
         b: 0xaf,
     },
+    // 218: Pink1
     Color {
         r: 0xff,
         g: 0xaf,
-        b: 0xaf,
+        b: 0xd7,
     },
+    // 219: Plum1
     Color {
         r: 0xff,
         g: 0xaf,
+        b: 0xff,
+    },
+    // 220: Gold1
+    Color {
+        r: 0xff,
+        g: 0xd7,
+        b: 0x00,
+    },
+    // 221: LightGoldenrod2
+    Color {
+        r: 0xff,
+        g: 0xd7,
+        b: 0x5f,
+    },
+    // 222: LightGoldenrod2
+    Color {
+        r: 0xff,
+        g: 0xd7,
+        b: 0x87,
+    },
+    // 223: NavajoWhite1
+    Color {
+        r: 0xff,
+        g: 0xd7,
         b: 0xaf,
     },
+    // 224: MistyRose1
     Color {
         r: 0xff,
-        g: 0xaf,
+        g: 0xd7,
+        b: 0xd7,
+    },
+    // 225: Thistle1
+    Color {
+        r: 0xff,
+        g: 0xd7,
+        b: 0xff,
+    },
+    // 226: Yellow1
+    Color {
+        r: 0xff,
+        g: 0xff,
+        b: 0x00,
+    },
+    // 227: LightGoldenrod1
+    Color {
+        r: 0xff,
+        g: 0xff,
+        b: 0x5f,
+    },
+    // 228: Khaki1
+    Color {
+        r: 0xff,
+        g: 0xff,
+        b: 0x87,
+    },
+    // 229: Wheat1
+    Color {
+        r: 0xff,
+        g: 0xff,
         b: 0xaf,
     },
+    // 230: Cornsilk1
     Color {
         r: 0xff,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    Color {
-        r: 0xff,
-        g: 0xd7,
+        g: 0xff,
         b: 0xd7,
     },
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xd7,
-    },
+    // 231: Grey100
     Color {
         r: 0xff,
         g: 0xff,
         b: 0xff,
     },
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
+    // 232: Grey3
     Color {
         r: 0x08,
         g: 0x08,
         b: 0x08,
     },
+    // 233: Grey7
     Color {
         r: 0x12,
         g: 0x12,
         b: 0x12,
     },
+    // 234: Grey11
     Color {
         r: 0x1c,
         g: 0x1c,
         b: 0x1c,
     },
+    // 235: Grey15
     Color {
         r: 0x26,
         g: 0x26,
         b: 0x26,
     },
+    // 236: Grey19
     Color {
         r: 0x30,
         g: 0x30,
         b: 0x30,
     },
+    // 237: Grey23
     Color {
         r: 0x3a,
         g: 0x3a,
         b: 0x3a,
     },
+    // 238: Grey27
     Color {
         r: 0x44,
         g: 0x44,
         b: 0x44,
     },
+    // 239: Grey30
     Color {
         r: 0x4e,
         g: 0x4e,
         b: 0x4e,
     },
+    // 240: Grey35
     Color {
         r: 0x58,
         g: 0x58,
         b: 0x58,
     },
+    // 241: Grey39
     Color {
-        r: 0x60,
-        g: 0x60,
-        b: 0x60,
+        r: 0x62,
+        g: 0x62,
+        b: 0x62,
     },
+    // 242: Grey42
     Color {
-        r: 0x66,
-        g: 0x66,
-        b: 0x66,
+        r: 0x6c,
+        g: 0x6c,
+        b: 0x6c,
     },
+    // 243: Grey46
     Color {
         r: 0x76,
         g: 0x76,
         b: 0x76,
     },
+    // 244: Grey50
     Color {
         r: 0x80,
         g: 0x80,
         b: 0x80,
     },
+    // 245: Grey54
     Color {
         r: 0x8a,
         g: 0x8a,
         b: 0x8a,
     },
+    // 246: Grey58
     Color {
         r: 0x94,
         g: 0x94,
         b: 0x94,
     },
+    // 247: Grey62
     Color {
         r: 0x9e,
         g: 0x9e,
         b: 0x9e,
     },
+    // 248: Grey66
     Color {
         r: 0xa8,
         g: 0xa8,
         b: 0xa8,
     },
+    // 249: Grey70
     Color {
         r: 0xb2,
         g: 0xb2,
         b: 0xb2,
     },
+    // 250: Grey74
     Color {
         r: 0xbc,
         g: 0xbc,
         b: 0xbc,
     },
+    // 251: Grey78
     Color {
         r: 0xc6,
         g: 0xc6,
         b: 0xc6,
     },
+    // 252: Grey82
     Color {
         r: 0xd0,
         g: 0xd0,
         b: 0xd0,
     },
+    // 253: Grey85
     Color {
         r: 0xda,
         g: 0xda,
         b: 0xda,
     },
+    // 254: Grey89
     Color {
         r: 0xe4,
         g: 0xe4,
         b: 0xe4,
     },
+    // 255: Grey93
     Color {
         r: 0xee,
         g: 0xee,
