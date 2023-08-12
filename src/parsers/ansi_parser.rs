@@ -2,13 +2,16 @@
 //                     https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
 use std::{
     cmp::{max, min},
-    fmt::Display,
+    collections::HashMap,
+    fmt::{format, Display},
+    mem,
 };
 
 use crate::{
     AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, EngineResult,
     MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position, Sixel,
-    SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE, line,
+    SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE, LF,
+    XTERM_256_PALETTE,
 };
 
 use super::{AsciiParser, BufferParser};
@@ -33,17 +36,33 @@ pub enum AnsiMusicState {
     SetLength(i32),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum AnsiState {
     Default,
     GotEscape,
     ReadSequence,
     ReadCustomCommand,
+    ControlFunction(char),
     StartFontSelector,
     GotDCS,
+    EndDCS(char),
     ReadSixel(SixelState),
-
+    ReadMacro(usize, HexMacroState),
     ParseAnsiMusic(AnsiMusicState),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum HexMacroState {
+    ReadSequence,
+    EscapeSequence,
+
+    ReadFirstHex,
+    ReadSecondHex(char),
+    EscapeHex,
+
+    ReadRepeatNumber(i32),
+    ReadRepeatSequenceFirst(i32),
+    ReadRepeatSequenceSecond(i32, char),
 }
 
 #[repr(u8)]
@@ -114,6 +133,10 @@ pub struct AnsiParser {
     cur_octave: usize,
     cur_length: u32,
     cur_tempo: u32,
+
+    pub marco_rec: String,
+    pub(crate) macros: HashMap<usize, String>,
+    pub repeat_rec: Vec<String>,
 }
 
 const ANSI_CSI: char = '[';
@@ -186,6 +209,9 @@ impl AnsiParser {
             cur_octave: 3,
             cur_length: 4,
             cur_tempo: 120,
+            marco_rec: String::new(),
+            macros: HashMap::new(),
+            repeat_rec: Vec::new(),
         }
     }
 
@@ -240,6 +266,7 @@ impl AnsiParser {
             'P' => {
                 // DCS
                 self.state = AnsiState::GotDCS;
+                self.parsed_numbers.clear();
                 Ok(CallbackAction::None)
             }
 
@@ -250,7 +277,7 @@ impl AnsiParser {
     }
 
     fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
-        let current_sixel =  buf.layers[0].sixels.len() - 1;
+        let current_sixel = buf.layers[0].sixels.len() - 1;
 
         let sixel = &mut buf.layers[0].sixels[current_sixel];
         if ch < '?' {
@@ -270,7 +297,7 @@ impl AnsiParser {
         }
         let cur_line = &mut sixel.picture[offset];
         let line_offset = self.sixel_cursor.y as usize * 6;
-        if cur_line.len() < line_offset{
+        if cur_line.len() < line_offset {
             cur_line.resize(line_offset, None);
         }
 
@@ -534,6 +561,7 @@ impl BufferParser for AnsiParser {
         self.ascii_parser.convert_to_unicode(ch)
     }
 
+    #[allow(clippy::single_match)]
     fn print_char(
         &mut self,
         buf: &mut Buffer,
@@ -582,12 +610,166 @@ impl BufferParser for AnsiParser {
                     )));
                 }
             }
+            AnsiState::ReadMacro(id, state) => {
+                match state {
+                    HexMacroState::ReadSequence | HexMacroState::EscapeSequence => {
+                        if matches!(state, HexMacroState::EscapeSequence) {
+                            if ch == '\\' {
+                                // end of macro
+                                let mut str = String::new();
+                                mem::swap(&mut self.marco_rec, &mut str);
+                                self.macros.insert(*id, str);
+                                self.state = AnsiState::Default;
+                                return Ok(CallbackAction::None);
+                            }
+                            self.marco_rec.push(ch);
+                        }
+
+                        if ch == '\x1B' {
+                            self.state = AnsiState::ReadMacro(*id, HexMacroState::EscapeSequence);
+                            return Ok(CallbackAction::None);
+                        }
+                        self.state = AnsiState::ReadMacro(*id, HexMacroState::ReadSequence);
+                        self.marco_rec.push(ch);
+                    }
+
+                    HexMacroState::EscapeHex => {
+                        if ch == '\\' {
+                            // end of macro
+                            let mut str = String::new();
+                            mem::swap(&mut self.marco_rec, &mut str);
+                            self.macros.insert(*id, str);
+                            self.state = AnsiState::Default;
+                            return Ok(CallbackAction::None);
+                        }
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::Error(format!(
+                            "Invalid end of hex macro {ch}"
+                        ))));
+                    }
+                    HexMacroState::ReadFirstHex => {
+                        if ch == '\x1B' {
+                            self.state = AnsiState::ReadMacro(*id, HexMacroState::EscapeHex);
+                            return Ok(CallbackAction::None);
+                        }
+                        if ch == '!' {
+                            self.state =
+                                AnsiState::ReadMacro(*id, HexMacroState::ReadRepeatNumber(0));
+                            return Ok(CallbackAction::None);
+                        }
+                        self.state = AnsiState::ReadMacro(
+                            *id,
+                            HexMacroState::ReadSecondHex(unsafe {
+                                char::from_u32_unchecked(ch as u32)
+                            }),
+                        );
+                        return Ok(CallbackAction::None);
+                    }
+                    HexMacroState::ReadSecondHex(first) => {
+                        let cc: char =
+                            unsafe { char::from_u32_unchecked(ch as u32) }.to_ascii_uppercase();
+                        let second = HEX_TABLE.iter().position(|&x| x == cc as u8);
+                        let first = HEX_TABLE.iter().position(|&x| x == *first as u8);
+                        if let (Some(first), Some(second)) = (first, second) {
+                            self.marco_rec.push(unsafe {
+                                char::from_u32_unchecked((first * 16 + second) as u32)
+                            });
+                        } else {
+                            self.state = AnsiState::Default;
+                            return Err(Box::new(ParserError::Error(
+                                "Invalid hex number in macro sequence".to_string(),
+                            )));
+                        }
+                        self.state = AnsiState::ReadMacro(*id, HexMacroState::ReadFirstHex);
+                    }
+                    HexMacroState::ReadRepeatNumber(n) => {
+                        if ch.is_ascii_digit() {
+                            self.state = AnsiState::ReadMacro(
+                                *id,
+                                HexMacroState::ReadRepeatNumber(*n * 10 + ch as i32 - b'0' as i32),
+                            );
+                            return Ok(CallbackAction::None);
+                        }
+                        if ch == ';' {
+                            self.repeat_rec.push(String::new());
+                            self.state = AnsiState::ReadMacro(
+                                *id,
+                                HexMacroState::ReadRepeatSequenceFirst(*n),
+                            );
+                            return Ok(CallbackAction::None);
+                        }
+                        return Err(Box::new(ParserError::Error(format!(
+                            "Invalid end of repeat number {ch}"
+                        ))));
+                    }
+                    HexMacroState::ReadRepeatSequenceFirst(repeats) => {
+                        if ch == ';' {
+                            let seq = self.repeat_rec.pop().unwrap();
+                            (0..*repeats).for_each(|_| self.marco_rec.push_str(&seq));
+                            self.state = AnsiState::ReadMacro(*id, HexMacroState::ReadFirstHex);
+                            return Ok(CallbackAction::None);
+                        }
+                        self.state = AnsiState::ReadMacro(
+                            *id,
+                            HexMacroState::ReadRepeatSequenceSecond(*repeats, unsafe {
+                                char::from_u32_unchecked(ch as u32)
+                            }),
+                        );
+                        return Ok(CallbackAction::None);
+                    }
+                    HexMacroState::ReadRepeatSequenceSecond(repeats, first) => {
+                        let cc: char =
+                            unsafe { char::from_u32_unchecked(ch as u32) }.to_ascii_uppercase();
+                        let second = HEX_TABLE.iter().position(|&x| x == cc as u8);
+                        let first = HEX_TABLE.iter().position(|&x| x == *first as u8);
+                        if let (Some(first), Some(second)) = (first, second) {
+                            self.repeat_rec.last_mut().unwrap().push(unsafe {
+                                char::from_u32_unchecked((first * 16 + second) as u32)
+                            });
+                        } else {
+                            self.state = AnsiState::Default;
+                            return Err(Box::new(ParserError::Error(
+                                "Invalid hex number in macro repeat sequence".to_string(),
+                            )));
+                        }
+                        self.state = AnsiState::ReadMacro(
+                            *id,
+                            HexMacroState::ReadRepeatSequenceFirst(*repeats),
+                        );
+                    }
+                }
+            }
+
+            AnsiState::EndDCS(old_char) => {
+                if *old_char == '!' && ch == 'z' {
+                    if let Some(pid) = self.parsed_numbers.first() {
+                        if let Some(pdt) = self.parsed_numbers.get(1) {
+                            // 0 - or omitted overwrites macro
+                            // 1 - clear all macros before defining this macro
+                            if *pdt == 1 {
+                                self.macros.clear();
+                            }
+                        }
+                        let parse_mode = match self.parsed_numbers.get(2) {
+                            Some(1) => HexMacroState::ReadFirstHex,
+                            _ => HexMacroState::ReadSequence,
+                        };
+                        self.marco_rec = String::new();
+                        self.repeat_rec.clear();
+                        self.state = AnsiState::ReadMacro(*pid as usize, parse_mode);
+                        return Ok(CallbackAction::None);
+                    }
+                }
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    "{old_char}{ch}"
+                ))));
+            }
             AnsiState::GotDCS => match ch {
                 'q' => {
                     let aspect_ratio = match self.parsed_numbers.first() {
                         Some(0 | 1) => 5,
                         Some(2) => 3,
-                        Some(7 | 8 | 9) => 1,
+                        Some(7..=9) => 1,
                         _ => 2,
                     };
 
@@ -605,6 +787,9 @@ impl BufferParser for AnsiParser {
                     self.current_sixel_palette.clear();
                     self.state = AnsiState::ReadSixel(SixelState::Read);
                 }
+                '!' => {
+                    self.state = AnsiState::EndDCS('!');
+                }
                 _ => {
                     if ch.is_ascii_digit() {
                         let d = match self.parsed_numbers.pop() {
@@ -620,7 +805,7 @@ impl BufferParser for AnsiParser {
                         if let Some(sixel) = buf.layers[0].sixels.last_mut() {
                             sixel.read_status = SixelReadStatus::Error;
                         }
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(
                             self.current_sequence.clone(),
                         )));
                     }
@@ -640,22 +825,38 @@ impl BufferParser for AnsiParser {
                         if current_sixel > 0 {
                             for i in 0..current_sixel {
                                 let old_sixel_rect = layer.sixels[i].get_rect();
-                                if old_sixel_rect.start.x <= new_sixel_rect.start.x && new_sixel_rect.start.x * char_width + new_sixel_rect.size.width <= old_sixel_rect.start.x * char_width + old_sixel_rect.size.width &&
-                                   old_sixel_rect.start.y <= new_sixel_rect.start.y && new_sixel_rect.start.y * char_height + new_sixel_rect.size.height <= old_sixel_rect.start.y * char_height + old_sixel_rect.size.height {
+                                if old_sixel_rect.start.x <= new_sixel_rect.start.x
+                                    && new_sixel_rect.start.x * char_width
+                                        + new_sixel_rect.size.width
+                                        <= old_sixel_rect.start.x * char_width
+                                            + old_sixel_rect.size.width
+                                    && old_sixel_rect.start.y <= new_sixel_rect.start.y
+                                    && new_sixel_rect.start.y * char_height
+                                        + new_sixel_rect.size.height
+                                        <= old_sixel_rect.start.y * char_height
+                                            + old_sixel_rect.size.height
+                                {
                                     let replace_sixel = layer.sixels.pop().unwrap();
 
-                                    let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y) * char_height;
-                                    let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x) * char_width;
+                                    let start_y = (new_sixel_rect.start.y - old_sixel_rect.start.y)
+                                        * char_height;
+                                    let start_x = (new_sixel_rect.start.x - old_sixel_rect.start.x)
+                                        * char_width;
                                     let sx = &mut layer.sixels[i];
-                                    
+
                                     for y in start_y..new_sixel_rect.size.height {
                                         for x in start_x..new_sixel_rect.size.width {
                                             let col: usize = x as usize;
                                             let line = (y + start_y) as usize;
                                             while line >= sx.picture[col].len() {
-                                                sx.picture.push(vec![None; old_sixel_rect.size.width as usize]);
+                                                sx.picture.push(vec![
+                                                    None;
+                                                    old_sixel_rect.size.width
+                                                        as usize
+                                                ]);
                                             }
-                                            sx.picture[col][line] = replace_sixel.picture[col][line];
+                                            sx.picture[col][line] =
+                                                replace_sixel.picture[col][line];
                                         }
                                     }
                                     sx.read_status = SixelReadStatus::Updated;
@@ -866,6 +1067,39 @@ impl BufferParser for AnsiParser {
                         )));
                     }
                 }
+            }
+            AnsiState::ControlFunction(func) => {
+                match *func {
+                    '*' => {
+                        match ch {
+                            'z' => {
+                                // DECINVM invoke macro
+                                self.state = AnsiState::Default;
+
+                                let content = if let Some(id) = self.parsed_numbers.first() {
+                                    Some(self.macros.get(&(*id as usize)).unwrap().clone())
+                                } else {
+                                    None
+                                };
+
+                                if let Some(content) = content {
+                                    for ch in content.chars() {
+                                        self.print_char(buf, caret, ch)?;
+                                    }
+                                }
+
+                                return Ok(CallbackAction::None);
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+
+                self.state = AnsiState::Default;
+                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                    self.current_sequence.clone(),
+                )));
             }
             AnsiState::ReadSequence => {
                 if let Some(ch) = char::from_u32(ch as u32) {
@@ -1327,6 +1561,9 @@ impl BufferParser for AnsiParser {
                         // read custom command
                         self.state = AnsiState::ReadCustomCommand;
                     }
+                    '*' => {
+                        self.state = AnsiState::ControlFunction('*');
+                    }
 
                     'K' => {
                         // Erase in line
@@ -1355,14 +1592,34 @@ impl BufferParser for AnsiParser {
 
                     'c' => {
                         // device attributes
-                        self.state = AnsiState::Default;/* 
-                        if let Some(0) = self.parsed_numbers.first() {
-                            return Ok(CallbackAction::SendString("\x1b[=67;84;101;114;109;1;315c".to_string()));
-                        }*/
+                        self.state = AnsiState::Default; /*
+                                                         if let Some(0) = self.parsed_numbers.first() {
+                                                             return Ok(CallbackAction::SendString("\x1b[=67;84;101;114;109;1;315c".to_string()));
+                                                         }*/
 
                         return Ok(CallbackAction::SendString("\x1b[?1;0c".to_string()));
                     }
+                    /* Device Attributes:
+                    1 	132 columns
+                    2 	Printer port
+                    4 	Sixel
+                    6 	Selective erase
+                    7 	Soft character set (DRCS)
+                    8 	User-defined keys (UDKs)
+                    9 	National replacement character sets (NRCS)
+                    (International terminal only)
+                    12 	Yugoslavian (SCS)
+                    15 	Technical character set
+                    18 	Windowing capability
+                    21 	Horizontal scrolling
+                    23 	Greek
+                    24 	Turkish
+                    42 	ISO Latin-2 character set
+                    44 	PCTerm
+                    45 	Soft key map
+                    46 	ASCII emulation
 
+                    */
                     'r' => {
                         // Set Top and Bottom Margins
                         self.state = AnsiState::Default;

@@ -2,8 +2,8 @@
 use crate::{
     convert_to_ans,
     parsers::tests::{create_buffer, get_action, update_buffer},
-    AnsiMusic, AnsiMusicOption, AnsiParser, BufferType, CallbackAction, Caret, Color, MusicAction,
-    Position, SaveOptions, TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
+    AnsiMusicOption, AnsiParser, BufferType, CallbackAction, Caret, Color, MusicAction, Position,
+    SaveOptions, TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
 };
 
 #[test]
@@ -685,4 +685,70 @@ fn test_melody() {
         panic!();
     };
     assert_eq!(14, music.music_actions.len());
+}
+
+#[test]
+fn test_macro() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;0!zHello\x1B\\");
+    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    assert_eq!(b' ', ch.ch as u8);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
+
+    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    assert_eq!(b'H', ch.ch as u8);
+    let ch = buf
+        .get_char(Position::new("Hello".len() as i32, 0))
+        .unwrap_or_default();
+    assert_eq!(b' ', ch.ch as u8);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
+
+    let ch = buf
+        .get_char(Position::new("Hello".len() as i32, 0))
+        .unwrap_or_default();
+    assert_eq!(b'H', ch.ch as u8);
+}
+
+#[test]
+fn test_macro_hex() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;1!z4848484848\x1B\\");
+    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    assert_eq!(b' ', ch.ch as u8);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
+
+    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    assert_eq!(b'H', ch.ch as u8);
+    let ch = buf
+        .get_char(Position::new("Hello".len() as i32, 0))
+        .unwrap_or_default();
+    assert_eq!(b' ', ch.ch as u8);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
+
+    let ch = buf
+        .get_char(Position::new("Hello".len() as i32, 0))
+        .unwrap_or_default();
+    assert_eq!(b'H', ch.ch as u8);
+}
+
+#[test]
+fn test_macro_repeat_hex() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;1!z!5;48;\x1B\\");
+    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    assert_eq!(b' ', ch.ch as u8);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
+
+    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    assert_eq!(b'H', ch.ch as u8);
+    let ch = buf
+        .get_char(Position::new("Hello".len() as i32, 0))
+        .unwrap_or_default();
+    assert_eq!(b' ', ch.ch as u8);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
+
+    let ch = buf
+        .get_char(Position::new("Hello".len() as i32, 0))
+        .unwrap_or_default();
+    assert_eq!(b'H', ch.ch as u8);
 }

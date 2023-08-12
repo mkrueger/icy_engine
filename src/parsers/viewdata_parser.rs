@@ -67,7 +67,7 @@ impl ViewdataParser {
         self.caret_right(buf, caret);
     }
 
-    fn caret_down(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+    fn caret_down(&mut self, buf: &Buffer, caret: &mut Caret) {
         caret.pos.y += 1;
         if caret.pos.y >= buf.get_buffer_height() {
             caret.pos.y = 0;
@@ -75,7 +75,7 @@ impl ViewdataParser {
         self.reset_on_row_change(caret);
     }
 
-    fn caret_up(buf: &mut Buffer, caret: &mut Caret) {
+    fn caret_up(buf: &Buffer, caret: &mut Caret) {
         if caret.pos.y > 0 {
             caret.pos.y = caret.pos.y.saturating_sub(1);
         } else {
@@ -83,7 +83,7 @@ impl ViewdataParser {
         }
     }
 
-    fn caret_right(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+    fn caret_right(&mut self, buf: &Buffer, caret: &mut Caret) {
         caret.pos.x += 1;
         if caret.pos.x >= buf.get_buffer_width() {
             caret.pos.x = 0;
@@ -91,7 +91,8 @@ impl ViewdataParser {
         }
     }
 
-    fn caret_left(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+    #[allow(clippy::unused_self)]
+    fn caret_left(&self, buf: &Buffer, caret: &mut Caret) {
         if caret.pos.x > 0 {
             caret.pos.x = caret.pos.x.saturating_sub(1);
         } else {

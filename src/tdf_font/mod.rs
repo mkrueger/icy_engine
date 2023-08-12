@@ -22,6 +22,11 @@ static THE_DRAW_FONT_ID: &[u8; 18] = b"TheDraw FONTS file";
 const THE_DRAW_FONT_HEADER_SIZE: usize = 233;
 
 impl TheDrawFont {
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn load(file_name: &Path) -> Option<TheDrawFont> {
         let mut f = File::open(file_name).expect("error while opening file");
         let mut bytes = Vec::new();

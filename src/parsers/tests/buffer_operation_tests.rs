@@ -1,5 +1,5 @@
 use crate::{
-    parsers::tests::{create_buffer, get_string_from_buffer, update_buffer},
+    parsers::tests::{create_buffer, update_buffer},
     AnsiParser, Position, TextAttribute,
 };
 

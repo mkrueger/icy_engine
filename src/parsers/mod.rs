@@ -109,15 +109,15 @@ impl Caret {
     }
 
     /// (carriage return, CR, \r, ^M), moves the printing position to the start of the line.
-    pub fn cr(&mut self, _buf: &mut Buffer) {
+    pub fn cr(&mut self, _buf: &Buffer) {
         self.pos.x = 0;
     }
 
-    pub fn eol(&mut self, buf: &mut Buffer) {
+    pub fn eol(&mut self, buf: &Buffer) {
         self.pos.x = buf.get_buffer_width() - 1;
     }
 
-    pub fn home(&mut self, buf: &mut Buffer) {
+    pub fn home(&mut self, buf: &Buffer) {
         self.pos = buf.upper_left_position();
     }
 
@@ -160,7 +160,7 @@ impl Caret {
         }
     }
 
-    pub fn left(&mut self, buf: &mut Buffer, num: i32) {
+    pub fn left(&mut self, buf: &Buffer, num: i32) {
         self.pos.x = self.pos.x.saturating_sub(num);
         buf.terminal_state.limit_caret_pos(buf, self);
     }

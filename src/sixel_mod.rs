@@ -7,7 +7,7 @@ pub enum SixelReadStatus {
     Finished,
     Error,
     Position(i32, i32),
-    Updated
+    Updated,
 }
 
 #[derive(Clone, Debug, Default)]

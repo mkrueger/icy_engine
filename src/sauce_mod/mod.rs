@@ -10,10 +10,11 @@ use sauce_errors::SauceError;
 mod sauce_errors;
 
 #[repr(u8)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum SauceDataType {
     /// Undefined filetype.
     /// You could use this to add SAUCE to a custom or proprietary file, without giving it any particular meaning or interpretation.
+    #[default]
     Undefined = 0,
 
     /// A character based file.
@@ -60,12 +61,6 @@ impl SauceDataType {
                 SauceDataType::Undefined
             }
         }
-    }
-}
-
-impl Default for SauceDataType {
-    fn default() -> SauceDataType {
-        SauceDataType::Undefined
     }
 }
 

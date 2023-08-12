@@ -91,6 +91,7 @@ pub struct Buffer {
     // pub redo_stack: Vec<Box<dyn UndoOperation>>,
 }
 
+#[allow(clippy::missing_fields_in_debug)]
 impl std::fmt::Debug for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Buffer")
@@ -276,7 +277,7 @@ impl Buffer {
     }
 
     pub fn remove_overlay(&mut self) -> Option<Layer> {
-        std::mem::replace(&mut self.overlay_layer, None)
+        self.overlay_layer.take()
     }
 
     #[must_use]

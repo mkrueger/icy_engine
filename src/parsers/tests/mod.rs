@@ -1,12 +1,12 @@
 mod ansi_parser_tests;
 mod ascii_parser_tests;
 mod buffer_operation_tests;
-mod viewdata_parser_tests;
 mod sixel_tests;
+mod viewdata_parser_tests;
 
 use crate::{Buffer, BufferParser, CallbackAction, Caret};
 
-fn get_string_from_buffer(buf: &Buffer) -> String {
+fn _get_string_from_buffer(buf: &Buffer) -> String {
     let converted = crate::convert_to_asc(buf, &crate::SaveOptions::new()).unwrap(); // test code
     let b: Vec<u8> = converted
         .iter()

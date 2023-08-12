@@ -2162,8 +2162,7 @@ impl Palette {
     }
 
     pub fn to_vec(&self) -> Vec<u8> {
-        let mut res = Vec::new();
-        res.resize(3 * self.colors.len(), 0);
+        let mut res = vec![0; 3 * self.colors.len()];
         for col in &self.colors {
             res.push(col.r >> 2 | col.r << 4);
             res.push(col.g >> 2 | col.g << 4);

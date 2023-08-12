@@ -4,7 +4,7 @@ use crate::{Buffer, Position, TextAttribute};
 
 use super::SaveOptions;
 
-const HEX_TABLE: &[u8; 16] = b"0123456789ABCDEF";
+pub(crate) const HEX_TABLE: &[u8; 16] = b"0123456789ABCDEF";
 
 /// .
 ///

@@ -5,6 +5,7 @@ pub enum ParserError {
     InvalidChar(char),
     InvalidBuffer,
     UnsupportedEscapeSequence(String),
+    UnsupportedDCSSequence(String),
     UnsupportedCustomCommand(i32),
     Description(&'static str),
     UnsupportedControlCode(u32),
@@ -18,6 +19,8 @@ pub enum ParserError {
     InvalidPictureSize,
 
     InvalidRipAnsiQuery(i32),
+
+    Error(String),
 }
 
 impl std::fmt::Display for ParserError {
@@ -26,6 +29,9 @@ impl std::fmt::Display for ParserError {
             ParserError::InvalidChar(ch) => write!(f, "invalid character {ch}"),
             ParserError::UnsupportedEscapeSequence(seq) => {
                 write!(f, "unsupported escape sequence {seq}")
+            }
+            ParserError::UnsupportedDCSSequence(seq) => {
+                write!(f, "unsupported DCS sequence {seq}")
             }
             ParserError::Description(str) => write!(f, "{str}"),
             ParserError::UnsupportedControlCode(code) => {
@@ -52,6 +58,7 @@ impl std::fmt::Display for ParserError {
             ParserError::ErrorInSixelEngine(err) => write!(f, "sixel engine error: {err}"),
             ParserError::InvalidPictureSize => write!(f, "invalid sixel picture size description"),
             ParserError::InvalidRipAnsiQuery(i) => write!(f, "invalid rip ansi query <esc>[{i}!"),
+            ParserError::Error(err) => write!(f, "Parse error: {err}"),
         }
     }
 }
