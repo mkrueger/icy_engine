@@ -568,6 +568,7 @@ impl BufferParser for AnsiParser {
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
+        // println!("{:?} -> ch:{}", self.state, ch);
         match &self.state {
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
@@ -622,7 +623,7 @@ impl BufferParser for AnsiParser {
                                 self.state = AnsiState::Default;
                                 return Ok(CallbackAction::None);
                             }
-                            self.marco_rec.push(ch);
+                            self.marco_rec.push('\x1B');
                         }
 
                         if ch == '\x1B' {
@@ -750,6 +751,7 @@ impl BufferParser for AnsiParser {
                                 self.macros.clear();
                             }
                         }
+
                         let parse_mode = match self.parsed_numbers.get(2) {
                             Some(1) => HexMacroState::ReadFirstHex,
                             _ => HexMacroState::ReadSequence,
@@ -760,8 +762,9 @@ impl BufferParser for AnsiParser {
                         return Ok(CallbackAction::None);
                     }
                 }
+                self.state = AnsiState::Default;
                 return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                    "{old_char}{ch}"
+                    "{ch}"
                 ))));
             }
             AnsiState::GotDCS => match ch {
@@ -790,6 +793,10 @@ impl BufferParser for AnsiParser {
                 '!' => {
                     self.state = AnsiState::EndDCS('!');
                 }
+                '\x1B' => {
+                    // buggy sequence, restart escape sequence
+                    self.state = AnsiState::GotEscape;
+                }
                 _ => {
                     if ch.is_ascii_digit() {
                         let d = match self.parsed_numbers.pop() {
@@ -805,9 +812,10 @@ impl BufferParser for AnsiParser {
                         if let Some(sixel) = buf.layers[0].sixels.last_mut() {
                             sixel.read_status = SixelReadStatus::Error;
                         }
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(
-                            self.current_sequence.clone(),
-                        )));
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "sequence: {}",
+                            self.current_sequence
+                        ))));
                     }
                 }
             },
@@ -1024,8 +1032,10 @@ impl BufferParser for AnsiParser {
 
                             // Mouse tracking see https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Normal-tracking-mode
                             Some(9) => buf.terminal_state.mouse_mode = MouseMode::X10,
-                            Some(1000) => buf.terminal_state.mouse_mode = MouseMode::Default,
-                            Some(1001) => buf.terminal_state.mouse_mode = MouseMode::Highlight,
+                            Some(1000) => buf.terminal_state.mouse_mode = MouseMode::VT200,
+                            Some(1001) => {
+                                buf.terminal_state.mouse_mode = MouseMode::VT200_Highlight
+                            }
                             Some(1002) => buf.terminal_state.mouse_mode = MouseMode::ButtonEvents,
                             Some(1003) => buf.terminal_state.mouse_mode = MouseMode::AnyEvents,
 

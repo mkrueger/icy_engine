@@ -35,9 +35,16 @@ pub struct TerminalState {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MouseMode {
+    // no mouse reporting
     Default,
-    Highlight,
+
+    /// X10 compatibility mode (9)
     X10,
+    /// VT200 mode (1000)
+    VT200,
+    /// VT200 highlight mode (1001)
+    VT200_Highlight,
+
     ButtonEvents,
     AnyEvents,
     FocusEvent,
