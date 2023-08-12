@@ -190,7 +190,6 @@ pub static ANSI_FONT_NAMES: [&str; 43] = [
     "Amiga MicroKnight",     // MicroKnight (Amiga)
     "Amiga Topaz 1",         // Topaz (Amiga)
 ];
-
 impl AnsiParser {
     pub fn new() -> Self {
         AnsiParser {
@@ -243,6 +242,8 @@ impl AnsiParser {
             'c' => {
                 // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
                 caret.ff(buf);
+                buf.terminal_state.reset();
+                self.macros.clear();
                 Ok(CallbackAction::None)
             }
 
@@ -269,7 +270,11 @@ impl AnsiParser {
                 self.parsed_numbers.clear();
                 Ok(CallbackAction::None)
             }
-
+            '0'..='~' => {
+                // Silently drop unsupported sequences
+                self.state = AnsiState::Default;
+                Ok(CallbackAction::None)
+            }
             _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
                 self.current_sequence.clone(),
             ))),
@@ -1007,7 +1012,6 @@ impl BufferParser for AnsiParser {
                             Some(35) => caret.is_blinking = true,
                             Some(9 | 1000..=1007 | 1015 | 1016) => {
                                 buf.terminal_state.mouse_mode = MouseMode::Default;
-
                             }
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1601,34 +1605,10 @@ impl BufferParser for AnsiParser {
 
                     'c' => {
                         // device attributes
-                        self.state = AnsiState::Default; /*
-                                                         if let Some(0) = self.parsed_numbers.first() {
-                                                             return Ok(CallbackAction::SendString("\x1b[=67;84;101;114;109;1;315c".to_string()));
-                                                         }*/
-
-                        return Ok(CallbackAction::SendString("\x1b[?1;0c".to_string()));
+                        self.state = AnsiState::Default; 
+                        // respond with IcyTerm as ASCII followed by the package version.
+                        return Ok(CallbackAction::SendString(format!("\x1b[=73;99;121;84;101;114;109;{};{};{}c", env!("CARGO_PKG_VERSION_MAJOR"), env!("CARGO_PKG_VERSION_MINOR"), env!("CARGO_PKG_VERSION_PATCH"))));
                     }
-                    /* Device Attributes:
-                    1 	132 columns
-                    2 	Printer port
-                    4 	Sixel
-                    6 	Selective erase
-                    7 	Soft character set (DRCS)
-                    8 	User-defined keys (UDKs)
-                    9 	National replacement character sets (NRCS)
-                    (International terminal only)
-                    12 	Yugoslavian (SCS)
-                    15 	Technical character set
-                    18 	Windowing capability
-                    21 	Horizontal scrolling
-                    23 	Greek
-                    24 	Turkish
-                    42 	ISO Latin-2 character set
-                    44 	PCTerm
-                    45 	Soft key map
-                    46 	ASCII emulation
-
-                    */
                     'r' => {
                         // Set Top and Bottom Margins
                         self.state = AnsiState::Default;
