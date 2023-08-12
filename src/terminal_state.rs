@@ -33,7 +33,7 @@ pub struct TerminalState {
     pub mouse_mode: MouseMode,
     pub dec_margin_mode_left_right: bool,
     use_ice: bool,
-    baud_rate: u32
+    baud_rate: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,7 +72,7 @@ impl TerminalState {
             margins_left_right: None,
             use_ice: false,
             dec_margin_mode_left_right: false,
-            baud_rate: 0
+            baud_rate: 0,
         }
     }
 

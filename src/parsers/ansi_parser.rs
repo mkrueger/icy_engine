@@ -607,7 +607,7 @@ impl BufferParser for AnsiParser {
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
-                match &self.state {
+        match &self.state {
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
             }
