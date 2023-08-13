@@ -1112,3 +1112,11 @@ fn set_tab() {
     let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[1;60H\x1BH\x1B[2$w");
     assert_eq!(CallbackAction::SendString("\x1BP2$u60\x1B\\".to_string()), act);
 }
+
+#[test]
+fn test_aps_parsing() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B_Foo\x1BBar\x1B\\");
+    assert_eq!("Foo\x1BBar", parser.aps_string);
+}

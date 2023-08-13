@@ -51,6 +51,8 @@ pub enum AnsiState {
     ReadSixel(SixelState),
     ReadMacro(usize, HexMacroState),
     ParseAnsiMusic(AnsiMusicState),
+
+    ReadAPS(ReadSTState)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -74,6 +76,12 @@ pub enum AnsiMusicOption {
     Conflicting,
     Banana,
     Both,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ReadSTState {
+    Default(usize),
+    GotEscape(usize),
 }
 
 impl Display for AnsiMusicOption {
@@ -138,6 +146,7 @@ pub struct AnsiParser {
 
     last_char: char,
     pub marco_rec: String,
+    pub aps_string: String,
     pub(crate) macros: HashMap<usize, String>,
     pub repeat_rec: Vec<String>,
     pub dcs_string: String,
@@ -213,6 +222,7 @@ impl AnsiParser {
             cur_length: 4,
             cur_tempo: 120,
             marco_rec: String::new(),
+            aps_string: String::new(),
             macros: HashMap::new(),
             repeat_rec: Vec::new(),
             dcs_string: String::new(),
@@ -282,6 +292,14 @@ impl AnsiParser {
                 buf.terminal_state.set_tab_at(caret.get_position().x);
                 Ok(CallbackAction::None)
             }
+
+            '_' => {
+                // Application Program String
+                self.state = AnsiState::ReadAPS(ReadSTState::Default(0));
+                self.aps_string.clear();
+                Ok(CallbackAction::None)
+            }
+
             '0'..='~' => {
                 // Silently drop unsupported sequences
                 self.state = AnsiState::Default;
@@ -594,6 +612,10 @@ impl AnsiParser {
         }
         Ok(CallbackAction::None)
     }
+
+    fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
+        println!("TODO execute APS command: {}", self.aps_string);
+    }
 }
 
 impl Default for AnsiParser {
@@ -826,6 +848,28 @@ impl BufferParser for AnsiParser {
                             *id,
                             HexMacroState::ReadRepeatSequenceFirst(*repeats),
                         );
+                    }
+                }
+            }
+
+            AnsiState::ReadAPS(st_state) => {
+                match st_state {
+                    ReadSTState::Default(nesting_level) => {
+                        if ch == '\x1B' {
+                            self.state = AnsiState::ReadAPS(ReadSTState::GotEscape(*nesting_level));
+                            return Ok(CallbackAction::None);
+                        }
+                        self.aps_string.push(ch);
+                    },
+                    ReadSTState::GotEscape(nesting_level) => {
+                        if ch == '\\' {
+                            self.state = AnsiState::Default;
+                            self.execute_aps_command(buf, caret);
+                            return Ok(CallbackAction::None);
+                        }
+                        self.state = AnsiState::ReadAPS(ReadSTState::Default(*nesting_level));
+                        self.aps_string.push('\x1B');
+                        self.aps_string.push(ch);
                     }
                 }
             }
