@@ -1041,3 +1041,16 @@ fn test_macro_checksum_report() {
         act
     );
 }
+
+#[test]
+fn test_repeat_last_char() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(
+        &mut parser,
+        b"#\x1B[10b\n",
+    );
+    for x in 0..11 {
+        assert_eq!('#', buf.get_char_xy(x, 0).unwrap().ch);
+    }
+    assert_eq!(' ', buf.get_char_xy(11, 0).unwrap().ch);
+}

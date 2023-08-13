@@ -136,6 +136,7 @@ pub struct AnsiParser {
     cur_length: u32,
     cur_tempo: u32,
 
+    last_char: char,
     pub marco_rec: String,
     pub(crate) macros: HashMap<usize, String>,
     pub repeat_rec: Vec<String>,
@@ -215,6 +216,7 @@ impl AnsiParser {
             macros: HashMap::new(),
             repeat_rec: Vec::new(),
             dcs_string: String::new(),
+            last_char: '\0'
         }
     }
 
@@ -2106,6 +2108,18 @@ impl BufferParser for AnsiParser {
                         };
                         (0..num).for_each(|_| buf.scroll_down());
                     }
+                    'b' => {
+                        // repeat last char
+                        self.state = AnsiState::Default;
+                        let num: i32 = if let Some(number) = self.parsed_numbers.first() {
+                            *number
+                        } else {
+                            1
+                        };
+                        let mut ch = AttributedChar::new(self.last_char, caret.attr);
+                        ch.set_font_page(self.current_font_page);
+                        (0..num).for_each(|_| buf.print_char(caret, ch));
+                    }
                     _ => {
                         if ('\x40'..='\x7E').contains(&ch) {
                             // unknown control sequence, terminate reading
@@ -2150,8 +2164,9 @@ impl BufferParser for AnsiParser {
                 BEL => return Ok(CallbackAction::Beep),
                 '\x7F' => caret.del(buf),
                 _ => {
+                    self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
                     let mut ch =
-                        AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
+                        AttributedChar::new(self.last_char, caret.attr);
                     ch.set_font_page(self.current_font_page);
                     buf.print_char(caret, ch);
                 }
