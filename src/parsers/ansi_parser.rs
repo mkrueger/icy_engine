@@ -1573,6 +1573,7 @@ impl BufferParser for AnsiParser {
                             caret.right(buf, self.parsed_numbers[0]);
                         }
                     }
+                    'j' | // Character Position Backward
                     'D' => {
                         // Cursor Back
                         self.state = AnsiState::Default;
@@ -1582,6 +1583,7 @@ impl BufferParser for AnsiParser {
                             caret.left(buf, self.parsed_numbers[0]);
                         }
                     }
+                    'k' | // Line Position Backward
                     'A' => {
                         // Cursor Up
                         self.state = AnsiState::Default;
