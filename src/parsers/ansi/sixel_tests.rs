@@ -21,7 +21,7 @@ fn test_simple_position_sixel() {
     assert_eq!(14, buf.layers[0].sixels[0].width());
     assert_eq!(12, buf.layers[0].sixels[0].height());
 }
-/* TODO: Fix this test
+
 #[test]
 fn test_overwrite_sixel() {
     let (mut buf, mut caret) = create_buffer(&mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
@@ -60,7 +60,6 @@ fn test_overwrite_multiple_sixels() {
     }
 }
 
-
 #[test]
 fn test_chess_update() {
     let (mut buf, mut caret) = create_buffer(&mut Parser::default(), b"");
@@ -85,7 +84,7 @@ fn test_chess_update() {
         assert_eq!(46, buf.layers[0].sixels[i].width());
     }
 }
-*/
+
 #[test]
 fn test_macro_sixels() {
     let mut parser: Parser = Parser::default();

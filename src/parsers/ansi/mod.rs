@@ -11,8 +11,8 @@ use self::constants::{ANSI_FONT_NAMES, COLOR_OFFSETS};
 use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
-    Color, EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError,
-    Position, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
+    EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError, Position,
+    TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
 };
 
 mod constants;
@@ -44,6 +44,7 @@ pub enum EngineState {
     EndCSI(char),
 
     RecordDCS(ReadSTState),
+    ReadPossibleMacroInDCS(u8),
 
     ParseAnsiMusic(MusicState),
 
@@ -273,12 +274,81 @@ impl BufferParser for Parser {
                     self.aps_string.push(ch);
                 }
             },
+            EngineState::ReadPossibleMacroInDCS(i) => {
+                // \x1B[<num>*z
+                // read macro inside dcs sequence, 3 states:´
+                // 0: [
+                // 1: <num>
+                // 2: *
+                // z
 
+                if ch.is_ascii_digit() {
+                    if *i != 1 {
+                        self.state = EngineState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected number got '{ch}'"
+                        ))));
+                    }
+                    let d = match self.parsed_numbers.pop() {
+                        Some(number) => number,
+                        _ => 0,
+                    };
+                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    return Ok(CallbackAction::None);
+                }
+                if ch == '[' {
+                    if *i != 0 {
+                        self.state = EngineState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected '[' got '{ch}'"
+                        ))));
+                    }
+                    self.state = EngineState::ReadPossibleMacroInDCS(1);
+                    return Ok(CallbackAction::None);
+                }
+                if ch == '*' {
+                    if *i != 1 {
+                        self.state = EngineState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected '*' got '{ch}'"
+                        ))));
+                    }
+                    self.state = EngineState::ReadPossibleMacroInDCS(2);
+                    return Ok(CallbackAction::None);
+                }
+                if ch == 'z' {
+                    if *i != 2 {
+                        self.state = EngineState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Error in macro inside dcs, expected 'z' got '{ch}'"
+                        ))));
+                    }
+                    if self.parsed_numbers.len() != 1 {
+                        self.state = EngineState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "Macro hasn't one number defined got '{}'",
+                            self.parsed_numbers.len()
+                        ))));
+                    }
+                    self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                    return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
+                }
+
+                self.state = EngineState::Default;
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    "Invalid macro inside dcs '{ch}'"
+                ))));
+            }
             EngineState::RecordDCS(dcs_state) => match dcs_state {
-                ReadSTState::GotEscape(nesting_level) => {
+                ReadSTState::GotEscape(_nesting_level) => {
                     self.state = EngineState::Default;
                     if ch == '\\' {
                         return self.execute_dcs(buf, caret);
+                    }
+                    if ch == '[' {
+                        //
+                        self.state = EngineState::ReadPossibleMacroInDCS(1);
+                        return Ok(CallbackAction::None);
                     }
                     return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                         "sequence: {} end char <ESC>{ch}",
@@ -293,13 +363,6 @@ impl BufferParser for Parser {
                         self.dcs_string.push(ch);
                     }
                 },
-                _ => {
-                    self.state = EngineState::Default;
-                    return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                        "sequence: {}",
-                        self.dcs_string
-                    ))));
-                }
             },
 
             EngineState::ReadCSICommand => {

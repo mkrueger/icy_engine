@@ -45,7 +45,7 @@ impl SixelParser {
     pub fn parse_from(
         &mut self,
         sixel: &mut Sixel,
-        default_bg_color: [u8; 4],
+        _default_bg_color: [u8; 4],
         data: &str,
     ) -> EngineResult<bool> {
         for ch in data.chars() {
@@ -57,7 +57,7 @@ impl SixelParser {
     fn parse_char(&mut self, sixel: &mut Sixel, ch: char) -> EngineResult<bool> {
         match self.state {
             SixelState::Read => {
-                !self.parse_sixel_data(sixel, ch)?;
+                self.parse_sixel_data(sixel, ch)?;
             }
             SixelState::ReadColor => {
                 if ch.is_ascii_digit() {
@@ -100,7 +100,7 @@ impl SixelParser {
                             }
                         }
                     }
-                    !self.parse_sixel_data(sixel, ch)?;
+                    self.parse_sixel_data(sixel, ch)?;
                 }
             }
             SixelState::ReadSize => {
@@ -146,9 +146,7 @@ impl SixelParser {
                 } else {
                     if let Some(i) = self.parsed_numbers.first() {
                         for _ in 0..*i {
-                            if !self.parse_sixel_data(sixel, ch)? {
-                                break;
-                            }
+                            self.parse_sixel_data(sixel, ch)?;
                         }
                     } else {
                         return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
@@ -210,7 +208,7 @@ impl SixelParser {
         Ok(())
     }
 
-    fn parse_sixel_data(&mut self, sixel: &mut Sixel, ch: char) -> EngineResult<bool> {
+    fn parse_sixel_data(&mut self, sixel: &mut Sixel, ch: char) -> EngineResult<()> {
         match ch {
             '#' => {
                 self.parsed_numbers.clear();
@@ -233,12 +231,12 @@ impl SixelParser {
             }
             _ => {
                 if ch > '\x7F' {
-                    return Ok(false);
+                    return Ok(());
                 }
                 self.translate_sixel_to_pixel(sixel, ch)?;
             }
         }
-        Ok(true)
+        Ok(())
     }
 }
 
@@ -252,9 +250,11 @@ impl Sixel {
         }
     }
 
-    pub fn get_rect(&self) -> Rectangle {
+    pub fn get_screen_rect(&self) -> Rectangle {
+        let x = self.position.x * 8;
+        let y = self.position.y * 16;
         Rectangle {
-            start: self.position,
+            start: Position::new(x, y),
             size: Size::new(self.width() as i32, self.height() as i32),
         }
     }
@@ -271,6 +271,11 @@ impl Sixel {
         self.picture_data.len() as u32
     }
 
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn parse_from(
         pos: Position,
         vertical_scale: i32,

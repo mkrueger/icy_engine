@@ -15,7 +15,7 @@ impl Parser {
     pub(super) fn execute_dcs(
         &mut self,
         buf: &mut Buffer,
-        caret: &mut Caret,
+        caret: &Caret,
     ) -> EngineResult<CallbackAction> {
         if self.dcs_string.starts_with("CTerm:Font:") {
             return self.load_custom_font(buf);
@@ -41,7 +41,7 @@ impl Parser {
         }
 
         if self.dcs_string[i..].starts_with("!z") {
-            return self.parse_macro(buf, i + 2);
+            return self.parse_macro(i + 2);
         }
 
         if self.dcs_string[i..].starts_with('q') {
@@ -66,6 +66,18 @@ impl Parser {
                 bg_color,
                 &self.dcs_string[i + 1..],
             )?;
+
+            // remove old sixel that are shadowed by the new one
+            let screen_rect = sixel.get_screen_rect();
+            while i < buf.layers[0].sixels.len() {
+                let old_rect = buf.layers[0].sixels[i].get_screen_rect();
+                if screen_rect.contains_rect(&old_rect) {
+                    buf.layers[0].sixels.remove(i);
+                } else {
+                    i += 1;
+                }
+            }
+
             buf.layers[0].sixels.push(sixel);
             buf.layers[0].updated_sixels = true;
             return Ok(CallbackAction::None);
@@ -77,11 +89,7 @@ impl Parser {
         ))))
     }
 
-    fn parse_macro(
-        &mut self,
-        buf: &mut Buffer,
-        start_index: usize,
-    ) -> EngineResult<CallbackAction> {
+    fn parse_macro(&mut self, start_index: usize) -> EngineResult<CallbackAction> {
         if let Some(pid) = self.parsed_numbers.first() {
             if let Some(pdt) = self.parsed_numbers.get(1) {
                 // 0 - or omitted overwrites macro
@@ -161,7 +169,6 @@ impl Parser {
                             "Invalid hex number in macro sequence".to_string(),
                         )));
                     }
-                    state = HexMacroState::FirstHex;
                 }
                 HexMacroState::RepeatNumber(n) => {
                     if ch.is_ascii_digit() {
@@ -182,7 +189,6 @@ impl Parser {
             }
         }
         if read_repeat {
-            read_repeat = false;
             (0..repeat_number).for_each(|_| marco_rec.push_str(&repeat_rec));
         }
 
@@ -216,78 +222,3 @@ impl Parser {
         ))))
     }
 }
-
-/*
-            EngineState::ReadSixel(state) => {
-                match state {
-                    SixelState::EndSequence => {
-                        let current_sixel = buf.layers[0].sixels.len() - 1;
-                        let layer = &mut buf.layers[0];
-                        let new_sixel_rect = layer.sixels[current_sixel].get_rect();
-                        layer.sixels[current_sixel].read_status = SixelReadStatus::Finished;
-
-                        let char_width = 8;
-                        let char_height = 16;
-                        // Draw Sixel upon each other.
-                        if current_sixel > 0 {
-                            for i in 0..current_sixel {
-                                let old_sixel_rect = layer.sixels[i].get_rect();
-                                if old_sixel_rect.start.x <= new_sixel_rect.start.x
-                                    && new_sixel_rect.start.x * char_width
-                                        + new_sixel_rect.size.width
-                                        <= old_sixel_rect.start.x * char_width
-                                            + old_sixel_rect.size.width
-                                    && old_sixel_rect.start.y <= new_sixel_rect.start.y
-                                    && new_sixel_rect.start.y * char_height
-                                        + new_sixel_rect.size.height
-                                        <= old_sixel_rect.start.y * char_height
-                                            + old_sixel_rect.size.height
-                                {
-                                    let replace_sixel = layer.sixels.pop().unwrap();
-
-                                    let start_y = ((new_sixel_rect.start.y
-                                        - old_sixel_rect.start.y)
-                                        * char_height)
-                                        as usize;
-                                    let start_x = ((new_sixel_rect.start.x
-                                        - old_sixel_rect.start.x)
-                                        * char_width)
-                                        as usize;
-                                    let sx = &mut layer.sixels[i];
-
-                                    if sx.picture_data.len() < new_sixel_rect.size.height as usize {
-                                        sx.picture_data
-                                            .resize(new_sixel_rect.size.height as usize, vec![]);
-                                    }
-
-                                    let end_y = start_y + new_sixel_rect.size.height as usize;
-                                    let end_x = start_x + new_sixel_rect.size.width as usize;
-
-                                    for y in start_y..end_y {
-                                        if sx.picture_data[y].len() < end_x - start_x {
-                                            sx.picture_data[y]
-                                                .resize(end_x - start_x, Color::default());
-                                        }
-
-                                        for x in start_x..end_x {
-                                            let line = &replace_sixel.picture_data[y - start_y];
-                                            if line.len() > x - start_x {
-                                                sx.picture_data[y][x] = line[x - start_x];
-                                            }
-                                        }
-                                    }
-                                    sx.read_status = SixelReadStatus::Updated;
-                                }
-                            }
-                        }
-
-                        if ch == '\\' {
-                            self.state = EngineState::Default;
-                        } else {
-                            return Err(Box::new(ParserError::UnexpectedSixelEnd(ch)));
-                        }
-                    }
-
-                }
-            }
-*/
