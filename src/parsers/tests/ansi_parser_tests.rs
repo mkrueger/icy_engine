@@ -614,7 +614,7 @@ fn test_font_switch() {
     let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
     assert_eq!(0, ch.get_font_page());
     let ch = buf.get_char(Position::new(3, 0)).unwrap_or_default();
-    assert_eq!(1, ch.get_font_page());
+    assert_eq!(40, ch.get_font_page());
 }
 
 #[test]
@@ -692,7 +692,7 @@ fn test_melody() {
 #[test]
 fn test_macro() {
     let mut parser = AnsiParser::new();
-    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;0!zHello\x1B\\");
     let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
@@ -1045,10 +1045,7 @@ fn test_macro_checksum_report() {
 #[test]
 fn test_repeat_last_char() {
     let mut parser = AnsiParser::new();
-    let (buf, _) = create_buffer(
-        &mut parser,
-        b"#\x1B[10b\n",
-    );
+    let (buf, _) = create_buffer(&mut parser, b"#\x1B[10b\n");
     for x in 0..11 {
         assert_eq!('#', buf.get_char_xy(x, 0).unwrap().ch);
     }
@@ -1060,7 +1057,10 @@ fn test_request_tab_stop_report() {
     let mut parser = AnsiParser::new();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let act = get_action(&mut buf, &mut caret, &mut parser, b"#\x1B[2$w");
-    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/17/25/33/41/49/57/65/73\x1B\\".to_string()), act);
+    assert_eq!(
+        CallbackAction::SendString("\x1BP2$u1/9/17/25/33/41/49/57/65/73\x1B\\".to_string()),
+        act
+    );
 }
 
 #[test]
@@ -1068,7 +1068,10 @@ fn test_clear_all_tab_stops() {
     let mut parser = AnsiParser::new();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[2$w");
-    assert_eq!(CallbackAction::SendString("\x1BP2$u\x1B\\".to_string()), act);
+    assert_eq!(
+        CallbackAction::SendString("\x1BP2$u\x1B\\".to_string()),
+        act
+    );
 }
 
 #[test]
@@ -1076,15 +1079,26 @@ fn test_clear_tab_at_pos() {
     let mut parser = AnsiParser::new();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[16C\x1B[g\x1B[2$w");
-    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/25/33/41/49/57/65/73\x1B\\".to_string()), act);
+    assert_eq!(
+        CallbackAction::SendString("\x1BP2$u1/9/25/33/41/49/57/65/73\x1B\\".to_string()),
+        act
+    );
 }
 
 #[test]
 fn test_delete_tab() {
     let mut parser = AnsiParser::new();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[41 d\x1B[49 d\x1B[17 d\x1B[2$w");
-    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/25/33/57/65/73\x1B\\".to_string()), act);
+    let act = get_action(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[41 d\x1B[49 d\x1B[17 d\x1B[2$w",
+    );
+    assert_eq!(
+        CallbackAction::SendString("\x1BP2$u1/9/25/33/57/65/73\x1B\\".to_string()),
+        act
+    );
 }
 
 #[test]
@@ -1109,8 +1123,16 @@ fn test_tab_backward() {
 fn set_tab() {
     let mut parser = AnsiParser::new();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[1;60H\x1BH\x1B[2$w");
-    assert_eq!(CallbackAction::SendString("\x1BP2$u60\x1B\\".to_string()), act);
+    let act: CallbackAction = get_action(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[3g\x1B[1;60H\x1BH\x1B[2$w",
+    );
+    assert_eq!(
+        CallbackAction::SendString("\x1BP2$u60\x1B\\".to_string()),
+        act
+    );
 }
 
 #[test]

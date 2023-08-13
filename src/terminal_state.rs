@@ -80,7 +80,7 @@ impl TerminalState {
         ret.reset_tabs();
         ret
     }
-    
+
     pub fn tab_count(&self) -> usize {
         self.tab_stops.len()
     }
