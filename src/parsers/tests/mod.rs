@@ -45,19 +45,29 @@ fn update_buffer<T: BufferParser>(
     }
 }
 
-fn get_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackAction {
+fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackAction {
     let mut buf = Buffer::create(80, 25);
     let mut caret = Caret::default();
-    // remove editing layer
     buf.is_terminal_buffer = true;
     buf.layers.remove(0);
     buf.layers[0].is_locked = false;
     buf.layers[0].is_transparent = false;
 
+    get_action(&mut buf, &mut caret, parser, input)
+}
+
+fn get_action<T: BufferParser>(
+    buf: &mut Buffer,
+    caret: &mut Caret,
+    parser: &mut T,
+    input: &[u8],
+) -> CallbackAction {
+    // remove editing layer
+
     let mut action = CallbackAction::None;
     for b in input {
         if let Some(ch) = char::from_u32(*b as u32) {
-            action = parser.print_char(&mut buf, &mut caret, ch).unwrap(); // test code
+            action = parser.print_char(buf, caret, ch).unwrap(); // test code
         }
     }
 

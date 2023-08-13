@@ -9,10 +9,10 @@ use std::{
 
 use super::{AsciiParser, BufferParser};
 use crate::{
-    AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, Color,
-    EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position,
-    Sixel, SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE, LF,
-    XTERM_256_PALETTE,
+    update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
+    Color, EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError,
+    Position, Sixel, SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE,
+    LF, XTERM_256_PALETTE,
 };
 use base64::{engine::general_purpose, Engine as _};
 
@@ -1294,6 +1294,47 @@ impl BufferParser for AnsiParser {
                         };
                         self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
                     }
+                    ';' => {
+                        self.parsed_numbers.push(0);
+                    }
+                    'n' => {
+                        self.state = AnsiState::Default;
+                        match self.parsed_numbers.first() {
+                            Some(62) => {
+                                // DSR—Macro Space Report
+                                return Ok(CallbackAction::SendString("\x1B[32767*{".to_string()));
+                            }
+                            Some(63) => {
+                                // Memory Checksum Report (DECCKSR)
+                                if self.parsed_numbers.len() != 2 {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        "Memory Checksum Report (DECCKSR) requires 2 parameters."
+                                            .to_string(),
+                                    )));
+                                }
+                                let mut crc16 = 0;
+                                for i in 0..64 {
+                                    if let Some(m) = self.macros.get(&i) {
+                                        for b in m.as_bytes() {
+                                            crc16 = update_crc16(crc16, *b);
+                                        }
+                                        crc16 = update_crc16(crc16, 0);
+                                    } else {
+                                        crc16 = update_crc16(crc16, 0);
+                                    }
+                                }
+                                return Ok(CallbackAction::SendString(format!(
+                                    "\x1BP{}!~{crc16:04X}\x1B\\",
+                                    self.parsed_numbers[1]
+                                )));
+                            }
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_sequence.clone(),
+                                )));
+                            }
+                        }
+                    }
                     _ => {
                         self.state = AnsiState::Default;
                         // error in control sequence, terminate reading
@@ -1345,6 +1386,57 @@ impl BufferParser for AnsiParser {
                                     }
                                 }
                                 return Ok(CallbackAction::None);
+                            }
+
+                            'y' => {
+                                // DECRQCRA—Request Checksum of Rectangular Area
+                                // <https://vt100.net/docs/vt510-rm/DECRQCRA.html>
+                                self.state = AnsiState::Default;
+
+                                if self.parsed_numbers.len() != 6 {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_sequence.clone(),
+                                    )));
+                                }
+
+                                let pt = self.parsed_numbers[2];
+                                let pl = self.parsed_numbers[3];
+                                let pb = self.parsed_numbers[4];
+                                let pr = self.parsed_numbers[5];
+
+                                if pt > pb
+                                    || pl > pr
+                                    || pr > buf.get_buffer_width()
+                                    || pb > buf.get_buffer_height()
+                                    || pl < 0
+                                    || pt < 0
+                                {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        format!("invalid area for requesting checksum pt:{pt} pl:{pl} pb:{pb} pr:{pr}"),
+                                    )));
+                                }
+
+                                let mut crc16 = 0;
+                                for y in pt..pb {
+                                    for x in pl..pr {
+                                        if let Some(ch) = buf.get_char_xy(x, y) {
+                                            crc16 = update_crc16(crc16, ch.ch as u8);
+                                            for b in ch.attribute.attr.to_be_bytes() {
+                                                crc16 = update_crc16(crc16, b);
+                                            }
+                                            for b in ch.attribute.get_foreground().to_be_bytes() {
+                                                crc16 = update_crc16(crc16, b);
+                                            }
+                                            for b in ch.attribute.get_background().to_be_bytes() {
+                                                crc16 = update_crc16(crc16, b);
+                                            }
+                                        }
+                                    }
+                                }
+                                return Ok(CallbackAction::SendString(format!(
+                                    "\x1BP{}!~{crc16:04X}\x1B\\",
+                                    self.parsed_numbers[0]
+                                )));
                             }
                             _ => {}
                         }

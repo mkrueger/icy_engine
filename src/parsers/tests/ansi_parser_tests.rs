@@ -1,10 +1,12 @@
 #![allow(clippy::float_cmp)]
 use crate::{
     convert_to_ans,
-    parsers::tests::{create_buffer, get_action, update_buffer},
+    parsers::tests::{create_buffer, get_simple_action, update_buffer},
     AnsiMusicOption, AnsiParser, AttributedChar, BufferType, CallbackAction, Caret, Color,
     MusicAction, Position, SaveOptions, TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
 };
+
+use super::get_action;
 
 #[test]
 fn test_ansi_sequence() {
@@ -619,7 +621,7 @@ fn test_font_switch() {
 fn test_music() {
     let mut p = AnsiParser::new();
     p.ansi_music = AnsiMusicOption::Both;
-    let action = get_action(&mut p, b"\x1B[NC\x0E");
+    let action = get_simple_action(&mut p, b"\x1B[NC\x0E");
     let CallbackAction::PlayMusic(music) = action else {
         panic!();
     };
@@ -635,7 +637,7 @@ fn test_music() {
 fn test_set_length() {
     let mut p = AnsiParser::new();
     p.ansi_music = AnsiMusicOption::Both;
-    let action = get_action(&mut p, b"\x1B[NNL8C\x0E");
+    let action = get_simple_action(&mut p, b"\x1B[NNL8C\x0E");
     let CallbackAction::PlayMusic(music) = action else {
         panic!();
     };
@@ -651,7 +653,7 @@ fn test_set_length() {
 fn test_tempo() {
     let mut p = AnsiParser::new();
     p.ansi_music = AnsiMusicOption::Both;
-    let action = get_action(&mut p, b"\x1B[NT123C\x0E");
+    let action = get_simple_action(&mut p, b"\x1B[NT123C\x0E");
     let CallbackAction::PlayMusic(music) = action else {
         panic!();
     };
@@ -662,7 +664,7 @@ fn test_tempo() {
 fn test_pause() {
     let mut p = AnsiParser::new();
     p.ansi_music = AnsiMusicOption::Both;
-    let action = get_action(&mut p, b"\x1B[NP32.\x0E");
+    let action = get_simple_action(&mut p, b"\x1B[NP32.\x0E");
     let CallbackAction::PlayMusic(music) = action else {
         panic!();
     };
@@ -677,7 +679,7 @@ fn test_pause() {
 fn test_melody() {
     let mut p = AnsiParser::new();
     p.ansi_music = AnsiMusicOption::Both;
-    let action = get_action(
+    let action = get_simple_action(
         &mut p,
         b"\x1B[MFT225O3L8GL8GL8GL2E-P8L8FL8FL8FMLL2DL2DMNP8\x0E",
     );
@@ -690,7 +692,7 @@ fn test_melody() {
 #[test]
 fn test_macro() {
     let mut parser = AnsiParser::new();
-    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;0!zHello\x1B\\");
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
@@ -996,4 +998,46 @@ fn test_font_loading() {
     assert_eq!(0, parser.current_font_page);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[0;100 D");
     assert_eq!(100, parser.current_font_page);
+}
+
+#[test]
+fn test_rect_checksum_decrqcra() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    for _ in 0..20 {
+        update_buffer(
+            &mut buf,
+            &mut caret,
+            &mut parser,
+            b"aaaaaaaaaaaaaaaaaaaaaa\n\r",
+        );
+    }
+
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[42;1;1;1;10;10*y");
+    assert_eq!(
+        CallbackAction::SendString("\u{1b}P42!~F175\u{1b}\\".to_string()),
+        act
+    );
+}
+
+#[test]
+fn test_macro_space_report() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[?62n");
+    assert_eq!(CallbackAction::SendString("\x1B[32767*{".to_string()), act);
+}
+
+#[test]
+fn test_macro_checksum_report() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(
+        &mut parser,
+        b"\x1BP0;0;0!zHello\x1B\\\x1BP1;0;0!zWorld\x1B\\",
+    );
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[?63;1n");
+    assert_eq!(
+        CallbackAction::SendString("\x1BP1!~9D2C\x1B\\".to_string()),
+        act
+    );
 }
