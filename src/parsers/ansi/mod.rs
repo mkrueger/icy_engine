@@ -4,31 +4,24 @@ use std::{
     cmp::{max, min},
     collections::HashMap,
     fmt::Display,
-    mem,
 };
+
+use self::constants::{ANSI_FONT_NAMES, COLOR_OFFSETS};
 
 use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
     Color, EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError,
-    Position, Sixel, SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE,
-    LF, XTERM_256_PALETTE,
+    Position, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
 };
-use base64::{engine::general_purpose, Engine as _};
+
+mod constants;
+mod dcs;
 
 #[cfg(test)]
 mod sixel_tests;
 #[cfg(test)]
 mod tests;
-
-#[derive(Debug, Clone, Copy)]
-pub enum SixelState {
-    Read,
-    ReadColor,
-    ReadSize,
-    Repeat,
-    EndSequence,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum MusicState {
@@ -50,32 +43,11 @@ pub enum EngineState {
     ReadCSICommand,
     EndCSI(char),
 
-    ReadDCS,
-    RecordDCS(u8),
-    GotPossibleMacroInsideDCS(u8),
-    EndDCS(char),
-
-    ReadMacro(usize, HexMacroState),
-
-    ReadSixel(SixelState),
+    RecordDCS(ReadSTState),
 
     ParseAnsiMusic(MusicState),
 
     ReadAPS(ReadSTState),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum HexMacroState {
-    ReadSequence,
-    EscapeSequence,
-
-    ReadFirstHex,
-    ReadSecondHex(char),
-    EscapeHex,
-
-    ReadRepeatNumber(i32),
-    ReadRepeatSequenceFirst(i32),
-    ReadRepeatSequenceSecond(i32, char),
 }
 
 #[repr(u8)]
@@ -141,12 +113,12 @@ pub struct Parser {
     saved_cursor_opt: Option<Caret>,
     pub(crate) parsed_numbers: Vec<i32>,
 
-    sixel_cursor: Position,
-    current_sixel_palette: Palette,
-
     current_escape_sequence: String,
-    current_sixel_color: i32,
 
+    /*     current_sixel_color: i32,
+        sixel_cursor: Position,
+        current_sixel_palette: Palette,
+    */
     pub ansi_music: MusicOption,
     cur_music: Option<AnsiMusic>,
     cur_octave: usize,
@@ -154,63 +126,10 @@ pub struct Parser {
     cur_tempo: u32,
 
     last_char: char,
-    pub marco_rec: String,
     pub aps_string: String,
     pub(crate) macros: HashMap<usize, String>,
-    pub repeat_rec: Vec<String>,
     pub dcs_string: String,
 }
-
-const ANSI_ESC: char = '\x1B';
-
-const COLOR_OFFSETS: [u8; 8] = [0, 4, 2, 6, 1, 5, 3, 7];
-
-// TODO: Get missing fonts https://github.com/lattera/freebsd/tree/master/share/syscons/fonts
-pub static ANSI_FONT_NAMES: [&str; 43] = [
-    "IBM VGA",               // Codepage 437 English
-    "IBM VGA 855",           // Codepage 1251 Cyrillic
-    "IBM VGA 866",           // Maybe wrong: Russian koi8-r
-    "IBM VGA 850",           // ISO-8859-2 Central European
-    "IBM VGA 775",           // ISO-8859-4 Baltic wide
-    "IBM VGA 866",           // Codepage 866 (c) Russian
-    "IBM VGA 857",           // ISO-8859-9 Turkish
-    "IBM VGA",               // Unsupported:  haik8 codepage
-    "IBM VGA 862",           // ISO-8859-8 Hebrew
-    "IBM VGA",               // Unsupported: Ukrainian font koi8-u
-    "IBM VGA",               // Unsupported: ISO-8859-15 West European, (thin)
-    "IBM VGA",               // Unsupported: ISO-8859-4 Baltic (VGA 9bit mapped)
-    "IBM VGA",               // Unsupported: Russian koi8-r (b)
-    "IBM VGA",               // Unsupported: ISO-8859-4 Baltic wide
-    "IBM VGA",               // Unsupported: ISO-8859-5 Cyrillic
-    "IBM VGA",               // Unsupported: ARMSCII-8 Character set
-    "IBM VGA",               // Unsupported: ISO-8859-15 West European
-    "IBM VGA 850",           // Codepage 850 Multilingual Latin I, (thin)
-    "IBM VGA 850",           // Codepage 850 Multilingual Latin I
-    "IBM VGA",               // Unsupported: Codepage 885 Norwegian, (thin)
-    "IBM VGA",               // Unsupported: Codepage 1251 Cyrillic
-    "IBM VGA",               // Unsupported: ISO-8859-7 Greek
-    "IBM VGA",               // Unsupported: Russian koi8-r (c)
-    "IBM VGA",               // Unsupported: ISO-8859-4 Baltic
-    "IBM VGA",               // Unsupported: ISO-8859-1 West European
-    "IBM VGA 866",           // Codepage 866 Russian
-    "IBM VGA",               // Unsupported: Codepage 437 English, (thin)
-    "IBM VGA",               // Unsupported: Codepage 866 (b) Russian
-    "IBM VGA",               // Unsupported: Codepage 885 Norwegian
-    "IBM VGA",               // Unsupported: Ukrainian font cp866u
-    "IBM VGA",               // Unsupported: ISO-8859-1 West European, (thin)
-    "IBM VGA",               // Unsupported: Codepage 1131 Belarusian, (swiss)
-    "C64 PETSCII shifted",   // Commodore 64 (UPPER)
-    "C64 PETSCII unshifted", // Commodore 64 (Lower)
-    "C64 PETSCII shifted",   // Commodore 128 (UPPER)
-    "C64 PETSCII unshifted", // Commodore 128 (Lower)
-    "Atari ATASCII",         // Atari
-    "Amiga P0T-NOoDLE",      // P0T NOoDLE (Amiga)
-    "Amiga mOsOul",          // mO'sOul (Amiga)
-    "Amiga MicroKnight+",    // MicroKnight Plus (Amiga)
-    "Amiga Topaz 1+",        // Topaz Plus (Amiga)
-    "Amiga MicroKnight",     // MicroKnight (Amiga)
-    "Amiga Topaz 1",         // Topaz (Amiga)
-];
 
 impl Default for Parser {
     fn default() -> Self {
@@ -222,329 +141,16 @@ impl Default for Parser {
             parsed_numbers: Vec::new(),
             current_escape_sequence: String::new(),
             saved_cursor_opt: None,
-            current_sixel_palette: Palette::default(),
-            current_sixel_color: 0,
-            sixel_cursor: Position::default(),
             ansi_music: MusicOption::Off,
             cur_music: None,
             cur_octave: 3,
             cur_length: 4,
             cur_tempo: 120,
-            marco_rec: String::new(),
             aps_string: String::new(),
             macros: HashMap::new(),
-            repeat_rec: Vec::new(),
             dcs_string: String::new(),
             last_char: '\0',
         }
-    }
-}
-
-impl Parser {
-    fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
-        let current_sixel = buf.layers[0].sixels.len() - 1;
-
-        let sixel = &mut buf.layers[0].sixels[current_sixel];
-        if ch < '?' {
-            sixel.read_status = SixelReadStatus::Error;
-            return Err(Box::new(ParserError::InvalidSixelChar(ch)));
-        }
-        let mask = ch as u8 - b'?';
-
-        sixel.len += 1;
-        let fg_color = self.current_sixel_palette.colors
-            [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()];
-        let x_pos = self.sixel_cursor.x as usize;
-        let y_pos = self.sixel_cursor.y as usize * 6;
-
-        let mut last_line = y_pos + 6;
-        if let Some(defined_height) = sixel.defined_height {
-            if last_line > defined_height {
-                last_line = defined_height;
-            }
-        }
-
-        if sixel.picture_data.len() < last_line {
-            sixel.picture_data.resize(
-                last_line,
-                vec![Color::default(); sixel.defined_width.unwrap_or(0)],
-            );
-        }
-
-        for i in 0..6 {
-            if mask & (1 << i) != 0 {
-                let translated_line = y_pos + i;
-                if translated_line >= last_line {
-                    break;
-                }
-
-                let cur_line = &mut sixel.picture_data[translated_line];
-
-                if cur_line.len() <= x_pos {
-                    cur_line.resize(x_pos + 1, Color::default());
-                }
-
-                cur_line[x_pos] = fg_color;
-            }
-        }
-        self.sixel_cursor.x += 1;
-        sixel.read_status = SixelReadStatus::Position(self.sixel_cursor.x, self.sixel_cursor.y);
-        Ok(())
-    }
-
-    fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
-        if *i + 1 >= self.parsed_numbers.len() {
-            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            )));
-        }
-        match self.parsed_numbers.get(*i + 1).unwrap() {
-            5 => {
-                // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
-                if *i + 3 > self.parsed_numbers.len() {
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )));
-                }
-                let color = self.parsed_numbers[*i + 2];
-                *i += 3;
-                if (0..=255).contains(&color) {
-                    let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize]);
-                    Ok(color)
-                } else {
-                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )))
-                }
-            }
-            2 => {
-                // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
-                if *i + 5 > self.parsed_numbers.len() {
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )));
-                }
-                let r = self.parsed_numbers[*i + 2];
-                let g = self.parsed_numbers[*i + 3];
-                let b = self.parsed_numbers[*i + 4];
-                *i += 5;
-                if (0..=255).contains(&r) && (0..=255).contains(&g) && (0..=255).contains(&b) {
-                    let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
-                    Ok(color)
-                } else {
-                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )))
-                }
-            }
-            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            ))),
-        }
-    }
-
-    fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
-        if let EngineState::ParseAnsiMusic(state) = self.state {
-            match state {
-                MusicState::ParseMusicStyle => {
-                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                    match ch {
-                        'F' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Foreground)),
-                        'B' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Background)),
-                        'N' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Normal)),
-                        'L' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Legato)),
-                        'S' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Staccato)),
-                        _ => return self.parse_ansi_music(ch),
-                    }
-                }
-                MusicState::SetTempo(x) => {
-                    let mut x = x;
-                    if ch.is_ascii_digit() {
-                        x = x * 10 + ch as u16 - b'0' as u16;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(x));
-                    } else {
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                        self.cur_tempo = x.clamp(32, 255) as u32;
-                        return Ok(self.parse_default_ansi_music(ch));
-                    }
-                }
-                MusicState::SetOctave => {
-                    if ('0'..='6').contains(&ch) {
-                        self.cur_octave = ((ch as u8) - b'0') as usize;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                    } else {
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )));
-                    }
-                }
-                MusicState::Note(n, len) => {
-                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                    match ch {
-                        '+' | '#' => {
-                            if n + 1 < FREQ.len() {
-                                self.state =
-                                    EngineState::ParseAnsiMusic(MusicState::Note(n + 1, len));
-                            }
-                        }
-                        '-' => {
-                            if n > 0 {
-                                // B
-                                self.state =
-                                    EngineState::ParseAnsiMusic(MusicState::Note(n - 1, len));
-                            }
-                        }
-                        '0'..='9' => {
-                            let len = len * 10 + ch as u32 - b'0' as u32;
-                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
-                        }
-                        '.' => {
-                            let len = len * 3 / 2;
-                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
-                        }
-                        _ => {
-                            self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                            let len = if len == 0 { self.cur_length } else { len };
-                            self.cur_music.as_mut().unwrap().music_actions.push(
-                                MusicAction::PlayNote(
-                                    FREQ[n + (self.cur_octave * 12)],
-                                    self.cur_tempo * len,
-                                ),
-                            );
-                            return Ok(self.parse_default_ansi_music(ch));
-                        }
-                    }
-                }
-                MusicState::SetLength(x) => {
-                    let mut x = x;
-                    if ch.is_ascii_digit() {
-                        x = x * 10 + ch as i32 - b'0' as i32;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
-                    } else if ch == '.' {
-                        x = x * 3 / 2;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
-                    } else {
-                        self.cur_length = (x as u32).clamp(1, 64);
-                        return Ok(self.parse_default_ansi_music(ch));
-                    }
-                }
-                MusicState::Pause(x) => {
-                    let mut x = x;
-                    if ch.is_ascii_digit() {
-                        x = x * 10 + ch as i32 - b'0' as i32;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
-                    } else if ch == '.' {
-                        x = x * 3 / 2;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
-                    } else {
-                        let pause = (x as u32).clamp(1, 64);
-                        self.cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::Pause(self.cur_tempo * pause));
-                        return Ok(self.parse_default_ansi_music(ch));
-                    }
-                }
-                MusicState::Default => {
-                    return Ok(self.parse_default_ansi_music(ch));
-                }
-            }
-        }
-        Ok(CallbackAction::None)
-    }
-
-    /// .
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if .
-    fn parse_default_ansi_music(&mut self, ch: char) -> CallbackAction {
-        match ch {
-            '\x0E' => {
-                self.state = EngineState::Default;
-                self.cur_octave = 3;
-                return CallbackAction::PlayMusic(
-                    self.cur_music.replace(AnsiMusic::default()).unwrap(),
-                );
-            }
-            'T' => self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(0)),
-            'L' => self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(0)),
-            'O' => self.state = EngineState::ParseAnsiMusic(MusicState::SetOctave),
-            'C' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(0, 0)),
-            'D' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(2, 0)),
-            'E' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(4, 0)),
-            'F' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(5, 0)),
-            'G' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(7, 0)),
-            'A' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(9, 0)),
-            'B' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(11, 0)),
-            'M' => self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle),
-            '<' => {
-                if self.cur_octave > 0 {
-                    self.cur_octave -= 1;
-                }
-            }
-            '>' => {
-                if self.cur_octave < 6 {
-                    self.cur_octave += 1;
-                }
-            }
-            'P' => {
-                self.state = EngineState::ParseAnsiMusic(MusicState::Pause(0));
-            }
-            _ => {}
-        }
-        CallbackAction::None
-    }
-
-    fn invoke_macro(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-        id: i32,
-    ) -> EngineResult<CallbackAction> {
-        let m = if let Some(m) = self.macros.get(&(id as usize)) {
-            m.clone()
-        } else {
-            return Ok(CallbackAction::None);
-        };
-        for ch in m.chars() {
-            self.print_char(buf, caret, ch)?;
-        }
-        Ok(CallbackAction::None)
-    }
-
-    fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
-        println!("TODO execute APS command: {}", self.aps_string);
     }
 }
 
@@ -617,7 +223,8 @@ impl BufferParser for Parser {
 
                         'P' => {
                             // DCS
-                            self.state = EngineState::ReadDCS;
+                            self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                            self.dcs_string.clear();
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
@@ -647,136 +254,6 @@ impl BufferParser for Parser {
                 };
             }
 
-            EngineState::ReadMacro(id, state) => {
-                match state {
-                    HexMacroState::ReadSequence | HexMacroState::EscapeSequence => {
-                        if matches!(state, HexMacroState::EscapeSequence) {
-                            if ch == '\\' {
-                                // end of macro
-                                let mut str = String::new();
-                                mem::swap(&mut self.marco_rec, &mut str);
-                                self.macros.insert(*id, str);
-                                self.state = EngineState::Default;
-                                return Ok(CallbackAction::None);
-                            }
-                            self.marco_rec.push('\x1B');
-                        }
-
-                        if ch == '\x1B' {
-                            self.state = EngineState::ReadMacro(*id, HexMacroState::EscapeSequence);
-                            return Ok(CallbackAction::None);
-                        }
-                        self.state = EngineState::ReadMacro(*id, HexMacroState::ReadSequence);
-                        self.marco_rec.push(ch);
-                    }
-
-                    HexMacroState::EscapeHex => {
-                        if ch == '\\' {
-                            // end of macro
-                            let mut str = String::new();
-                            mem::swap(&mut self.marco_rec, &mut str);
-                            self.macros.insert(*id, str);
-                            self.state = EngineState::Default;
-                            return Ok(CallbackAction::None);
-                        }
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::Error(format!(
-                            "Invalid end of hex macro {ch}"
-                        ))));
-                    }
-                    HexMacroState::ReadFirstHex => {
-                        if ch == '\x1B' {
-                            self.state = EngineState::ReadMacro(*id, HexMacroState::EscapeHex);
-                            return Ok(CallbackAction::None);
-                        }
-                        if ch == '!' {
-                            self.state =
-                                EngineState::ReadMacro(*id, HexMacroState::ReadRepeatNumber(0));
-                            return Ok(CallbackAction::None);
-                        }
-                        self.state = EngineState::ReadMacro(
-                            *id,
-                            HexMacroState::ReadSecondHex(unsafe {
-                                char::from_u32_unchecked(ch as u32)
-                            }),
-                        );
-                        return Ok(CallbackAction::None);
-                    }
-                    HexMacroState::ReadSecondHex(first) => {
-                        let cc: char =
-                            unsafe { char::from_u32_unchecked(ch as u32) }.to_ascii_uppercase();
-                        let second = HEX_TABLE.iter().position(|&x| x == cc as u8);
-                        let first = HEX_TABLE.iter().position(|&x| x == *first as u8);
-                        if let (Some(first), Some(second)) = (first, second) {
-                            self.marco_rec.push(unsafe {
-                                char::from_u32_unchecked((first * 16 + second) as u32)
-                            });
-                        } else {
-                            self.state = EngineState::Default;
-                            return Err(Box::new(ParserError::Error(
-                                "Invalid hex number in macro sequence".to_string(),
-                            )));
-                        }
-                        self.state = EngineState::ReadMacro(*id, HexMacroState::ReadFirstHex);
-                    }
-                    HexMacroState::ReadRepeatNumber(n) => {
-                        if ch.is_ascii_digit() {
-                            self.state = EngineState::ReadMacro(
-                                *id,
-                                HexMacroState::ReadRepeatNumber(*n * 10 + ch as i32 - b'0' as i32),
-                            );
-                            return Ok(CallbackAction::None);
-                        }
-                        if ch == ';' {
-                            self.repeat_rec.push(String::new());
-                            self.state = EngineState::ReadMacro(
-                                *id,
-                                HexMacroState::ReadRepeatSequenceFirst(*n),
-                            );
-                            return Ok(CallbackAction::None);
-                        }
-                        return Err(Box::new(ParserError::Error(format!(
-                            "Invalid end of repeat number {ch}"
-                        ))));
-                    }
-                    HexMacroState::ReadRepeatSequenceFirst(repeats) => {
-                        if ch == ';' {
-                            let seq = self.repeat_rec.pop().unwrap();
-                            (0..*repeats).for_each(|_| self.marco_rec.push_str(&seq));
-                            self.state = EngineState::ReadMacro(*id, HexMacroState::ReadFirstHex);
-                            return Ok(CallbackAction::None);
-                        }
-                        self.state = EngineState::ReadMacro(
-                            *id,
-                            HexMacroState::ReadRepeatSequenceSecond(*repeats, unsafe {
-                                char::from_u32_unchecked(ch as u32)
-                            }),
-                        );
-                        return Ok(CallbackAction::None);
-                    }
-                    HexMacroState::ReadRepeatSequenceSecond(repeats, first) => {
-                        let cc: char =
-                            unsafe { char::from_u32_unchecked(ch as u32) }.to_ascii_uppercase();
-                        let second = HEX_TABLE.iter().position(|&x| x == cc as u8);
-                        let first = HEX_TABLE.iter().position(|&x| x == *first as u8);
-                        if let (Some(first), Some(second)) = (first, second) {
-                            self.repeat_rec.last_mut().unwrap().push(unsafe {
-                                char::from_u32_unchecked((first * 16 + second) as u32)
-                            });
-                        } else {
-                            self.state = EngineState::Default;
-                            return Err(Box::new(ParserError::Error(
-                                "Invalid hex number in macro repeat sequence".to_string(),
-                            )));
-                        }
-                        self.state = EngineState::ReadMacro(
-                            *id,
-                            HexMacroState::ReadRepeatSequenceFirst(*repeats),
-                        );
-                    }
-                }
-            }
-
             EngineState::ReadAPS(st_state) => match st_state {
                 ReadSTState::Default(nesting_level) => {
                     if ch == '\x1B' {
@@ -797,395 +274,34 @@ impl BufferParser for Parser {
                 }
             },
 
-            EngineState::EndDCS(old_char) => {
-                if *old_char == '!' && ch == 'z' {
-                    if let Some(pid) = self.parsed_numbers.first() {
-                        if let Some(pdt) = self.parsed_numbers.get(1) {
-                            // 0 - or omitted overwrites macro
-                            // 1 - clear all macros before defining this macro
-                            if *pdt == 1 {
-                                self.macros.clear();
-                            }
-                        }
-
-                        let parse_mode = match self.parsed_numbers.get(2) {
-                            Some(1) => HexMacroState::ReadFirstHex,
-                            _ => HexMacroState::ReadSequence,
-                        };
-                        self.marco_rec = String::new();
-                        self.repeat_rec.clear();
-                        self.state = EngineState::ReadMacro(*pid as usize, parse_mode);
-                        return Ok(CallbackAction::None);
+            EngineState::RecordDCS(dcs_state) => match dcs_state {
+                ReadSTState::GotEscape(nesting_level) => {
+                    self.state = EngineState::Default;
+                    if ch == '\\' {
+                        return self.execute_dcs(buf, caret);
                     }
+                    return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        "sequence: {} end char <ESC>{ch}",
+                        self.dcs_string
+                    ))));
                 }
-                self.state = EngineState::Default;
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                    "{ch}"
-                ))));
-            }
-            EngineState::GotPossibleMacroInsideDCS(i) => {
-                // \x1B[<num>*z
-                // read macro inside dcs sequence, 3 states:´
-                // 0: [
-                // 1: <num>
-                // 2: *
-                // z
-
-                if ch.is_ascii_digit() {
-                    if *i != 1 {
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected number got '{ch}'"
-                        ))));
+                ReadSTState::Default(nesting_level) => match ch {
+                    '\x1B' => {
+                        self.state = EngineState::RecordDCS(ReadSTState::GotEscape(*nesting_level));
                     }
-                    let d = match self.parsed_numbers.pop() {
-                        Some(number) => number,
-                        _ => 0,
-                    };
-                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
-                    return Ok(CallbackAction::None);
-                }
-                if ch == '[' {
-                    if *i != 0 {
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected '[' got '{ch}'"
-                        ))));
+                    _ => {
+                        self.dcs_string.push(ch);
                     }
-                    self.state = EngineState::GotPossibleMacroInsideDCS(1);
-                    return Ok(CallbackAction::None);
-                }
-                if ch == '*' {
-                    if *i != 1 {
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected '*' got '{ch}'"
-                        ))));
-                    }
-                    self.state = EngineState::GotPossibleMacroInsideDCS(2);
-                    return Ok(CallbackAction::None);
-                }
-                if ch == 'z' {
-                    if *i != 2 {
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected 'z' got '{ch}'"
-                        ))));
-                    }
-                    if self.parsed_numbers.len() != 1 {
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "Macro hasn't one number defined got '{}'",
-                            self.parsed_numbers.len()
-                        ))));
-                    }
-                    self.state = EngineState::ReadDCS;
-                    return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
-                }
-
-                self.state = EngineState::Default;
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                    "Invalid macro inside dcs '{ch}'"
-                ))));
-            }
-            EngineState::ReadDCS => match ch {
-                'q' => {
-                    let aspect_ratio = match self.parsed_numbers.first() {
-                        Some(0 | 1 | 5 | 6) => 2,
-                        Some(2) => 5,
-                        Some(3 | 4) => 3,
-                        _ => 1,
-                    };
-
-                    let mut sixel = Sixel::new(caret.pos);
-                    sixel.vertical_size = aspect_ratio;
-
-                    match self.parsed_numbers.first() {
-                        Some(1) => {
-                            sixel.background_color =
-                                Some(buf.palette.colors[caret.attr.get_background() as usize]);
-                        }
-                        _ => sixel.background_color = None,
-                    };
-
-                    buf.layers[0].sixels.push(sixel);
-                    self.sixel_cursor = Position::default();
-                    self.current_sixel_palette.clear();
-                    self.state = EngineState::ReadSixel(SixelState::Read);
-                }
-                '!' => {
-                    self.state = EngineState::EndDCS('!');
-                }
-                '\x1B' => {
-                    // maybe a macro inside the DCS sequence
-                    self.state = EngineState::GotPossibleMacroInsideDCS(0);
-                }
-                'C' => {
-                    self.dcs_string.clear();
-                    self.state = EngineState::RecordDCS(0);
-                }
+                },
                 _ => {
-                    if ch.is_ascii_digit() {
-                        let d = match self.parsed_numbers.pop() {
-                            Some(number) => number,
-                            _ => 0,
-                        };
-                        self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
-                    } else if ch == ';' {
-                        self.parsed_numbers.push(0);
-                    } else {
-                        self.state = EngineState::Default;
-                        self.current_escape_sequence.push(ch);
-                        if let Some(sixel) = buf.layers[0].sixels.last_mut() {
-                            sixel.read_status = SixelReadStatus::Error;
-                        }
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "sequence: {}",
-                            self.current_escape_sequence
-                        ))));
-                    }
+                    self.state = EngineState::Default;
+                    return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        "sequence: {}",
+                        self.dcs_string
+                    ))));
                 }
             },
-            EngineState::RecordDCS(dcs_state) => {
-                match dcs_state {
-                    1 => {
-                        self.state = EngineState::Default;
-                        if ch == '\\' {
-                            if self.dcs_string.starts_with("Term:Font:") {
-                                let start_index = "Term:Font:".len();
-                                if let Some(idx) = self.dcs_string[start_index..].find(':') {
-                                    let idx = idx + start_index;
 
-                                    if let Ok(num) =
-                                        self.dcs_string[start_index..idx].parse::<usize>()
-                                    {
-                                        if let Ok(font_data) = general_purpose::STANDARD
-                                            .decode(self.dcs_string[idx + 1..].as_bytes())
-                                        {
-                                            if let Ok(font) = BitFont::from_bytes(
-                                                format!("custom font {num}"),
-                                                &font_data,
-                                            ) {
-                                                buf.set_font(num, font);
-                                                return Ok(CallbackAction::None);
-                                            }
-                                        }
-                                    }
-                                }
-
-                                return Err(Box::new(ParserError::UnsupportedDCSSequence(
-                                    format!("invalid custom font in dcs: {}", self.dcs_string),
-                                )));
-                            }
-                            // TODO handle DCS
-                            return Ok(CallbackAction::None);
-                        }
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "sequence: {}",
-                            self.dcs_string
-                        ))));
-                    }
-                    0 => match ch {
-                        '\x1B' => {
-                            self.state = EngineState::RecordDCS(1);
-                        }
-                        _ => {
-                            self.dcs_string.push(ch);
-                        }
-                    },
-                    _ => {
-                        self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                            "sequence: {}",
-                            self.dcs_string
-                        ))));
-                    }
-                }
-            }
-            EngineState::ReadSixel(state) => {
-                match state {
-                    SixelState::EndSequence => {
-                        let current_sixel = buf.layers[0].sixels.len() - 1;
-                        let layer = &mut buf.layers[0];
-                        let new_sixel_rect = layer.sixels[current_sixel].get_rect();
-                        layer.sixels[current_sixel].read_status = SixelReadStatus::Finished;
-
-                        let char_width = 8;
-                        let char_height = 16;
-                        // Draw Sixel upon each other.
-                        if current_sixel > 0 {
-                            for i in 0..current_sixel {
-                                let old_sixel_rect = layer.sixels[i].get_rect();
-                                if old_sixel_rect.start.x <= new_sixel_rect.start.x
-                                    && new_sixel_rect.start.x * char_width
-                                        + new_sixel_rect.size.width
-                                        <= old_sixel_rect.start.x * char_width
-                                            + old_sixel_rect.size.width
-                                    && old_sixel_rect.start.y <= new_sixel_rect.start.y
-                                    && new_sixel_rect.start.y * char_height
-                                        + new_sixel_rect.size.height
-                                        <= old_sixel_rect.start.y * char_height
-                                            + old_sixel_rect.size.height
-                                {
-                                    let replace_sixel = layer.sixels.pop().unwrap();
-
-                                    let start_y = ((new_sixel_rect.start.y
-                                        - old_sixel_rect.start.y)
-                                        * char_height)
-                                        as usize;
-                                    let start_x = ((new_sixel_rect.start.x
-                                        - old_sixel_rect.start.x)
-                                        * char_width)
-                                        as usize;
-                                    let sx = &mut layer.sixels[i];
-
-                                    if sx.picture_data.len() < new_sixel_rect.size.height as usize {
-                                        sx.picture_data
-                                            .resize(new_sixel_rect.size.height as usize, vec![]);
-                                    }
-
-                                    let end_y = start_y + new_sixel_rect.size.height as usize;
-                                    let end_x = start_x + new_sixel_rect.size.width as usize;
-
-                                    for y in start_y..end_y {
-                                        if sx.picture_data[y].len() < end_x - start_x {
-                                            sx.picture_data[y]
-                                                .resize(end_x - start_x, Color::default());
-                                        }
-
-                                        for x in start_x..end_x {
-                                            let line = &replace_sixel.picture_data[y - start_y];
-                                            if line.len() > x - start_x {
-                                                sx.picture_data[y][x] = line[x - start_x];
-                                            }
-                                        }
-                                    }
-                                    sx.read_status = SixelReadStatus::Updated;
-                                }
-                            }
-                        }
-
-                        if ch == '\\' {
-                            self.state = EngineState::Default;
-                        } else {
-                            return Err(Box::new(ParserError::UnexpectedSixelEnd(ch)));
-                        }
-                    }
-                    SixelState::ReadColor => {
-                        if ch.is_ascii_digit() {
-                            let d = match self.parsed_numbers.pop() {
-                                Some(number) => number,
-                                _ => 0,
-                            };
-                            self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
-                        } else if ch == ';' {
-                            self.parsed_numbers.push(0);
-                        } else {
-                            if let Some(color) = self.parsed_numbers.first() {
-                                self.current_sixel_color = *color;
-                            }
-                            if self.parsed_numbers.len() > 1 {
-                                if self.parsed_numbers.len() != 5 {
-                                    self.state = EngineState::Default;
-                                    return Err(Box::new(ParserError::InvalidColorInSixelSequence));
-                                }
-
-                                match self.parsed_numbers.get(1).unwrap() {
-                                    2 => {
-                                        self.current_sixel_palette.set_color_rgb(
-                                            self.current_sixel_color as usize,
-                                            (self.parsed_numbers[2] * 255 / 100) as u8,
-                                            (self.parsed_numbers[3] * 255 / 100) as u8,
-                                            (self.parsed_numbers[4] * 255 / 100) as u8,
-                                        );
-                                    }
-                                    1 => {
-                                        self.current_sixel_palette.set_color_hsl(
-                                            self.current_sixel_color as usize,
-                                            self.parsed_numbers[2] as f32 * 360.0
-                                                / (2.0 * std::f32::consts::PI),
-                                            self.parsed_numbers[4] as f32 / 100.0, // sixel is hls
-                                            self.parsed_numbers[3] as f32 / 100.0,
-                                        );
-                                    }
-                                    n => {
-                                        let sixel = buf.layers[0].sixels.last_mut().unwrap();
-                                        sixel.read_status = SixelReadStatus::Error;
-                                        return Err(Box::new(
-                                            ParserError::UnsupportedSixelColorformat(*n),
-                                        ));
-                                    }
-                                }
-                            }
-                            self.read_sixel_data(buf, ch)?;
-                        }
-                    }
-                    SixelState::ReadSize => {
-                        if ch.is_ascii_digit() {
-                            let d = match self.parsed_numbers.pop() {
-                                Some(number) => number,
-                                _ => 0,
-                            };
-                            self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
-                        } else if ch == ';' {
-                            self.parsed_numbers.push(0);
-                        } else {
-                            let sixel = buf.layers[0].sixels.last_mut().unwrap();
-                            if self.parsed_numbers.len() < 2 || self.parsed_numbers.len() > 4 {
-                                self.state = EngineState::ReadSixel(SixelState::Read);
-                                sixel.read_status = SixelReadStatus::Error;
-                                return Err(Box::new(ParserError::InvalidPictureSize));
-                            }
-                            sixel.vertical_size = self.parsed_numbers[0];
-                            sixel.horizontal_size = self.parsed_numbers[1];
-                            if self.parsed_numbers.len() == 3 {
-                                let height = self.parsed_numbers[2];
-                                sixel.defined_height = Some(height as usize);
-                                sixel.picture_data.resize(height as usize, Vec::new());
-                            }
-
-                            if self.parsed_numbers.len() == 4 {
-                                let height = self.parsed_numbers[3];
-                                sixel.defined_height = Some(height as usize);
-
-                                let width = self.parsed_numbers[2];
-                                sixel.defined_width = Some(width as usize);
-                                sixel.picture_data.resize(
-                                    height as usize,
-                                    vec![Color::default(); width as usize],
-                                );
-                            }
-
-                            self.read_sixel_data(buf, ch)?;
-                        }
-                    }
-
-                    SixelState::Repeat => {
-                        if ch.is_ascii_digit() {
-                            let d = match self.parsed_numbers.pop() {
-                                Some(number) => number,
-                                _ => 0,
-                            };
-                            self.parsed_numbers.push(d * 10 + ch as i32 - '0' as i32);
-                        } else {
-                            if let Some(i) = self.parsed_numbers.first() {
-                                for _ in 0..*i {
-                                    self.parse_sixel(buf, ch)?;
-                                }
-                            } else {
-                                self.state = EngineState::Default;
-                                let sixel = buf.layers[0].sixels.last_mut().unwrap();
-                                sixel.read_status = SixelReadStatus::Error;
-                                return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
-                            }
-                            self.state = EngineState::ReadSixel(SixelState::Read);
-                        }
-                    }
-                    SixelState::Read => {
-                        self.read_sixel_data(buf, ch)?;
-                    }
-                }
-            }
             EngineState::ReadCSICommand => {
                 self.current_escape_sequence.push(ch);
                 match ch {
@@ -2300,7 +1416,7 @@ impl BufferParser for Parser {
             }
 
             EngineState::Default => match ch {
-                ANSI_ESC => {
+                '\x1B' => {
                     self.current_escape_sequence.clear();
                     self.current_escape_sequence.push_str("<ESC>");
                     self.state = EngineState::Default;
@@ -2329,36 +1445,258 @@ impl BufferParser for Parser {
 }
 
 impl Parser {
-    fn read_sixel_data(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
-        match ch {
-            ANSI_ESC => self.state = EngineState::ReadSixel(SixelState::EndSequence),
-
-            '#' => {
-                self.parsed_numbers.clear();
-                self.state = EngineState::ReadSixel(SixelState::ReadColor);
-            }
-            '!' => {
-                self.parsed_numbers.clear();
-                self.state = EngineState::ReadSixel(SixelState::Repeat);
-            }
-            '-' => {
-                self.sixel_cursor.x = 0;
-                self.sixel_cursor.y += 1;
-            }
-            '$' => {
-                self.sixel_cursor.x = 0;
-            }
-            '"' => {
-                self.parsed_numbers.clear();
-                self.state = EngineState::ReadSixel(SixelState::ReadSize);
-            }
-            _ => {
-                if ch > '\x7F' {
-                    self.state = EngineState::Default;
+    fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
+        if *i + 1 >= self.parsed_numbers.len() {
+            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                self.current_escape_sequence.clone(),
+            )));
+        }
+        match self.parsed_numbers.get(*i + 1).unwrap() {
+            5 => {
+                // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
+                if *i + 3 > self.parsed_numbers.len() {
+                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_escape_sequence.clone(),
+                    )));
                 }
-                self.parse_sixel(buf, ch)?;
+                let color = self.parsed_numbers[*i + 2];
+                *i += 3;
+                if (0..=255).contains(&color) {
+                    let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize]);
+                    Ok(color)
+                } else {
+                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_escape_sequence.clone(),
+                    )))
+                }
+            }
+            2 => {
+                // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
+                if *i + 5 > self.parsed_numbers.len() {
+                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_escape_sequence.clone(),
+                    )));
+                }
+                let r = self.parsed_numbers[*i + 2];
+                let g = self.parsed_numbers[*i + 3];
+                let b = self.parsed_numbers[*i + 4];
+                *i += 5;
+                if (0..=255).contains(&r) && (0..=255).contains(&g) && (0..=255).contains(&b) {
+                    let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
+                    Ok(color)
+                } else {
+                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        self.current_escape_sequence.clone(),
+                    )))
+                }
+            }
+            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                self.current_escape_sequence.clone(),
+            ))),
+        }
+    }
+
+    fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
+        if let EngineState::ParseAnsiMusic(state) = self.state {
+            match state {
+                MusicState::ParseMusicStyle => {
+                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
+                    match ch {
+                        'F' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Foreground)),
+                        'B' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Background)),
+                        'N' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Normal)),
+                        'L' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Legato)),
+                        'S' => self
+                            .cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::SetStyle(MusicStyle::Staccato)),
+                        _ => return self.parse_ansi_music(ch),
+                    }
+                }
+                MusicState::SetTempo(x) => {
+                    let mut x = x;
+                    if ch.is_ascii_digit() {
+                        x = x * 10 + ch as u16 - b'0' as u16;
+                        self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(x));
+                    } else {
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
+                        self.cur_tempo = x.clamp(32, 255) as u32;
+                        return Ok(self.parse_default_ansi_music(ch));
+                    }
+                }
+                MusicState::SetOctave => {
+                    if ('0'..='6').contains(&ch) {
+                        self.cur_octave = ((ch as u8) - b'0') as usize;
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
+                    } else {
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            self.current_escape_sequence.clone(),
+                        )));
+                    }
+                }
+                MusicState::Note(n, len) => {
+                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
+                    match ch {
+                        '+' | '#' => {
+                            if n + 1 < FREQ.len() {
+                                self.state =
+                                    EngineState::ParseAnsiMusic(MusicState::Note(n + 1, len));
+                            }
+                        }
+                        '-' => {
+                            if n > 0 {
+                                // B
+                                self.state =
+                                    EngineState::ParseAnsiMusic(MusicState::Note(n - 1, len));
+                            }
+                        }
+                        '0'..='9' => {
+                            let len = len * 10 + ch as u32 - b'0' as u32;
+                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
+                        }
+                        '.' => {
+                            let len = len * 3 / 2;
+                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
+                        }
+                        _ => {
+                            self.state = EngineState::ParseAnsiMusic(MusicState::Default);
+                            let len = if len == 0 { self.cur_length } else { len };
+                            self.cur_music.as_mut().unwrap().music_actions.push(
+                                MusicAction::PlayNote(
+                                    FREQ[n + (self.cur_octave * 12)],
+                                    self.cur_tempo * len,
+                                ),
+                            );
+                            return Ok(self.parse_default_ansi_music(ch));
+                        }
+                    }
+                }
+                MusicState::SetLength(x) => {
+                    let mut x = x;
+                    if ch.is_ascii_digit() {
+                        x = x * 10 + ch as i32 - b'0' as i32;
+                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
+                    } else if ch == '.' {
+                        x = x * 3 / 2;
+                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
+                    } else {
+                        self.cur_length = (x as u32).clamp(1, 64);
+                        return Ok(self.parse_default_ansi_music(ch));
+                    }
+                }
+                MusicState::Pause(x) => {
+                    let mut x = x;
+                    if ch.is_ascii_digit() {
+                        x = x * 10 + ch as i32 - b'0' as i32;
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
+                    } else if ch == '.' {
+                        x = x * 3 / 2;
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
+                    } else {
+                        let pause = (x as u32).clamp(1, 64);
+                        self.cur_music
+                            .as_mut()
+                            .unwrap()
+                            .music_actions
+                            .push(MusicAction::Pause(self.cur_tempo * pause));
+                        return Ok(self.parse_default_ansi_music(ch));
+                    }
+                }
+                MusicState::Default => {
+                    return Ok(self.parse_default_ansi_music(ch));
+                }
             }
         }
-        Ok(())
+        Ok(CallbackAction::None)
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    fn parse_default_ansi_music(&mut self, ch: char) -> CallbackAction {
+        match ch {
+            '\x0E' => {
+                self.state = EngineState::Default;
+                self.cur_octave = 3;
+                return CallbackAction::PlayMusic(
+                    self.cur_music.replace(AnsiMusic::default()).unwrap(),
+                );
+            }
+            'T' => self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(0)),
+            'L' => self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(0)),
+            'O' => self.state = EngineState::ParseAnsiMusic(MusicState::SetOctave),
+            'C' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(0, 0)),
+            'D' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(2, 0)),
+            'E' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(4, 0)),
+            'F' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(5, 0)),
+            'G' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(7, 0)),
+            'A' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(9, 0)),
+            'B' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(11, 0)),
+            'M' => self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle),
+            '<' => {
+                if self.cur_octave > 0 {
+                    self.cur_octave -= 1;
+                }
+            }
+            '>' => {
+                if self.cur_octave < 6 {
+                    self.cur_octave += 1;
+                }
+            }
+            'P' => {
+                self.state = EngineState::ParseAnsiMusic(MusicState::Pause(0));
+            }
+            _ => {}
+        }
+        CallbackAction::None
+    }
+
+    fn invoke_macro(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        id: i32,
+    ) -> EngineResult<CallbackAction> {
+        let m = if let Some(m) = self.macros.get(&(id as usize)) {
+            m.clone()
+        } else {
+            return Ok(CallbackAction::None);
+        };
+        for ch in m.chars() {
+            self.print_char(buf, caret, ch)?;
+        }
+        Ok(CallbackAction::None)
+    }
+
+    fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
+        println!("TODO execute APS command: {}", self.aps_string);
     }
 }

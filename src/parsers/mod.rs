@@ -422,6 +422,7 @@ fn _get_string_from_buffer(buf: &Buffer) -> String {
     converted.to_string()
 }
 
+#[cfg(test)]
 fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) {
     let mut buf = Buffer::create(80, 25);
     let mut caret = Caret::default();
@@ -437,6 +438,7 @@ fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Care
     (buf, caret)
 }
 
+#[cfg(test)]
 fn update_buffer<T: BufferParser>(
     buf: &mut Buffer,
     caret: &mut Caret,
@@ -450,6 +452,7 @@ fn update_buffer<T: BufferParser>(
     }
 }
 
+#[cfg(test)]
 fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackAction {
     let mut buf = Buffer::create(80, 25);
     let mut caret = Caret::default();
@@ -461,6 +464,7 @@ fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackA
     get_action(&mut buf, &mut caret, parser, input)
 }
 
+#[cfg(test)]
 fn get_action<T: BufferParser>(
     buf: &mut Buffer,
     caret: &mut Caret,
