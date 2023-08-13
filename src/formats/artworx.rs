@@ -49,10 +49,8 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     o += palette_size;
 
     let font_size = 4096;
-    result.font_table.clear();
-    result
-        .font_table
-        .push(BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]));
+    result.clear_font_table();
+    result.set_font(0, BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]));
     o += font_size;
 
     loop {
@@ -79,6 +77,10 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
 /// .
 ///
+/// # Panics
+///
+/// Panics if .
+///
 /// # Errors
 ///
 /// This function will return an error if .
@@ -93,7 +95,7 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         ));
     }
 
-    buf.font_table[0].convert_to_u8_data(&mut result);
+    buf.get_font(0).unwrap().convert_to_u8_data(&mut result);
 
     for y in 0..buf.get_real_buffer_height() {
         for x in 0..buf.get_buffer_width() {

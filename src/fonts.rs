@@ -164,7 +164,7 @@ impl BitFont {
     // const PSF1_MODEHASSEQ: u8 = 0x04;
     // const PSF1_MAXMODE: u8 = 0x05;
 
-    fn load_psf1(font_name: &str, data: &[u8]) -> Self {
+    fn load_psf1(font_name: impl Into<String>, data: &[u8]) -> Self {
         let mode = data[2];
         let charsize = data[3];
         let length = if mode & BitFont::PSF1_MODE512 == BitFont::PSF1_MODE512 {
@@ -184,6 +184,28 @@ impl BitFont {
         r
     }
 
+    fn load_plain_font(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
+        let size = match data.len() / 256 {
+            8 => Size::new(8, 8),
+            14 => Size::new(8, 14),
+            16 => Size::new(8, 16),
+            19 => Size::new(8, 19),
+            _ => {
+                return Err(Box::new(FontError::MagicNumberMismatch));
+            }
+        };
+
+        let mut r = BitFont {
+            name: SauceString::from(font_name),
+            size,
+            length: 256,
+            font_type: BitFontType::BuiltIn,
+            glyphs: HashMap::new(),
+        };
+        r.set_glyphs_from_u8_data(data);
+        Ok(r)
+    }
+
     const PSF2_MAGIC: u32 = 0x864a_b572;
     // bits used in flags
     //const PSF2_HAS_UNICODE_TABLE: u8 = 0x01;
@@ -193,7 +215,7 @@ impl BitFont {
     //const PSF2_SEPARATOR: u8 = 0xFF;
     //const PSF2_STARTSEQ: u8 = 0xFE;
 
-    fn load_psf2(font_name: &str, data: &[u8]) -> EngineResult<Self> {
+    fn load_psf2(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
         let version = u32::from_le_bytes(data[4..8].try_into().unwrap());
         if version > BitFont::PSF2_MAXVERSION {
             return Err(Box::new(FontError::UnsupportedVersion(version)));
@@ -265,7 +287,7 @@ impl BitFont {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn from_bytes(font_name: &str, data: &[u8]) -> EngineResult<Self> {
+    pub fn from_bytes(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
         let magic16 = u16::from_le_bytes(data[0..2].try_into().unwrap());
         if magic16 == BitFont::PSF1_MAGIC {
             return Ok(BitFont::load_psf1(font_name, data));
@@ -273,10 +295,10 @@ impl BitFont {
 
         let magic32 = u32::from_le_bytes(data[0..4].try_into().unwrap());
         if magic32 == BitFont::PSF2_MAGIC {
-            BitFont::load_psf2(font_name, data)
-        } else {
-            Err(Box::new(FontError::MagicNumberMismatch))
+            return BitFont::load_psf2(font_name, data);
         }
+
+        BitFont::load_plain_font(font_name, data)
     }
 
     /// .

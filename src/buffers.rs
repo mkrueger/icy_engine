@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::{
     cmp::max,
@@ -84,7 +85,7 @@ pub struct Buffer {
     pub palette: Palette,
     pub overlay_layer: Option<Layer>,
 
-    pub font_table: Vec<BitFont>,
+    font_table: HashMap<usize, BitFont>,
 
     pub layers: Vec<Layer>,
     // pub undo_stack: Vec<Box<dyn UndoOperation>>,
@@ -123,6 +124,8 @@ impl std::fmt::Display for Buffer {
 
 impl Buffer {
     pub fn new() -> Self {
+        let mut font_table = HashMap::new();
+        font_table.insert(0, BitFont::default());
         Buffer {
             file_name: None,
             terminal_state: TerminalState::from(80, 25),
@@ -136,13 +139,48 @@ impl Buffer {
             is_terminal_buffer: false,
             palette: Palette::new(),
 
-            font_table: vec![BitFont::default()],
+            font_table,
             overlay_layer: None,
             layers: vec![Layer::new()],
             // file_name_changed: Box::new(|| {}),
             // undo_stack: Vec::new(),
             // redo_stack: Vec::new()
         }
+    }
+
+    pub fn clear_font_table(&mut self) {
+        self.font_table.clear();
+    }
+
+    pub fn has_fonts(&self) -> bool {
+        !self.font_table.is_empty()
+    }
+
+    pub fn search_font_by_name(&self, name: impl Into<String>) -> Option<usize> {
+        let name = name.into();
+        for (i, font) in &self.font_table {
+            if font.name.to_string() == name {
+                return Some(*i);
+            }
+        }
+        None
+    }
+
+    pub fn get_font(&self, font_number: usize) -> Option<&BitFont> {
+        self.font_table.get(&font_number)
+    }
+
+    pub fn set_font(&mut self, font_number: usize, font: BitFont) {
+        self.font_table.insert(font_number, font);
+    }
+
+    pub fn append_font(&mut self, font: BitFont) -> usize {
+        let mut i = 0;
+        while self.font_table.contains_key(&i) {
+            i += 1;
+        }
+        self.font_table.insert(i, font);
+        i
     }
 
     pub fn get_buffer_width(&self) -> i32 {
@@ -315,7 +353,7 @@ impl Buffer {
 
     #[must_use]
     pub fn get_glyph(&self, ch: &AttributedChar) -> Option<&Glyph> {
-        if let Some(ext) = &self.font_table.get(ch.get_font_page()) {
+        if let Some(ext) = &self.get_font(ch.get_font_page()) {
             return ext.get_glyph(ch.ch);
         }
         None
@@ -323,7 +361,7 @@ impl Buffer {
 
     #[must_use]
     pub fn get_font_dimensions(&self) -> Size<u8> {
-        self.font_table[0].size
+        self.font_table[&0].size
     }
 
     pub fn set_char(&mut self, layer: usize, pos: Position, dos_char: Option<AttributedChar>) {
@@ -421,8 +459,8 @@ impl Buffer {
             || !self.group.is_empty()
             || !self.author.is_empty()
             || !self.comments.is_empty()
-            || self.font_table[0].name.to_string() != super::DEFAULT_FONT_NAME
-                && self.font_table[0].name.to_string() != super::ALT_DEFAULT_FONT_NAME
+            || self.font_table[&0].name.to_string() != super::DEFAULT_FONT_NAME
+                && self.font_table[&0].name.to_string() != super::ALT_DEFAULT_FONT_NAME
     }
 
     /// .

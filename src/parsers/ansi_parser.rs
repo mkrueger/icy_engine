@@ -7,14 +7,14 @@ use std::{
     mem,
 };
 
+use super::{AsciiParser, BufferParser};
 use crate::{
     AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret, Color,
     EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError, Position,
     Sixel, SixelReadStatus, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, HEX_TABLE, LF,
     XTERM_256_PALETTE,
 };
-
-use super::{AsciiParser, BufferParser};
+use base64::{engine::general_purpose, Engine as _};
 
 #[derive(Debug, Clone, Copy)]
 pub enum SixelState {
@@ -45,6 +45,7 @@ pub enum AnsiState {
     ControlFunction(char),
     GotSpaceInEscapeSequence,
     GotDCS,
+    RecordDCS(u8),
     GotPossibleMacroInsideDCS(u8),
     EndDCS(char),
     ReadSixel(SixelState),
@@ -138,6 +139,7 @@ pub struct AnsiParser {
     pub marco_rec: String,
     pub(crate) macros: HashMap<usize, String>,
     pub repeat_rec: Vec<String>,
+    pub dcs_string: String,
 }
 
 const ANSI_CSI: char = '[';
@@ -212,6 +214,7 @@ impl AnsiParser {
             marco_rec: String::new(),
             macros: HashMap::new(),
             repeat_rec: Vec::new(),
+            dcs_string: String::new(),
         }
     }
 
@@ -628,14 +631,13 @@ impl BufferParser for AnsiParser {
                         }
                         match BitFont::from_name(ANSI_FONT_NAMES[*nr as usize]) {
                             Ok(font) => {
-                                for i in 0..buf.font_table.len() {
-                                    if buf.font_table[i].name == font.name {
-                                        self.current_font_page = i;
-                                        return Ok(CallbackAction::None);
-                                    }
+                                if let Some(font_number) =
+                                    buf.search_font_by_name(font.name.to_string())
+                                {
+                                    self.current_font_page = font_number;
+                                    return Ok(CallbackAction::None);
                                 }
-                                self.current_font_page = buf.font_table.len();
-                                buf.font_table.push(font);
+                                self.current_font_page = buf.append_font(font);
                             }
                             Err(err) => {
                                 return Err(err);
@@ -924,6 +926,10 @@ impl BufferParser for AnsiParser {
                     // maybe a macro inside the DCS sequence
                     self.state = AnsiState::GotPossibleMacroInsideDCS(0);
                 }
+                'C' => {
+                    self.dcs_string.clear();
+                    self.state = AnsiState::RecordDCS(0);
+                }
                 _ => {
                     if ch.is_ascii_digit() {
                         let d = match self.parsed_numbers.pop() {
@@ -946,6 +952,62 @@ impl BufferParser for AnsiParser {
                     }
                 }
             },
+            AnsiState::RecordDCS(dcs_state) => {
+                match dcs_state {
+                    1 => {
+                        self.state = AnsiState::Default;
+                        if ch == '\\' {
+                            if self.dcs_string.starts_with("Term:Font:") {
+                                let start_index = "Term:Font:".len();
+                                if let Some(idx) = self.dcs_string[start_index..].find(':') {
+                                    let idx = idx + start_index;
+
+                                    if let Ok(num) =
+                                        self.dcs_string[start_index..idx].parse::<usize>()
+                                    {
+                                        if let Ok(font_data) = general_purpose::STANDARD
+                                            .decode(self.dcs_string[idx + 1..].as_bytes())
+                                        {
+                                            if let Ok(font) = BitFont::from_bytes(
+                                                format!("custom font {num}"),
+                                                &font_data,
+                                            ) {
+                                                buf.set_font(num, font);
+                                                return Ok(CallbackAction::None);
+                                            }
+                                        }
+                                    }
+                                }
+
+                                return Err(Box::new(ParserError::UnsupportedDCSSequence(
+                                    format!("invalid custom font in dcs: {}", self.dcs_string),
+                                )));
+                            }
+                            // TODO handle DCS
+                            return Ok(CallbackAction::None);
+                        }
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "sequence: {}",
+                            self.dcs_string
+                        ))));
+                    }
+                    0 => match ch {
+                        '\x1B' => {
+                            self.state = AnsiState::RecordDCS(1);
+                        }
+                        _ => {
+                            self.dcs_string.push(ch);
+                        }
+                    },
+                    _ => {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            "sequence: {}",
+                            self.dcs_string
+                        ))));
+                    }
+                }
+            }
             AnsiState::ReadSixel(state) => {
                 match state {
                     SixelState::EndSequence => {
@@ -1380,8 +1442,8 @@ impl BufferParser for AnsiParser {
                             i += 1;
                         }
                     }
-                    'H' | 'f' => {
-                        // Cursor Position + Horizontal Vertical Position ('f')
+                    'H' |    // Cursor Position
+                    'f' => { // Character and Line Position (HVP)
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.pos = buf.upper_left_position();

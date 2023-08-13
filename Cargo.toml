@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 lazy_static = "1.4.0"
 num = "0.4.1"
+base64 = "0.21.2"

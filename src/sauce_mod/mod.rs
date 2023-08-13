@@ -310,9 +310,9 @@ impl<const LEN: usize, const EMPTY: u8> SauceString<LEN, EMPTY> {
         SauceString(Vec::new())
     }
 
-    pub fn from(str: &str) -> Self {
+    pub fn from(str: impl Into<String>) -> Self {
         let mut data = Vec::new();
-        for ch in str.chars() {
+        for ch in str.into().chars() {
             if data.len() >= LEN {
                 break;
             }
@@ -575,6 +575,10 @@ impl Buffer {
 
     /// .
     ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
     /// # Errors
     ///
     /// This function will return an error if .
@@ -619,7 +623,7 @@ impl Buffer {
         let t_info3 = 0;
         let t_info4 = 0;
         let mut t_flags = 0;
-        let mut t_info_str = &self.font_table[0].name;
+        let mut t_info_str = &self.get_font(0).unwrap().name;
 
         match sauce_file_type {
             SauceFileType::Ascii => {

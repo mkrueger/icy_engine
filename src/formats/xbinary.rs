@@ -80,21 +80,27 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
     }
     if has_custom_font {
         let font_length = font_size as usize * 256;
-        result.font_table.clear();
-        result.font_table.push(BitFont::create_8(
-            SauceString::new(),
-            8,
-            font_size,
-            &bytes[o..(o + font_length)],
-        ));
-        o += font_length;
-        if extended_char_mode {
-            result.font_table.push(BitFont::create_8(
+        result.clear_font_table();
+        result.set_font(
+            0,
+            BitFont::create_8(
                 SauceString::new(),
                 8,
                 font_size,
                 &bytes[o..(o + font_length)],
-            ));
+            ),
+        );
+        o += font_length;
+        if extended_char_mode {
+            result.set_font(
+                1,
+                BitFont::create_8(
+                    SauceString::new(),
+                    8,
+                    font_size,
+                    &bytes[o..(o + font_length)],
+                ),
+            );
             o += font_length;
         }
     }
@@ -277,6 +283,10 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -
 
 /// .
 ///
+/// # Panics
+///
+/// Panics if .
+///
 /// # Errors
 ///
 /// This function will return an error if .
@@ -292,13 +302,13 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     result.push((buf.get_real_buffer_height() >> 8) as u8);
 
     let mut flags = 0;
-    let font = &buf.font_table[0];
+    let font = buf.get_font(0).unwrap();
     if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."));
     }
 
     result.push(font.size.height);
-    if !font.is_default() || !buf.font_table.is_empty() {
+    if !font.is_default() || buf.has_fonts() {
         flags |= FLAG_FONT;
     }
 
@@ -326,7 +336,7 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     if flags & FLAG_FONT == FLAG_FONT {
         font.convert_to_u8_data(&mut result);
         if flags & FLAG_512CHAR_MODE == FLAG_512CHAR_MODE {
-            if let Some(font) = &buf.font_table.get(0) {
+            if let Some(font) = buf.get_font(0) {
                 font.convert_to_u8_data(&mut result);
             }
         }

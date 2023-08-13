@@ -93,9 +93,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         }
     }
     result.clear();
-    result
-        .font_table
-        .push(BitFont::from_basic(8, 16, &bytes[o..(o + FONT_SIZE)]));
+    result.set_font(0, BitFont::from_basic(8, 16, &bytes[o..(o + FONT_SIZE)]));
     o += FONT_SIZE;
 
     result.palette = Palette::from(&bytes[o..(o + PALETTE_SIZE)]);
@@ -106,6 +104,10 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 }
 
 /// .
+///
+/// # Panics
+///
+/// Panics if .
 ///
 /// # Errors
 ///
@@ -168,7 +170,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             "Only 8x16 fonts are supported by adf.",
         ));
     }
-    buf.font_table[0].convert_to_u8_data(&mut result);
+    buf.get_font(0).unwrap().convert_to_u8_data(&mut result);
 
     // palette
     result.extend(buf.palette.to_16color_vec());

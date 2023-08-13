@@ -113,9 +113,9 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                     }
                 };
                 if font_num == 0 {
-                    result.font_table.clear();
+                    result.clear_font_table();
                 }
-                result.font_table.push(font);
+                result.set_font(font_num as usize, font);
 
                 font_num += 1;
             }
@@ -457,9 +457,9 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
         }
     }
 
-    push_font(&mut result, &buf.font_table[0]);
+    push_font(&mut result, buf.get_font(0).unwrap());
 
-    if let Some(ext_font) = &buf.font_table.get(1) {
+    if let Some(ext_font) = buf.get_font(1) {
         push_font(&mut result, ext_font);
     }
 
@@ -550,7 +550,7 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
                                     y: i / (width as i32),
                                 })
                                 .unwrap();
-                            if !buf.font_table.is_empty() {
+                            if buf.has_fonts() {
                                 result.push(((ch.ch as u16) >> 8) as u8);
                             }
                             write_char(&mut result, ch.ch as u16, buf.buffer_type);
