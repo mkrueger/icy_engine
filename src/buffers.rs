@@ -86,7 +86,8 @@ pub struct Buffer {
     pub overlay_layer: Option<Layer>,
 
     font_table: HashMap<usize, BitFont>,
-
+    is_font_table_dirty: bool,
+    
     pub layers: Vec<Layer>,
     // pub undo_stack: Vec<Box<dyn UndoOperation>>,
     // pub redo_stack: Vec<Box<dyn UndoOperation>>,
@@ -140,6 +141,7 @@ impl Buffer {
             palette: Palette::new(),
 
             font_table,
+            is_font_table_dirty: false,
             overlay_layer: None,
             layers: vec![Layer::new()],
             // file_name_changed: Box::new(|| {}),
@@ -150,10 +152,19 @@ impl Buffer {
 
     pub fn clear_font_table(&mut self) {
         self.font_table.clear();
+        self.is_font_table_dirty = true;
     }
 
     pub fn has_fonts(&self) -> bool {
         !self.font_table.is_empty()
+    }
+
+    pub fn is_font_table_updated(&self) -> bool {
+        self.is_font_table_dirty
+    }
+
+    pub fn set_font_table_is_updated(&mut self) {
+        self.is_font_table_dirty = false;
     }
 
     pub fn search_font_by_name(&self, name: impl Into<String>) -> Option<usize> {
@@ -176,6 +187,7 @@ impl Buffer {
 
     pub fn set_font(&mut self, font_number: usize, font: BitFont) {
         self.font_table.insert(font_number, font);
+        self.is_font_table_dirty = true;
     }
 
     pub fn font_count(&self) -> usize {
