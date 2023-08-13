@@ -39,17 +39,20 @@ pub enum AnsiMusicState {
 #[derive(Debug, Clone)]
 pub enum AnsiState {
     Default,
-    ReadEscape_Sequence,
-    ReadCSI_sequence,
-    ReadCustomCommand,
-    ControlFunction(char),
-    GotSpaceInEscapeSequence,
-    GotDCS,
+    ReadEscapeSequence,
+
+    ReadCSISequence,
+    ReadCSICommand,
+    EndCSI(char),
+    ReadMacro(usize, HexMacroState),
+
+    ReadDCS,
     RecordDCS(u8),
     GotPossibleMacroInsideDCS(u8),
     EndDCS(char),
+
     ReadSixel(SixelState),
-    ReadMacro(usize, HexMacroState),
+
     ParseAnsiMusic(AnsiMusicState),
 
     ReadAPS(ReadSTState),
@@ -525,7 +528,6 @@ impl AnsiParser {
         } else {
             return Ok(CallbackAction::None);
         };
-        println!("macro: {}", m);
         for ch in m.chars() {
             self.print_char(buf, caret, ch)?;
         }
@@ -559,19 +561,18 @@ impl BufferParser for AnsiParser {
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
-        // println!("{:?}: {ch}", self.state);
         match &self.state {
             AnsiState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
             }
-            AnsiState::ReadEscape_Sequence => {
+            AnsiState::ReadEscapeSequence => {
                 return {
                     self.state = AnsiState::Default;
                     self.current_escape_sequence.push(ch);
 
                     match ch {
                         '[' => {
-                            self.state = AnsiState::ReadCSI_sequence;
+                            self.state = AnsiState::ReadCSISequence;
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
@@ -613,7 +614,7 @@ impl BufferParser for AnsiParser {
 
                         'P' => {
                             // DCS
-                            self.state = AnsiState::GotDCS;
+                            self.state = AnsiState::ReadDCS;
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
@@ -642,84 +643,7 @@ impl BufferParser for AnsiParser {
                     }
                 };
             }
-            AnsiState::GotSpaceInEscapeSequence => match ch {
-                'D' => {
-                    self.state = AnsiState::Default;
-                    if self.parsed_numbers.len() != 2 {
-                        self.current_escape_sequence.push('D');
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )));
-                    }
 
-                    if let Some(nr) = self.parsed_numbers.get(1) {
-                        let nr = *nr as usize;
-                        if buf.get_font(nr).is_some() {
-                            self.current_font_page = nr;
-                            return Ok(CallbackAction::None);
-                        }
-                        if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
-                            match BitFont::from_name(font_name) {
-                                Ok(font) => {
-                                    if let Some(font_number) =
-                                        buf.search_font_by_name(font.name.to_string())
-                                    {
-                                        self.current_font_page = font_number;
-                                        return Ok(CallbackAction::None);
-                                    }
-                                    self.current_font_page = nr;
-                                    buf.set_font(nr, font);
-                                }
-                                Err(err) => {
-                                    return Err(err);
-                                }
-                            }
-                        } else {
-                            return Err(Box::new(ParserError::UnsupportedFont(nr)));
-                        }
-                    }
-                }
-                'A' => {
-                    // Scroll Right
-                    self.state = AnsiState::Default;
-                    let num = if let Some(number) = self.parsed_numbers.first() {
-                        *number
-                    } else {
-                        1
-                    };
-                    (0..num).for_each(|_| buf.scroll_right());
-                }
-                '@' => {
-                    // Scroll Left
-                    self.state = AnsiState::Default;
-                    let num = if let Some(number) = self.parsed_numbers.first() {
-                        *number
-                    } else {
-                        1
-                    };
-                    (0..num).for_each(|_| buf.scroll_left());
-                }
-                'd' => {
-                    // tab stop remove
-                    self.state = AnsiState::Default;
-                    if self.parsed_numbers.len() != 1 {
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
-                            "Invalid parameter number in remove tab stops: {}",
-                            self.parsed_numbers.len()
-                        ))));
-                    }
-                    if let Some(num) = self.parsed_numbers.first() {
-                        buf.terminal_state.remove_tab_stop(*num - 1);
-                    }
-                }
-                _ => {
-                    self.state = AnsiState::Default;
-                    self.current_escape_sequence.push(ch);
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )));
-                }
-            },
             AnsiState::ReadMacro(id, state) => {
                 match state {
                     HexMacroState::ReadSequence | HexMacroState::EscapeSequence => {
@@ -952,7 +876,7 @@ impl BufferParser for AnsiParser {
                             self.parsed_numbers.len()
                         ))));
                     }
-                    self.state = AnsiState::GotDCS;
+                    self.state = AnsiState::ReadDCS;
                     return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
                 }
 
@@ -961,7 +885,7 @@ impl BufferParser for AnsiParser {
                     "Invalid macro inside dcs '{ch}'"
                 ))));
             }
-            AnsiState::GotDCS => match ch {
+            AnsiState::ReadDCS => match ch {
                 'q' => {
                     let aspect_ratio = match self.parsed_numbers.first() {
                         Some(0 | 1 | 5 | 6) => 2,
@@ -1259,7 +1183,8 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
-            AnsiState::ReadCustomCommand => {
+            AnsiState::ReadCSICommand => {
+                self.current_escape_sequence.push(ch);
                 match ch {
                     'p' => {
                         // [!p Soft Teminal Reset
@@ -1404,7 +1329,8 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
-            AnsiState::ControlFunction(func) => {
+            AnsiState::EndCSI(func) => {
+                self.current_escape_sequence.push(ch);
                 match *func {
                     '*' => {
                         match ch {
@@ -1520,15 +1446,95 @@ impl BufferParser for AnsiParser {
                         }
                         _ => {}
                     },
-                    _ => {}
-                }
 
-                self.state = AnsiState::Default;
-                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                    self.current_escape_sequence.clone(),
-                )));
+                    ' ' => {
+                        self.state = AnsiState::Default;
+
+                        match ch {
+                            'D' => {
+                                if self.parsed_numbers.len() != 2 {
+                                    self.current_escape_sequence.push('D');
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        self.current_escape_sequence.clone(),
+                                    )));
+                                }
+
+                                if let Some(nr) = self.parsed_numbers.get(1) {
+                                    let nr = *nr as usize;
+                                    if buf.get_font(nr).is_some() {
+                                        self.current_font_page = nr;
+                                        return Ok(CallbackAction::None);
+                                    }
+                                    if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
+                                        match BitFont::from_name(font_name) {
+                                            Ok(font) => {
+                                                if let Some(font_number) =
+                                                    buf.search_font_by_name(font.name.to_string())
+                                                {
+                                                    self.current_font_page = font_number;
+                                                    return Ok(CallbackAction::None);
+                                                }
+                                                self.current_font_page = nr;
+                                                buf.set_font(nr, font);
+                                            }
+                                            Err(err) => {
+                                                return Err(err);
+                                            }
+                                        }
+                                    } else {
+                                        return Err(Box::new(ParserError::UnsupportedFont(nr)));
+                                    }
+                                }
+                            }
+                            'A' => {
+                                // Scroll Right
+                                let num = if let Some(number) = self.parsed_numbers.first() {
+                                    *number
+                                } else {
+                                    1
+                                };
+                                (0..num).for_each(|_| buf.scroll_right());
+                            }
+                            '@' => {
+                                // Scroll Left
+                                let num = if let Some(number) = self.parsed_numbers.first() {
+                                    *number
+                                } else {
+                                    1
+                                };
+                                (0..num).for_each(|_| buf.scroll_left());
+                            }
+                            'd' => {
+                                // tab stop remove
+                                if self.parsed_numbers.len() != 1 {
+                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                        format!(
+                                            "Invalid parameter number in remove tab stops: {}",
+                                            self.parsed_numbers.len()
+                                        ),
+                                    )));
+                                }
+                                if let Some(num) = self.parsed_numbers.first() {
+                                    buf.terminal_state.remove_tab_stop(*num - 1);
+                                }
+                            }
+                            _ => {
+                                self.current_escape_sequence.push(ch);
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_escape_sequence.clone(),
+                                )));
+                            }
+                        }
+                    }
+                    _ => {
+                        self.state = AnsiState::Default;
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            self.current_escape_sequence.clone(),
+                        )));
+                    }
+                }
             }
-            AnsiState::ReadCSI_sequence => {
+            AnsiState::ReadCSISequence => {
                 if let Some(ch) = char::from_u32(ch as u32) {
                     self.current_escape_sequence.push(ch);
                 } else {
@@ -2009,13 +2015,16 @@ impl BufferParser for AnsiParser {
 
                     '?' => {
                         // read custom command
-                        self.state = AnsiState::ReadCustomCommand;
+                        self.state = AnsiState::ReadCSICommand;
                     }
                     '*' => {
-                        self.state = AnsiState::ControlFunction('*');
+                        self.state = AnsiState::EndCSI('*');
                     }
                     '$' => {
-                        self.state = AnsiState::ControlFunction('$');
+                        self.state = AnsiState::EndCSI('$');
+                    }
+                    ' ' => {
+                        self.state = AnsiState::EndCSI(' ');
                     }
 
                     'K' => {
@@ -2141,9 +2150,7 @@ impl BufferParser for AnsiParser {
                             }
                         }
                     }
-                    ' ' => {
-                        self.state = AnsiState::GotSpaceInEscapeSequence;
-                    }
+
                     't' => {
                         self.state = AnsiState::Default;
                         if self.parsed_numbers.len() != 4 {
@@ -2288,12 +2295,13 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
+
             AnsiState::Default => match ch {
                 ANSI_ESC => {
                     self.current_escape_sequence.clear();
                     self.current_escape_sequence.push_str("<ESC>");
                     self.state = AnsiState::Default;
-                    self.state = AnsiState::ReadEscape_Sequence;
+                    self.state = AnsiState::ReadEscapeSequence;
                 }
                 '\x00' | '\u{00FF}' => {
                     caret.attr = TextAttribute::default();

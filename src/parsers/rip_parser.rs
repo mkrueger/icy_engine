@@ -269,7 +269,7 @@ impl BufferParser for RipParser {
             }
             RipState::Default => {
                 match self.ansi_parser.state {
-                    crate::AnsiState::ReadCSI_sequence => {
+                    crate::AnsiState::ReadCSISequence => {
                         if let '!' = ch {
                             // Select Graphic Rendition
                             self.ansi_parser.state = AnsiState::Default;
