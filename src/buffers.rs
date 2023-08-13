@@ -166,12 +166,20 @@ impl Buffer {
         None
     }
 
+    pub fn font_iter(&self) -> impl Iterator<Item = (&usize, &BitFont)> {
+        self.font_table.iter()
+    }
+
     pub fn get_font(&self, font_number: usize) -> Option<&BitFont> {
         self.font_table.get(&font_number)
     }
 
     pub fn set_font(&mut self, font_number: usize, font: BitFont) {
         self.font_table.insert(font_number, font);
+    }
+
+    pub fn font_count(&self) -> usize {
+        self.font_table.len()
     }
 
     pub fn append_font(&mut self, font: BitFont) -> usize {
