@@ -237,6 +237,7 @@ impl Buffer {
     pub fn set_buffer_size<T: NumCast>(&mut self, size: Size<T>) {
         self.terminal_state.width = num::cast(size.width).unwrap();
         self.terminal_state.height = num::cast(size.height).unwrap();
+        self.terminal_state.reset();
     }
 
     /// Sets the buffer width of this [`Buffer`].
@@ -246,6 +247,7 @@ impl Buffer {
     /// Panics if .
     pub fn set_buffer_width<T: NumCast>(&mut self, width: T) {
         self.terminal_state.width = num::cast(width).unwrap();
+        self.terminal_state.reset();
     }
 
     /// Sets the buffer height of this [`Buffer`].

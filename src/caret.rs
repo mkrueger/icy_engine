@@ -40,6 +40,14 @@ impl Caret {
         self.pos = Position::new(x, y);
     }
 
+    pub fn set_x_position(&mut self, x: i32) {
+        self.pos.x = x;
+    }
+
+    pub fn set_y_position(&mut self, y: i32) {
+        self.pos.y = y;
+    }
+
     pub fn set_attr(&mut self, attr: TextAttribute) {
         self.attr = attr;
     }

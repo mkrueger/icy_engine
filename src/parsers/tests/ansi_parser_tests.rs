@@ -1045,7 +1045,7 @@ fn test_macro_checksum_report() {
 #[test]
 fn test_repeat_last_char() {
     let mut parser = AnsiParser::new();
-    let (mut buf, mut caret) = create_buffer(
+    let (buf, _) = create_buffer(
         &mut parser,
         b"#\x1B[10b\n",
     );
@@ -1053,4 +1053,62 @@ fn test_repeat_last_char() {
         assert_eq!('#', buf.get_char_xy(x, 0).unwrap().ch);
     }
     assert_eq!(' ', buf.get_char_xy(11, 0).unwrap().ch);
+}
+
+#[test]
+fn test_request_tab_stop_report() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"#\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/17/25/33/41/49/57/65/73\x1B\\".to_string()), act);
+}
+
+#[test]
+fn test_clear_all_tab_stops() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u\x1B\\".to_string()), act);
+}
+
+#[test]
+fn test_clear_tab_at_pos() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[16C\x1B[g\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/25/33/41/49/57/65/73\x1B\\".to_string()), act);
+}
+
+#[test]
+fn test_delete_tab() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[41 d\x1B[49 d\x1B[17 d\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/25/33/57/65/73\x1B\\".to_string()), act);
+}
+
+#[test]
+fn test_tab_forward() {
+    let mut parser = AnsiParser::new();
+    let (buf, _) = create_buffer(&mut parser, b"1\x1B[Y2\x1B[2Y3");
+
+    assert_eq!('1', buf.get_char_xy(0, 0).unwrap().ch);
+    assert_eq!('2', buf.get_char_xy(8, 0).unwrap().ch);
+    assert_eq!('3', buf.get_char_xy(24, 0).unwrap().ch);
+}
+
+#[test]
+fn test_tab_backward() {
+    let mut parser = AnsiParser::new();
+    let (buf, _) = create_buffer(&mut parser, b"\x1B[1;60H1\x1B[4Z2");
+    assert_eq!('1', buf.get_char_xy(59, 0).unwrap().ch);
+    assert_eq!('2', buf.get_char_xy(32, 0).unwrap().ch);
+}
+
+#[test]
+fn set_tab() {
+    let mut parser = AnsiParser::new();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[1;60H\x1BH\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u60\x1B\\".to_string()), act);
 }

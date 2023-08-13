@@ -276,6 +276,12 @@ impl AnsiParser {
                 self.parsed_numbers.clear();
                 Ok(CallbackAction::None)
             }
+            'H' => {
+                // set tab at current column
+                self.state = AnsiState::Default;
+                buf.terminal_state.set_tab_at(caret.get_position().x);
+                Ok(CallbackAction::None)
+            }
             '0'..='~' => {
                 // Silently drop unsupported sequences
                 self.state = AnsiState::Default;
@@ -673,6 +679,18 @@ impl BufferParser for AnsiParser {
                         1
                     };
                     (0..num).for_each(|_| buf.scroll_left());
+                }
+                'd' => {
+                    // tab stop remove
+                    self.state = AnsiState::Default;
+                    if self.parsed_numbers.len() != 1 {
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            format!("Invalid parameter number in remove tab stops: {}", self.parsed_numbers.len()),
+                        )));
+                    }
+                    if let Some(num) = self.parsed_numbers.first() {
+                        buf.terminal_state.remove_tab_stop(*num - 1);
+                    } 
                 }
                 _ => {
                     self.state = AnsiState::Default;
@@ -1443,6 +1461,28 @@ impl BufferParser for AnsiParser {
                             _ => {}
                         }
                     }
+                    
+                    '$' => {
+                        match ch {
+                            'w' => {
+                                self.state = AnsiState::Default;
+                                if let Some(2) = self.parsed_numbers.first() {
+                                    let mut str ="\x1BP2$u".to_string();
+                                    (0..buf.terminal_state.tab_count()).for_each(|i| {
+                                        let tab = buf.terminal_state.get_tabs()[i];
+                                        str.push_str(&(tab  + 1).to_string());
+                                        if i < buf.terminal_state.tab_count() - 1 {
+                                            str.push('/');
+                                        }
+                                    });
+                                    str.push_str("\x1B\\");
+                                    return Ok(CallbackAction::SendString(str));
+                               }   
+                            }
+                            _ => {}
+                        }
+
+                    }
                     _ => {}
                 }
 
@@ -1937,6 +1977,9 @@ impl BufferParser for AnsiParser {
                     '*' => {
                         self.state = AnsiState::ControlFunction('*');
                     }
+                    '$' => {
+                        self.state = AnsiState::ControlFunction('$');
+                    }
 
                     'K' => {
                         // Erase in line
@@ -2121,6 +2164,65 @@ impl BufferParser for AnsiParser {
                         let mut ch = AttributedChar::new(self.last_char, caret.attr);
                         ch.set_font_page(self.current_font_page);
                         (0..num).for_each(|_| buf.print_char(caret, ch));
+                    }
+                    'g' => {
+                        // clear tab stops
+                        self.state = AnsiState::Default;
+                        if self.parsed_numbers.len() > 1 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                format!("Invalid parameter number in clear tab stops: {}", self.parsed_numbers.len()),
+                            )));
+                        }
+
+                        let num: i32 = if let Some(number) = self.parsed_numbers.first() {
+                            *number
+                        } else {
+                            0
+                        };
+
+                        match num {
+                            0 => { buf.terminal_state.remove_tab_stop(caret.get_position().x) }
+                            3 | 5 => {
+                                buf.terminal_state.clear_tab_stops();
+                            }
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    format!("Unsupported option in clear tab stops sequence: {num}"),
+                                )));
+                            }
+                        }
+                    }
+                    'Y' => {
+                        // next tab stop
+                        self.state = AnsiState::Default;
+                        if self.parsed_numbers.len() > 1 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                format!("Invalid parameter number in goto next tab stop: {}", self.parsed_numbers.len()),
+                            )));
+                        }
+
+                        let num: i32 = if let Some(number) = self.parsed_numbers.first() {
+                            *number
+                        } else {
+                            1
+                        };
+                        (0..num).for_each(|_| caret.set_x_position(buf.terminal_state.next_tab_stop(caret.get_position().x)));
+                    }
+                    'Z' => {
+                        // prev tab stop
+                        self.state = AnsiState::Default;
+                        if self.parsed_numbers.len() > 1 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                format!("Invalid parameter number in goto next tab stop: {}", self.parsed_numbers.len()),
+                            )));
+                        }
+
+                        let num: i32 = if let Some(number) = self.parsed_numbers.first() {
+                            *number
+                        } else {
+                            1
+                        };
+                        (0..num).for_each(|_| caret.set_x_position(buf.terminal_state.prev_tab_stop(caret.get_position().x)));
                     }
                     _ => {
                         if ('\x40'..='\x7E').contains(&ch) {

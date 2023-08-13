@@ -32,6 +32,8 @@ pub struct TerminalState {
     pub margins_left_right: Option<(i32, i32)>,
     pub mouse_mode: MouseMode,
     pub dec_margin_mode_left_right: bool,
+
+    tab_stops: Vec<i32>,
     use_ice: bool,
     baud_rate: u32,
 }
@@ -61,7 +63,7 @@ pub enum MouseMode {
 
 impl TerminalState {
     pub fn from(width: i32, height: i32) -> Self {
-        Self {
+        let mut ret = Self {
             width,
             height,
             scroll_state: TerminalScrolling::Smooth,
@@ -73,6 +75,65 @@ impl TerminalState {
             use_ice: false,
             dec_margin_mode_left_right: false,
             baud_rate: 0,
+            tab_stops: vec![],
+        };
+        ret.reset_tabs();
+        ret
+    }
+    
+    pub fn tab_count(&self) -> usize {
+        self.tab_stops.len()
+    }
+
+    pub fn get_tabs(&self) -> &[i32] {
+        &self.tab_stops
+    }
+
+    pub fn clear_tab_stops(&mut self) {
+        self.tab_stops.clear();
+    }
+
+    pub fn remove_tab_stop(&mut self, x: i32) {
+        self.tab_stops.retain(|&t| t != x);
+    }
+
+    fn reset_tabs(&mut self) {
+        let mut i = 0;
+        self.tab_stops.clear();
+        while i < self.width {
+            self.tab_stops.push(i);
+            i += 8;
+        }
+    }
+
+    pub fn next_tab_stop(&mut self, x: i32) -> i32 {
+        let mut i = 0;
+        while i < self.tab_stops.len() && self.tab_stops[i] <= x {
+            i += 1;
+        }
+        if i < self.tab_stops.len() {
+            self.tab_stops[i]
+        } else {
+            self.width
+        }
+    }
+
+    pub fn prev_tab_stop(&mut self, x: i32) -> i32 {
+        let mut i = self.tab_stops.len() as i32 - 1;
+        while i >= 0 && self.tab_stops[i as usize] >= x {
+            i -= 1;
+        }
+        if i >= 0 {
+            self.tab_stops[i as usize]
+        } else {
+            0
+        }
+    }
+
+    pub fn set_tab_at(&mut self, x: i32) {
+        if !self.tab_stops.contains(&x) {
+            self.tab_stops.push(x);
+            self.tab_stops.sort_unstable();
         }
     }
 
@@ -89,6 +150,7 @@ impl TerminalState {
         self.origin_mode = OriginMode::UpperLeftCorner;
         self.scroll_state = TerminalScrolling::Smooth;
         self.auto_wrap_mode = AutoWrapMode::AutoWrap;
+        self.reset_tabs();
     }
 
     pub fn use_ice_colors(&self) -> bool {
