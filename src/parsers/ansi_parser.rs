@@ -119,7 +119,7 @@ pub const FREQ: [f32; 12 * 7] = [
 pub struct AnsiParser {
     ascii_parser: AsciiParser,
     pub(crate) state: AnsiState,
-    current_font_page: usize,
+    pub(crate) current_font_page: usize,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
     pub(crate) parsed_numbers: Vec<i32>,
@@ -626,22 +626,29 @@ impl BufferParser for AnsiParser {
                     }
 
                     if let Some(nr) = self.parsed_numbers.get(1) {
-                        if *nr >= (ANSI_FONT_NAMES.len() as i32) {
-                            return Err(Box::new(ParserError::UnsupportedFont(*nr)));
+                        let nr = *nr as usize;
+                        if buf.get_font(nr).is_some() {
+                            self.current_font_page = nr;
+                            return Ok(CallbackAction::None);
                         }
-                        match BitFont::from_name(ANSI_FONT_NAMES[*nr as usize]) {
-                            Ok(font) => {
-                                if let Some(font_number) =
-                                    buf.search_font_by_name(font.name.to_string())
-                                {
-                                    self.current_font_page = font_number;
-                                    return Ok(CallbackAction::None);
+                        if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
+                            match BitFont::from_name(font_name) {
+                                Ok(font) => {
+                                    if let Some(font_number) =
+                                        buf.search_font_by_name(font.name.to_string())
+                                    {
+                                        self.current_font_page = font_number;
+                                        return Ok(CallbackAction::None);
+                                    }
+                                    self.current_font_page = nr;
+                                    buf.set_font(nr, font);
                                 }
-                                self.current_font_page = buf.append_font(font);
+                                Err(err) => {
+                                    return Err(err);
+                                }
                             }
-                            Err(err) => {
-                                return Err(err);
-                            }
+                        } else {
+                            return Err(Box::new(ParserError::UnsupportedFont(nr)));
                         }
                     }
                 }

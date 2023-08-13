@@ -9,7 +9,7 @@ pub enum ParserError {
     UnsupportedCustomCommand(i32),
     Description(&'static str),
     UnsupportedControlCode(u32),
-    UnsupportedFont(i32),
+    UnsupportedFont(usize),
     UnexpectedSixelEnd(char),
     InvalidColorInSixelSequence,
     NumberMissingInSixelRepeat,
