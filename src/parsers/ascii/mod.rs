@@ -1,9 +1,12 @@
 use super::BufferParser;
 use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, BEL, BS, CR, FF, LF};
 #[derive(Default)]
-pub struct AsciiParser {}
+pub struct Parser {}
 
-impl BufferParser for AsciiParser {
+#[cfg(test)]
+mod tests;
+
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
         if let Some(tch) = UNICODE_TO_CP437.get(&ch) {
             *tch

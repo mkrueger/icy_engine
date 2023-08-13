@@ -1,10 +1,8 @@
-use super::{Buffer, BufferParser};
-use crate::{
-    AsciiParser, AttributedChar, CallbackAction, Caret, EngineResult, ParserError, Position,
-};
+use super::{ascii, Buffer, BufferParser};
+use crate::{AttributedChar, CallbackAction, Caret, EngineResult, ParserError, Position};
 
 #[derive(Default)]
-pub struct PETSCIIParser {
+pub struct Parser {
     underline_mode: bool,
     reverse_mode: bool,
     got_esc: bool,
@@ -12,7 +10,7 @@ pub struct PETSCIIParser {
     c_shift: bool,
 }
 
-impl PETSCIIParser {
+impl Parser {
     pub fn handle_reverse_mode(&self, ch: u8) -> u8 {
         if self.reverse_mode {
             ch + 0x80
@@ -171,7 +169,7 @@ const LIGHT_GREEN: u32 = 0x0d;
 const LIGHT_BLUE: u32 = 0x0e;
 const GREY3: u32 = 0x0f;
 
-impl BufferParser for PETSCIIParser {
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
             if let Some(out_ch) = char::from_u32(*tch as u32) {
@@ -186,7 +184,7 @@ impl BufferParser for PETSCIIParser {
 
     fn convert_to_unicode(&self, ch: char) -> char {
         // TODO
-        AsciiParser::default().convert_to_unicode(ch)
+        ascii::Parser::default().convert_to_unicode(ch)
     }
 
     fn print_char(

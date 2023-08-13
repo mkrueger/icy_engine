@@ -1,9 +1,9 @@
-use super::BufferParser;
-use crate::{AnsiParser, Buffer, CallbackAction, Caret, EngineResult, TextAttribute};
+use super::{ansi, BufferParser};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute};
 
 #[derive(Default)]
-pub struct PCBoardParser {
-    ansi_parser: AnsiParser,
+pub struct Parser {
+    ansi_parser: ansi::Parser,
 
     // PCB
     pub pcb_code: bool,
@@ -12,7 +12,7 @@ pub struct PCBoardParser {
     pub pcb_pos: i32,
 }
 
-impl BufferParser for PCBoardParser {
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
         self.ansi_parser.convert_from_unicode(ch)
     }

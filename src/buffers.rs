@@ -9,10 +9,7 @@ use std::{
 
 use num::NumCast;
 
-use crate::{
-    AnsiParser, AsciiParser, AvatarParser, BufferParser, Caret, EngineResult, Glyph, PCBoardParser,
-    PETSCIIParser, TerminalState,
-};
+use crate::{parsers, BufferParser, Caret, EngineResult, Glyph, TerminalState};
 
 use super::{
     read_binary, read_xb, AttributedChar, BitFont, Layer, Palette, Position, SauceString,
@@ -109,8 +106,8 @@ impl std::fmt::Debug for Buffer {
 impl std::fmt::Display for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut str = String::new();
+        let p = parsers::ansi::Parser::default();
 
-        let p = AnsiParser::new();
         for y in 0..self.get_buffer_height() {
             str.extend(format!("{y:3}: ").chars());
             for x in 0..self.get_buffer_width() {
@@ -614,11 +611,11 @@ impl Buffer {
         result.set_buffer_height(25);
 
         let mut interpreter: Box<dyn BufferParser> = match interpreter {
-            CharInterpreter::Ascii => Box::<AsciiParser>::default(),
-            CharInterpreter::Ansi => Box::new(AnsiParser::new()),
-            CharInterpreter::Avatar => Box::new(AvatarParser::new(false)),
-            CharInterpreter::Pcb => Box::<PCBoardParser>::default(),
-            CharInterpreter::Petscii => Box::<PETSCIIParser>::default(),
+            CharInterpreter::Ascii => Box::<parsers::ascii::Parser>::default(),
+            CharInterpreter::Ansi => Box::<parsers::ansi::Parser>::default(),
+            CharInterpreter::Avatar => Box::<parsers::avatar::Parser>::default(),
+            CharInterpreter::Pcb => Box::<parsers::pcboard::Parser>::default(),
+            CharInterpreter::Petscii => Box::<parsers::petscii::Parser>::default(),
         };
 
         let mut caret = Caret::default();

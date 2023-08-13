@@ -1,8 +1,5 @@
 use super::BufferParser;
-use crate::{
-    AnsiParser, AsciiParser, Buffer, CallbackAction, Caret, EngineResult, ParserError,
-    TextAttribute,
-};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, ParserError, TextAttribute};
 use std::cmp::{max, min};
 
 enum AvtReadState {
@@ -21,51 +18,43 @@ const AVT_CLR: char = '\x0C';
 ///  of the second one. This is the exception where the two bytes may have their high bit set. Do not reset it here!
 const AVT_REP: char = '\x19';
 
-pub struct AvatarParser {
-    ascii_parser: AsciiParser,
-    ansi_parser: AnsiParser,
-
-    use_ansi_parser: bool,
+pub struct Parser {
+    ansi_parser: super::ansi::Parser,
 
     avt_state: AvtReadState,
     avatar_state: i32,
     avt_repeat_char: char,
 }
 
-impl AvatarParser {
-    pub fn new(use_ansi_parser: bool) -> Self {
+impl Default for Parser {
+    fn default() -> Self {
         Self {
-            ascii_parser: AsciiParser::default(),
-            ansi_parser: AnsiParser::new(),
-            use_ansi_parser,
-
+            ansi_parser: super::ansi::Parser::default(),
             avatar_state: 0,
             avt_state: AvtReadState::Chars,
             avt_repeat_char: ' ',
         }
     }
+}
 
+impl Parser {
     fn print_fallback(
         &mut self,
         buf: &mut Buffer,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
-        if self.use_ansi_parser {
-            self.ansi_parser.print_char(buf, caret, ch)
-        } else {
-            self.ascii_parser.print_char(buf, caret, ch)
-        }
+        self.ansi_parser.print_char(buf, caret, ch)
     }
 }
 
-impl BufferParser for AvatarParser {
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
-        self.ascii_parser.convert_from_unicode(ch)
+        self.ansi_parser.convert_from_unicode(ch)
     }
 
     fn convert_to_unicode(&self, ch: char) -> char {
-        self.ascii_parser.convert_to_unicode(ch)
+        self.ansi_parser.convert_to_unicode(ch)
     }
 
     fn print_char(
@@ -140,7 +129,7 @@ impl BufferParser for AvatarParser {
                     self.avatar_state = 3;
                     let repeat_count = ch as usize;
                     for _ in 0..repeat_count {
-                        self.ascii_parser
+                        self.ansi_parser
                             .print_char(buf, caret, self.avt_repeat_char)?;
                     }
                     self.avt_state = AvtReadState::Chars;

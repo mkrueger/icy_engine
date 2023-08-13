@@ -1,3 +1,4 @@
+use crate::ascii::CP437_TO_UNICODE;
 use crate::TextAttribute;
 use crate::{Buffer, Position};
 
@@ -155,7 +156,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                 if ch.ch == '\0' {
                     result.push(b' ');
                 } else {
-                    let uni_ch = crate::CP437_TO_UNICODE[ch.ch as usize].to_string();
+                    let uni_ch = CP437_TO_UNICODE[ch.ch as usize].to_string();
                     result.extend(uni_ch.as_bytes());
                 }
             } else {

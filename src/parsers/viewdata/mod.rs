@@ -2,9 +2,13 @@
 use super::BufferParser;
 use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position, TextAttribute};
 
+mod constants;
+
+#[cfg(test)]
+mod tests;
+
 /// <https://www.blunham.com/Radar/Teletext/PDFs/Viewdata1976Spec.pdf>
-#[derive(Default)]
-pub struct ViewdataParser {
+pub struct Parser {
     got_esc: bool,
 
     hold_graphics: bool,
@@ -18,13 +22,21 @@ pub struct ViewdataParser {
     alpha_bg: u32,
 }
 
-impl ViewdataParser {
-    pub fn new() -> Self {
-        let mut res = ViewdataParser::default();
-        res.reset_screen();
-        res
+impl Default for Parser {
+    fn default() -> Self {
+        Self {
+            got_esc: false,
+            hold_graphics: false,
+            held_graphics_character: ' ',
+            is_contiguous: true,
+            is_in_graphic_mode: false,
+            graphics_bg: 0,
+            alpha_bg: 0,
+        }
     }
+}
 
+impl Parser {
     fn reset_screen(&mut self) {
         self.got_esc = false;
 
@@ -97,7 +109,7 @@ impl ViewdataParser {
             caret.pos.x = caret.pos.x.saturating_sub(1);
         } else {
             caret.pos.x = buf.get_buffer_width() - 1;
-            ViewdataParser::caret_up(buf, caret);
+            Parser::caret_up(buf, caret);
         }
     }
 
@@ -108,24 +120,24 @@ impl ViewdataParser {
                     // Black Background
                     caret.attr.set_is_concealed(false);
                     caret.attr.set_background(0);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
                 b']' => {
                     caret.attr.set_background(caret.attr.get_foreground());
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
                 b'I' => {
                     caret.attr.set_is_blinking(false);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
                 b'L' => {
                     caret.attr.set_is_double_height(false);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
                 b'X' => {
                     if !self.is_in_graphic_mode {
                         caret.attr.set_is_concealed(true);
-                        ViewdataParser::fill_to_eol(buf, caret);
+                        Parser::fill_to_eol(buf, caret);
                     }
                 }
                 b'Y' => {
@@ -182,7 +194,7 @@ impl ViewdataParser {
                     caret.attr.set_is_concealed(false);
                     self.held_graphics_character = ' ';
                     caret.attr.set_foreground(1 + (ch - b'A') as u32);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
                 b'Q'..=b'W' => {
                     // Graphics Red, Green, Yellow, Blue, Magenta, Cyan, White
@@ -192,16 +204,16 @@ impl ViewdataParser {
                     }
                     caret.attr.set_is_concealed(false);
                     caret.attr.set_foreground(1 + (ch - b'Q') as u32);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
                 b'H' => {
                     caret.attr.set_is_blinking(true);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
 
                 b'M' => {
                     caret.attr.set_is_double_height(true);
-                    ViewdataParser::fill_to_eol(buf, caret);
+                    Parser::fill_to_eol(buf, caret);
                 }
 
                 b'_' => {
@@ -216,19 +228,19 @@ impl ViewdataParser {
     }
 }
 
-impl BufferParser for ViewdataParser {
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
         if ch == ' ' {
             return ' ';
         }
-        match UNICODE_TO_VIEWDATA.get(&ch) {
+        match constants::UNICODE_TO_VIEWDATA.get(&ch) {
             Some(out_ch) => *out_ch,
             _ => ch,
         }
     }
 
     fn convert_to_unicode(&self, ch: char) -> char {
-        match VIEWDATA_TO_UNICODE.get(ch as usize) {
+        match constants::VIEWDATA_TO_UNICODE.get(ch as usize) {
             Some(out_ch) => *out_ch,
             _ => ch,
         }
@@ -265,7 +277,7 @@ impl BufferParser for ViewdataParser {
             }
             0b000_1011 => {
                 // Caret up 0x0B
-                ViewdataParser::caret_up(buf, caret);
+                Parser::caret_up(buf, caret);
             }
             0b000_1100 => {
                 // 12 / 0x0C
@@ -322,278 +334,3 @@ impl BufferParser for ViewdataParser {
         Ok(CallbackAction::None)
     }
 }
-
-lazy_static::lazy_static! {
-    static ref UNICODE_TO_VIEWDATA: std::collections::HashMap<char,char> = {
-        let mut res = std::collections::HashMap::new();
-        (0..256).for_each(|a| {
-            res.insert(VIEWDATA_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
-        });
-        res
-    };
-}
-pub const VIEWDATA_TO_UNICODE: [char; 256] = [
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    ' ',
-    '!',
-    '"',
-    'f',
-    '$',
-    '%',
-    '&',
-    '\'',
-    '(',
-    ')',
-    '*',
-    '+',
-    ',',
-    '-',
-    '.',
-    '/',
-    '0',
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    ':',
-    ';',
-    '<',
-    '=',
-    '>',
-    '?',
-    '@',
-    'A',
-    'B',
-    'C',
-    'D',
-    'E',
-    'F',
-    'G',
-    'H',
-    'I',
-    'J',
-    'K',
-    'L',
-    'M',
-    'N',
-    'O',
-    'P',
-    'Q',
-    'R',
-    'S',
-    'T',
-    'U',
-    'V',
-    'W',
-    'X',
-    'Y',
-    'Z',
-    '←',
-    '½',
-    '→',
-    '↑',
-    '#',
-    '\u{23AF}',
-    'a',
-    'b',
-    'c',
-    'd',
-    'e',
-    'f',
-    'g',
-    'h',
-    'i',
-    'j',
-    'k',
-    'l',
-    'm',
-    'n',
-    'o',
-    'p',
-    'q',
-    'r',
-    's',
-    't',
-    'u',
-    'v',
-    'w',
-    'x',
-    'y',
-    'z',
-    '¼',
-    '⏸',
-    '¾',
-    '÷',
-    '▉',
-    // graphics char sextants
-    ' ',
-    '\u{1fb00}',
-    '\u{1fb01}',
-    '\u{1fb02}',
-    '\u{1fb03}',
-    '\u{1fb04}',
-    '\u{1fb05}',
-    '\u{1fb06}',
-    '\u{1fb07}',
-    '\u{1fb08}',
-    '\u{1fb09}',
-    '\u{1fb0a}',
-    '\u{1fb0b}',
-    '\u{1fb0c}',
-    '\u{1fb0d}',
-    '\u{1fb0e}',
-    '\u{1fb0f}',
-    '\u{1fb10}',
-    '\u{1fb11}',
-    '\u{1fb12}',
-    '\u{1fb13}',
-    '▌',
-    '\u{1fb14}',
-    '\u{1fb15}',
-    '\u{1fb16}',
-    '\u{1fb17}',
-    '\u{1fb18}',
-    '\u{1fb19}',
-    '\u{1fb1a}',
-    '\u{1fb1b}',
-    '\u{1fb1c}',
-    '\u{1fb1d}',
-    '\u{1fb1e}',
-    '\u{1fb1f}',
-    '\u{1fb20}',
-    '\u{1fb21}',
-    '\u{1fb22}',
-    '\u{1fb23}',
-    '\u{1fb24}',
-    '\u{1fb25}',
-    '\u{1fb26}',
-    '\u{1fb27}',
-    '▐',
-    '\u{1fb28}',
-    '\u{1fb29}',
-    '\u{1fb2a}',
-    '\u{1fb2b}',
-    '\u{1fb2c}',
-    '\u{1fb2d}',
-    '\u{1fb2e}',
-    '\u{1fb2f}',
-    '\u{1fb30}',
-    '\u{1fb31}',
-    '\u{1fb32}',
-    '\u{1fb33}',
-    '\u{1fb34}',
-    '\u{1fb35}',
-    '\u{1fb36}',
-    '\u{1fb37}',
-    '\u{1fb38}',
-    '\u{1fb39}',
-    '\u{1fb3a}',
-    '\u{1fb3b}',
-    '█',
-    // no sextants for this variant :/
-    ' ',
-    '\u{1fb00}',
-    '\u{1fb01}',
-    '\u{1fb02}',
-    '\u{1fb03}',
-    '\u{1fb04}',
-    '\u{1fb05}',
-    '\u{1fb06}',
-    '\u{1fb07}',
-    '\u{1fb08}',
-    '\u{1fb09}',
-    '\u{1fb0a}',
-    '\u{1fb0b}',
-    '\u{1fb0c}',
-    '\u{1fb0d}',
-    '\u{1fb0e}',
-    '\u{1fb0f}',
-    '\u{1fb10}',
-    '\u{1fb11}',
-    '\u{1fb12}',
-    '\u{1fb13}',
-    '▌',
-    '\u{1fb14}',
-    '\u{1fb15}',
-    '\u{1fb16}',
-    '\u{1fb17}',
-    '\u{1fb18}',
-    '\u{1fb19}',
-    '\u{1fb1a}',
-    '\u{1fb1b}',
-    '\u{1fb1c}',
-    '\u{1fb1d}',
-    '\u{1fb1e}',
-    '\u{1fb1f}',
-    '\u{1fb20}',
-    '\u{1fb21}',
-    '\u{1fb22}',
-    '\u{1fb23}',
-    '\u{1fb24}',
-    '\u{1fb25}',
-    '\u{1fb26}',
-    '\u{1fb27}',
-    '▐',
-    '\u{1fb28}',
-    '\u{1fb29}',
-    '\u{1fb2a}',
-    '\u{1fb2b}',
-    '\u{1fb2c}',
-    '\u{1fb2d}',
-    '\u{1fb2e}',
-    '\u{1fb2f}',
-    '\u{1fb30}',
-    '\u{1fb31}',
-    '\u{1fb32}',
-    '\u{1fb33}',
-    '\u{1fb34}',
-    '\u{1fb35}',
-    '\u{1fb36}',
-    '\u{1fb37}',
-    '\u{1fb38}',
-    '\u{1fb39}',
-    '\u{1fb3a}',
-    '\u{1fb3b}',
-    '█',
-];
-
-/*
-
-
-*/

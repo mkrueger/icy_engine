@@ -7,7 +7,7 @@ use std::{
     mem,
 };
 
-use super::{AsciiParser, BufferParser};
+use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
     Color, EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, Palette, ParserError,
@@ -15,6 +15,11 @@ use crate::{
     LF, XTERM_256_PALETTE,
 };
 use base64::{engine::general_purpose, Engine as _};
+
+#[cfg(test)]
+mod sixel_tests;
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone, Copy)]
 pub enum SixelState {
@@ -26,7 +31,7 @@ pub enum SixelState {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum AnsiMusicState {
+pub enum MusicState {
     Default,
     ParseMusicStyle,
     SetTempo(u16),
@@ -37,23 +42,24 @@ pub enum AnsiMusicState {
 }
 
 #[derive(Debug, Clone)]
-pub enum AnsiState {
+pub enum EngineState {
     Default,
     ReadEscapeSequence,
 
     ReadCSISequence,
     ReadCSICommand,
     EndCSI(char),
-    ReadMacro(usize, HexMacroState),
 
     ReadDCS,
     RecordDCS(u8),
     GotPossibleMacroInsideDCS(u8),
     EndDCS(char),
 
+    ReadMacro(usize, HexMacroState),
+
     ReadSixel(SixelState),
 
-    ParseAnsiMusic(AnsiMusicState),
+    ParseAnsiMusic(MusicState),
 
     ReadAPS(ReadSTState),
 }
@@ -74,7 +80,7 @@ pub enum HexMacroState {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
-pub enum AnsiMusicOption {
+pub enum MusicOption {
     Off,
     Conflicting,
     Banana,
@@ -87,19 +93,19 @@ pub enum ReadSTState {
     GotEscape(usize),
 }
 
-impl Display for AnsiMusicOption {
+impl Display for MusicOption {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
-impl From<String> for AnsiMusicOption {
+impl From<String> for MusicOption {
     fn from(s: String) -> Self {
         match s.as_str() {
-            "Conflicting" => AnsiMusicOption::Conflicting,
-            "Banana" => AnsiMusicOption::Banana,
-            "Both" => AnsiMusicOption::Both,
-            _ => AnsiMusicOption::Off,
+            "Conflicting" => MusicOption::Conflicting,
+            "Banana" => MusicOption::Banana,
+            "Both" => MusicOption::Both,
+            _ => MusicOption::Off,
         }
     }
 }
@@ -127,9 +133,9 @@ pub const FREQ: [f32; 12 * 7] = [
     5919.9108, 6_271.927, 6_644.875, 7040.0000, 7_458.62, 7_902.132,
 ];
 
-pub struct AnsiParser {
-    ascii_parser: AsciiParser,
-    pub(crate) state: AnsiState,
+pub struct Parser {
+    ascii_parser: ascii::Parser,
+    pub(crate) state: EngineState,
     pub(crate) current_font_page: usize,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
@@ -141,7 +147,7 @@ pub struct AnsiParser {
     current_escape_sequence: String,
     current_sixel_color: i32,
 
-    pub ansi_music: AnsiMusicOption,
+    pub ansi_music: MusicOption,
     cur_music: Option<AnsiMusic>,
     cur_octave: usize,
     cur_length: u32,
@@ -205,12 +211,13 @@ pub static ANSI_FONT_NAMES: [&str; 43] = [
     "Amiga MicroKnight",     // MicroKnight (Amiga)
     "Amiga Topaz 1",         // Topaz (Amiga)
 ];
-impl AnsiParser {
-    pub fn new() -> Self {
-        AnsiParser {
-            ascii_parser: AsciiParser::default(),
+
+impl Default for Parser {
+    fn default() -> Self {
+        Parser {
+            ascii_parser: ascii::Parser::default(),
             current_font_page: 0,
-            state: AnsiState::Default,
+            state: EngineState::Default,
             saved_pos: Position::default(),
             parsed_numbers: Vec::new(),
             current_escape_sequence: String::new(),
@@ -218,7 +225,7 @@ impl AnsiParser {
             current_sixel_palette: Palette::default(),
             current_sixel_color: 0,
             sixel_cursor: Position::default(),
-            ansi_music: AnsiMusicOption::Off,
+            ansi_music: MusicOption::Off,
             cur_music: None,
             cur_octave: 3,
             cur_length: 4,
@@ -231,7 +238,9 @@ impl AnsiParser {
             last_char: '\0',
         }
     }
+}
 
+impl Parser {
     fn parse_sixel(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
         let current_sixel = buf.layers[0].sixels.len() - 1;
 
@@ -335,10 +344,10 @@ impl AnsiParser {
     }
 
     fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
-        if let AnsiState::ParseAnsiMusic(state) = self.state {
+        if let EngineState::ParseAnsiMusic(state) = self.state {
             match state {
-                AnsiMusicState::ParseMusicStyle => {
-                    self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                MusicState::ParseMusicStyle => {
+                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                     match ch {
                         'F' => self
                             .cur_music
@@ -373,53 +382,53 @@ impl AnsiParser {
                         _ => return self.parse_ansi_music(ch),
                     }
                 }
-                AnsiMusicState::SetTempo(x) => {
+                MusicState::SetTempo(x) => {
                     let mut x = x;
                     if ch.is_ascii_digit() {
                         x = x * 10 + ch as u16 - b'0' as u16;
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(x));
+                        self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(x));
                     } else {
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                         self.cur_tempo = x.clamp(32, 255) as u32;
                         return Ok(self.parse_default_ansi_music(ch));
                     }
                 }
-                AnsiMusicState::SetOctave => {
+                MusicState::SetOctave => {
                     if ('0'..='6').contains(&ch) {
                         self.cur_octave = ((ch as u8) - b'0') as usize;
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                     } else {
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
                         )));
                     }
                 }
-                AnsiMusicState::Note(n, len) => {
-                    self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                MusicState::Note(n, len) => {
+                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                     match ch {
                         '+' | '#' => {
                             if n + 1 < FREQ.len() {
                                 self.state =
-                                    AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n + 1, len));
+                                    EngineState::ParseAnsiMusic(MusicState::Note(n + 1, len));
                             }
                         }
                         '-' => {
                             if n > 0 {
                                 // B
                                 self.state =
-                                    AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n - 1, len));
+                                    EngineState::ParseAnsiMusic(MusicState::Note(n - 1, len));
                             }
                         }
                         '0'..='9' => {
                             let len = len * 10 + ch as u32 - b'0' as u32;
-                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n, len));
+                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
                         }
                         '.' => {
                             let len = len * 3 / 2;
-                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(n, len));
+                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
                         }
                         _ => {
-                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Default);
+                            self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                             let len = if len == 0 { self.cur_length } else { len };
                             self.cur_music.as_mut().unwrap().music_actions.push(
                                 MusicAction::PlayNote(
@@ -431,27 +440,27 @@ impl AnsiParser {
                         }
                     }
                 }
-                AnsiMusicState::SetLength(x) => {
+                MusicState::SetLength(x) => {
                     let mut x = x;
                     if ch.is_ascii_digit() {
                         x = x * 10 + ch as i32 - b'0' as i32;
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(x));
+                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
                     } else if ch == '.' {
                         x = x * 3 / 2;
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(x));
+                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
                     } else {
                         self.cur_length = (x as u32).clamp(1, 64);
                         return Ok(self.parse_default_ansi_music(ch));
                     }
                 }
-                AnsiMusicState::Pause(x) => {
+                MusicState::Pause(x) => {
                     let mut x = x;
                     if ch.is_ascii_digit() {
                         x = x * 10 + ch as i32 - b'0' as i32;
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(x));
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
                     } else if ch == '.' {
                         x = x * 3 / 2;
-                        self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(x));
+                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
                     } else {
                         let pause = (x as u32).clamp(1, 64);
                         self.cur_music
@@ -462,7 +471,7 @@ impl AnsiParser {
                         return Ok(self.parse_default_ansi_music(ch));
                     }
                 }
-                AnsiMusicState::Default => {
+                MusicState::Default => {
                     return Ok(self.parse_default_ansi_music(ch));
                 }
             }
@@ -482,23 +491,23 @@ impl AnsiParser {
     fn parse_default_ansi_music(&mut self, ch: char) -> CallbackAction {
         match ch {
             '\x0E' => {
-                self.state = AnsiState::Default;
+                self.state = EngineState::Default;
                 self.cur_octave = 3;
                 return CallbackAction::PlayMusic(
                     self.cur_music.replace(AnsiMusic::default()).unwrap(),
                 );
             }
-            'T' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetTempo(0)),
-            'L' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetLength(0)),
-            'O' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::SetOctave),
-            'C' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(0, 0)),
-            'D' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(2, 0)),
-            'E' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(4, 0)),
-            'F' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(5, 0)),
-            'G' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(7, 0)),
-            'A' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(9, 0)),
-            'B' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Note(11, 0)),
-            'M' => self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle),
+            'T' => self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(0)),
+            'L' => self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(0)),
+            'O' => self.state = EngineState::ParseAnsiMusic(MusicState::SetOctave),
+            'C' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(0, 0)),
+            'D' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(2, 0)),
+            'E' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(4, 0)),
+            'F' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(5, 0)),
+            'G' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(7, 0)),
+            'A' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(9, 0)),
+            'B' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(11, 0)),
+            'M' => self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle),
             '<' => {
                 if self.cur_octave > 0 {
                     self.cur_octave -= 1;
@@ -510,7 +519,7 @@ impl AnsiParser {
                 }
             }
             'P' => {
-                self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::Pause(0));
+                self.state = EngineState::ParseAnsiMusic(MusicState::Pause(0));
             }
             _ => {}
         }
@@ -539,13 +548,7 @@ impl AnsiParser {
     }
 }
 
-impl Default for AnsiParser {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BufferParser for AnsiParser {
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
         self.ascii_parser.convert_from_unicode(ch)
     }
@@ -562,17 +565,17 @@ impl BufferParser for AnsiParser {
         ch: char,
     ) -> EngineResult<CallbackAction> {
         match &self.state {
-            AnsiState::ParseAnsiMusic(_) => {
+            EngineState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
             }
-            AnsiState::ReadEscapeSequence => {
+            EngineState::ReadEscapeSequence => {
                 return {
-                    self.state = AnsiState::Default;
+                    self.state = EngineState::Default;
                     self.current_escape_sequence.push(ch);
 
                     match ch {
                         '[' => {
-                            self.state = AnsiState::ReadCSISequence;
+                            self.state = EngineState::ReadCSISequence;
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
@@ -614,27 +617,27 @@ impl BufferParser for AnsiParser {
 
                         'P' => {
                             // DCS
-                            self.state = AnsiState::ReadDCS;
+                            self.state = EngineState::ReadDCS;
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
                         'H' => {
                             // set tab at current column
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             buf.terminal_state.set_tab_at(caret.get_position().x);
                             Ok(CallbackAction::None)
                         }
 
                         '_' => {
                             // Application Program String
-                            self.state = AnsiState::ReadAPS(ReadSTState::Default(0));
+                            self.state = EngineState::ReadAPS(ReadSTState::Default(0));
                             self.aps_string.clear();
                             Ok(CallbackAction::None)
                         }
 
                         '0'..='~' => {
                             // Silently drop unsupported sequences
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             Ok(CallbackAction::None)
                         }
                         _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -644,7 +647,7 @@ impl BufferParser for AnsiParser {
                 };
             }
 
-            AnsiState::ReadMacro(id, state) => {
+            EngineState::ReadMacro(id, state) => {
                 match state {
                     HexMacroState::ReadSequence | HexMacroState::EscapeSequence => {
                         if matches!(state, HexMacroState::EscapeSequence) {
@@ -653,17 +656,17 @@ impl BufferParser for AnsiParser {
                                 let mut str = String::new();
                                 mem::swap(&mut self.marco_rec, &mut str);
                                 self.macros.insert(*id, str);
-                                self.state = AnsiState::Default;
+                                self.state = EngineState::Default;
                                 return Ok(CallbackAction::None);
                             }
                             self.marco_rec.push('\x1B');
                         }
 
                         if ch == '\x1B' {
-                            self.state = AnsiState::ReadMacro(*id, HexMacroState::EscapeSequence);
+                            self.state = EngineState::ReadMacro(*id, HexMacroState::EscapeSequence);
                             return Ok(CallbackAction::None);
                         }
-                        self.state = AnsiState::ReadMacro(*id, HexMacroState::ReadSequence);
+                        self.state = EngineState::ReadMacro(*id, HexMacroState::ReadSequence);
                         self.marco_rec.push(ch);
                     }
 
@@ -673,25 +676,25 @@ impl BufferParser for AnsiParser {
                             let mut str = String::new();
                             mem::swap(&mut self.marco_rec, &mut str);
                             self.macros.insert(*id, str);
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             return Ok(CallbackAction::None);
                         }
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::Error(format!(
                             "Invalid end of hex macro {ch}"
                         ))));
                     }
                     HexMacroState::ReadFirstHex => {
                         if ch == '\x1B' {
-                            self.state = AnsiState::ReadMacro(*id, HexMacroState::EscapeHex);
+                            self.state = EngineState::ReadMacro(*id, HexMacroState::EscapeHex);
                             return Ok(CallbackAction::None);
                         }
                         if ch == '!' {
                             self.state =
-                                AnsiState::ReadMacro(*id, HexMacroState::ReadRepeatNumber(0));
+                                EngineState::ReadMacro(*id, HexMacroState::ReadRepeatNumber(0));
                             return Ok(CallbackAction::None);
                         }
-                        self.state = AnsiState::ReadMacro(
+                        self.state = EngineState::ReadMacro(
                             *id,
                             HexMacroState::ReadSecondHex(unsafe {
                                 char::from_u32_unchecked(ch as u32)
@@ -709,16 +712,16 @@ impl BufferParser for AnsiParser {
                                 char::from_u32_unchecked((first * 16 + second) as u32)
                             });
                         } else {
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             return Err(Box::new(ParserError::Error(
                                 "Invalid hex number in macro sequence".to_string(),
                             )));
                         }
-                        self.state = AnsiState::ReadMacro(*id, HexMacroState::ReadFirstHex);
+                        self.state = EngineState::ReadMacro(*id, HexMacroState::ReadFirstHex);
                     }
                     HexMacroState::ReadRepeatNumber(n) => {
                         if ch.is_ascii_digit() {
-                            self.state = AnsiState::ReadMacro(
+                            self.state = EngineState::ReadMacro(
                                 *id,
                                 HexMacroState::ReadRepeatNumber(*n * 10 + ch as i32 - b'0' as i32),
                             );
@@ -726,7 +729,7 @@ impl BufferParser for AnsiParser {
                         }
                         if ch == ';' {
                             self.repeat_rec.push(String::new());
-                            self.state = AnsiState::ReadMacro(
+                            self.state = EngineState::ReadMacro(
                                 *id,
                                 HexMacroState::ReadRepeatSequenceFirst(*n),
                             );
@@ -740,10 +743,10 @@ impl BufferParser for AnsiParser {
                         if ch == ';' {
                             let seq = self.repeat_rec.pop().unwrap();
                             (0..*repeats).for_each(|_| self.marco_rec.push_str(&seq));
-                            self.state = AnsiState::ReadMacro(*id, HexMacroState::ReadFirstHex);
+                            self.state = EngineState::ReadMacro(*id, HexMacroState::ReadFirstHex);
                             return Ok(CallbackAction::None);
                         }
-                        self.state = AnsiState::ReadMacro(
+                        self.state = EngineState::ReadMacro(
                             *id,
                             HexMacroState::ReadRepeatSequenceSecond(*repeats, unsafe {
                                 char::from_u32_unchecked(ch as u32)
@@ -761,12 +764,12 @@ impl BufferParser for AnsiParser {
                                 char::from_u32_unchecked((first * 16 + second) as u32)
                             });
                         } else {
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             return Err(Box::new(ParserError::Error(
                                 "Invalid hex number in macro repeat sequence".to_string(),
                             )));
                         }
-                        self.state = AnsiState::ReadMacro(
+                        self.state = EngineState::ReadMacro(
                             *id,
                             HexMacroState::ReadRepeatSequenceFirst(*repeats),
                         );
@@ -774,27 +777,27 @@ impl BufferParser for AnsiParser {
                 }
             }
 
-            AnsiState::ReadAPS(st_state) => match st_state {
+            EngineState::ReadAPS(st_state) => match st_state {
                 ReadSTState::Default(nesting_level) => {
                     if ch == '\x1B' {
-                        self.state = AnsiState::ReadAPS(ReadSTState::GotEscape(*nesting_level));
+                        self.state = EngineState::ReadAPS(ReadSTState::GotEscape(*nesting_level));
                         return Ok(CallbackAction::None);
                     }
                     self.aps_string.push(ch);
                 }
                 ReadSTState::GotEscape(nesting_level) => {
                     if ch == '\\' {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         self.execute_aps_command(buf, caret);
                         return Ok(CallbackAction::None);
                     }
-                    self.state = AnsiState::ReadAPS(ReadSTState::Default(*nesting_level));
+                    self.state = EngineState::ReadAPS(ReadSTState::Default(*nesting_level));
                     self.aps_string.push('\x1B');
                     self.aps_string.push(ch);
                 }
             },
 
-            AnsiState::EndDCS(old_char) => {
+            EngineState::EndDCS(old_char) => {
                 if *old_char == '!' && ch == 'z' {
                     if let Some(pid) = self.parsed_numbers.first() {
                         if let Some(pdt) = self.parsed_numbers.get(1) {
@@ -811,16 +814,16 @@ impl BufferParser for AnsiParser {
                         };
                         self.marco_rec = String::new();
                         self.repeat_rec.clear();
-                        self.state = AnsiState::ReadMacro(*pid as usize, parse_mode);
+                        self.state = EngineState::ReadMacro(*pid as usize, parse_mode);
                         return Ok(CallbackAction::None);
                     }
                 }
-                self.state = AnsiState::Default;
+                self.state = EngineState::Default;
                 return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                     "{ch}"
                 ))));
             }
-            AnsiState::GotPossibleMacroInsideDCS(i) => {
+            EngineState::GotPossibleMacroInsideDCS(i) => {
                 // \x1B[<num>*z
                 // read macro inside dcs sequence, 3 states:´
                 // 0: [
@@ -830,7 +833,7 @@ impl BufferParser for AnsiParser {
 
                 if ch.is_ascii_digit() {
                     if *i != 1 {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected number got '{ch}'"
                         ))));
@@ -844,48 +847,48 @@ impl BufferParser for AnsiParser {
                 }
                 if ch == '[' {
                     if *i != 0 {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected '[' got '{ch}'"
                         ))));
                     }
-                    self.state = AnsiState::GotPossibleMacroInsideDCS(1);
+                    self.state = EngineState::GotPossibleMacroInsideDCS(1);
                     return Ok(CallbackAction::None);
                 }
                 if ch == '*' {
                     if *i != 1 {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected '*' got '{ch}'"
                         ))));
                     }
-                    self.state = AnsiState::GotPossibleMacroInsideDCS(2);
+                    self.state = EngineState::GotPossibleMacroInsideDCS(2);
                     return Ok(CallbackAction::None);
                 }
                 if ch == 'z' {
                     if *i != 2 {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected 'z' got '{ch}'"
                         ))));
                     }
                     if self.parsed_numbers.len() != 1 {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                             "Macro hasn't one number defined got '{}'",
                             self.parsed_numbers.len()
                         ))));
                     }
-                    self.state = AnsiState::ReadDCS;
+                    self.state = EngineState::ReadDCS;
                     return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
                 }
 
-                self.state = AnsiState::Default;
+                self.state = EngineState::Default;
                 return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                     "Invalid macro inside dcs '{ch}'"
                 ))));
             }
-            AnsiState::ReadDCS => match ch {
+            EngineState::ReadDCS => match ch {
                 'q' => {
                     let aspect_ratio = match self.parsed_numbers.first() {
                         Some(0 | 1 | 5 | 6) => 2,
@@ -908,18 +911,18 @@ impl BufferParser for AnsiParser {
                     buf.layers[0].sixels.push(sixel);
                     self.sixel_cursor = Position::default();
                     self.current_sixel_palette.clear();
-                    self.state = AnsiState::ReadSixel(SixelState::Read);
+                    self.state = EngineState::ReadSixel(SixelState::Read);
                 }
                 '!' => {
-                    self.state = AnsiState::EndDCS('!');
+                    self.state = EngineState::EndDCS('!');
                 }
                 '\x1B' => {
                     // maybe a macro inside the DCS sequence
-                    self.state = AnsiState::GotPossibleMacroInsideDCS(0);
+                    self.state = EngineState::GotPossibleMacroInsideDCS(0);
                 }
                 'C' => {
                     self.dcs_string.clear();
-                    self.state = AnsiState::RecordDCS(0);
+                    self.state = EngineState::RecordDCS(0);
                 }
                 _ => {
                     if ch.is_ascii_digit() {
@@ -931,7 +934,7 @@ impl BufferParser for AnsiParser {
                     } else if ch == ';' {
                         self.parsed_numbers.push(0);
                     } else {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         self.current_escape_sequence.push(ch);
                         if let Some(sixel) = buf.layers[0].sixels.last_mut() {
                             sixel.read_status = SixelReadStatus::Error;
@@ -943,10 +946,10 @@ impl BufferParser for AnsiParser {
                     }
                 }
             },
-            AnsiState::RecordDCS(dcs_state) => {
+            EngineState::RecordDCS(dcs_state) => {
                 match dcs_state {
                     1 => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if ch == '\\' {
                             if self.dcs_string.starts_with("Term:Font:") {
                                 let start_index = "Term:Font:".len();
@@ -984,14 +987,14 @@ impl BufferParser for AnsiParser {
                     }
                     0 => match ch {
                         '\x1B' => {
-                            self.state = AnsiState::RecordDCS(1);
+                            self.state = EngineState::RecordDCS(1);
                         }
                         _ => {
                             self.dcs_string.push(ch);
                         }
                     },
                     _ => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                             "sequence: {}",
                             self.dcs_string
@@ -999,7 +1002,7 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
-            AnsiState::ReadSixel(state) => {
+            EngineState::ReadSixel(state) => {
                 match state {
                     SixelState::EndSequence => {
                         let current_sixel = buf.layers[0].sixels.len() - 1;
@@ -1063,7 +1066,7 @@ impl BufferParser for AnsiParser {
                         }
 
                         if ch == '\\' {
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                         } else {
                             return Err(Box::new(ParserError::UnexpectedSixelEnd(ch)));
                         }
@@ -1083,7 +1086,7 @@ impl BufferParser for AnsiParser {
                             }
                             if self.parsed_numbers.len() > 1 {
                                 if self.parsed_numbers.len() != 5 {
-                                    self.state = AnsiState::Default;
+                                    self.state = EngineState::Default;
                                     return Err(Box::new(ParserError::InvalidColorInSixelSequence));
                                 }
 
@@ -1129,7 +1132,7 @@ impl BufferParser for AnsiParser {
                         } else {
                             let sixel = buf.layers[0].sixels.last_mut().unwrap();
                             if self.parsed_numbers.len() < 2 || self.parsed_numbers.len() > 4 {
-                                self.state = AnsiState::ReadSixel(SixelState::Read);
+                                self.state = EngineState::ReadSixel(SixelState::Read);
                                 sixel.read_status = SixelReadStatus::Error;
                                 return Err(Box::new(ParserError::InvalidPictureSize));
                             }
@@ -1170,12 +1173,12 @@ impl BufferParser for AnsiParser {
                                     self.parse_sixel(buf, ch)?;
                                 }
                             } else {
-                                self.state = AnsiState::Default;
+                                self.state = EngineState::Default;
                                 let sixel = buf.layers[0].sixels.last_mut().unwrap();
                                 sixel.read_status = SixelReadStatus::Error;
                                 return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
                             }
-                            self.state = AnsiState::ReadSixel(SixelState::Read);
+                            self.state = EngineState::ReadSixel(SixelState::Read);
                         }
                     }
                     SixelState::Read => {
@@ -1183,16 +1186,16 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
-            AnsiState::ReadCSICommand => {
+            EngineState::ReadCSICommand => {
                 self.current_escape_sequence.push(ch);
                 match ch {
                     'p' => {
                         // [!p Soft Teminal Reset
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         buf.terminal_state.reset();
                     }
                     'l' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -1224,7 +1227,7 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     'h' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -1283,7 +1286,7 @@ impl BufferParser for AnsiParser {
                         self.parsed_numbers.push(0);
                     }
                     'n' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         match self.parsed_numbers.first() {
                             Some(62) => {
                                 // DSR—Macro Space Report
@@ -1321,7 +1324,7 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     _ => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         // error in control sequence, terminate reading
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
@@ -1329,14 +1332,14 @@ impl BufferParser for AnsiParser {
                     }
                 }
             }
-            AnsiState::EndCSI(func) => {
+            EngineState::EndCSI(func) => {
                 self.current_escape_sequence.push(ch);
                 match *func {
                     '*' => {
                         match ch {
                             'z' => {
                                 // DECINVM invoke macro
-                                self.state = AnsiState::Default;
+                                self.state = EngineState::Default;
                                 if let Some(id) = self.parsed_numbers.first() {
                                     return self.invoke_macro(buf, caret, *id);
                                 }
@@ -1344,7 +1347,7 @@ impl BufferParser for AnsiParser {
                             }
                             'r' => {
                                 // DECSCS—Select Communication Speed https://vt100.net/docs/vt510-rm/DECSCS.html
-                                self.state = AnsiState::Default;
+                                self.state = EngineState::Default;
                                 let ps1 = self.parsed_numbers.first().unwrap_or(&0);
                                 if *ps1 != 0 && *ps1 != 1 {
                                     // silently ignore all other options
@@ -1377,7 +1380,7 @@ impl BufferParser for AnsiParser {
                             'y' => {
                                 // DECRQCRA—Request Checksum of Rectangular Area
                                 // <https://vt100.net/docs/vt510-rm/DECRQCRA.html>
-                                self.state = AnsiState::Default;
+                                self.state = EngineState::Default;
 
                                 if self.parsed_numbers.len() != 6 {
                                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1430,7 +1433,7 @@ impl BufferParser for AnsiParser {
 
                     '$' => match ch {
                         'w' => {
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             if let Some(2) = self.parsed_numbers.first() {
                                 let mut str = "\x1BP2$u".to_string();
                                 (0..buf.terminal_state.tab_count()).for_each(|i| {
@@ -1448,7 +1451,7 @@ impl BufferParser for AnsiParser {
                     },
 
                     ' ' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
 
                         match ch {
                             'D' => {
@@ -1527,14 +1530,14 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     _ => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
                         )));
                     }
                 }
             }
-            AnsiState::ReadCSISequence => {
+            EngineState::ReadCSISequence => {
                 if let Some(ch) = char::from_u32(ch as u32) {
                     self.current_escape_sequence.push(ch);
                 } else {
@@ -1544,7 +1547,7 @@ impl BufferParser for AnsiParser {
                 match ch {
                     'm' => {
                         // Select Graphic Rendition
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.attr = TextAttribute::default(); // Reset or normal
                         }
@@ -1628,7 +1631,7 @@ impl BufferParser for AnsiParser {
                     }
                     'H' |    // Cursor Position
                     'f' => { // Character and Line Position (HVP)
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.pos = buf.upper_left_position();
                         } else {
@@ -1649,7 +1652,7 @@ impl BufferParser for AnsiParser {
                     }
                     'C' => {
                         // Cursor Forward
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.right(buf, 1);
                         } else {
@@ -1659,7 +1662,7 @@ impl BufferParser for AnsiParser {
                     'j' | // Character Position Backward
                     'D' => {
                         // Cursor Back
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.left(buf, 1);
                         } else {
@@ -1669,7 +1672,7 @@ impl BufferParser for AnsiParser {
                     'k' | // Line Position Backward
                     'A' => {
                         // Cursor Up
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.up(buf, 1);
                         } else {
@@ -1678,7 +1681,7 @@ impl BufferParser for AnsiParser {
                     }
                     'B' => {
                         // Cursor Down
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.down(buf, 1);
                         } else {
@@ -1688,7 +1691,7 @@ impl BufferParser for AnsiParser {
                     's' => {
                         if buf.terminal_state.dec_margin_mode_left_right {
                             // Set Left and Right Margins
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             let (start, end) = match self.parsed_numbers.len() {
                                 2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
                                 1 => (0, self.parsed_numbers[0] - 1),
@@ -1707,19 +1710,19 @@ impl BufferParser for AnsiParser {
                             }
                         } else {
                             // Save Current Cursor Position
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             self.saved_pos = caret.pos;
                         }
                     }
                     'u' => {
                         // Restore Saved Cursor Position
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         caret.pos = self.saved_pos;
                     }
 
                     'd' => {
                         // Vertical Line Position Absolute
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => n - 1,
                             _ => 0,
@@ -1729,7 +1732,7 @@ impl BufferParser for AnsiParser {
                     }
                     'e' => {
                         // Vertical Line Position Relative
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => *n,
                             _ => 1,
@@ -1739,7 +1742,7 @@ impl BufferParser for AnsiParser {
                     }
                     '\'' => {
                         // Horizontal Line Position Absolute
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => n - 1,
                             _ => 0,
@@ -1755,7 +1758,7 @@ impl BufferParser for AnsiParser {
                     }
                     'a' => {
                         // Horizontal Line Position Relative
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => *n,
                             _ => 1,
@@ -1773,7 +1776,7 @@ impl BufferParser for AnsiParser {
 
                     'G' => {
                         // Cursor Horizontal Absolute
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => n - 1,
                             _ => 0,
@@ -1783,7 +1786,7 @@ impl BufferParser for AnsiParser {
                     }
                     'E' => {
                         // Cursor Next Line
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => *n,
                             _ => 1,
@@ -1794,7 +1797,7 @@ impl BufferParser for AnsiParser {
                     }
                     'F' => {
                         // Cursor Previous Line
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => *n,
                             _ => 1,
@@ -1806,7 +1809,7 @@ impl BufferParser for AnsiParser {
 
                     'n' => {
                         // Device Status Report
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -1853,7 +1856,7 @@ impl BufferParser for AnsiParser {
                     */
                     'X' => {
                         // Erase character
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
 
                         if let Some(number) = self.parsed_numbers.first() {
                             caret.erase_charcter(buf, *number);
@@ -1868,7 +1871,7 @@ impl BufferParser for AnsiParser {
                     }
                     '@' => {
                         // Insert character
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
 
                         if let Some(number) = self.parsed_numbers.first() {
                             for _ in 0..*number {
@@ -1885,12 +1888,12 @@ impl BufferParser for AnsiParser {
                     }
                     'M' => {
                         // Delete line
-                        self.state = AnsiState::Default;
-                        if matches!(self.ansi_music, AnsiMusicOption::Conflicting)
-                            || matches!(self.ansi_music, AnsiMusicOption::Both)
+                        self.state = EngineState::Default;
+                        if matches!(self.ansi_music, MusicOption::Conflicting)
+                            || matches!(self.ansi_music, MusicOption::Both)
                         {
                             self.cur_music = Some(AnsiMusic::default());
-                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
+                            self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         } else if self.parsed_numbers.is_empty() {
                             if let Some(layer) = buf.layers.get(0) {
                                 if caret.pos.y < layer.lines.len() as i32 {
@@ -1923,24 +1926,24 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     'N' => {
-                        if matches!(self.ansi_music, AnsiMusicOption::Banana)
-                            || matches!(self.ansi_music, AnsiMusicOption::Both)
+                        if matches!(self.ansi_music, MusicOption::Banana)
+                            || matches!(self.ansi_music, MusicOption::Both)
                         {
                             self.cur_music = Some(AnsiMusic::default());
-                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
+                            self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         }
                     }
 
                     '|' => {
-                        if !matches!(self.ansi_music, AnsiMusicOption::Off) {
+                        if !matches!(self.ansi_music, MusicOption::Off) {
                             self.cur_music = Some(AnsiMusic::default());
-                            self.state = AnsiState::ParseAnsiMusic(AnsiMusicState::ParseMusicStyle);
+                            self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         }
                     }
 
                     'P' => {
                         // Delete character
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.del(buf);
                         } else {
@@ -1963,7 +1966,7 @@ impl BufferParser for AnsiParser {
 
                     'L' => {
                         // Insert line
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             buf.insert_terminal_line(caret.pos.y);
                         } else {
@@ -1986,7 +1989,7 @@ impl BufferParser for AnsiParser {
 
                     'J' => {
                         // Erase in Display
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             buf.clear_buffer_down(caret);
                         } else if let Some(number) = self.parsed_numbers.first() {
@@ -2015,21 +2018,21 @@ impl BufferParser for AnsiParser {
 
                     '?' => {
                         // read custom command
-                        self.state = AnsiState::ReadCSICommand;
+                        self.state = EngineState::ReadCSICommand;
                     }
                     '*' => {
-                        self.state = AnsiState::EndCSI('*');
+                        self.state = EngineState::EndCSI('*');
                     }
                     '$' => {
-                        self.state = AnsiState::EndCSI('$');
+                        self.state = EngineState::EndCSI('$');
                     }
                     ' ' => {
-                        self.state = AnsiState::EndCSI(' ');
+                        self.state = EngineState::EndCSI(' ');
                     }
 
                     'K' => {
                         // Erase in line
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             buf.clear_line_end(caret);
                         } else {
@@ -2054,7 +2057,7 @@ impl BufferParser for AnsiParser {
 
                     'c' => {
                         // device attributes
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         // respond with IcyTerm as ASCII followed by the package version.
                         return Ok(CallbackAction::SendString(format!(
                             "\x1b[=73;99;121;84;101;114;109;{};{};{}c",
@@ -2065,7 +2068,7 @@ impl BufferParser for AnsiParser {
                     }
                     'r' => {
                         // Set Top and Bottom Margins
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let (start, end) = match self.parsed_numbers.len() {
                             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
                             1 => (0, self.parsed_numbers[0] - 1),
@@ -2086,7 +2089,7 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     'h' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -2105,7 +2108,7 @@ impl BufferParser for AnsiParser {
                     }
 
                     'l' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -2123,7 +2126,7 @@ impl BufferParser for AnsiParser {
                         }
                     }
                     '~' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -2152,7 +2155,7 @@ impl BufferParser for AnsiParser {
                     }
 
                     't' => {
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 4 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -2179,7 +2182,7 @@ impl BufferParser for AnsiParser {
                     }
                     'S' => {
                         // Scroll Up
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = if let Some(number) = self.parsed_numbers.first() {
                             *number
                         } else {
@@ -2189,7 +2192,7 @@ impl BufferParser for AnsiParser {
                     }
                     'T' => {
                         // Scroll Down
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num = if let Some(number) = self.parsed_numbers.first() {
                             *number
                         } else {
@@ -2199,7 +2202,7 @@ impl BufferParser for AnsiParser {
                     }
                     'b' => {
                         // repeat last char
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         let num: i32 = if let Some(number) = self.parsed_numbers.first() {
                             *number
                         } else {
@@ -2211,7 +2214,7 @@ impl BufferParser for AnsiParser {
                     }
                     'g' => {
                         // clear tab stops
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 format!("Invalid parameter number in clear tab stops: {}", self.parsed_numbers.len()),
@@ -2238,7 +2241,7 @@ impl BufferParser for AnsiParser {
                     }
                     'Y' => {
                         // next tab stop
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 format!("Invalid parameter number in goto next tab stop: {}", self.parsed_numbers.len()),
@@ -2254,7 +2257,7 @@ impl BufferParser for AnsiParser {
                     }
                     'Z' => {
                         // prev tab stop
-                        self.state = AnsiState::Default;
+                        self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 format!("Invalid parameter number in goto next tab stop: {}", self.parsed_numbers.len()),
@@ -2271,7 +2274,7 @@ impl BufferParser for AnsiParser {
                     _ => {
                         if ('\x40'..='\x7E').contains(&ch) {
                             // unknown control sequence, terminate reading
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
                             )));
@@ -2286,7 +2289,7 @@ impl BufferParser for AnsiParser {
                         } else if ch == ';' {
                             self.parsed_numbers.push(0);
                         } else {
-                            self.state = AnsiState::Default;
+                            self.state = EngineState::Default;
                             // error in control sequence, terminate reading
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
@@ -2296,12 +2299,12 @@ impl BufferParser for AnsiParser {
                 }
             }
 
-            AnsiState::Default => match ch {
+            EngineState::Default => match ch {
                 ANSI_ESC => {
                     self.current_escape_sequence.clear();
                     self.current_escape_sequence.push_str("<ESC>");
-                    self.state = AnsiState::Default;
-                    self.state = AnsiState::ReadEscapeSequence;
+                    self.state = EngineState::Default;
+                    self.state = EngineState::ReadEscapeSequence;
                 }
                 '\x00' | '\u{00FF}' => {
                     caret.attr = TextAttribute::default();
@@ -2325,18 +2328,18 @@ impl BufferParser for AnsiParser {
     }
 }
 
-impl AnsiParser {
+impl Parser {
     fn read_sixel_data(&mut self, buf: &mut Buffer, ch: char) -> EngineResult<()> {
         match ch {
-            ANSI_ESC => self.state = AnsiState::ReadSixel(SixelState::EndSequence),
+            ANSI_ESC => self.state = EngineState::ReadSixel(SixelState::EndSequence),
 
             '#' => {
                 self.parsed_numbers.clear();
-                self.state = AnsiState::ReadSixel(SixelState::ReadColor);
+                self.state = EngineState::ReadSixel(SixelState::ReadColor);
             }
             '!' => {
                 self.parsed_numbers.clear();
-                self.state = AnsiState::ReadSixel(SixelState::Repeat);
+                self.state = EngineState::ReadSixel(SixelState::Repeat);
             }
             '-' => {
                 self.sixel_cursor.x = 0;
@@ -2347,11 +2350,11 @@ impl AnsiParser {
             }
             '"' => {
                 self.parsed_numbers.clear();
-                self.state = AnsiState::ReadSixel(SixelState::ReadSize);
+                self.state = EngineState::ReadSixel(SixelState::ReadSize);
             }
             _ => {
                 if ch > '\x7F' {
-                    self.state = AnsiState::Default;
+                    self.state = EngineState::Default;
                 }
                 self.parse_sixel(buf, ch)?;
             }

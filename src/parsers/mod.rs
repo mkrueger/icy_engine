@@ -6,25 +6,14 @@ use super::{AttributedChar, Buffer, Caret, Position};
 mod parser_errors;
 pub use parser_errors::*;
 
-mod ascii_parser;
-pub use ascii_parser::*;
-mod ansi_parser;
-pub use ansi_parser::*;
-mod avatar_parser;
-pub use avatar_parser::*;
-mod petscii_parser;
-pub use petscii_parser::*;
-mod pcboard_parser;
-pub use pcboard_parser::*;
-mod atascii_parser;
-pub use atascii_parser::*;
-mod viewdata_parser;
-pub use viewdata_parser::*;
-mod rip_parser;
-pub use rip_parser::*;
-
-#[cfg(test)]
-mod tests;
+pub mod ansi;
+pub mod ascii;
+pub mod atascii;
+pub mod avatar;
+pub mod pcboard;
+pub mod petscii;
+pub mod rip;
+pub mod viewdata;
 
 pub const BEL: char = '\x07';
 pub const LF: char = '\n';
@@ -420,4 +409,72 @@ impl Buffer {
         }
         self.layers[0].insert_line(line, Line::new());
     }
+}
+
+fn _get_string_from_buffer(buf: &Buffer) -> String {
+    let converted = crate::convert_to_asc(buf, &crate::SaveOptions::new()).unwrap(); // test code
+    let b: Vec<u8> = converted
+        .iter()
+        .map(|&x| if x == 27 { b'x' } else { x })
+        .collect();
+    let converted = String::from_utf8_lossy(b.as_slice());
+
+    converted.to_string()
+}
+
+fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) {
+    let mut buf = Buffer::create(80, 25);
+    let mut caret = Caret::default();
+    // remove editing layer
+    buf.is_terminal_buffer = true;
+    buf.layers.remove(0);
+    buf.layers[0].is_locked = false;
+    buf.layers[0].is_transparent = false;
+    buf.layers.first_mut().unwrap().lines.clear();
+
+    update_buffer(&mut buf, &mut caret, parser, input);
+
+    (buf, caret)
+}
+
+fn update_buffer<T: BufferParser>(
+    buf: &mut Buffer,
+    caret: &mut Caret,
+    parser: &mut T,
+    input: &[u8],
+) {
+    for b in input {
+        if let Some(ch) = char::from_u32(*b as u32) {
+            parser.print_char(buf, caret, ch).unwrap(); // test code
+        }
+    }
+}
+
+fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackAction {
+    let mut buf = Buffer::create(80, 25);
+    let mut caret = Caret::default();
+    buf.is_terminal_buffer = true;
+    buf.layers.remove(0);
+    buf.layers[0].is_locked = false;
+    buf.layers[0].is_transparent = false;
+
+    get_action(&mut buf, &mut caret, parser, input)
+}
+
+fn get_action<T: BufferParser>(
+    buf: &mut Buffer,
+    caret: &mut Caret,
+    parser: &mut T,
+    input: &[u8],
+) -> CallbackAction {
+    // remove editing layer
+
+    let mut action = CallbackAction::None;
+    for b in input {
+        if let Some(ch) = char::from_u32(*b as u32) {
+            action = parser.print_char(buf, caret, ch).unwrap(); // test code
+        }
+    }
+
+    action
 }

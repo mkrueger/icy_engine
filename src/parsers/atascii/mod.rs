@@ -2,11 +2,11 @@ use super::BufferParser;
 use crate::{Buffer, CallbackAction, Caret, EngineResult};
 
 #[derive(Default)]
-pub struct AtasciiParser {
+pub struct Parser {
     got_escape: bool,
 }
 
-impl BufferParser for AtasciiParser {
+impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char) -> char {
         match UNICODE_TO_ATARI.get(&ch) {
             Some(out_ch) => *out_ch,
