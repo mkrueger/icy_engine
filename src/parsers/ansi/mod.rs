@@ -748,13 +748,13 @@ impl BufferParser for Parser {
                                     let nr = *nr as usize;
                                     if buf.get_font(nr).is_some() {
                                         self.current_font_page = nr;
-                                        self.set_font_selection_success(buf, caret, nr);
+                                        set_font_selection_success(buf, caret, nr);
                                         return Ok(CallbackAction::None);
                                     }
                                     if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
                                         match BitFont::from_name(font_name) {
                                             Ok(font) => {
-                                                self.set_font_selection_success(buf, caret, nr);
+                                                set_font_selection_success(buf, caret, nr);
                                                 if let Some(font_number) =
                                                     buf.search_font_by_name(font.name.to_string())
                                                 {
@@ -1888,18 +1888,18 @@ impl Parser {
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
         println!("TODO execute APS command: {}", self.aps_string);
     }
+}
 
-    fn set_font_selection_success(&self, buf: &mut Buffer, caret: &Caret, slot: usize) {
-        buf.terminal_state.font_selection_state = FontSelectionState::Success;
+fn set_font_selection_success(buf: &mut Buffer, caret: &Caret, slot: usize) {
+    buf.terminal_state.font_selection_state = FontSelectionState::Success;
 
-        if caret.attr.is_blinking() && caret.attr.is_bold() {
-            buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;
-        } else if caret.attr.is_blinking() {
-            buf.terminal_state.blink_attribute_font_slot = slot;
-        } else if caret.attr.is_bold() {
-            buf.terminal_state.high_intensity_attribute_font_slot = slot;
-        } else {
-            buf.terminal_state.normal_attribute_font_slot = slot;
-        }
+    if caret.attr.is_blinking() && caret.attr.is_bold() {
+        buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;
+    } else if caret.attr.is_blinking() {
+        buf.terminal_state.blink_attribute_font_slot = slot;
+    } else if caret.attr.is_bold() {
+        buf.terminal_state.high_intensity_attribute_font_slot = slot;
+    } else {
+        buf.terminal_state.normal_attribute_font_slot = slot;
     }
 }
