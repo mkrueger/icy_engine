@@ -12,7 +12,7 @@ use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
     EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError, Position,
-    TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
+    TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE, FontSelectionState,
 };
 
 mod constants;
@@ -39,8 +39,9 @@ pub enum EngineState {
     Default,
     ReadEscapeSequence,
 
-    ReadCSISequence,
-    ReadCSICommand,
+    ReadCSISequence(bool),
+    ReadCSICommand, // CSI ?
+    ReadCSIRequest, // CSI =
     EndCSI(char),
 
     RecordDCS(ReadSTState),
@@ -182,7 +183,7 @@ impl BufferParser for Parser {
 
                     match ch {
                         '[' => {
-                            self.state = EngineState::ReadCSISequence;
+                            self.state = EngineState::ReadCSISequence(true);
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
@@ -511,6 +512,101 @@ impl BufferParser for Parser {
                     }
                 }
             }
+
+            EngineState::ReadCSIRequest => {
+                self.current_escape_sequence.push(ch);
+                match ch {
+                    'n' => {
+                        self.state = EngineState::Default;
+                        match self.parsed_numbers.first() {
+                            Some(1) => {
+                                // font state report
+                                let font_selection_result = match buf.terminal_state.font_selection_state {
+                                    FontSelectionState::NoRequest => 99,
+                                    FontSelectionState::Success => 0,
+                                    FontSelectionState::Failure => 1,
+                                };
+
+                                return Ok(CallbackAction::SendString(format!("\x1B[=1;{font_selection_result};{};{};{};{}n",
+                                buf.terminal_state.normal_attribute_font_slot,
+                                buf.terminal_state.high_intensity_attribute_font_slot,
+                                buf.terminal_state.blink_attribute_font_slot,
+                                buf.terminal_state.high_intensity_blink_attribute_font_slot)));
+                            }
+                            Some(2) => {
+                                // font mode report
+                                let mut mode_report = "\x1B[=2".to_string();
+                                if buf.terminal_state.origin_mode == OriginMode::WithinMargins {
+                                    mode_report.push_str(";6");
+                                }
+                                if buf.terminal_state.auto_wrap_mode == AutoWrapMode::AutoWrap {
+                                    mode_report.push_str(";7");
+                                }
+                                if caret.is_visible {
+                                    mode_report.push_str(";25");
+                                }
+                                
+                                if buf.terminal_state.use_ice_colors() {
+                                    mode_report.push_str(";33");
+                                }
+                                
+                                if caret.is_blinking {
+                                    mode_report.push_str(";35");
+                                }
+                                match buf.terminal_state.mouse_mode {
+                                    MouseMode::Default => {},
+                                    MouseMode::X10 => mode_report.push_str(";9"),
+                                    MouseMode::VT200 => mode_report.push_str(";1000"),
+                                    MouseMode::VT200_Highlight => mode_report.push_str(";1001"),
+                                    MouseMode::ButtonEvents => mode_report.push_str(";1002"),
+                                    MouseMode::AnyEvents => mode_report.push_str(";1003"),
+                                    MouseMode::FocusEvent => mode_report.push_str(";1004"),
+                                    MouseMode::AlternateScroll => mode_report.push_str(";1007"),
+                                    MouseMode::ExtendedMode => mode_report.push_str(";1005"),
+                                    MouseMode::SGRExtendedMode => mode_report.push_str(";1006"),
+                                    MouseMode::URXVTExtendedMode => mode_report.push_str(";1015"),
+                                    MouseMode::PixelPosition => mode_report.push_str(";1016"),
+                                }
+    
+                                if mode_report.len() == "\x1B[=2".len() {
+                                    mode_report.push(';');
+                                }
+                                mode_report.push('n');
+
+                                return Ok(CallbackAction::SendString(mode_report));
+                            }
+                            Some(3) => {
+                                // font dimension request
+                                let dim = buf.get_font_dimensions();
+                                return Ok(CallbackAction::SendString(format!("\x1B[=3;{};{}n", dim.height, dim.width)));
+                            }
+                            _ => {
+                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    self.current_escape_sequence.clone(),
+                                )));
+                            }
+                        }
+                    }
+                    '0'..='9' => {
+                        let d = match self.parsed_numbers.pop() {
+                            Some(number) => number,
+                            _ => 0,
+                        };
+                        self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    }
+                    ';' => {
+                        self.parsed_numbers.push(0);
+                    }
+                    _ => {
+                        self.state = EngineState::Default;
+                        // error in control sequence, terminate reading
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            format!("Error in CSI request: {}", self.current_escape_sequence),
+                        )));
+                    }
+                }
+            }
+            
             EngineState::EndCSI(func) => {
                 self.current_escape_sequence.push(ch);
                 match *func {
@@ -645,13 +741,14 @@ impl BufferParser for Parser {
                                     let nr = *nr as usize;
                                     if buf.get_font(nr).is_some() {
                                         self.current_font_page = nr;
+                                        self.set_font_selection_success(buf, caret, nr);
                                         return Ok(CallbackAction::None);
                                     }
                                     if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
                                         match BitFont::from_name(font_name) {
                                             Ok(font) => {
-                                                if let Some(font_number) =
-                                                    buf.search_font_by_name(font.name.to_string())
+                                                self.set_font_selection_success(buf, caret, nr);
+                                                if let Some(font_number) = buf.search_font_by_name(font.name.to_string())
                                                 {
                                                     self.current_font_page = font_number;
                                                     return Ok(CallbackAction::None);
@@ -660,10 +757,12 @@ impl BufferParser for Parser {
                                                 buf.set_font(nr, font);
                                             }
                                             Err(err) => {
+                                                buf.terminal_state.font_selection_state = FontSelectionState::Failure;
                                                 return Err(err);
                                             }
                                         }
                                     } else {
+                                        buf.terminal_state.font_selection_state = FontSelectionState::Failure;
                                         return Err(Box::new(ParserError::UnsupportedFont(nr)));
                                     }
                                 }
@@ -716,13 +815,12 @@ impl BufferParser for Parser {
                     }
                 }
             }
-            EngineState::ReadCSISequence => {
+            EngineState::ReadCSISequence(is_start) => {
                 if let Some(ch) = char::from_u32(ch as u32) {
                     self.current_escape_sequence.push(ch);
                 } else {
                     return Err(Box::new(ParserError::InvalidChar('\0')));
                 }
-
                 match ch {
                     'm' => {
                         // Select Graphic Rendition
@@ -1198,8 +1296,23 @@ impl BufferParser for Parser {
                     }
 
                     '?' => {
+                        if !is_start {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            )));
+                        }
                         // read custom command
                         self.state = EngineState::ReadCSICommand;
+                    }
+                    '=' => {
+                        if !is_start {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            )));
+                        }
+                        // read custom command
+                        self.state = EngineState::ReadCSIRequest;
+                        return Ok(CallbackAction::None);
                     }
                     '*' => {
                         self.state = EngineState::EndCSI('*');
@@ -1453,6 +1566,7 @@ impl BufferParser for Parser {
                         (0..num).for_each(|_| caret.set_x_position(buf.terminal_state.prev_tab_stop(caret.get_position().x)));
                     }
                     _ => {
+                        self.state = EngineState::ReadCSISequence(false);
                         if ('\x40'..='\x7E').contains(&ch) {
                             // unknown control sequence, terminate reading
                             self.state = EngineState::Default;
@@ -1763,5 +1877,19 @@ impl Parser {
 
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
         println!("TODO execute APS command: {}", self.aps_string);
+    }
+
+    fn set_font_selection_success(&self, buf: &mut Buffer, caret: &Caret, slot: usize) {
+        buf.terminal_state.font_selection_state = FontSelectionState::Success;
+
+        if caret.attr.is_blinking() && caret.attr.is_bold() {
+            buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;
+        } else if caret.attr.is_blinking()  {
+            buf.terminal_state.blink_attribute_font_slot = slot;
+        }else if caret.attr.is_bold()  {
+            buf.terminal_state.blink_attribute_font_slot = slot;
+        } else {
+            buf.terminal_state.normal_attribute_font_slot = slot;
+        }
     }
 }

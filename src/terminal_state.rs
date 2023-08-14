@@ -20,6 +20,14 @@ pub enum AutoWrapMode {
     AutoWrap,
 }
 
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FontSelectionState {
+    NoRequest,
+    Success,
+    Failure,
+}
+
 #[derive(Debug)]
 pub struct TerminalState {
     pub width: i32,
@@ -32,6 +40,13 @@ pub struct TerminalState {
     pub margins_left_right: Option<(i32, i32)>,
     pub mouse_mode: MouseMode,
     pub dec_margin_mode_left_right: bool,
+
+    pub font_selection_state: FontSelectionState,
+    
+    pub normal_attribute_font_slot: usize,
+    pub high_intensity_attribute_font_slot: usize,
+    pub blink_attribute_font_slot: usize,
+    pub high_intensity_blink_attribute_font_slot: usize,
 
     tab_stops: Vec<i32>,
     use_ice: bool,
@@ -76,6 +91,11 @@ impl TerminalState {
             dec_margin_mode_left_right: false,
             baud_rate: 0,
             tab_stops: vec![],
+            font_selection_state: FontSelectionState::NoRequest,
+            normal_attribute_font_slot: 0,
+            high_intensity_attribute_font_slot: 0,
+            blink_attribute_font_slot: 0,
+            high_intensity_blink_attribute_font_slot: 0,
         };
         ret.reset_tabs();
         ret

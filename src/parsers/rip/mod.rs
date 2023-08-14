@@ -269,7 +269,7 @@ impl BufferParser for Parser {
             }
             State::Default => {
                 match self.ansi_parser.state {
-                    EngineState::ReadCSISequence => {
+                    EngineState::ReadCSISequence(_) => {
                         if let '!' = ch {
                             // Select Graphic Rendition
                             self.ansi_parser.state = EngineState::Default;

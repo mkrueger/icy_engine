@@ -1192,3 +1192,18 @@ fn test_extended_background_color() {
     assert_eq!(XTERM_256_PALETTE[107], buf.palette.colors[ch.attribute.get_background() as usize]);
     assert!(!ch.attribute.is_blinking());
 }
+
+#[test]
+fn test_font_state_report() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=1n");
+    assert_eq!(CallbackAction::SendString("\x1B[=1;99;0;0;0;0n".to_string()), act);
+
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=2n");
+    assert_eq!(CallbackAction::SendString("\x1B[=2;7;25;35n".to_string()), act);
+
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=3n");
+    assert_eq!(CallbackAction::SendString("\x1B[=3;16;8n".to_string()), act);
+}
