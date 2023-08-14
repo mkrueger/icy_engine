@@ -1,3 +1,5 @@
+use std::thread;
+
 use base64::{engine::general_purpose, Engine};
 
 use crate::{BitFont, Buffer, CallbackAction, Caret, EngineResult, ParserError, Sixel, HEX_TABLE};
@@ -59,27 +61,15 @@ impl Parser {
                 [0xff, r, g, b]
             };
 
-            let sixel = Sixel::parse_from(
-                caret.get_position(),
-                1,
-                horizontal_scale,
-                bg_color,
-                &self.dcs_string[i + 1..],
-            )?;
+            let p = caret.get_position();
+            let dcs_string = std::mem::take(&mut self.dcs_string);
+            let handle = thread::spawn(move || {
+                Sixel::parse_from(p, 1, horizontal_scale, bg_color, &dcs_string[i + 1..])
+                    .unwrap()
+            });
 
-            // remove old sixel that are shadowed by the new one
-            let screen_rect = sixel.get_screen_rect();
-            while i < buf.layers[0].sixels.len() {
-                let old_rect = buf.layers[0].sixels[i].get_screen_rect();
-                if screen_rect.contains_rect(&old_rect) {
-                    buf.layers[0].sixels.remove(i);
-                } else {
-                    i += 1;
-                }
-            }
+            buf.sixel_threads.push_back(handle);
 
-            buf.layers[0].sixels.push(sixel);
-            buf.layers[0].updated_sixels = true;
             return Ok(CallbackAction::None);
         }
 

@@ -1,8 +1,10 @@
+use std::sync::{Arc, Mutex};
+
 use crate::{Line, Sixel};
 
 use super::{AttributedChar, Position};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct Layer {
     pub title: String,
     pub is_visible: bool,
@@ -13,7 +15,7 @@ pub struct Layer {
     pub offset: Position,
     pub lines: Vec<Line>,
 
-    pub sixels: Vec<Sixel>,
+    pub sixels: Arc<Mutex<Vec<Sixel>>>,
     pub updated_sixels: bool,
 }
 
@@ -27,7 +29,7 @@ impl Layer {
             is_transparent: true,
             updated_sixels: false,
             lines: Vec::new(),
-            sixels: Vec::new(),
+            sixels: Arc::new(Mutex::new(Vec::new())),
             offset: Position::default(),
         }
     }

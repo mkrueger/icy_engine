@@ -14,8 +14,10 @@ pub struct Sixel {
 
     pub vertical_scale: i32,
     pub horizontal_scale: i32,
+    pub picture_data: Vec<u8>,
 
-    pub picture_data: Vec<Vec<u8>>,
+    pub(crate) width: u32,
+    pub(crate) height: u32,
 }
 
 struct SixelParser {
@@ -24,6 +26,9 @@ struct SixelParser {
     sixel_cursor: Position,
     parsed_numbers: Vec<i32>,
     state: SixelState,
+    picture_data: Vec<Vec<u8>>,
+    vertical_scale: i32,
+    horizontal_scale: i32,
 
     height_set: bool,
 }
@@ -37,6 +42,9 @@ impl Default for SixelParser {
             parsed_numbers: Vec::new(),
             state: SixelState::Read,
             height_set: false,
+            picture_data: Vec::new(),
+            vertical_scale: 1,
+            horizontal_scale: 1,
         }
     }
 }
@@ -49,15 +57,37 @@ impl SixelParser {
         data: &str,
     ) -> EngineResult<bool> {
         for ch in data.chars() {
-            self.parse_char(sixel, ch)?;
+            self.parse_char(ch)?;
         }
-        self.parse_char(sixel, '#')?;
+        self.parse_char('#')?;
+
+        for y in 0..self.height() {
+            let line = &self.picture_data[y as usize];
+            sixel.picture_data.extend(line);
+        }
+        sixel.width = self.width();
+        sixel.height = self.height();
+        sixel.vertical_scale = self.vertical_scale;
+        sixel.horizontal_scale = self.horizontal_scale;
         Ok(true)
     }
-    fn parse_char(&mut self, sixel: &mut Sixel, ch: char) -> EngineResult<bool> {
+
+    pub fn width(&self) -> u32 {
+        if let Some(first_line) = self.picture_data.get(0) {
+            first_line.len() as u32 / 4
+        } else {
+            0
+        }
+    }
+
+    pub fn height(&self) -> u32 {
+        self.picture_data.len() as u32
+    }
+
+    fn parse_char(&mut self, ch: char) -> EngineResult<bool> {
         match self.state {
             SixelState::Read => {
-                self.parse_sixel_data(sixel, ch)?;
+                self.parse_sixel_data(ch)?;
             }
             SixelState::ReadColor => {
                 if ch.is_ascii_digit() {
@@ -100,7 +130,7 @@ impl SixelParser {
                             }
                         }
                     }
-                    self.parse_sixel_data(sixel, ch)?;
+                    self.parse_sixel_data(ch)?;
                 }
             }
             SixelState::ReadSize => {
@@ -116,24 +146,23 @@ impl SixelParser {
                     if self.parsed_numbers.len() < 2 || self.parsed_numbers.len() > 4 {
                         return Err(Box::new(ParserError::InvalidPictureSize));
                     }
-                    sixel.vertical_scale = self.parsed_numbers[0];
-                    sixel.horizontal_scale = self.parsed_numbers[1];
+                    self.vertical_scale = self.parsed_numbers[0];
+                    self.horizontal_scale = self.parsed_numbers[1];
                     if self.parsed_numbers.len() == 3 {
                         let height = self.parsed_numbers[2];
-                        sixel.picture_data.resize(height as usize, Vec::new());
+                        self.picture_data.resize(height as usize, Vec::new());
                         self.height_set = true;
                     }
 
                     if self.parsed_numbers.len() == 4 {
                         let height = self.parsed_numbers[3];
                         let width = self.parsed_numbers[2];
-                        sixel
-                            .picture_data
+                        self.picture_data
                             .resize(height as usize, vec![0; 4 * width as usize]);
                         self.height_set = true;
                     }
                     self.state = SixelState::Read;
-                    self.parse_sixel_data(sixel, ch)?;
+                    self.parse_sixel_data(ch)?;
                 }
             }
             SixelState::Repeat => {
@@ -146,7 +175,7 @@ impl SixelParser {
                 } else {
                     if let Some(i) = self.parsed_numbers.first() {
                         for _ in 0..*i {
-                            self.parse_sixel_data(sixel, ch)?;
+                            self.parse_sixel_data(ch)?;
                         }
                     } else {
                         return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
@@ -158,7 +187,7 @@ impl SixelParser {
         Ok(true)
     }
 
-    fn translate_sixel_to_pixel(&mut self, sixel: &mut Sixel, ch: char) -> EngineResult<()> {
+    fn translate_sixel_to_pixel(&mut self, ch: char) -> EngineResult<()> {
         /*let current_sixel = buf.layers[0].sixels.len() - 1;
 
         let sixel = &mut buf.layers[0].sixels[current_sixel];*/
@@ -173,14 +202,13 @@ impl SixelParser {
         let y_pos = self.sixel_cursor.y as usize * 6;
 
         let mut last_line = y_pos + 6;
-        if self.height_set && last_line > sixel.height() as usize {
-            last_line = sixel.height() as usize;
+        if self.height_set && last_line > self.height() as usize {
+            last_line = self.height() as usize;
         }
 
-        if sixel.picture_data.len() < last_line {
-            sixel
-                .picture_data
-                .resize(last_line, vec![0; sixel.width() as usize * 4]);
+        if self.picture_data.len() < last_line {
+            self.picture_data
+                .resize(last_line, vec![0; self.width() as usize * 4]);
         }
 
         for i in 0..6 {
@@ -190,7 +218,7 @@ impl SixelParser {
                     break;
                 }
 
-                let cur_line = &mut sixel.picture_data[translated_line];
+                let cur_line = &mut self.picture_data[translated_line];
 
                 let offset = x_pos * 4;
                 if cur_line.len() <= offset {
@@ -208,7 +236,7 @@ impl SixelParser {
         Ok(())
     }
 
-    fn parse_sixel_data(&mut self, sixel: &mut Sixel, ch: char) -> EngineResult<()> {
+    fn parse_sixel_data(&mut self, ch: char) -> EngineResult<()> {
         match ch {
             '#' => {
                 self.parsed_numbers.clear();
@@ -233,7 +261,7 @@ impl SixelParser {
                 if ch > '\x7F' {
                     return Ok(());
                 }
-                self.translate_sixel_to_pixel(sixel, ch)?;
+                self.translate_sixel_to_pixel(ch)?;
             }
         }
         Ok(())
@@ -247,7 +275,17 @@ impl Sixel {
             vertical_scale: 1,
             horizontal_scale: 1,
             picture_data: Vec::new(),
+            width: 0,
+            height: 0,
         }
+    }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
     }
 
     pub fn get_screen_rect(&self) -> Rectangle {
@@ -255,20 +293,8 @@ impl Sixel {
         let y = self.position.y * 16;
         Rectangle {
             start: Position::new(x, y),
-            size: Size::new(self.width() as i32, self.height() as i32),
+            size: Size::new(self.width as i32, self.height as i32),
         }
-    }
-
-    pub fn width(&self) -> u32 {
-        if let Some(first_line) = self.picture_data.get(0) {
-            first_line.len() as u32 / 4
-        } else {
-            0
-        }
-    }
-
-    pub fn height(&self) -> u32 {
-        self.picture_data.len() as u32
     }
 
     /// .

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::ffi::OsStr;
 use std::{
     cmp::max,
@@ -9,7 +9,7 @@ use std::{
 
 use num::NumCast;
 
-use crate::{parsers, BufferParser, Caret, EngineResult, Glyph, TerminalState};
+use crate::{parsers, BufferParser, Caret, EngineResult, Glyph, Sixel, TerminalState};
 
 use super::{
     read_binary, read_xb, AttributedChar, BitFont, Layer, Palette, Position, SauceString,
@@ -86,8 +86,9 @@ pub struct Buffer {
     is_font_table_dirty: bool,
 
     pub layers: Vec<Layer>,
-    // pub undo_stack: Vec<Box<dyn UndoOperation>>,
-    // pub redo_stack: Vec<Box<dyn UndoOperation>>,
+
+    pub sixel_threads: VecDeque<std::thread::JoinHandle<Sixel>>, // pub undo_stack: Vec<Box<dyn UndoOperation>>,
+                                                                 // pub redo_stack: Vec<Box<dyn UndoOperation>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -141,9 +142,43 @@ impl Buffer {
             is_font_table_dirty: false,
             overlay_layer: None,
             layers: vec![Layer::new()],
-            // file_name_changed: Box::new(|| {}),
-            // undo_stack: Vec::new(),
-            // redo_stack: Vec::new()
+            sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
+                                            // undo_stack: Vec::new(),
+                                            // redo_stack: Vec::new()
+        }
+    }
+
+    /// Returns the update sixel threads of this [`Buffer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    pub fn update_sixel_threads(&mut self) {
+        if let Some(handle) = self.sixel_threads.front() {
+            if !handle.is_finished() {
+                return;
+            }
+            let handle = self.sixel_threads.pop_front().unwrap();
+            let sixel = handle.join().unwrap();
+            {
+                let screen_rect = sixel.get_screen_rect();
+
+                let vec = &mut self.layers[0].sixels.lock().unwrap();
+                let mut sixel_count = vec.len();
+                // remove old sixel that are shadowed by the new one
+                let mut i = 0;
+                while i < sixel_count {
+                    let old_rect = vec[i].get_screen_rect();
+                    if screen_rect.contains_rect(&old_rect) {
+                        vec.remove(i);
+                        sixel_count -= 1;
+                    } else {
+                        i += 1;
+                    }
+                }
+                vec.push(sixel);
+            }
+            self.layers[0].updated_sixels = true;
         }
     }
 
@@ -256,9 +291,14 @@ impl Buffer {
         self.terminal_state.height = num::cast(height).unwrap();
     }
 
+    /// Returns the clear of this [`Buffer`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn clear(&mut self) {
         self.layers[0].clear();
-        self.layers[0].sixels.clear();
+        self.layers[0].sixels.lock().unwrap().clear();
     }
 
     /// terminal buffers have a viewport on the bottom of the buffer
