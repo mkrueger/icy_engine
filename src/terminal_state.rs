@@ -20,7 +20,6 @@ pub enum AutoWrapMode {
     AutoWrap,
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FontSelectionState {
     NoRequest,
@@ -42,7 +41,7 @@ pub struct TerminalState {
     pub dec_margin_mode_left_right: bool,
 
     pub font_selection_state: FontSelectionState,
-    
+
     pub normal_attribute_font_slot: usize,
     pub high_intensity_attribute_font_slot: usize,
     pub blink_attribute_font_slot: usize,

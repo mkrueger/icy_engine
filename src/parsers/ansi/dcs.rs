@@ -206,14 +206,23 @@ impl Parser {
                 if let Ok(font_data) =
                     general_purpose::STANDARD.decode(self.dcs_string[idx + 1..].as_bytes())
                 {
-                    if let Ok(font) = BitFont::from_bytes(format!("custom font {num}"), &font_data)
-                    {
-                        buf.set_font(num, font);
-                        return Ok(CallbackAction::None);
+                    match BitFont::from_bytes(format!("custom font {num}"), &font_data) {
+                        Ok(font) => {
+                            buf.set_font(num, font);
+                            return Ok(CallbackAction::None);
+                        }
+                        Err(err) => {
+                            return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                                "Can't load bit font from dcs: {err}"
+                            ))));
+                        }
                     }
                 }
+                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    "Can't decode base64 in dcs: {}",
+                    self.dcs_string
+                ))));
             }
-            return Ok(CallbackAction::None);
         }
 
         Err(Box::new(ParserError::UnsupportedDCSSequence(format!(

@@ -11,8 +11,8 @@ use self::constants::{ANSI_FONT_NAMES, COLOR_OFFSETS};
 use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
-    EngineResult, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError, Position,
-    TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE, FontSelectionState,
+    EngineResult, FontSelectionState, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError,
+    Position, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
 };
 
 mod constants;
@@ -521,17 +521,20 @@ impl BufferParser for Parser {
                         match self.parsed_numbers.first() {
                             Some(1) => {
                                 // font state report
-                                let font_selection_result = match buf.terminal_state.font_selection_state {
-                                    FontSelectionState::NoRequest => 99,
-                                    FontSelectionState::Success => 0,
-                                    FontSelectionState::Failure => 1,
-                                };
+                                let font_selection_result =
+                                    match buf.terminal_state.font_selection_state {
+                                        FontSelectionState::NoRequest => 99,
+                                        FontSelectionState::Success => 0,
+                                        FontSelectionState::Failure => 1,
+                                    };
 
-                                return Ok(CallbackAction::SendString(format!("\x1B[=1;{font_selection_result};{};{};{};{}n",
-                                buf.terminal_state.normal_attribute_font_slot,
-                                buf.terminal_state.high_intensity_attribute_font_slot,
-                                buf.terminal_state.blink_attribute_font_slot,
-                                buf.terminal_state.high_intensity_blink_attribute_font_slot)));
+                                return Ok(CallbackAction::SendString(format!(
+                                    "\x1B[=1;{font_selection_result};{};{};{};{}n",
+                                    buf.terminal_state.normal_attribute_font_slot,
+                                    buf.terminal_state.high_intensity_attribute_font_slot,
+                                    buf.terminal_state.blink_attribute_font_slot,
+                                    buf.terminal_state.high_intensity_blink_attribute_font_slot
+                                )));
                             }
                             Some(2) => {
                                 // font mode report
@@ -545,16 +548,16 @@ impl BufferParser for Parser {
                                 if caret.is_visible {
                                     mode_report.push_str(";25");
                                 }
-                                
+
                                 if buf.terminal_state.use_ice_colors() {
                                     mode_report.push_str(";33");
                                 }
-                                
+
                                 if caret.is_blinking {
                                     mode_report.push_str(";35");
                                 }
                                 match buf.terminal_state.mouse_mode {
-                                    MouseMode::Default => {},
+                                    MouseMode::Default => {}
                                     MouseMode::X10 => mode_report.push_str(";9"),
                                     MouseMode::VT200 => mode_report.push_str(";1000"),
                                     MouseMode::VT200_Highlight => mode_report.push_str(";1001"),
@@ -567,7 +570,7 @@ impl BufferParser for Parser {
                                     MouseMode::URXVTExtendedMode => mode_report.push_str(";1015"),
                                     MouseMode::PixelPosition => mode_report.push_str(";1016"),
                                 }
-    
+
                                 if mode_report.len() == "\x1B[=2".len() {
                                     mode_report.push(';');
                                 }
@@ -578,7 +581,10 @@ impl BufferParser for Parser {
                             Some(3) => {
                                 // font dimension request
                                 let dim = buf.get_font_dimensions();
-                                return Ok(CallbackAction::SendString(format!("\x1B[=3;{};{}n", dim.height, dim.width)));
+                                return Ok(CallbackAction::SendString(format!(
+                                    "\x1B[=3;{};{}n",
+                                    dim.height, dim.width
+                                )));
                             }
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -600,13 +606,14 @@ impl BufferParser for Parser {
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                            format!("Error in CSI request: {}", self.current_escape_sequence),
-                        )));
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                            "Error in CSI request: {}",
+                            self.current_escape_sequence
+                        ))));
                     }
                 }
             }
-            
+
             EngineState::EndCSI(func) => {
                 self.current_escape_sequence.push(ch);
                 match *func {
@@ -748,7 +755,8 @@ impl BufferParser for Parser {
                                         match BitFont::from_name(font_name) {
                                             Ok(font) => {
                                                 self.set_font_selection_success(buf, caret, nr);
-                                                if let Some(font_number) = buf.search_font_by_name(font.name.to_string())
+                                                if let Some(font_number) =
+                                                    buf.search_font_by_name(font.name.to_string())
                                                 {
                                                     self.current_font_page = font_number;
                                                     return Ok(CallbackAction::None);
@@ -757,12 +765,14 @@ impl BufferParser for Parser {
                                                 buf.set_font(nr, font);
                                             }
                                             Err(err) => {
-                                                buf.terminal_state.font_selection_state = FontSelectionState::Failure;
+                                                buf.terminal_state.font_selection_state =
+                                                    FontSelectionState::Failure;
                                                 return Err(err);
                                             }
                                         }
                                     } else {
-                                        buf.terminal_state.font_selection_state = FontSelectionState::Failure;
+                                        buf.terminal_state.font_selection_state =
+                                            FontSelectionState::Failure;
                                         return Err(Box::new(ParserError::UnsupportedFont(nr)));
                                     }
                                 }
@@ -1884,10 +1894,10 @@ impl Parser {
 
         if caret.attr.is_blinking() && caret.attr.is_bold() {
             buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;
-        } else if caret.attr.is_blinking()  {
+        } else if caret.attr.is_blinking() {
             buf.terminal_state.blink_attribute_font_slot = slot;
-        }else if caret.attr.is_bold()  {
-            buf.terminal_state.blink_attribute_font_slot = slot;
+        } else if caret.attr.is_bold() {
+            buf.terminal_state.high_intensity_attribute_font_slot = slot;
         } else {
             buf.terminal_state.normal_attribute_font_slot = slot;
         }
