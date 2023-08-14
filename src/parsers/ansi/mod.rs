@@ -778,6 +778,7 @@ impl BufferParser for Parser {
                                     caret
                                         .attr
                                         .set_foreground(self.parse_extended_colors(buf, &mut i)?);
+                                    continue;
                                 }
                                 39 => caret.attr.set_foreground(7), // Set foreground color to default, ECMA-48 3rd
                                 // set background color
@@ -788,6 +789,7 @@ impl BufferParser for Parser {
                                     caret
                                         .attr
                                         .set_background(self.parse_extended_colors(buf, &mut i)?);
+                                    continue;
                                 }
                                 49 => caret.attr.set_background(0), // Set background color to default, ECMA-48 3rd
 
