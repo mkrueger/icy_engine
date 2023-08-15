@@ -163,7 +163,7 @@ impl Buffer {
             {
                 let screen_rect = sixel.get_screen_rect();
 
-                let vec = &mut self.layers[0].sixels.lock().unwrap();
+                let vec = &mut self.layers[0].sixels;
                 let mut sixel_count = vec.len();
                 // remove old sixel that are shadowed by the new one
                 let mut i = 0;
@@ -298,7 +298,7 @@ impl Buffer {
     /// Panics if .
     pub fn clear(&mut self) {
         self.layers[0].clear();
-        self.layers[0].sixels.lock().unwrap().clear();
+        self.layers[0].sixels.clear();
         self.sixel_threads.clear();
     }
 
