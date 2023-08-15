@@ -17,20 +17,17 @@ fn update_sixels(buf: &mut Buffer) {
 fn test_simple_sixel() {
     let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
     update_sixels(&mut buf);
-    assert_eq!(1, buf.layers[0].sixels.lock().unwrap().len());
-    assert_eq!(
-        Position::new(0, 0),
-        buf.layers[0].sixels.lock().unwrap()[0].position
-    );
-    assert_eq!(14, buf.layers[0].sixels.lock().unwrap()[0].width());
-    assert_eq!(12, buf.layers[0].sixels.lock().unwrap()[0].height());
+    assert_eq!(1, buf.layers[0].sixels.len());
+    assert_eq!(Position::new(0, 0), buf.layers[0].sixels[0].position);
+    assert_eq!(14, buf.layers[0].sixels[0].width());
+    assert_eq!(12, buf.layers[0].sixels[0].height());
 }
 
 #[test]
 fn test_simple_position_sixel() {
     let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
     update_sixels(&mut buf);
-    let sixels = &buf.layers[0].sixels.lock().unwrap();
+    let sixels = &buf.layers[0].sixels;
 
     assert_eq!(1, sixels.len());
     assert_eq!(Position::new(12, 3), sixels[0].position);
@@ -48,7 +45,7 @@ fn test_overwrite_sixel() {
     update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
     update_sixels(&mut buf);
 
-    let sixels = &buf.layers[0].sixels.lock().unwrap();
+    let sixels = &buf.layers[0].sixels;
     assert_eq!(1, sixels.len());
     assert_eq!(Position::new(12, 3), sixels[0].position);
     assert_eq!(14, sixels[0].width());
@@ -67,7 +64,7 @@ fn test_overwrite_multiple_sixels() {
     }
     update_sixels(&mut buf);
 
-    let sixels = &buf.layers[0].sixels.lock().unwrap();
+    let sixels = &buf.layers[0].sixels;
     assert_eq!(3, sixels.len());
     assert_eq!(Position::new(0, 0), sixels[0].position);
     assert_eq!(Position::new(4, 4), sixels[1].position);
@@ -92,8 +89,7 @@ fn test_chess_update() {
     update_sixels(&mut buf);
 
     {
-        let sixels: &std::sync::MutexGuard<'_, Vec<crate::Sixel>> =
-            &buf.layers[0].sixels.lock().unwrap();
+        let sixels = &buf.layers[0].sixels;
 
         assert_eq!(49, sixels.len());
         for i in 0..sixels.len() {
@@ -107,8 +103,7 @@ fn test_chess_update() {
     update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[6;1f\x1B[19;49f 3\x1B[?25l\x1B[20;1f\x1BP0;1;0q\"1;1;46;31#0;2;0;0;0#1;2;93;11;14#2;2;94;89;69#3;2;100;100;100#2!18~FB@???@BF!19~$#0!18?wkEBBBEkw$#3!19?Ow{{{wO-#2!15~NFB@!7?@BFN!16~$#0!15?ow[MFB???BFM[wo$#3!17?_ow{~~~{wo_-#2!15~}wO!9?Ow{!16~$#0!15?@Fm{wO???Ow{mFB$#3!17?@BFn~~~nFB@-#2!13~NB@!13?@BFN!13~$#0!13?o{MFB@!7?@BFEKwo$#3!15?ow{}!7~}{wwo-#2!12~#0~b!18_b~#2!12~$#3!13?[!18^[-#2!12@#0!22@#2!11@#1@-\x1B\\");
     update_sixels(&mut buf);
 
-    let sixels: &std::sync::MutexGuard<'_, Vec<crate::Sixel>> =
-        &buf.layers[0].sixels.lock().unwrap();
+    let sixels = &buf.layers[0].sixels;
     assert_eq!(49, sixels.len());
     for i in 0..sixels.len() {
         assert_eq!(31, sixels[i].height());
@@ -130,7 +125,7 @@ fn test_macro_sixels() {
     );
     update_sixels(&mut buf);
     {
-        assert_eq!(1, buf.layers[0].sixels.lock().unwrap().len());
+        assert_eq!(1, buf.layers[0].sixels.len());
     }
     update_buffer(
         &mut buf,
@@ -141,7 +136,7 @@ fn test_macro_sixels() {
     update_sixels(&mut buf);
 
     {
-        assert_eq!(2, buf.layers[0].sixels.lock().unwrap().len());
+        assert_eq!(2, buf.layers[0].sixels.len());
     }
 }
 
@@ -161,11 +156,11 @@ fn test_sixel_raster_attributes() {
     let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1BPq\"2;3;6;8\x1B\\");
     update_sixels(&mut buf);
 
-    assert_eq!(1, buf.layers[0].sixels.lock().unwrap().len());
-    assert_eq!(3, buf.layers[0].sixels.lock().unwrap()[0].horizontal_scale);
-    assert_eq!(8, buf.layers[0].sixels.lock().unwrap()[0].height());
-    assert_eq!(6, buf.layers[0].sixels.lock().unwrap()[0].width());
+    assert_eq!(1, buf.layers[0].sixels.len());
+    assert_eq!(3, buf.layers[0].sixels[0].horizontal_scale);
+    assert_eq!(8, buf.layers[0].sixels[0].height());
+    assert_eq!(6, buf.layers[0].sixels[0].width());
 
-    assert_eq!(6, buf.layers[0].sixels.lock().unwrap()[0].width());
-    assert_eq!(8, buf.layers[0].sixels.lock().unwrap()[0].height());
+    assert_eq!(6, buf.layers[0].sixels[0].width());
+    assert_eq!(8, buf.layers[0].sixels[0].height());
 }
