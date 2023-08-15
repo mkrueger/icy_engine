@@ -299,6 +299,7 @@ impl Buffer {
     pub fn clear(&mut self) {
         self.layers[0].clear();
         self.layers[0].sixels.lock().unwrap().clear();
+        self.sixel_threads.clear();
     }
 
     /// terminal buffers have a viewport on the bottom of the buffer
