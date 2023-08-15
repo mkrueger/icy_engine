@@ -28,9 +28,17 @@ pub enum FontSelectionState {
 }
 
 #[derive(Debug)]
+pub enum FontSize {
+    Font8x8,
+    Font8x16,
+    Font8x14,
+}
+
+#[derive(Debug)]
 pub struct TerminalState {
     pub width: i32,
     pub height: i32,
+    pub font_size: FontSize,
 
     pub origin_mode: OriginMode,
     pub scroll_state: TerminalScrolling,
@@ -83,6 +91,7 @@ impl TerminalState {
             scroll_state: TerminalScrolling::Smooth,
             origin_mode: OriginMode::UpperLeftCorner,
             auto_wrap_mode: AutoWrapMode::AutoWrap,
+            font_size: FontSize::Font8x16,
             mouse_mode: MouseMode::Default,
             margins_up_down: None,
             margins_left_right: None,

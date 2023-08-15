@@ -6,7 +6,7 @@ use std::{
     fmt::Display,
 };
 
-use self::constants::{ANSI_FONT_NAMES, COLOR_OFFSETS};
+use self::constants::COLOR_OFFSETS;
 
 use super::{ascii, BufferParser};
 use crate::{
@@ -751,23 +751,39 @@ impl BufferParser for Parser {
                                         set_font_selection_success(buf, caret, nr);
                                         return Ok(CallbackAction::None);
                                     }
-                                    if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
-                                        match BitFont::from_name(font_name) {
-                                            Ok(font) => {
-                                                set_font_selection_success(buf, caret, nr);
-                                                if let Some(font_number) =
-                                                    buf.search_font_by_name(font.name.to_string())
-                                                {
-                                                    self.current_font_page = font_number;
-                                                    return Ok(CallbackAction::None);
-                                                }
-                                                self.current_font_page = nr;
-                                                buf.set_font(nr, font);
+                                    if nr < crate::FONT_TABLE.len() {
+                                        if buf.get_font(nr).is_some() {
+                                            self.current_font_page = nr;
+                                            set_font_selection_success(buf, caret, nr);
+                                            return Ok(CallbackAction::None);
+                                        }
+                                        let font = match buf.terminal_state.font_size {
+                                            crate::FontSize::Font8x8 => {
+                                                crate::FONT_TABLE[nr].variant_8x8
                                             }
-                                            Err(err) => {
-                                                buf.terminal_state.font_selection_state =
-                                                    FontSelectionState::Failure;
-                                                return Err(err);
+                                            crate::FontSize::Font8x16 => {
+                                                crate::FONT_TABLE[nr].variant_8x16
+                                            }
+                                            crate::FontSize::Font8x14 => {
+                                                crate::FONT_TABLE[nr].variant_8x14
+                                            }
+                                        };
+
+                                        if let Some(font) = font {
+                                            match BitFont::from_bytes(
+                                                crate::FONT_TABLE[nr].name,
+                                                font,
+                                            ) {
+                                                Ok(font) => {
+                                                    set_font_selection_success(buf, caret, nr);
+                                                    self.current_font_page = nr;
+                                                    buf.set_font(nr, font);
+                                                }
+                                                Err(err) => {
+                                                    buf.terminal_state.font_selection_state =
+                                                        FontSelectionState::Failure;
+                                                    return Err(err);
+                                                }
                                             }
                                         }
                                     } else {

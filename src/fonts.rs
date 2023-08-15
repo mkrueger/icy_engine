@@ -397,9 +397,151 @@ impl BitFont {
     }
 }
 
-const IBM_CP437_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf");
-const IBM_CP437_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
-const IBM_CP437_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
+const CODEPAGE_437_ENGLISH_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_437_English_8x16.f16");
+const CODEPAGE_437_ENGLISH_8: &[u8] = include_bytes!("../data/fonts/Codepage_437_English_8x8.f8");
+const CODEPAGE_437_ENGLISH_14: &[u8] =
+    include_bytes!("../data/fonts/Codepage_437_English_8x14.f14");
+const CODEPAGE_1251_CYRILLIC_SWISS_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_1251_Cyrillic_swiss_8x16.f16");
+const RUSSIAN_KOI8_R_16: &[u8] = include_bytes!("../data/fonts/Russian_koi8-r_8x16.f16");
+const RUSSIAN_KOI8_R_8: &[u8] = include_bytes!("../data/fonts/Russian_koi8-r_8x8.f8");
+const RUSSIAN_KOI8_R_14: &[u8] = include_bytes!("../data/fonts/Russian_koi8-r_8x14.f14");
+const ISO_8859_2_CENTRAL_EUROPEAN_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-2_Central_European_8x16.f16");
+const ISO_8859_2_CENTRAL_EUROPEAN_8: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-2_Central_European_8x8.f8");
+const ISO_8859_2_CENTRAL_EUROPEAN_14: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-2_Central_European_8x14.f14");
+const ISO_8859_4_BALTIC_WIDE_VGA_9BIT_MAPPED_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-4_Baltic_wide_VGA_9bit_mapped_8x16.f16");
+const CODEPAGE_866_C_RUSSIAN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_866_c_Russian_8x16.f16");
+const ISO_8859_9_TURKISH_16: &[u8] = include_bytes!("../data/fonts/ISO-8859-9_Turkish_8x16.f16");
+const HAIK8_CODEPAGE_USE_ONLY_WITH_ARMSCII8_SCREENMAP_16: &[u8] =
+    include_bytes!("../data/fonts/haik8_codepage_use_only_with_armscii8_screenmap_8x16.f16");
+const HAIK8_CODEPAGE_USE_ONLY_WITH_ARMSCII8_SCREENMAP_8: &[u8] =
+    include_bytes!("../data/fonts/haik8_codepage_use_only_with_armscii8_screenmap_8x8.f8");
+const HAIK8_CODEPAGE_USE_ONLY_WITH_ARMSCII8_SCREENMAP_14: &[u8] =
+    include_bytes!("../data/fonts/haik8_codepage_use_only_with_armscii8_screenmap_8x14.f14");
+const ISO_8859_8_HEBREW_16: &[u8] = include_bytes!("../data/fonts/ISO-8859-8_Hebrew_8x16.f16");
+const ISO_8859_8_HEBREW_8: &[u8] = include_bytes!("../data/fonts/ISO-8859-8_Hebrew_8x8.f8");
+const ISO_8859_8_HEBREW_14: &[u8] = include_bytes!("../data/fonts/ISO-8859-8_Hebrew_8x14.f14");
+const UKRAINIAN_FONT_KOI8_U_16: &[u8] =
+    include_bytes!("../data/fonts/Ukrainian_font_koi8-u_8x16.f16");
+const UKRAINIAN_FONT_KOI8_U_8: &[u8] = include_bytes!("../data/fonts/Ukrainian_font_koi8-u_8x8.f8");
+const UKRAINIAN_FONT_KOI8_U_14: &[u8] =
+    include_bytes!("../data/fonts/Ukrainian_font_koi8-u_8x14.f14");
+const ISO_8859_15_WEST_EUROPEAN_THIN_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-15_West_European_thin_8x16.f16");
+const ISO_8859_4_BALTIC_VGA_9BIT_MAPPED_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-4_Baltic_VGA_9bit_mapped_8x16.f16");
+const ISO_8859_4_BALTIC_VGA_9BIT_MAPPED_8: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-4_Baltic_VGA_9bit_mapped_8x8.f8");
+const ISO_8859_4_BALTIC_VGA_9BIT_MAPPED_14: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-4_Baltic_VGA_9bit_mapped_8x14.f14");
+const RUSSIAN_KOI8_R_B_16: &[u8] = include_bytes!("../data/fonts/Russian_koi8-r_b_8x16.f16");
+const ISO_8859_4_BALTIC_WIDE_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-4_Baltic_wide_8x16.f16");
+const ISO_8859_5_CYRILLIC_16: &[u8] = include_bytes!("../data/fonts/ISO-8859-5_Cyrillic_8x16.f16");
+const ISO_8859_5_CYRILLIC_8: &[u8] = include_bytes!("../data/fonts/ISO-8859-5_Cyrillic_8x8.f8");
+const ISO_8859_5_CYRILLIC_14: &[u8] = include_bytes!("../data/fonts/ISO-8859-5_Cyrillic_8x14.f14");
+const ARMSCII_8_CHARACTER_SET_16: &[u8] =
+    include_bytes!("../data/fonts/ARMSCII-8_Character_set_8x16.f16");
+const ARMSCII_8_CHARACTER_SET_8: &[u8] =
+    include_bytes!("../data/fonts/ARMSCII-8_Character_set_8x8.f8");
+const ARMSCII_8_CHARACTER_SET_14: &[u8] =
+    include_bytes!("../data/fonts/ARMSCII-8_Character_set_8x14.f14");
+const ISO_8859_15_WEST_EUROPEAN_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-15_West_European_8x16.f16");
+const ISO_8859_15_WEST_EUROPEAN_8: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-15_West_European_8x8.f8");
+const ISO_8859_15_WEST_EUROPEAN_14: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-15_West_European_8x14.f14");
+const CODEPAGE_850_MULTILINGUAL_LATIN_I_THIN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_850_Multilingual_Latin_I_thin_8x16.f16");
+const CODEPAGE_850_MULTILINGUAL_LATIN_I_THIN_8: &[u8] =
+    include_bytes!("../data/fonts/Codepage_850_Multilingual_Latin_I_thin_8x8.f8");
+const CODEPAGE_850_MULTILINGUAL_LATIN_I_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_850_Multilingual_Latin_I_8x16.f16");
+const CODEPAGE_850_MULTILINGUAL_LATIN_I_8: &[u8] =
+    include_bytes!("../data/fonts/Codepage_850_Multilingual_Latin_I_8x8.f8");
+const CODEPAGE_850_MULTILINGUAL_LATIN_I_14: &[u8] =
+    include_bytes!("../data/fonts/Codepage_850_Multilingual_Latin_I_8x14.f14");
+const CODEPAGE_865_NORWEGIAN_THIN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_865_Norwegian_thin_8x16.f16");
+const CODEPAGE_865_NORWEGIAN_THIN_8: &[u8] =
+    include_bytes!("../data/fonts/Codepage_865_Norwegian_thin_8x8.f8");
+const CODEPAGE_1251_CYRILLIC_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_1251_Cyrillic_8x16.f16");
+const CODEPAGE_1251_CYRILLIC_8: &[u8] =
+    include_bytes!("../data/fonts/Codepage_1251_Cyrillic_8x8.f8");
+const CODEPAGE_1251_CYRILLIC_14: &[u8] =
+    include_bytes!("../data/fonts/Codepage_1251_Cyrillic_8x14.f14");
+const ISO_8859_7_GREEK_16: &[u8] = include_bytes!("../data/fonts/ISO-8859-7_Greek_8x16.f16");
+const ISO_8859_7_GREEK_8: &[u8] = include_bytes!("../data/fonts/ISO-8859-7_Greek_8x8.f8");
+const ISO_8859_7_GREEK_14: &[u8] = include_bytes!("../data/fonts/ISO-8859-7_Greek_8x14.f14");
+const RUSSIAN_KOI8_R_C_16: &[u8] = include_bytes!("../data/fonts/Russian_koi8-r_c_8x16.f16");
+const ISO_8859_4_BALTIC_16: &[u8] = include_bytes!("../data/fonts/ISO-8859-4_Baltic_8x16.f16");
+const ISO_8859_4_BALTIC_8: &[u8] = include_bytes!("../data/fonts/ISO-8859-4_Baltic_8x8.f8");
+const ISO_8859_4_BALTIC_14: &[u8] = include_bytes!("../data/fonts/ISO-8859-4_Baltic_8x14.f14");
+const ISO_8859_1_WEST_EUROPEAN_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-1_West_European_8x16.f16");
+const ISO_8859_1_WEST_EUROPEAN_8: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-1_West_European_8x8.f8");
+const ISO_8859_1_WEST_EUROPEAN_14: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-1_West_European_8x14.f14");
+const CODEPAGE_866_RUSSIAN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_866_Russian_8x16.f16");
+const CODEPAGE_866_RUSSIAN_8: &[u8] = include_bytes!("../data/fonts/Codepage_866_Russian_8x8.f8");
+const CODEPAGE_866_RUSSIAN_14: &[u8] =
+    include_bytes!("../data/fonts/Codepage_866_Russian_8x14.f14");
+const CODEPAGE_437_ENGLISH_THIN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_437_English_thin_8x16.f16");
+const CODEPAGE_437_ENGLISH_THIN_8: &[u8] =
+    include_bytes!("../data/fonts/Codepage_437_English_thin_8x8.f8");
+const CODEPAGE_866_B_RUSSIAN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_866_b_Russian_8x16.f16");
+const CODEPAGE_865_NORWEGIAN_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_865_Norwegian_8x16.f16");
+const CODEPAGE_865_NORWEGIAN_8: &[u8] =
+    include_bytes!("../data/fonts/Codepage_865_Norwegian_8x8.f8");
+const CODEPAGE_865_NORWEGIAN_14: &[u8] =
+    include_bytes!("../data/fonts/Codepage_865_Norwegian_8x14.f14");
+const UKRAINIAN_FONT_CP866U_16: &[u8] =
+    include_bytes!("../data/fonts/Ukrainian_font_cp866u_8x16.f16");
+const UKRAINIAN_FONT_CP866U_8: &[u8] = include_bytes!("../data/fonts/Ukrainian_font_cp866u_8x8.f8");
+const UKRAINIAN_FONT_CP866U_14: &[u8] =
+    include_bytes!("../data/fonts/Ukrainian_font_cp866u_8x14.f14");
+const ISO_8859_1_WEST_EUROPEAN_THIN_16: &[u8] =
+    include_bytes!("../data/fonts/ISO-8859-1_West_European_thin_8x16.f16");
+const CODEPAGE_1131_BELARUSIAN_SWISS_16: &[u8] =
+    include_bytes!("../data/fonts/Codepage_1131_Belarusian_swiss_8x16.f16");
+const COMMODORE_64_UPPER_16: &[u8] = include_bytes!("../data/fonts/Commodore_64_UPPER_8x16.f16");
+const COMMODORE_64_UPPER_8: &[u8] = include_bytes!("../data/fonts/Commodore_64_UPPER_8x8.f8");
+const COMMODORE_64_LOWER_16: &[u8] = include_bytes!("../data/fonts/Commodore_64_Lower_8x16.f16");
+const COMMODORE_64_LOWER_8: &[u8] = include_bytes!("../data/fonts/Commodore_64_Lower_8x8.f8");
+const COMMODORE_128_UPPER_16: &[u8] = include_bytes!("../data/fonts/Commodore_128_UPPER_8x16.f16");
+const COMMODORE_128_UPPER_8: &[u8] = include_bytes!("../data/fonts/Commodore_128_UPPER_8x8.f8");
+const COMMODORE_128_LOWER_16: &[u8] = include_bytes!("../data/fonts/Commodore_128_Lower_8x16.f16");
+const COMMODORE_128_LOWER_8: &[u8] = include_bytes!("../data/fonts/Commodore_128_Lower_8x8.f8");
+const ATARI_16: &[u8] = include_bytes!("../data/fonts/Atari_8x16.f16");
+const ATARI_8: &[u8] = include_bytes!("../data/fonts/Atari_8x8.f8");
+const P0T_NOODLE_AMIGA_16: &[u8] = include_bytes!("../data/fonts/P0T_NOoDLE_Amiga_8x16.f16");
+const P0T_NOODLE_AMIGA_14: &[u8] = include_bytes!("../data/fonts/P0T_NOoDLE_Amiga_8x14.f14");
+const MOSOUL_AMIGA_16: &[u8] = include_bytes!("../data/fonts/mOsOul_Amiga_8x16.f16");
+const MOSOUL_AMIGA_8: &[u8] = include_bytes!("../data/fonts/mOsOul_Amiga_8x8.f8");
+const MICROKNIGHT_PLUS_AMIGA_16: &[u8] =
+    include_bytes!("../data/fonts/MicroKnight_Plus_Amiga_8x16.f16");
+const TOPAZ_PLUS_AMIGA_16: &[u8] = include_bytes!("../data/fonts/Topaz_Plus_Amiga_8x16.f16");
+const MICROKNIGHT_AMIGA_16: &[u8] = include_bytes!("../data/fonts/MicroKnight_Amiga_8x16.f16");
+const MICROKNIGHT_AMIGA_8: &[u8] = include_bytes!("../data/fonts/MicroKnight_Amiga_8x8.f8");
+// const TOPAZ_AMIGA_16: &[u8] = include_bytes!("../data/fonts/Topaz_Amiga_8x16.f16");
+// const TOPAZ_AMIGA_14: &[u8] = include_bytes!("../data/fonts/Topaz_Amiga_8x14.f14");
+
+// const IBM_CP437_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf");
+// const IBM_CP437_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
+// const IBM_CP437_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
 const IBM_CP437_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA25G.psf");
 
 const IBM_CP737_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA50.psf");
@@ -410,10 +552,10 @@ const IBM_CP775_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA50.psf
 const IBM_CP775_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp775/EGA.psf");
 const IBM_CP775_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA.psf");
 
-const IBM_CP850_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA50.psf");
-const IBM_CP850_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/EGA.psf");
-const IBM_CP850_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA.psf");
-const IBM_CP850_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA25G.psf");
+// const IBM_CP850_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA50.psf");
+// const IBM_CP850_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/EGA.psf");
+// const IBM_CP850_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA.psf");
+// const IBM_CP850_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA25G.psf");
 
 const IBM_CP852_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA50.psf");
 const IBM_CP852_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp852/EGA.psf");
@@ -446,7 +588,6 @@ const IBM_CP863_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA50.psf
 const IBM_CP863_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp863/EGA.psf");
 const IBM_CP863_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA.psf");
 const IBM_CP863_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA25G.psf");
-
 const IBM_CP864_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA50.psf");
 const IBM_CP864_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp864/EGA.psf");
 const IBM_CP864_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA.psf");
@@ -480,6 +621,268 @@ const VIEWDATA: &[u8] = include_bytes!("../data/fonts/saa5050.psf");
 
 pub const DEFAULT_FONT_NAME: &str = "IBM VGA";
 pub const ALT_DEFAULT_FONT_NAME: &str = "IBM VGA 437";
+
+pub struct FontDescription {
+    pub name: &'static str,
+    pub variant_8x8: Option<&'static [u8]>,
+    pub variant_8x14: Option<&'static [u8]>,
+    pub variant_8x16: Option<&'static [u8]>,
+}
+
+pub const FONT_TABLE: [FontDescription; 42] = [
+    FontDescription {
+        name: "Codepage 437 English",
+        variant_8x16: Some(CODEPAGE_437_ENGLISH_16),
+        variant_8x8: Some(CODEPAGE_437_ENGLISH_8),
+        variant_8x14: Some(CODEPAGE_437_ENGLISH_14),
+    },
+    FontDescription {
+        name: "Codepage 1251 Cyrillic, (swiss)",
+        variant_8x16: Some(CODEPAGE_1251_CYRILLIC_SWISS_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Russian koi8-r",
+        variant_8x16: Some(RUSSIAN_KOI8_R_16),
+        variant_8x8: Some(RUSSIAN_KOI8_R_8),
+        variant_8x14: Some(RUSSIAN_KOI8_R_14),
+    },
+    FontDescription {
+        name: "ISO-8859-2 Central European",
+        variant_8x16: Some(ISO_8859_2_CENTRAL_EUROPEAN_16),
+        variant_8x8: Some(ISO_8859_2_CENTRAL_EUROPEAN_8),
+        variant_8x14: Some(ISO_8859_2_CENTRAL_EUROPEAN_14),
+    },
+    FontDescription {
+        name: "ISO-8859-4 Baltic wide (VGA 9bit mapped)",
+        variant_8x16: Some(ISO_8859_4_BALTIC_WIDE_VGA_9BIT_MAPPED_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Codepage 866 (c) Russian",
+        variant_8x16: Some(CODEPAGE_866_C_RUSSIAN_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "ISO-8859-9 Turkish",
+        variant_8x16: Some(ISO_8859_9_TURKISH_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "haik8 codepage (use only with armscii8 screenmap)",
+        variant_8x16: Some(HAIK8_CODEPAGE_USE_ONLY_WITH_ARMSCII8_SCREENMAP_16),
+        variant_8x8: Some(HAIK8_CODEPAGE_USE_ONLY_WITH_ARMSCII8_SCREENMAP_8),
+        variant_8x14: Some(HAIK8_CODEPAGE_USE_ONLY_WITH_ARMSCII8_SCREENMAP_14),
+    },
+    FontDescription {
+        name: "ISO-8859-8 Hebrew",
+        variant_8x16: Some(ISO_8859_8_HEBREW_16),
+        variant_8x8: Some(ISO_8859_8_HEBREW_8),
+        variant_8x14: Some(ISO_8859_8_HEBREW_14),
+    },
+    FontDescription {
+        name: "Ukrainian font koi8-u",
+        variant_8x16: Some(UKRAINIAN_FONT_KOI8_U_16),
+        variant_8x8: Some(UKRAINIAN_FONT_KOI8_U_8),
+        variant_8x14: Some(UKRAINIAN_FONT_KOI8_U_14),
+    },
+    FontDescription {
+        name: "ISO-8859-15 West European, (thin)",
+        variant_8x16: Some(ISO_8859_15_WEST_EUROPEAN_THIN_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "ISO-8859-4 Baltic (VGA 9bit mapped)",
+        variant_8x16: Some(ISO_8859_4_BALTIC_VGA_9BIT_MAPPED_16),
+        variant_8x8: Some(ISO_8859_4_BALTIC_VGA_9BIT_MAPPED_8),
+        variant_8x14: Some(ISO_8859_4_BALTIC_VGA_9BIT_MAPPED_14),
+    },
+    FontDescription {
+        name: "Russian koi8-r (b)",
+        variant_8x16: Some(RUSSIAN_KOI8_R_B_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "ISO-8859-4 Baltic wide",
+        variant_8x16: Some(ISO_8859_4_BALTIC_WIDE_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "ISO-8859-5 Cyrillic",
+        variant_8x16: Some(ISO_8859_5_CYRILLIC_16),
+        variant_8x8: Some(ISO_8859_5_CYRILLIC_8),
+        variant_8x14: Some(ISO_8859_5_CYRILLIC_14),
+    },
+    FontDescription {
+        name: "ARMSCII-8 Character set",
+        variant_8x16: Some(ARMSCII_8_CHARACTER_SET_16),
+        variant_8x8: Some(ARMSCII_8_CHARACTER_SET_8),
+        variant_8x14: Some(ARMSCII_8_CHARACTER_SET_14),
+    },
+    FontDescription {
+        name: "ISO-8859-15 West European",
+        variant_8x16: Some(ISO_8859_15_WEST_EUROPEAN_16),
+        variant_8x8: Some(ISO_8859_15_WEST_EUROPEAN_8),
+        variant_8x14: Some(ISO_8859_15_WEST_EUROPEAN_14),
+    },
+    FontDescription {
+        name: "Codepage 850 Multilingual Latin I, (thin)",
+        variant_8x16: Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_THIN_16),
+        variant_8x8: Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_THIN_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Codepage 850 Multilingual Latin I",
+        variant_8x16: Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_16),
+        variant_8x8: Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_8),
+        variant_8x14: Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_14),
+    },
+    FontDescription {
+        name: "Codepage 865 Norwegian, (thin)",
+        variant_8x16: Some(CODEPAGE_865_NORWEGIAN_THIN_16),
+        variant_8x8: Some(CODEPAGE_865_NORWEGIAN_THIN_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Codepage 1251 Cyrillic",
+        variant_8x16: Some(CODEPAGE_1251_CYRILLIC_16),
+        variant_8x8: Some(CODEPAGE_1251_CYRILLIC_8),
+        variant_8x14: Some(CODEPAGE_1251_CYRILLIC_14),
+    },
+    FontDescription {
+        name: "ISO-8859-7 Greek",
+        variant_8x16: Some(ISO_8859_7_GREEK_16),
+        variant_8x8: Some(ISO_8859_7_GREEK_8),
+        variant_8x14: Some(ISO_8859_7_GREEK_14),
+    },
+    FontDescription {
+        name: "Russian koi8-r (c)",
+        variant_8x16: Some(RUSSIAN_KOI8_R_C_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "ISO-8859-4 Baltic",
+        variant_8x16: Some(ISO_8859_4_BALTIC_16),
+        variant_8x8: Some(ISO_8859_4_BALTIC_8),
+        variant_8x14: Some(ISO_8859_4_BALTIC_14),
+    },
+    FontDescription {
+        name: "ISO-8859-1 West European",
+        variant_8x16: Some(ISO_8859_1_WEST_EUROPEAN_16),
+        variant_8x8: Some(ISO_8859_1_WEST_EUROPEAN_8),
+        variant_8x14: Some(ISO_8859_1_WEST_EUROPEAN_14),
+    },
+    FontDescription {
+        name: "Codepage 866 Russian",
+        variant_8x16: Some(CODEPAGE_866_RUSSIAN_16),
+        variant_8x8: Some(CODEPAGE_866_RUSSIAN_8),
+        variant_8x14: Some(CODEPAGE_866_RUSSIAN_14),
+    },
+    FontDescription {
+        name: "Codepage 437 English, (thin)",
+        variant_8x16: Some(CODEPAGE_437_ENGLISH_THIN_16),
+        variant_8x8: Some(CODEPAGE_437_ENGLISH_THIN_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Codepage 866 (b) Russian",
+        variant_8x16: Some(CODEPAGE_866_B_RUSSIAN_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Codepage 865 Norwegian",
+        variant_8x16: Some(CODEPAGE_865_NORWEGIAN_16),
+        variant_8x8: Some(CODEPAGE_865_NORWEGIAN_8),
+        variant_8x14: Some(CODEPAGE_865_NORWEGIAN_14),
+    },
+    FontDescription {
+        name: "Ukrainian font cp866u",
+        variant_8x16: Some(UKRAINIAN_FONT_CP866U_16),
+        variant_8x8: Some(UKRAINIAN_FONT_CP866U_8),
+        variant_8x14: Some(UKRAINIAN_FONT_CP866U_14),
+    },
+    FontDescription {
+        name: "ISO-8859-1 West European, (thin)",
+        variant_8x16: Some(ISO_8859_1_WEST_EUROPEAN_THIN_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Codepage 1131 Belarusian, (swiss)",
+        variant_8x16: Some(CODEPAGE_1131_BELARUSIAN_SWISS_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Commodore 64 (UPPER)",
+        variant_8x16: Some(COMMODORE_64_UPPER_16),
+        variant_8x8: Some(COMMODORE_64_UPPER_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Commodore 64 (Lower)",
+        variant_8x16: Some(COMMODORE_64_LOWER_16),
+        variant_8x8: Some(COMMODORE_64_LOWER_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Commodore 128 (UPPER)",
+        variant_8x16: Some(COMMODORE_128_UPPER_16),
+        variant_8x8: Some(COMMODORE_128_UPPER_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Commodore 128 (Lower)",
+        variant_8x16: Some(COMMODORE_128_LOWER_16),
+        variant_8x8: Some(COMMODORE_128_LOWER_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Atari",
+        variant_8x16: Some(ATARI_16),
+        variant_8x8: Some(ATARI_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "P0T NOoDLE (Amiga)",
+        variant_8x16: Some(P0T_NOODLE_AMIGA_16),
+        variant_8x8: None,
+        variant_8x14: Some(P0T_NOODLE_AMIGA_14),
+    },
+    FontDescription {
+        name: "mO'sOul (Amiga)",
+        variant_8x16: Some(MOSOUL_AMIGA_16),
+        variant_8x8: Some(MOSOUL_AMIGA_8),
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "MicroKnight Plus (Amiga)",
+        variant_8x16: Some(MICROKNIGHT_PLUS_AMIGA_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "Topaz Plus (Amiga)",
+        variant_8x16: Some(TOPAZ_PLUS_AMIGA_16),
+        variant_8x8: None,
+        variant_8x14: None,
+    },
+    FontDescription {
+        name: "MicroKnight (Amiga)",
+        variant_8x16: Some(MICROKNIGHT_AMIGA_16),
+        variant_8x8: Some(MICROKNIGHT_AMIGA_8),
+        variant_8x14: None,
+    },
+];
 
 pub const SUPPORTED_FONTS: [&str; 91] = [
     "IBM VGA",
@@ -651,11 +1054,11 @@ pub const SUPPORTED_FONTS: [&str; 91] = [
 #[allow(clippy::match_same_arms)]
 pub fn get_font_data(font_name: &str) -> Option<&[u8]> {
     match font_name {
-        "IBM VGA" | "IBM VGA 437" => Some(IBM_CP437_VGA),
-        "IBM VGA50" | "IBM VGA50 437" => Some(IBM_CP437_VGA50),
+        "IBM VGA" | "IBM VGA 437" => Some(CODEPAGE_437_ENGLISH_16),
+        "IBM VGA50" | "IBM VGA50 437" => Some(CODEPAGE_437_ENGLISH_8),
         "IBM VGA25G" | "IBM VGA25G 437" => Some(IBM_CP437_VGA25G),
-        "IBM EGA" | "IBM EGA 437" => Some(IBM_CP437_EGA),
-        "IBM EGA43" | "IBM EGA43 437" => Some(IBM_CP437_VGA50),
+        "IBM EGA" | "IBM EGA 437" => Some(CODEPAGE_437_ENGLISH_14),
+        "IBM EGA43" | "IBM EGA43 437" => Some(CODEPAGE_437_ENGLISH_8),
 
         /*
 
@@ -681,11 +1084,11 @@ pub fn get_font_data(font_name: &str) -> Option<&[u8]> {
         "IBM VGA25G 819" => Some(IBM_CP819_VGA25G),
         "IBM EGA 819" => Some(IBM_CP819_EGA),
         "IBM EGA43 819" => Some(IBM_CP819_VGA50),*/
-        "IBM VGA 850" => Some(IBM_CP850_VGA),
-        "IBM VGA50 850" => Some(IBM_CP850_VGA50),
-        "IBM VGA25G 850" => Some(IBM_CP850_VGA25G),
-        "IBM EGA 850" => Some(IBM_CP850_EGA),
-        "IBM EGA43 850" => Some(IBM_CP850_VGA50),
+        "IBM VGA 850" => Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_16),
+        "IBM VGA50 850" => Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_8),
+        "IBM VGA25G 850" => Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_16),
+        "IBM EGA 850" => Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_14),
+        "IBM EGA43 850" => Some(CODEPAGE_850_MULTILINGUAL_LATIN_I_16),
 
         "IBM VGA 852" => Some(IBM_CP852_VGA),
         "IBM VGA50 852" => Some(IBM_CP852_VGA50),
