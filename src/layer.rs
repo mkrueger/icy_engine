@@ -14,7 +14,6 @@ pub struct Layer {
     pub lines: Vec<Line>,
 
     pub sixels: Vec<Sixel>,
-    pub updated_sixels: bool,
 }
 
 impl Layer {
@@ -25,7 +24,6 @@ impl Layer {
             is_locked: false,
             is_position_locked: false,
             is_transparent: true,
-            updated_sixels: false,
             lines: Vec::new(),
             sixels: Vec::new(),
             offset: Position::default(),

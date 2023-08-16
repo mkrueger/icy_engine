@@ -153,14 +153,17 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn update_sixel_threads(&mut self) {
-        if let Some(handle) = self.sixel_threads.front() {
+    pub fn update_sixel_threads(&mut self) -> bool {
+        let mut updated_sixel = false;
+        while let Some(handle) = self.sixel_threads.front() {
             if !handle.is_finished() {
-                return;
+                return false;
             }
             let handle = self.sixel_threads.pop_front().unwrap();
             let sixel = handle.join().unwrap();
             {
+                updated_sixel = true;
+
                 let screen_rect = sixel.get_screen_rect();
 
                 let vec = &mut self.layers[0].sixels;
@@ -178,8 +181,8 @@ impl Buffer {
                 }
                 vec.push(sixel);
             }
-            self.layers[0].updated_sixels = true;
         }
+        updated_sixel
     }
 
     pub fn clear_font_table(&mut self) {
