@@ -6,15 +6,14 @@ use std::{
     fmt::Display,
 };
 
-use self::constants::{ANSI_FONT_NAMES, COLOR_OFFSETS};
-
 use super::{ascii, BufferParser};
 use crate::{
-    update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, BitFont, Buffer, CallbackAction, Caret,
+    update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret,
     EngineResult, FontSelectionState, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError,
-    Position, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF, XTERM_256_PALETTE,
+    Position, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF,
 };
 
+mod ansi_commands;
 mod constants;
 mod dcs;
 
@@ -348,7 +347,11 @@ impl BufferParser for Parser {
                         ))));
                     }
                     self.state = EngineState::RecordDCS(ReadSTState::Default(0));
-                    return self.invoke_macro(buf, caret, *self.parsed_numbers.first().unwrap());
+                    return self.invoke_macro_by_id(
+                        buf,
+                        caret,
+                        *self.parsed_numbers.first().unwrap(),
+                    );
                 }
 
                 self.state = EngineState::Default;
@@ -385,11 +388,6 @@ impl BufferParser for Parser {
             EngineState::ReadCSICommand => {
                 self.current_escape_sequence.push(ch);
                 match ch {
-                    'p' => {
-                        // [!p Soft Teminal Reset
-                        self.state = EngineState::Default;
-                        buf.terminal_state.reset();
-                    }
                     'l' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
@@ -632,123 +630,25 @@ impl BufferParser for Parser {
 
             EngineState::ReadRIPSupportRequest => {
                 self.current_escape_sequence.push(ch);
-                match ch {
-                    'p' => {
-                        // Soft reset
-                        self.state = EngineState::Default;
-                        buf.terminal_state.reset();
-                        caret.reset();
-                        return Ok(CallbackAction::None);
-                    }
-                    _ => {
-                        // potential rip support request
-                        // ignore that for now and continue parsing
-                        self.state = EngineState::Default;
-                        return self.print_char(buf, caret, ch);
-                    }
+                if let 'p' = ch {
+                    self.soft_terminal_reset(buf, caret);
+                } else {
+                    // potential rip support request
+                    // ignore that for now and continue parsing
+                    self.state = EngineState::Default;
+                    return self.print_char(buf, caret, ch);
                 }
             }
 
             EngineState::EndCSI(func) => {
                 self.current_escape_sequence.push(ch);
                 match *func {
-                    '*' => {
-                        match ch {
-                            'z' => {
-                                // DECINVM invoke macro
-                                self.state = EngineState::Default;
-                                if let Some(id) = self.parsed_numbers.first() {
-                                    return self.invoke_macro(buf, caret, *id);
-                                }
-                                return Ok(CallbackAction::None);
-                            }
-                            'r' => {
-                                // DECSCS—Select Communication Speed https://vt100.net/docs/vt510-rm/DECSCS.html
-                                self.state = EngineState::Default;
-                                let ps1 = self.parsed_numbers.first().unwrap_or(&0);
-                                if *ps1 != 0 && *ps1 != 1 {
-                                    // silently ignore all other options
-                                    // 2 	Host Receive
-                                    // 3 	Printer
-                                    // 4 	Modem Hi
-                                    // 5 	Modem Lo
-                                    return Ok(CallbackAction::None);
-                                }
-
-                                if let Some(ps2) = self.parsed_numbers.get(1) {
-                                    let baud_rate = match ps2 {
-                                        1 => 300,
-                                        2 => 600,
-                                        3 => 1200,
-                                        4 => 2400,
-                                        5 => 4800,
-                                        6 => 9600,
-                                        7 => 19200,
-                                        8 => 38400,
-                                        9 => 57600,
-                                        10 => 76800,
-                                        11 => 115_200,
-                                        _ => 0,
-                                    };
-                                    buf.terminal_state.set_baud_rate(baud_rate);
-                                    return Ok(CallbackAction::ChangeBaudRate(baud_rate));
-                                }
-                                return Ok(CallbackAction::None);
-                            }
-
-                            'y' => {
-                                // DECRQCRA—Request Checksum of Rectangular Area
-                                // <https://vt100.net/docs/vt510-rm/DECRQCRA.html>
-                                self.state = EngineState::Default;
-
-                                if self.parsed_numbers.len() != 6 {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        self.current_escape_sequence.clone(),
-                                    )));
-                                }
-
-                                let pt = self.parsed_numbers[2];
-                                let pl = self.parsed_numbers[3];
-                                let pb = self.parsed_numbers[4];
-                                let pr = self.parsed_numbers[5];
-
-                                if pt > pb
-                                    || pl > pr
-                                    || pr > buf.get_buffer_width()
-                                    || pb > buf.get_buffer_height()
-                                    || pl < 0
-                                    || pt < 0
-                                {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        format!("invalid area for requesting checksum pt:{pt} pl:{pl} pb:{pb} pr:{pr}"),
-                                    )));
-                                }
-
-                                let mut crc16 = 0;
-                                for y in pt..pb {
-                                    for x in pl..pr {
-                                        if let Some(ch) = buf.get_char_xy(x, y) {
-                                            crc16 = update_crc16(crc16, ch.ch as u8);
-                                            for b in ch.attribute.attr.to_be_bytes() {
-                                                crc16 = update_crc16(crc16, b);
-                                            }
-                                            for b in ch.attribute.get_foreground().to_be_bytes() {
-                                                crc16 = update_crc16(crc16, b);
-                                            }
-                                            for b in ch.attribute.get_background().to_be_bytes() {
-                                                crc16 = update_crc16(crc16, b);
-                                            }
-                                        }
-                                    }
-                                }
-                                return Ok(CallbackAction::SendString(format!(
-                                    "\x1BP{}!~{crc16:04X}\x1B\\",
-                                    self.parsed_numbers[0]
-                                )));
-                            }
-                            _ => {}
-                        }
-                    }
+                    '*' => match ch {
+                        'z' => return self.invoke_macro(buf, caret),
+                        'r' => return self.select_communication_speed(buf),
+                        'y' => return self.request_checksum_of_rectangular_area(buf),
+                        _ => {}
+                    },
 
                     '$' => match ch {
                         'w' => {
@@ -773,79 +673,10 @@ impl BufferParser for Parser {
                         self.state = EngineState::Default;
 
                         match ch {
-                            'D' => {
-                                if self.parsed_numbers.len() != 2 {
-                                    self.current_escape_sequence.push('D');
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        self.current_escape_sequence.clone(),
-                                    )));
-                                }
-
-                                if let Some(nr) = self.parsed_numbers.get(1) {
-                                    let nr = *nr as usize;
-                                    if buf.get_font(nr).is_some() {
-                                        self.current_font_page = nr;
-                                        set_font_selection_success(buf, caret, nr);
-                                        return Ok(CallbackAction::None);
-                                    }
-                                    if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
-                                        match BitFont::from_name(font_name) {
-                                            Ok(font) => {
-                                                set_font_selection_success(buf, caret, nr);
-                                                if let Some(font_number) =
-                                                    buf.search_font_by_name(font.name.to_string())
-                                                {
-                                                    self.current_font_page = font_number;
-                                                    return Ok(CallbackAction::None);
-                                                }
-                                                self.current_font_page = nr;
-                                                buf.set_font(nr, font);
-                                            }
-                                            Err(err) => {
-                                                buf.terminal_state.font_selection_state =
-                                                    FontSelectionState::Failure;
-                                                return Err(err);
-                                            }
-                                        }
-                                    } else {
-                                        buf.terminal_state.font_selection_state =
-                                            FontSelectionState::Failure;
-                                        return Err(Box::new(ParserError::UnsupportedFont(nr)));
-                                    }
-                                }
-                            }
-                            'A' => {
-                                // Scroll Right
-                                let num = if let Some(number) = self.parsed_numbers.first() {
-                                    *number
-                                } else {
-                                    1
-                                };
-                                (0..num).for_each(|_| buf.scroll_right());
-                            }
-                            '@' => {
-                                // Scroll Left
-                                let num = if let Some(number) = self.parsed_numbers.first() {
-                                    *number
-                                } else {
-                                    1
-                                };
-                                (0..num).for_each(|_| buf.scroll_left());
-                            }
-                            'd' => {
-                                // tab stop remove
-                                if self.parsed_numbers.len() != 1 {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        format!(
-                                            "Invalid parameter number in remove tab stops: {}",
-                                            self.parsed_numbers.len()
-                                        ),
-                                    )));
-                                }
-                                if let Some(num) = self.parsed_numbers.first() {
-                                    buf.terminal_state.remove_tab_stop(*num - 1);
-                                }
-                            }
+                            'D' => return self.font_selection(buf, caret),
+                            'A' => self.scroll_right(buf),
+                            '@' => self.scroll_left(buf),
+                            'd' => return self.tabulation_stop_remove(buf),
                             _ => {
                                 self.current_escape_sequence.push(ch);
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -869,94 +700,11 @@ impl BufferParser for Parser {
                     return Err(Box::new(ParserError::InvalidChar('\0')));
                 }
                 match ch {
-                    'm' => {
-                        // Select Graphic Rendition
-                        self.state = EngineState::Default;
-                        if self.parsed_numbers.is_empty() {
-                            caret.attr = TextAttribute::default(); // Reset or normal
-                        }
-                        let mut i = 0;
-                        while i < self.parsed_numbers.len() {
-                            let n = self.parsed_numbers[i];
-                            match n {
-                                0 => caret.attr = TextAttribute::default(), // Reset or normal
-                                1 => caret.attr.set_is_bold(true),
-                                2 => {
-                                    caret.attr.set_is_faint(true);
-                                }
-                                3 => {
-                                    caret.attr.set_is_italic(true);
-                                }
-                                4 => caret.attr.set_is_underlined(true),
-                                5 | 6 => caret.attr.set_is_blinking(true),
-                                7 => {
-                                    let fg = caret.attr.get_foreground();
-                                    caret.attr.set_foreground(caret.attr.get_background());
-                                    caret.attr.set_background(fg);
-                                }
-                                8 => {
-                                    caret.attr.set_is_concealed(true);
-                                }
-                                9 => caret.attr.set_is_crossed_out(true),
-                                10 => self.current_font_page = 0, // Primary (default) font
-                                11..=19 => { /* ignore alternate fonts for now */ } //return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
-                                21 => caret.attr.set_is_double_underlined(true),
-                                22 => {
-                                    caret.attr.set_is_bold(false);
-                                    caret.attr.set_is_faint(false);
-                                }
-                                23 => caret.attr.set_is_italic(false),
-                                24 => caret.attr.set_is_underlined(false),
-                                25 => caret.attr.set_is_blinking(false),
-                                27 => {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        self.current_escape_sequence.clone(),
-                                    )))
-                                }
-                                28 => caret.attr.set_is_concealed(false),
-                                29 => caret.attr.set_is_crossed_out(false),
-                                // set foreaground color
-                                30..=37 => caret
-                                    .attr
-                                    .set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
-                                38 => {
-                                    caret
-                                        .attr
-                                        .set_foreground(self.parse_extended_colors(buf, &mut i)?);
-                                    continue;
-                                }
-                                39 => caret.attr.set_foreground(7), // Set foreground color to default, ECMA-48 3rd
-                                // set background color
-                                40..=47 => caret
-                                    .attr
-                                    .set_background(COLOR_OFFSETS[n as usize - 40] as u32),
-                                48 => {
-                                    caret
-                                        .attr
-                                        .set_background(self.parse_extended_colors(buf, &mut i)?);
-                                    continue;
-                                }
-                                49 => caret.attr.set_background(0), // Set background color to default, ECMA-48 3rd
-
-                                // high intensity colors
-                                90..=97 => caret
-                                    .attr
-                                    .set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
-                                100..=107 => caret
-                                    .attr
-                                    .set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
-
-                                _ => {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        self.current_escape_sequence.clone(),
-                                    )));
-                                }
-                            }
-                            i += 1;
-                        }
-                    }
+                    'm' => return self.select_graphic_rendition(caret, buf),
                     'H' |    // Cursor Position
-                    'f' => { // Character and Line Position (HVP)
+                    'f' // CSI Pn1 ; Pn2 f 
+                        // HVP - Character and line position
+                    => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             caret.pos = buf.upper_left_position();
@@ -985,7 +733,8 @@ impl BufferParser for Parser {
                             caret.right(buf, self.parsed_numbers[0]);
                         }
                     }
-                    'j' | // Character Position Backward
+                    'j' | // CSI Pn j
+                          // HPB - Character position backward
                     'D' => {
                         // Cursor Back
                         self.state = EngineState::Default;
@@ -995,7 +744,8 @@ impl BufferParser for Parser {
                             caret.left(buf, self.parsed_numbers[0]);
                         }
                     }
-                    'k' | // Line Position Backward
+                    'k' | // CSI Pn k
+                          // VPB - Line position backward
                     'A' => {
                         // Cursor Up
                         self.state = EngineState::Default;
@@ -1016,38 +766,14 @@ impl BufferParser for Parser {
                     }
                     's' => {
                         if buf.terminal_state.dec_margin_mode_left_right {
-                            // Set Left and Right Margins
-                            self.state = EngineState::Default;
-                            let (start, end) = match self.parsed_numbers.len() {
-                                2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
-                                1 => (0, self.parsed_numbers[0] - 1),
-                                0 => (0, buf.terminal_state.height),
-                                _ => {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                        self.current_escape_sequence.clone(),
-                                    )));
-                                }
-                            };
-                            if start > end {
-                                // undocumented behavior but CSI 1; 0 s seems to turn off on some terminals.
-                                buf.terminal_state.margins_left_right = None;
-                            } else {
-                                buf.terminal_state.margins_left_right = Some((start, end));
-                            }
-                        } else {
-                            // Save Current Cursor Position
-                            self.state = EngineState::Default;
-                            self.saved_pos = caret.pos;
-                        }
+                            return self.set_left_and_right_margins(buf);
+                        } 
+                        self.save_cursor_position(caret);
                     }
-                    'u' => {
-                        // Restore Saved Cursor Position
-                        self.state = EngineState::Default;
-                        caret.pos = self.saved_pos;
-                    }
-
+                    'u' => self.restore_cursor_position(caret),
                     'd' => {
-                        // Vertical Line Position Absolute
+                        // CSI Pn d
+                        // VPA - Line position absolute
                         self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => n - 1,
@@ -1057,7 +783,8 @@ impl BufferParser for Parser {
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
                     'e' => {
-                        // Vertical Line Position Relative
+                        // CSI Pn e
+                        // VPR - Line position forward
                         self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => *n,
@@ -1083,7 +810,8 @@ impl BufferParser for Parser {
                         }
                     }
                     'a' => {
-                        // Horizontal Line Position Relative
+                        // CSI Pn a
+                        // HPR - Character position forward
                         self.state = EngineState::Default;
                         let num = match self.parsed_numbers.first() {
                             Some(n) => *n,
@@ -1134,7 +862,8 @@ impl BufferParser for Parser {
                     }
 
                     'n' => {
-                        // Device Status Report
+                        // CSI Ps n
+                        // DSR - Device Status Report
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1180,21 +909,7 @@ impl BufferParser for Parser {
                         Insert Column 	  CSI Pn ' }
                         Delete Column 	  CSI Pn ' ~
                     */
-                    'X' => {
-                        // Erase character
-                        self.state = EngineState::Default;
-
-                        if let Some(number) = self.parsed_numbers.first() {
-                            caret.erase_charcter(buf, *number);
-                        } else {
-                            caret.erase_charcter(buf, 1);
-                            if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )));
-                            }
-                        }
-                    }
+                    'X' => return self.erase_character(caret, buf),
                     '@' => {
                         // Insert character
                         self.state = EngineState::Default;
@@ -1405,40 +1120,8 @@ impl BufferParser for Parser {
                             }
                         }
                     }
-
-                    'c' => {
-                        // device attributes
-                        self.state = EngineState::Default;
-                        // respond with IcyTerm as ASCII followed by the package version.
-                        return Ok(CallbackAction::SendString(format!(
-                            "\x1b[=73;99;121;84;101;114;109;{};{};{}c",
-                            env!("CARGO_PKG_VERSION_MAJOR"),
-                            env!("CARGO_PKG_VERSION_MINOR"),
-                            env!("CARGO_PKG_VERSION_PATCH")
-                        )));
-                    }
-                    'r' => {
-                        // Set Top and Bottom Margins
-                        self.state = EngineState::Default;
-                        let (start, end) = match self.parsed_numbers.len() {
-                            2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
-                            1 => (0, self.parsed_numbers[0] - 1),
-                            0 => (0, buf.terminal_state.height),
-                            _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )));
-                            }
-                        };
-
-                        if start > end {
-                            // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
-                            buf.terminal_state.margins_up_down = None;
-                        } else {
-                            caret.pos = buf.upper_left_position();
-                            buf.terminal_state.margins_up_down = Some((start, end));
-                        }
-                    }
+                    'c' => return self.device_attributes(),
+                    'r' => return self.set_top_and_bottom_margins(buf, caret),
                     'h' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
@@ -1552,7 +1235,8 @@ impl BufferParser for Parser {
                         (0..num).for_each(|_| buf.scroll_down());
                     }
                     'b' => {
-                        // repeat last char
+                        // CSI Pn b
+                        // REP - Repeat the preceding graphic character Pn times (REP).
                         self.state = EngineState::Default;
                         let num: i32 = if let Some(number) = self.parsed_numbers.first() {
                             *number
@@ -1564,7 +1248,8 @@ impl BufferParser for Parser {
                         (0..num).for_each(|_| buf.print_char(caret, ch));
                     }
                     'g' => {
-                        // clear tab stops
+                        // CSI Ps g
+                        // TBC - Tabulation clear
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1591,7 +1276,7 @@ impl BufferParser for Parser {
                         }
                     }
                     'Y' => {
-                        // next tab stop
+                        // CVT - Cursor line tabulation
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1607,7 +1292,7 @@ impl BufferParser for Parser {
                         (0..num).for_each(|_| caret.set_x_position(buf.terminal_state.next_tab_stop(caret.get_position().x)));
                     }
                     'Z' => {
-                        // prev tab stop
+                        // CBT - Cursor backward tabulation
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
                             return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1681,57 +1366,6 @@ impl BufferParser for Parser {
 }
 
 impl Parser {
-    fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
-        if *i + 1 >= self.parsed_numbers.len() {
-            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            )));
-        }
-        match self.parsed_numbers.get(*i + 1).unwrap() {
-            5 => {
-                // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
-                if *i + 3 > self.parsed_numbers.len() {
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )));
-                }
-                let color = self.parsed_numbers[*i + 2];
-                *i += 3;
-                if (0..=255).contains(&color) {
-                    let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize]);
-                    Ok(color)
-                } else {
-                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )))
-                }
-            }
-            2 => {
-                // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
-                if *i + 5 > self.parsed_numbers.len() {
-                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )));
-                }
-                let r = self.parsed_numbers[*i + 2];
-                let g = self.parsed_numbers[*i + 3];
-                let b = self.parsed_numbers[*i + 4];
-                *i += 5;
-                if (0..=255).contains(&r) && (0..=255).contains(&g) && (0..=255).contains(&b) {
-                    let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
-                    Ok(color)
-                } else {
-                    Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )))
-                }
-            }
-            _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            ))),
-        }
-    }
-
     fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
         if let EngineState::ParseAnsiMusic(state) = self.state {
             match state {
@@ -1915,7 +1549,7 @@ impl Parser {
         CallbackAction::None
     }
 
-    fn invoke_macro(
+    fn invoke_macro_by_id(
         &mut self,
         buf: &mut Buffer,
         caret: &mut Caret,
@@ -1935,6 +1569,7 @@ impl Parser {
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
         println!("TODO execute APS command: {}", self.aps_string);
     }
+
 }
 
 fn set_font_selection_success(buf: &mut Buffer, caret: &Caret, slot: usize) {

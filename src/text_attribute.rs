@@ -12,6 +12,7 @@ mod attribute {
     pub const CONCEAL: u16 = 0b0000_0000_0100_0000;
     pub const CROSSED_OUT: u16 = 0b0000_0000_1000_0000;
     pub const DOUBLE_HEIGHT: u16 = 0b0000_0001_0000_0000;
+    pub const OVERLINE: u16 = 0b0000_0010_0000_0000;
 }
 
 #[derive(Clone, Copy)]
@@ -240,6 +241,18 @@ impl TextAttribute {
 
     pub fn reset(&mut self) {
         self.attr = 0;
+    }
+
+    pub fn is_overlined(self) -> bool {
+        (self.attr & attribute::OVERLINE) == attribute::OVERLINE
+    }
+
+    pub fn set_is_overlined(&mut self, arg: bool) {
+        if arg {
+            self.attr |= attribute::OVERLINE;
+        } else {
+            self.attr &= !attribute::OVERLINE;
+        }
     }
 }
 
