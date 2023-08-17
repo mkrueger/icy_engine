@@ -84,6 +84,21 @@ impl From<String> for MusicOption {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BaudOption {
+    Off,
+    Emulation(u32),
+}
+
+impl Display for BaudOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Off => write!(f, "Off"),
+            Self::Emulation(v) => write!(f, "{v}"),
+        }
+    }
+}
+
 /*
 Generated with:
 for oct in range(1, 8):
