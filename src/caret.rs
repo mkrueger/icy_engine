@@ -59,6 +59,14 @@ impl Caret {
     pub fn set_background(&mut self, color: u32) {
         self.attr.set_background(color);
     }
+
+    pub(crate) fn reset(&mut self) {
+        self.pos = Position::default();
+        self.attr = TextAttribute::default();
+        self.insert_mode = false;
+        self.is_visible = true;
+        self.is_blinking = true;
+    }
 }
 
 #[allow(clippy::missing_fields_in_debug)]

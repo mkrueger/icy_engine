@@ -40,8 +40,9 @@ pub enum EngineState {
     ReadEscapeSequence,
 
     ReadCSISequence(bool),
-    ReadCSICommand, // CSI ?
-    ReadCSIRequest, // CSI =
+    ReadCSICommand,     // CSI ?
+    ReadCSIRequest,     // CSI =
+    ReadCSIExclamation, // CSI !
     EndCSI(char),
 
     RecordDCS(ReadSTState),
@@ -623,6 +624,27 @@ impl BufferParser for Parser {
                         // error in control sequence, terminate reading
                         return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
                             "Error in CSI request: {}",
+                            self.current_escape_sequence
+                        ))));
+                    }
+                }
+            }
+
+            EngineState::ReadCSIExclamation => {
+                self.current_escape_sequence.push(ch);
+                match ch {
+                    'p' => {
+                        // Soft reset
+                        self.state = EngineState::Default;
+                        buf.terminal_state.reset();
+                        caret.reset();
+                        return Ok(CallbackAction::None);
+                    }
+                    _ => {
+                        self.state = EngineState::Default;
+                        // error in control sequence, terminate reading
+                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                            "Error in CSI ! : {}",
                             self.current_escape_sequence
                         ))));
                     }
@@ -1341,6 +1363,16 @@ impl BufferParser for Parser {
                         self.state = EngineState::ReadCSIRequest;
                         return Ok(CallbackAction::None);
                     }
+                    '!' => {
+                        if !is_start {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            )));
+                        }
+                        // read custom command
+                        self.state = EngineState::ReadCSIExclamation;
+                    }
+
                     '*' => {
                         self.state = EngineState::EndCSI('*');
                     }
