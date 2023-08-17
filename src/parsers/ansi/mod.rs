@@ -655,8 +655,7 @@ impl BufferParser for Parser {
                                     return Ok(CallbackAction::None);
                                 }
 
-                                if let Some(ps2) = self.parsed_numbers.get(1) {
-                                    let baud_rate = match ps2 {
+                                let baud_rate = match self.parsed_numbers.get(1).unwrap_or(&0) {
                                         1 => 300,
                                         2 => 600,
                                         3 => 1200,
@@ -670,10 +669,8 @@ impl BufferParser for Parser {
                                         11 => 115_200,
                                         _ => 0,
                                     };
-                                    buf.terminal_state.set_baud_rate(baud_rate);
-                                    return Ok(CallbackAction::ChangeBaudRate(baud_rate));
-                                }
-                                return Ok(CallbackAction::None);
+                                buf.terminal_state.set_baud_rate(baud_rate);
+                                return Ok(CallbackAction::ChangeBaudRate(baud_rate));
                             }
 
                             'y' => {
