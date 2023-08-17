@@ -641,20 +641,22 @@ impl BufferParser for Parser {
                                 }
 
                                 if let Some(ps2) = self.parsed_numbers.get(1) {
-                                    match ps2 {
-                                        1 => buf.terminal_state.set_baud_rate(300),
-                                        2 => buf.terminal_state.set_baud_rate(600),
-                                        3 => buf.terminal_state.set_baud_rate(1200),
-                                        4 => buf.terminal_state.set_baud_rate(2400),
-                                        5 => buf.terminal_state.set_baud_rate(4800),
-                                        6 => buf.terminal_state.set_baud_rate(9600),
-                                        7 => buf.terminal_state.set_baud_rate(19200),
-                                        8 => buf.terminal_state.set_baud_rate(38400),
-                                        9 => buf.terminal_state.set_baud_rate(57600),
-                                        10 => buf.terminal_state.set_baud_rate(76800),
-                                        11 => buf.terminal_state.set_baud_rate(115_200),
-                                        _ => buf.terminal_state.set_baud_rate(0),
-                                    }
+                                    let baud_rate = match ps2 {
+                                        1 => 300,
+                                        2 => 600,
+                                        3 => 1200,
+                                        4 => 2400,
+                                        5 => 4800,
+                                        6 => 9600,
+                                        7 => 19200,
+                                        8 => 38400,
+                                        9 => 57600,
+                                        10 => 76800,
+                                        11 => 115_200,
+                                        _ => 0,
+                                    };
+                                    buf.terminal_state.set_baud_rate(baud_rate);
+                                    return Ok(CallbackAction::ChangeBaudRate(baud_rate));
                                 }
                                 return Ok(CallbackAction::None);
                             }

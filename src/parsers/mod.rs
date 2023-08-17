@@ -48,6 +48,7 @@ pub enum CallbackAction {
     Beep,
     SendString(String),
     PlayMusic(AnsiMusic),
+    ChangeBaudRate(u32),
 }
 
 pub trait BufferParser {
