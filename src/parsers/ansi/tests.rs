@@ -1219,3 +1219,21 @@ fn test_font_state_report() {
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=3n");
     assert_eq!(CallbackAction::SendString("\x1B[=3;16;8n".to_string()), act);
 }
+
+#[test]
+fn test_soft_reset() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[10;10H");
+
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[!p");
+    assert_eq!(Position::default(), caret.get_position());
+}
+
+#[test]
+fn test_rip_support_request_ignore() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[!#");
+    assert_eq!('#', buf.get_char_xy(0, 0).unwrap().ch);
+}

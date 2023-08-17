@@ -40,8 +40,9 @@ pub enum EngineState {
     ReadEscapeSequence,
 
     ReadCSISequence(bool),
-    ReadCSICommand, // CSI ?
-    ReadCSIRequest, // CSI =
+    ReadCSICommand,        // CSI ?
+    ReadCSIRequest,        // CSI =
+    ReadRIPSupportRequest, // CSI !
     EndCSI(char),
 
     RecordDCS(ReadSTState),
@@ -625,6 +626,25 @@ impl BufferParser for Parser {
                             "Error in CSI request: {}",
                             self.current_escape_sequence
                         ))));
+                    }
+                }
+            }
+
+            EngineState::ReadRIPSupportRequest => {
+                self.current_escape_sequence.push(ch);
+                match ch {
+                    'p' => {
+                        // Soft reset
+                        self.state = EngineState::Default;
+                        buf.terminal_state.reset();
+                        caret.reset();
+                        return Ok(CallbackAction::None);
+                    }
+                    _ => {
+                        // potential rip support request
+                        // ignore that for now and continue parsing
+                        self.state = EngineState::Default;
+                        return self.print_char(buf, caret, ch);
                     }
                 }
             }
@@ -1338,6 +1358,16 @@ impl BufferParser for Parser {
                         self.state = EngineState::ReadCSIRequest;
                         return Ok(CallbackAction::None);
                     }
+                    '!' => {
+                        if !is_start {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            )));
+                        }
+                        // read custom command
+                        self.state = EngineState::ReadRIPSupportRequest;
+                    }
+
                     '*' => {
                         self.state = EngineState::EndCSI('*');
                     }
