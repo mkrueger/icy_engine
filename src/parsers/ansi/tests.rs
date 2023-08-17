@@ -1228,3 +1228,12 @@ fn test_soft_reset() {
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[!p");
     assert_eq!(Position::default(), caret.get_position());
 }
+
+#[test]
+fn test_rip_support_request_ignore() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[!#");
+    assert_eq!('#', buf.get_char_xy(0, 0).unwrap().ch);
+}

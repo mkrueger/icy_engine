@@ -40,9 +40,9 @@ pub enum EngineState {
     ReadEscapeSequence,
 
     ReadCSISequence(bool),
-    ReadCSICommand,     // CSI ?
-    ReadCSIRequest,     // CSI =
-    ReadCSIExclamation, // CSI !
+    ReadCSICommand,        // CSI ?
+    ReadCSIRequest,        // CSI =
+    ReadRIPSupportRequest, // CSI !
     EndCSI(char),
 
     RecordDCS(ReadSTState),
@@ -630,7 +630,7 @@ impl BufferParser for Parser {
                 }
             }
 
-            EngineState::ReadCSIExclamation => {
+            EngineState::ReadRIPSupportRequest => {
                 self.current_escape_sequence.push(ch);
                 match ch {
                     'p' => {
@@ -641,12 +641,10 @@ impl BufferParser for Parser {
                         return Ok(CallbackAction::None);
                     }
                     _ => {
+                        // potential rip support request
+                        // ignore that for now and continue parsing
                         self.state = EngineState::Default;
-                        // error in control sequence, terminate reading
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
-                            "Error in CSI ! : {}",
-                            self.current_escape_sequence
-                        ))));
+                        return self.print_char(buf, caret, ch);
                     }
                 }
             }
@@ -1370,7 +1368,7 @@ impl BufferParser for Parser {
                             )));
                         }
                         // read custom command
-                        self.state = EngineState::ReadCSIExclamation;
+                        self.state = EngineState::ReadRIPSupportRequest;
                     }
 
                     '*' => {
