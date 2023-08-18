@@ -21,6 +21,7 @@ pub struct Sixel {
 }
 
 struct SixelParser {
+    pos: Position,
     current_sixel_palette: Palette,
     current_sixel_color: i32,
     sixel_cursor: Position,
@@ -36,6 +37,7 @@ struct SixelParser {
 impl Default for SixelParser {
     fn default() -> Self {
         Self {
+            pos: Position::default(),
             current_sixel_palette: Palette::default(),
             current_sixel_color: 0,
             sixel_cursor: Position::default(),
@@ -50,26 +52,24 @@ impl Default for SixelParser {
 }
 
 impl SixelParser {
-    pub fn parse_from(
-        &mut self,
-        sixel: &mut Sixel,
-        _default_bg_color: [u8; 4],
-        data: &str,
-    ) -> EngineResult<bool> {
+    pub fn parse_from(&mut self, _default_bg_color: [u8; 4], data: &str) -> EngineResult<Sixel> {
         for ch in data.chars() {
             self.parse_char(ch)?;
         }
         self.parse_char('#')?;
-
+        let mut picture_data = Vec::new();
         for y in 0..self.height() {
             let line = &self.picture_data[y as usize];
-            sixel.picture_data.extend(line);
+            picture_data.extend(line);
         }
-        sixel.width = self.width();
-        sixel.height = self.height();
-        sixel.vertical_scale = self.vertical_scale;
-        sixel.horizontal_scale = self.horizontal_scale;
-        Ok(true)
+        Ok(Sixel {
+            position: self.pos,
+            vertical_scale: self.vertical_scale,
+            horizontal_scale: self.horizontal_scale,
+            picture_data,
+            width: self.width(),
+            height: self.height(),
+        })
     }
 
     pub fn width(&self) -> u32 {
@@ -304,15 +304,17 @@ impl Sixel {
     /// This function will return an error if .
     pub fn parse_from(
         pos: Position,
-        vertical_scale: i32,
         horizontal_scale: i32,
+        vertical_scale: i32,
         default_bg_color: [u8; 4],
         data: &str,
     ) -> EngineResult<Self> {
-        let mut sixel = Self::new(pos);
-        sixel.vertical_scale = vertical_scale;
-        sixel.horizontal_scale = horizontal_scale;
-        SixelParser::default().parse_from(&mut sixel, default_bg_color, data)?;
-        Ok(sixel)
+        let mut parser = SixelParser {
+            pos,
+            vertical_scale,
+            horizontal_scale,
+            ..SixelParser::default()
+        };
+        Ok(parser.parse_from(default_bg_color, data)?)
     }
 }

@@ -47,10 +47,11 @@ impl Parser {
         }
 
         if self.dcs_string[i..].starts_with('q') {
-            let horizontal_scale = match self.parsed_numbers.first() {
+            let vertical_scale = match self.parsed_numbers.first() {
                 Some(0 | 1 | 5 | 6) => 2,
                 Some(2) => 5,
                 Some(3 | 4) => 3,
+                None => 2,
                 _ => 1,
             };
 
@@ -64,8 +65,7 @@ impl Parser {
             let p = caret.get_position();
             let dcs_string = std::mem::take(&mut self.dcs_string);
             let handle = thread::spawn(move || {
-                Sixel::parse_from(p, 1, horizontal_scale, bg_color, &dcs_string[i + 1..])
-                    .unwrap()
+                Sixel::parse_from(p, 1, vertical_scale, bg_color, &dcs_string[i + 1..]).unwrap()
             });
 
             buf.sixel_threads.push_back(handle);

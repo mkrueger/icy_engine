@@ -18,6 +18,8 @@ fn test_simple_sixel() {
     let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
     update_sixels(&mut buf);
     assert_eq!(1, buf.layers[0].sixels.len());
+    assert_eq!(2, buf.layers[0].sixels[0].vertical_scale);
+    assert_eq!(1, buf.layers[0].sixels[0].horizontal_scale);
     assert_eq!(Position::new(0, 0), buf.layers[0].sixels[0].position);
     assert_eq!(14, buf.layers[0].sixels[0].width());
     assert_eq!(12, buf.layers[0].sixels[0].height());
