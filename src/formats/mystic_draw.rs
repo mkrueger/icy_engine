@@ -106,7 +106,7 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 let font = match BitFont::from_name(&font_name.to_string()) {
                     Ok(font) => font,
                     Err(err) => {
-                        eprintln!(
+                        log::error!(
                             "Font {font_name} can't be found ({err}). Falling back to default."
                         );
                         BitFont::from_name(DEFAULT_FONT_NAME).unwrap()

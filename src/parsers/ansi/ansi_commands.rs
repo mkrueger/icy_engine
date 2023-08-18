@@ -187,71 +187,73 @@ impl Parser {
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if self.parsed_numbers.is_empty() {
-            caret.attr = TextAttribute::default(); // Reset or normal
+            caret.attribute = TextAttribute::default(); // Reset or normal
         }
         let mut i = 0;
         while i < self.parsed_numbers.len() {
             let n = self.parsed_numbers[i];
             match n {
-                0 => caret.attr = TextAttribute::default(), // Reset or normal
-                1 => caret.attr.set_is_bold(true),
+                0 => caret.attribute = TextAttribute::default(), // Reset or normal
+                1 => caret.attribute.set_is_bold(true),
                 2 => {
-                    caret.attr.set_is_faint(true);
+                    caret.attribute.set_is_faint(true);
                 }
                 3 => {
-                    caret.attr.set_is_italic(true);
+                    caret.attribute.set_is_italic(true);
                 }
-                4 => caret.attr.set_is_underlined(true),
-                5 | 6 => caret.attr.set_is_blinking(true),
+                4 => caret.attribute.set_is_underlined(true),
+                5 | 6 => caret.attribute.set_is_blinking(true),
                 7 => {
-                    let fg = caret.attr.get_foreground();
-                    caret.attr.set_foreground(caret.attr.get_background());
-                    caret.attr.set_background(fg);
+                    let fg = caret.attribute.get_foreground();
+                    caret
+                        .attribute
+                        .set_foreground(caret.attribute.get_background());
+                    caret.attribute.set_background(fg);
                 }
                 8 => {
-                    caret.attr.set_is_concealed(true);
+                    caret.attribute.set_is_concealed(true);
                 }
-                9 => caret.attr.set_is_crossed_out(true),
-                10 => self.current_font_page = 0, // Primary (default) font
+                9 => caret.attribute.set_is_crossed_out(true),
+                10 => caret.set_font_page(0), // Primary (default) font
                 11..=19 | 20 => { /* ignore alternate fonts for now */ } //return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()))),
-                21 => caret.attr.set_is_double_underlined(true),
+                21 => caret.attribute.set_is_double_underlined(true),
                 22 => {
-                    caret.attr.set_is_bold(false);
-                    caret.attr.set_is_faint(false);
+                    caret.attribute.set_is_bold(false);
+                    caret.attribute.set_is_faint(false);
                 }
-                23 => caret.attr.set_is_italic(false),
-                24 => caret.attr.set_is_underlined(false),
-                25 => caret.attr.set_is_blinking(false),
+                23 => caret.attribute.set_is_italic(false),
+                24 => caret.attribute.set_is_underlined(false),
+                25 => caret.attribute.set_is_blinking(false),
                 27 => {
                     // 27  positive image ?
                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                         self.current_escape_sequence.clone(),
                     )));
                 }
-                28 => caret.attr.set_is_concealed(false),
-                29 => caret.attr.set_is_crossed_out(false),
+                28 => caret.attribute.set_is_concealed(false),
+                29 => caret.attribute.set_is_crossed_out(false),
                 // set foreaground color
                 30..=37 => caret
-                    .attr
+                    .attribute
                     .set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
                 38 => {
                     caret
-                        .attr
+                        .attribute
                         .set_foreground(self.parse_extended_colors(buf, &mut i)?);
                     continue;
                 }
-                39 => caret.attr.set_foreground(7), // Set foreground color to default, ECMA-48 3rd
+                39 => caret.attribute.set_foreground(7), // Set foreground color to default, ECMA-48 3rd
                 // set background color
                 40..=47 => caret
-                    .attr
+                    .attribute
                     .set_background(COLOR_OFFSETS[n as usize - 40] as u32),
                 48 => {
                     caret
-                        .attr
+                        .attribute
                         .set_background(self.parse_extended_colors(buf, &mut i)?);
                     continue;
                 }
-                49 => caret.attr.set_background(0), // Set background color to default, ECMA-48 3rd
+                49 => caret.attribute.set_background(0), // Set background color to default, ECMA-48 3rd
                 /*
                 50  (reserved for cancelling the effect of the rendering aspect
                     established by parameter value 26)
@@ -261,14 +263,14 @@ impl Parser {
                 52  encircled
                 54  not framed, not encircled
                 */
-                53 => caret.attr.set_is_overlined(true),
-                55 => caret.attr.set_is_overlined(false),
+                53 => caret.attribute.set_is_overlined(true),
+                55 => caret.attribute.set_is_overlined(false),
                 // high intensity colors
                 90..=97 => caret
-                    .attr
+                    .attribute
                     .set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
                 100..=107 => caret
-                    .attr
+                    .attribute
                     .set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
 
                 _ => {
@@ -562,7 +564,7 @@ impl Parser {
     pub(crate) fn font_selection(
         &mut self,
         buf: &mut Buffer,
-        caret: &Caret,
+        caret: &mut Caret,
     ) -> EngineResult<CallbackAction> {
         if self.parsed_numbers.len() != 2 {
             self.current_escape_sequence.push('D');
@@ -575,7 +577,6 @@ impl Parser {
         if let Some(nr) = self.parsed_numbers.get(1) {
             let nr = *nr as usize;
             if buf.get_font(nr).is_some() {
-                self.current_font_page = nr;
                 set_font_selection_success(buf, caret, nr);
                 return Ok(CallbackAction::None);
             }
@@ -583,11 +584,6 @@ impl Parser {
                 match BitFont::from_name(font_name) {
                     Ok(font) => {
                         set_font_selection_success(buf, caret, nr);
-                        if let Some(font_number) = buf.search_font_by_name(font.name.to_string()) {
-                            self.current_font_page = font_number;
-                            return Ok(CallbackAction::None);
-                        }
-                        self.current_font_page = nr;
                         buf.set_font(nr, font);
                     }
                     Err(err) => {

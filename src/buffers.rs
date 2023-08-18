@@ -564,7 +564,7 @@ impl Buffer {
             }
             super::SauceFileType::ANSiMation => {
                 interpreter = CharInterpreter::Ansi;
-                eprintln!("WARNING: ANSiMations are not fully supported.");
+                log::warn!("WARNING: ANSiMations are not fully supported.");
             }
             super::SauceFileType::PCBoard => {
                 interpreter = CharInterpreter::Pcb;

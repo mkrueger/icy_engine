@@ -141,7 +141,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
             Compression::Off => {
                 for _ in 0..repeat_counter {
                     if o + 2 > bytes.len() {
-                        eprintln!("Invalid XBin. Read char block beyond EOF.");
+                        log::error!("Invalid XBin. Read char block beyond EOF.");
                         break;
                     }
                     let char_code = bytes[o];
@@ -166,7 +166,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                 o += 1;
                 for _ in 0..repeat_counter {
                     if o + 1 > bytes.len() {
-                        eprintln!("Invalid XBin. Read char compression block beyond EOF.");
+                        log::error!("Invalid XBin. Read char compression block beyond EOF.");
                         break;
                     }
 
@@ -189,7 +189,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                 o += 1;
                 for _ in 0..repeat_counter {
                     if o + 1 > bytes.len() {
-                        eprintln!("Invalid XBin. Read attribute compression block beyond EOF.");
+                        log::error!("Invalid XBin. Read attribute compression block beyond EOF.");
                         break;
                     }
                     result.set_char(
@@ -210,7 +210,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                 let char_code = bytes[o];
                 o += 1;
                 if o + 1 > bytes.len() {
-                    eprintln!("Invalid XBin. nRead compression block beyond EOF.");
+                    log::error!("Invalid XBin. nRead compression block beyond EOF.");
                     break;
                 }
                 let attr = bytes[o];

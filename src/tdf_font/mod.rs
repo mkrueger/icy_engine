@@ -33,7 +33,7 @@ impl TheDrawFont {
         f.read_to_end(&mut bytes).expect("error while reading file");
 
         if bytes.len() < THE_DRAW_FONT_HEADER_SIZE {
-            eprintln!(
+            log::error!(
                 "'{}' is no ttf file - file too short",
                 file_name.as_os_str().to_string_lossy()
             );
@@ -41,7 +41,7 @@ impl TheDrawFont {
         }
 
         if bytes[0] != 19 || THE_DRAW_FONT_ID != &bytes[1..19] {
-            eprintln!(
+            log::error!(
                 "'{}' is no ttf file - wrong id",
                 file_name.as_os_str().to_string_lossy()
             );
@@ -53,7 +53,7 @@ impl TheDrawFont {
         let mut font_name_len = bytes[o] as usize;
         o += 1;
         if font_name_len > 16 {
-            eprintln!(
+            log::error!(
                 "'{}' invalid ttf font - name length was: {}",
                 file_name.as_os_str().to_string_lossy(),
                 font_name_len,
@@ -76,7 +76,7 @@ impl TheDrawFont {
             1 => TheDrawFontType::Block,
             2 => TheDrawFontType::Color,
             _ => {
-                eprintln!(
+                log::error!(
                     "'{}' unsupported ttf font type {}",
                     file_name.as_os_str().to_string_lossy(),
                     bytes[o]

@@ -68,7 +68,7 @@ fn load_fonts()
         let walker = WalkDir::new(path).into_iter();
         for entry in walker.filter_entry(|e| !is_hidden(e)) {
             if let Err(e) = entry {
-                eprintln!("Can't load tdf font library: {}", e);
+                log::error!("Can't load tdf font library: {}", e);
                 break;
             }
             let entry = entry.unwrap();
@@ -191,7 +191,7 @@ impl BitFont {
             16 => Size::new(8, 16),
             19 => Size::new(8, 19),
             _ => {
-                return Err(Box::new(FontError::MagicNumberMismatch));
+                return Err(Box::new(FontError::UnknownFontFormat(data.len())));
             }
         };
 
@@ -322,7 +322,7 @@ impl BitFont {
                 let walker = WalkDir::new(path).into_iter();
                 for entry in walker.filter_entry(|e| !is_hidden(e)) {
                     if let Err(e) = entry {
-                        eprintln!("Can't load tdf font library: {}", e);
+                        log::error!("Can't load tdf font library: {}", e);
                         break;
                     }
                     let entry = entry.unwrap();
@@ -836,6 +836,7 @@ pub enum FontError {
     MagicNumberMismatch,
     UnsupportedVersion(u32),
     LengthMismatch(usize, usize),
+    UnknownFontFormat(usize),
 }
 impl std::fmt::Display for FontError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -845,6 +846,23 @@ impl std::fmt::Display for FontError {
             FontError::UnsupportedVersion(ver) => write!(f, "version {ver} not supported"),
             FontError::LengthMismatch(actual, calculated) => {
                 write!(f, "length should be {calculated} was {actual}")
+            }
+            FontError::UnknownFontFormat(size) => {
+                let sizes = [8, 14, 16, 19];
+                let list = sizes.iter().fold(String::new(), |a, &b| {
+                    let empty = a.is_empty();
+                    a + &format!(
+                        "{}{} height ({} bytes)",
+                        if empty { "" } else { ", " },
+                        b,
+                        &(b * 256)
+                    )
+                });
+
+                write!(
+                    f,
+                    "Unknown binary font format {size} bytes not supported. Valid format heights are: {list}"
+                )
             }
         }
     }

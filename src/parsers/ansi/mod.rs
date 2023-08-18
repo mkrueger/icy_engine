@@ -125,7 +125,6 @@ pub const FREQ: [f32; 12 * 7] = [
 pub struct Parser {
     ascii_parser: ascii::Parser,
     pub(crate) state: EngineState,
-    pub(crate) current_font_page: usize,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
     pub(crate) parsed_numbers: Vec<i32>,
@@ -152,7 +151,6 @@ impl Default for Parser {
     fn default() -> Self {
         Parser {
             ascii_parser: ascii::Parser::default(),
-            current_font_page: 0,
             state: EngineState::Default,
             saved_pos: Position::default(),
             parsed_numbers: Vec::new(),
@@ -1202,10 +1200,10 @@ impl BufferParser for Parser {
 
                         match self.parsed_numbers.first() {
                             Some(0) => {
-                                caret.attr.set_background(color);
+                                caret.attribute.set_background(color);
                             }
                             Some(1) => {
-                                caret.attr.set_foreground(color);
+                                caret.attribute.set_foreground(color);
                             }
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1243,8 +1241,7 @@ impl BufferParser for Parser {
                         } else {
                             1
                         };
-                        let mut ch = AttributedChar::new(self.last_char, caret.attr);
-                        ch.set_font_page(self.current_font_page);
+                        let ch = AttributedChar::new(self.last_char, caret.attribute);
                         (0..num).for_each(|_| buf.print_char(caret, ch));
                     }
                     'g' => {
@@ -1344,7 +1341,7 @@ impl BufferParser for Parser {
                     self.state = EngineState::ReadEscapeSequence;
                 }
                 '\x00' | '\u{00FF}' => {
-                    caret.attr = TextAttribute::default();
+                    caret.attribute = TextAttribute::default();
                 }
                 LF => caret.lf(buf),
                 FF => caret.ff(buf),
@@ -1354,8 +1351,7 @@ impl BufferParser for Parser {
                 '\x7F' => caret.del(buf),
                 _ => {
                     self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
-                    let mut ch = AttributedChar::new(self.last_char, caret.attr);
-                    ch.set_font_page(self.current_font_page);
+                    let ch = AttributedChar::new(self.last_char, caret.attribute);
                     buf.print_char(caret, ch);
                 }
             },
@@ -1572,14 +1568,15 @@ impl Parser {
 
 }
 
-fn set_font_selection_success(buf: &mut Buffer, caret: &Caret, slot: usize) {
+fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) {
     buf.terminal_state.font_selection_state = FontSelectionState::Success;
+    caret.set_font_page(slot);
 
-    if caret.attr.is_blinking() && caret.attr.is_bold() {
+    if caret.attribute.is_blinking() && caret.attribute.is_bold() {
         buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;
-    } else if caret.attr.is_blinking() {
+    } else if caret.attribute.is_blinking() {
         buf.terminal_state.blink_attribute_font_slot = slot;
-    } else if caret.attr.is_bold() {
+    } else if caret.attribute.is_bold() {
         buf.terminal_state.high_intensity_attribute_font_slot = slot;
     } else {
         buf.terminal_state.normal_attribute_font_slot = slot;

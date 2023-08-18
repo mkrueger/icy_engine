@@ -4,7 +4,6 @@ use super::TextAttribute;
 pub struct AttributedChar {
     pub ch: char,
     pub attribute: TextAttribute,
-    font_page: usize,
 }
 
 impl Default for AttributedChar {
@@ -12,7 +11,6 @@ impl Default for AttributedChar {
         AttributedChar {
             ch: ' ',
             attribute: super::TextAttribute::default(),
-            font_page: 0,
         }
     }
 }
@@ -20,25 +18,19 @@ impl Default for AttributedChar {
 impl AttributedChar {
     #[must_use]
     pub fn new(ch: char, attribute: TextAttribute) -> Self {
-        AttributedChar {
-            ch,
-            attribute,
-            font_page: 0,
-        }
+        AttributedChar { ch, attribute }
     }
 
-    #[must_use]
     pub fn is_transparent(self) -> bool {
         (self.ch == '\0' || self.ch == ' ') && self.attribute.get_background() == 0
     }
 
-    #[must_use]
     pub fn get_font_page(&self) -> usize {
-        self.font_page
+        self.attribute.get_font_page()
     }
 
     pub fn set_font_page(&mut self, page: usize) {
-        self.font_page = page;
+        self.attribute.set_font_page(page);
     }
 }
 
@@ -52,11 +44,11 @@ impl std::fmt::Display for AttributedChar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "(Char: {}/0x{0:X} '{}', Attr: {}, ExtFont: {})",
+            "(Char: {}/0x{0:X} '{}', Attr: {}, Font: {})",
             self.ch as u32,
             char::from_u32(self.ch as u32).unwrap(),
             self.attribute,
-            self.font_page
+            self.get_font_page()
         )
     }
 }

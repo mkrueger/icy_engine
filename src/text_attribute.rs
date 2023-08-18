@@ -17,6 +17,7 @@ mod attribute {
 
 #[derive(Clone, Copy)]
 pub struct TextAttribute {
+    font_page: usize,
     foreground_color: u32,
     background_color: u32,
     pub attr: u16,
@@ -28,6 +29,7 @@ impl std::fmt::Debug for TextAttribute {
             .field("foreground_color", &self.foreground_color)
             .field("background_color", &self.background_color)
             .field("attr", &format!("{:08b}", self.attr))
+            .field("font_page", &format!("{:08b}", self.attr))
             .finish()
     }
 }
@@ -38,6 +40,7 @@ impl Default for TextAttribute {
             foreground_color: 7,
             background_color: 0,
             attr: attribute::NONE,
+            font_page: 0,
         }
     }
 }
@@ -253,6 +256,15 @@ impl TextAttribute {
         } else {
             self.attr &= !attribute::OVERLINE;
         }
+    }
+
+    #[must_use]
+    pub fn get_font_page(&self) -> usize {
+        self.font_page
+    }
+
+    pub fn set_font_page(&mut self, page: usize) {
+        self.font_page = page;
     }
 }
 

@@ -63,49 +63,49 @@ fn test_ff() {
 #[test]
 fn test_set_fg_color() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BA");
-    assert_eq!(1, caret.attr.get_foreground());
+    assert_eq!(1, caret.attribute.get_foreground());
 }
 
 #[test]
 fn test_set_bg_color() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BA\x1B]");
-    assert_eq!(1, caret.attr.get_background());
+    assert_eq!(1, caret.attribute.get_background());
 }
 
 #[test]
 fn test_set_black_bg_color() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BA\x1B]\x1B\\");
-    assert_eq!(0, caret.attr.get_background());
+    assert_eq!(0, caret.attribute.get_background());
 }
 
 #[test]
 fn test_set_flash() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BH");
-    assert!(caret.attr.is_blinking());
+    assert!(caret.attribute.is_blinking());
 }
 
 #[test]
 fn test_reset_flash() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BH\x1BI");
-    assert!(!caret.attr.is_blinking());
+    assert!(!caret.attribute.is_blinking());
 }
 
 #[test]
 fn test_set_double_height() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BM");
-    assert!(caret.attr.is_double_height());
+    assert!(caret.attribute.is_double_height());
 }
 
 #[test]
 fn test_reset_double_height() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BM\x1BL");
-    assert!(!caret.attr.is_double_height());
+    assert!(!caret.attribute.is_double_height());
 }
 
 #[test]
 fn test_conceal() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x1BX");
-    assert!(caret.attr.is_concealed());
+    assert!(caret.attribute.is_concealed());
 }
 
 #[test]

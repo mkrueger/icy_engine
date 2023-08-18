@@ -3,7 +3,7 @@ use super::{Position, TextAttribute};
 #[derive(Clone)]
 pub struct Caret {
     pub(super) pos: Position,
-    pub(super) attr: TextAttribute,
+    pub(super) attribute: TextAttribute,
     pub insert_mode: bool,
     pub is_visible: bool,
     pub is_blinking: bool,
@@ -25,7 +25,7 @@ impl Caret {
     }
 
     pub fn get_attribute(&self) -> TextAttribute {
-        self.attr
+        self.attribute
     }
 
     pub fn get_position(&self) -> Position {
@@ -49,23 +49,31 @@ impl Caret {
     }
 
     pub fn set_attr(&mut self, attr: TextAttribute) {
-        self.attr = attr;
+        self.attribute = attr;
     }
 
     pub fn set_foreground(&mut self, color: u32) {
-        self.attr.set_foreground(color);
+        self.attribute.set_foreground(color);
     }
 
     pub fn set_background(&mut self, color: u32) {
-        self.attr.set_background(color);
+        self.attribute.set_background(color);
     }
 
     pub(crate) fn reset(&mut self) {
         self.pos = Position::default();
-        self.attr = TextAttribute::default();
+        self.attribute = TextAttribute::default();
         self.insert_mode = false;
         self.is_visible = true;
         self.is_blinking = true;
+    }
+
+    pub fn get_font_page(&self) -> usize {
+        self.attribute.get_font_page()
+    }
+
+    pub fn set_font_page(&mut self, page: usize) {
+        self.attribute.set_font_page(page);
     }
 }
 
@@ -74,7 +82,7 @@ impl std::fmt::Debug for Caret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Cursor")
             .field("pos", &self.pos)
-            .field("attr", &self.attr)
+            .field("attr", &self.attribute)
             .field("insert_mode", &self.insert_mode)
             .finish()
     }
@@ -84,7 +92,7 @@ impl Default for Caret {
     fn default() -> Self {
         Self {
             pos: Position::default(),
-            attr: TextAttribute::default(),
+            attribute: TextAttribute::default(),
             insert_mode: false,
             is_visible: true,
             is_blinking: true,
@@ -94,6 +102,6 @@ impl Default for Caret {
 
 impl PartialEq for Caret {
     fn eq(&self, other: &Caret) -> bool {
-        self.pos == other.pos && self.attr == other.attr
+        self.pos == other.pos && self.attribute == other.attribute
     }
 }

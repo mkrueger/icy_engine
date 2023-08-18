@@ -95,7 +95,7 @@ impl Caret {
         buf.clear();
         self.pos = Position::default();
         self.is_visible = true;
-        self.attr = super::TextAttribute::default();
+        self.attribute = super::TextAttribute::default();
     }
 
     /// (carriage return, CR, \r, ^M), moves the printing position to the start of the line.
@@ -114,7 +114,7 @@ impl Caret {
     /// (backspace, BS, \b, ^H), may overprint the previous character
     pub fn bs(&mut self, buf: &mut Buffer) {
         self.pos.x = max(0, self.pos.x - 1);
-        buf.set_char(0, self.pos, Some(AttributedChar::new(' ', self.attr)));
+        buf.set_char(0, self.pos, Some(AttributedChar::new(' ', self.attribute)));
     }
 
     pub fn del(&mut self, buf: &mut Buffer) {
@@ -131,7 +131,7 @@ impl Caret {
             let i = self.pos.x as usize;
             if i < line.chars.len() {
                 line.chars
-                    .insert(i, Some(AttributedChar::new(' ', self.attr)));
+                    .insert(i, Some(AttributedChar::new(' ', self.attribute)));
             }
         }
     }
@@ -144,7 +144,7 @@ impl Caret {
         }
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
             for _ in 0..number {
-                line.set_char(i as i32, Some(AttributedChar::new(' ', self.attr)));
+                line.set_char(i as i32, Some(AttributedChar::new(' ', self.attribute)));
                 i += 1;
             }
         }
@@ -220,7 +220,7 @@ impl Caret {
 
 impl Buffer {
     fn print_value(&mut self, caret: &mut Caret, ch: u16) {
-        let ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attr);
+        let ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attribute);
         self.print_char(caret, ch);
     }
 
@@ -340,8 +340,10 @@ impl Buffer {
 
     fn clear_buffer_down(&mut self, caret: &Caret) {
         let pos = caret.get_position();
-        let mut ch = AttributedChar::default();
-        ch.attribute = caret.attr;
+        let ch: AttributedChar = AttributedChar {
+            attribute: caret.attribute,
+            ..Default::default()
+        };
 
         for y in pos.y..self.get_last_visible_line() {
             for x in 0..self.get_buffer_width() {
@@ -352,8 +354,10 @@ impl Buffer {
 
     fn clear_buffer_up(&mut self, caret: &Caret) {
         let pos = caret.get_position();
-        let mut ch = AttributedChar::default();
-        ch.attribute = caret.attr;
+        let ch: AttributedChar = AttributedChar {
+            attribute: caret.attribute,
+            ..Default::default()
+        };
 
         for y in self.get_first_visible_line()..pos.y {
             for x in 0..self.get_buffer_width() {
@@ -364,8 +368,10 @@ impl Buffer {
 
     fn clear_line(&mut self, caret: &Caret) {
         let mut pos = caret.get_position();
-        let mut ch = AttributedChar::default();
-        ch.attribute = caret.attr;
+        let ch: AttributedChar = AttributedChar {
+            attribute: caret.attribute,
+            ..Default::default()
+        };
         for x in 0..self.get_buffer_width() {
             pos.x = x;
             self.set_char(0, pos, Some(ch));
@@ -374,8 +380,10 @@ impl Buffer {
 
     fn clear_line_end(&mut self, caret: &Caret) {
         let mut pos = caret.get_position();
-        let mut ch = AttributedChar::default();
-        ch.attribute = caret.attr;
+        let ch: AttributedChar = AttributedChar {
+            attribute: caret.attribute,
+            ..Default::default()
+        };
         for x in pos.x..self.get_buffer_width() {
             pos.x = x;
             self.set_char(0, pos, Some(ch));
@@ -384,8 +392,10 @@ impl Buffer {
 
     fn clear_line_start(&mut self, caret: &Caret) {
         let mut pos = caret.get_position();
-        let mut ch = AttributedChar::default();
-        ch.attribute = caret.attr;
+        let ch: AttributedChar = AttributedChar {
+            attribute: caret.attribute,
+            ..Default::default()
+        };
         for x in 0..pos.x {
             pos.x = x;
             self.set_char(0, pos, Some(ch));

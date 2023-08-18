@@ -64,14 +64,14 @@ impl Parser {
             if ch.attribute != attr {
                 break;
             }
-            ch.attribute = caret.attr;
+            ch.attribute = caret.attribute;
             buf.set_char(0, p, Some(ch));
         }
     }
 
     fn reset_on_row_change(&mut self, caret: &mut Caret) {
         self.reset_screen();
-        caret.attr = TextAttribute::default();
+        caret.attribute = TextAttribute::default();
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: AttributedChar) {
@@ -118,25 +118,27 @@ impl Parser {
             match ch {
                 b'\\' => {
                     // Black Background
-                    caret.attr.set_is_concealed(false);
-                    caret.attr.set_background(0);
+                    caret.attribute.set_is_concealed(false);
+                    caret.attribute.set_background(0);
                     Parser::fill_to_eol(buf, caret);
                 }
                 b']' => {
-                    caret.attr.set_background(caret.attr.get_foreground());
+                    caret
+                        .attribute
+                        .set_background(caret.attribute.get_foreground());
                     Parser::fill_to_eol(buf, caret);
                 }
                 b'I' => {
-                    caret.attr.set_is_blinking(false);
+                    caret.attribute.set_is_blinking(false);
                     Parser::fill_to_eol(buf, caret);
                 }
                 b'L' => {
-                    caret.attr.set_is_double_height(false);
+                    caret.attribute.set_is_double_height(false);
                     Parser::fill_to_eol(buf, caret);
                 }
                 b'X' => {
                     if !self.is_in_graphic_mode {
-                        caret.attr.set_is_concealed(true);
+                        caret.attribute.set_is_concealed(true);
                         Parser::fill_to_eol(buf, caret);
                     }
                 }
@@ -181,7 +183,7 @@ impl Parser {
         }
         let ach = AttributedChar::new(
             unsafe { char::from_u32_unchecked(print_ch as u32) },
-            caret.attr,
+            caret.attribute,
         );
         self.print_char(buf, caret, ach);
 
@@ -190,9 +192,9 @@ impl Parser {
                 b'A'..=b'G' => {
                     // Alpha Red, Green, Yellow, Blue, Magenta, Cyan, White
                     self.is_in_graphic_mode = false;
-                    caret.attr.set_is_concealed(false);
+                    caret.attribute.set_is_concealed(false);
                     self.held_graphics_character = ' ';
-                    caret.attr.set_foreground(1 + (ch - b'A') as u32);
+                    caret.attribute.set_foreground(1 + (ch - b'A') as u32);
                     Parser::fill_to_eol(buf, caret);
                 }
                 b'Q'..=b'W' => {
@@ -201,17 +203,17 @@ impl Parser {
                         self.is_in_graphic_mode = true;
                         self.held_graphics_character = ' ';
                     }
-                    caret.attr.set_is_concealed(false);
-                    caret.attr.set_foreground(1 + (ch - b'Q') as u32);
+                    caret.attribute.set_is_concealed(false);
+                    caret.attribute.set_foreground(1 + (ch - b'Q') as u32);
                     Parser::fill_to_eol(buf, caret);
                 }
                 b'H' => {
-                    caret.attr.set_is_blinking(true);
+                    caret.attribute.set_is_blinking(true);
                     Parser::fill_to_eol(buf, caret);
                 }
 
                 b'M' => {
-                    caret.attr.set_is_double_height(true);
+                    caret.attribute.set_is_double_height(true);
                     Parser::fill_to_eol(buf, caret);
                 }
 
@@ -283,7 +285,7 @@ impl BufferParser for Parser {
                 buf.terminal_state.reset();
                 buf.clear();
                 caret.pos = Position::default();
-                caret.attr = TextAttribute::default();
+                caret.attribute = TextAttribute::default();
 
                 self.reset_screen();
             }

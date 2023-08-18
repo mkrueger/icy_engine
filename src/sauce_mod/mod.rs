@@ -57,7 +57,7 @@ impl SauceDataType {
             7 => SauceDataType::Archive,
             8 => SauceDataType::Executable,
             _ => {
-                eprintln!("unknown sauce data type {b}");
+                log::error!("unknown sauce data type {b}");
                 SauceDataType::Undefined
             }
         }
@@ -213,7 +213,7 @@ impl SauceData {
                 }
             }
             _ => {
-                eprintln!(
+                log::error!(
                     "useless/invalid sauce info data type: {data_type:?} file type: {file_type}."
                 );
             }
@@ -538,7 +538,7 @@ impl Buffer {
                 }
             }
             _ => {
-                eprintln!(
+                log::error!(
                     "useless/invalid sauce info data type: {data_type:?} file type: {file_type}."
                 );
             }

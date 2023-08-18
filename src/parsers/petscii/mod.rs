@@ -52,10 +52,10 @@ impl Parser {
             } // Move to end of current line
 
             b'A' => {
-                eprintln!("enable auto insert mode unsupported.");
+                log::error!("enable auto insert mode unsupported.");
             } // Enable auto-insert mode
             b'C' => {
-                eprintln!("disable auto insert mode unsupported.");
+                log::error!("disable auto insert mode unsupported.");
             } // Disable auto-insert mode
 
             b'D' => {
@@ -66,67 +66,67 @@ impl Parser {
             } // Insert line
 
             b'Y' => {
-                eprintln!("Set default tab stops (8 spaces) unsupported.");
+                log::error!("Set default tab stops (8 spaces) unsupported.");
             } // Set default tab stops (8 spaces)
             b'Z' => {
-                eprintln!("Clear all tab stops unsupported.");
+                log::error!("Clear all tab stops unsupported.");
             } // Clear all tab stops
 
             b'L' => {
-                eprintln!("Enable scrolling unsupported.");
+                log::error!("Enable scrolling unsupported.");
             } // Enable scrolling
             b'M' => {
-                eprintln!("Disable scrolling unsupported.");
+                log::error!("Disable scrolling unsupported.");
             } // Disable scrolling
 
             b'V' => {
-                eprintln!("Scroll up unsupported.");
+                log::error!("Scroll up unsupported.");
             } // Scroll up
             b'W' => {
-                eprintln!("Scroll down unsupported.");
+                log::error!("Scroll down unsupported.");
             } // Scroll down
 
             b'G' => {
-                eprintln!("Enable bell unsupported.");
+                log::error!("Enable bell unsupported.");
             } // Enable bell (by CTRL G)
             b'H' => {
-                eprintln!("Disable bell unsupported.");
+                log::error!("Disable bell unsupported.");
             } // Disable bell
 
             b'E' => {
-                eprintln!("Set cursor to non-flashing mode unsupported.");
+                log::error!("Set cursor to non-flashing mode unsupported.");
             } // Set cursor to non-flashing mode
             b'F' => {
-                eprintln!("Set cursor to flashing mode unsupported.");
+                log::error!("Set cursor to flashing mode unsupported.");
             } // Set cursor to flashing mode
 
             b'B' => {
-                eprintln!("Set bottom of screen window at cursor position unsupported.");
+                log::error!("Set bottom of screen window at cursor position unsupported.");
             } // Set bottom of screen window at cursor position
             b'T' => {
-                eprintln!("Set top of screen window at cursor position unsupported.");
+                log::error!("Set top of screen window at cursor position unsupported.");
             } // Set top of screen window at cursor position
 
             b'X' => {
-                eprintln!("Swap 40/80 column display output device unsupported.");
+                log::error!("Swap 40/80 column display output device unsupported.");
             } // Swap 40/80 column display output device
 
             b'U' => {
-                eprintln!("Change to underlined cursor unsupported.");
+                log::error!("Change to underlined cursor unsupported.");
             } // Change to underlined cursor
             b'S' => {
-                eprintln!("Change to block cursor unsupported.");
+                log::error!("Change to block cursor unsupported.");
             } // Change to block cursor
 
             b'R' => {
-                eprintln!("Set screen to reverse video unsupported.");
+                log::error!("Set screen to reverse video unsupported.");
             } // Set screen to reverse video
             b'N' => {
-                eprintln!("Set screen to normal (non reverse video) state unsupported.");
+                log::error!("Set screen to normal (non reverse video) state unsupported.");
             } // Set screen to normal (non reverse video) state
 
             _ => {
-                eprintln!(
+                log::error!(
                     "Unknown C128 escape code: 0x{:02X}/{:?} ",
                     ch,
                     char::from_u32(ch as u32)
@@ -251,7 +251,7 @@ impl BufferParser for Parser {
                 };
                 let mut ch = AttributedChar::new(
                     char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(),
-                    caret.attr,
+                    caret.attribute,
                 );
                 ch.set_font_page(usize::from(self.shift_mode));
                 buf.print_char(caret, ch);

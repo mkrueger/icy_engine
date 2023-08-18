@@ -48,17 +48,17 @@ impl Parser {
 
         if self.dcs_string[i..].starts_with('q') {
             let vertical_scale = match self.parsed_numbers.first() {
-                Some(0 | 1 | 5 | 6) => 2,
+                Some(0 | 1 | 5 | 6) | None => 2,
                 Some(2) => 5,
                 Some(3 | 4) => 3,
-                None => 2,
                 _ => 1,
             };
 
             let bg_color = if let Some(1) = self.parsed_numbers.get(1) {
                 [0, 0, 0, 0]
             } else {
-                let (r, g, b) = buf.palette.colors[caret.attr.get_background() as usize].get_rgb();
+                let (r, g, b) =
+                    buf.palette.colors[caret.attribute.get_background() as usize].get_rgb();
                 [0xff, r, g, b]
             };
 
@@ -198,6 +198,7 @@ impl Parser {
                 {
                     match BitFont::from_bytes(format!("custom font {num}"), &font_data) {
                         Ok(font) => {
+                            log::info!("loaded custom font {num}", num = num);
                             buf.set_font(num, font);
                             return Ok(CallbackAction::None);
                         }

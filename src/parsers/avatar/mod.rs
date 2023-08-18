@@ -85,7 +85,7 @@ impl BufferParser for Parser {
                         return Ok(CallbackAction::None);
                     }
                     2 => {
-                        caret.attr.set_is_blinking(true);
+                        caret.attribute.set_is_blinking(true);
                     }
                     3 => {
                         caret.pos.y = max(0, caret.pos.y - 1);
@@ -143,7 +143,7 @@ impl BufferParser for Parser {
                 }
             },
             AvtReadState::ReadColor => {
-                caret.attr = TextAttribute::from_u8(ch as u8, buf.buffer_type);
+                caret.attribute = TextAttribute::from_u8(ch as u8, buf.buffer_type);
                 self.avt_state = AvtReadState::Chars;
                 Ok(CallbackAction::None)
             }

@@ -315,6 +315,6 @@ impl Sixel {
             horizontal_scale,
             ..SixelParser::default()
         };
-        Ok(parser.parse_from(default_bg_color, data)?)
+        parser.parse_from(default_bg_color, data)
     }
 }
