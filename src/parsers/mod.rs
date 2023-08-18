@@ -464,6 +464,20 @@ fn update_buffer<T: BufferParser>(
 }
 
 #[cfg(test)]
+fn update_buffer_force<T: BufferParser>(
+    buf: &mut Buffer,
+    caret: &mut Caret,
+    parser: &mut T,
+    input: &[u8],
+) {
+    for b in input {
+        if let Some(ch) = char::from_u32(*b as u32) {
+            parser.print_char(buf, caret, ch); // test code
+        }
+    }
+}
+
+#[cfg(test)]
 fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackAction {
     let mut buf = Buffer::create(80, 25);
     let mut caret = Caret::default();

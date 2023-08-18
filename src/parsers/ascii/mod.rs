@@ -30,7 +30,7 @@ impl BufferParser for Parser {
     ) -> EngineResult<CallbackAction> {
         match ch {
             '\x00' | '\u{00FF}' => {
-                caret.attribute = TextAttribute::default();
+                caret.reset_color_attribute();
             }
             BEL => {
                 return Ok(CallbackAction::Beep);

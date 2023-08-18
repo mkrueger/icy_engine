@@ -530,6 +530,11 @@ impl BufferParser for Parser {
                 match ch {
                     'n' => {
                         self.state = EngineState::Default;
+                        if self.parsed_numbers.len() != 1 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            )));
+                        }
                         match self.parsed_numbers.first() {
                             Some(1) => {
                                 // font state report
@@ -1341,7 +1346,7 @@ impl BufferParser for Parser {
                     self.state = EngineState::ReadEscapeSequence;
                 }
                 '\x00' | '\u{00FF}' => {
-                    caret.attribute = TextAttribute::default();
+                    caret.reset_color_attribute();
                 }
                 LF => caret.lf(buf),
                 FF => caret.ff(buf),
@@ -1571,6 +1576,7 @@ impl Parser {
 fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) {
     buf.terminal_state.font_selection_state = FontSelectionState::Success;
     caret.set_font_page(slot);
+    log::info!("Set Font to {slot}");
 
     if caret.attribute.is_blinking() && caret.attribute.is_bold() {
         buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;

@@ -187,13 +187,13 @@ impl Parser {
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if self.parsed_numbers.is_empty() {
-            caret.attribute = TextAttribute::default(); // Reset or normal
+            caret.reset_color_attribute(); // Reset or normal
         }
         let mut i = 0;
         while i < self.parsed_numbers.len() {
             let n = self.parsed_numbers[i];
             match n {
-                0 => caret.attribute = TextAttribute::default(), // Reset or normal
+                0 => caret.reset_color_attribute(), // Reset or normal
                 1 => caret.attribute.set_is_bold(true),
                 2 => {
                     caret.attribute.set_is_faint(true);
@@ -566,6 +566,7 @@ impl Parser {
         buf: &mut Buffer,
         caret: &mut Caret,
     ) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
         if self.parsed_numbers.len() != 2 {
             self.current_escape_sequence.push('D');
             return Err(Box::new(ParserError::UnsupportedEscapeSequence(

@@ -71,7 +71,7 @@ impl Parser {
 
     fn reset_on_row_change(&mut self, caret: &mut Caret) {
         self.reset_screen();
-        caret.attribute = TextAttribute::default();
+        caret.reset_color_attribute();
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: AttributedChar) {
@@ -285,7 +285,7 @@ impl BufferParser for Parser {
                 buf.terminal_state.reset();
                 buf.clear();
                 caret.pos = Position::default();
-                caret.attribute = TextAttribute::default();
+                caret.reset_color_attribute();
 
                 self.reset_screen();
             }
