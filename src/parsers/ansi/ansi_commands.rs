@@ -699,25 +699,22 @@ impl Parser {
             // 5 	Modem Lo
             return Ok(CallbackAction::None);
         }
-        if let Some(ps2) = self.parsed_numbers.get(1) {
-            let baud_rate = match ps2 {
-                1 => 300,
-                2 => 600,
-                3 => 1200,
-                4 => 2400,
-                5 => 4800,
-                6 => 9600,
-                7 => 19200,
-                8 => 38400,
-                9 => 57600,
-                10 => 76800,
-                11 => 115_200,
-                _ => 0,
-            };
-            buf.terminal_state.set_baud_rate(baud_rate);
-            return Ok(CallbackAction::ChangeBaudRate(baud_rate));
-        }
-        Ok(CallbackAction::None)
+        let baud_rate = match self.parsed_numbers.get(1).unwrap_or(&0) {
+            1 => 300,
+            2 => 600,
+            3 => 1200,
+            4 => 2400,
+            5 => 4800,
+            6 => 9600,
+            7 => 19200,
+            8 => 38400,
+            9 => 57600,
+            10 => 76800,
+            11 => 115_200,
+            _ => 0,
+        };
+        buf.terminal_state.set_baud_rate(baud_rate);
+        Ok(CallbackAction::ChangeBaudRate(baud_rate))
         // DECSCS—Select Communication Speed https://vt100.net/docs/vt510-rm/DECSCS.html
     }
 
