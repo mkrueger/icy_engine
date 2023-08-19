@@ -1,5 +1,5 @@
 use super::BufferParser;
-use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, BEL, BS, CR, FF, LF};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, BEL, BS, CR, FF, LF};
 #[derive(Default)]
 pub struct Parser {}
 

@@ -1,11 +1,11 @@
 #![allow(clippy::unnecessary_wraps)]
 use super::{
     constants::{ANSI_FONT_NAMES, COLOR_OFFSETS},
-    set_font_selection_success, EngineState, Parser,
+    set_font_selection_success, BaudEmulation, EngineState, Parser,
 };
 use crate::{
     update_crc16, BitFont, Buffer, CallbackAction, Caret, EngineResult, FontSelectionState,
-    ParserError, TextAttribute, XTERM_256_PALETTE,
+    ParserError, XTERM_256_PALETTE,
 };
 
 impl Parser {
@@ -700,22 +700,12 @@ impl Parser {
             return Ok(CallbackAction::None);
         }
         if let Some(ps2) = self.parsed_numbers.get(1) {
-            let baud_rate = match ps2 {
-                1 => 300,
-                2 => 600,
-                3 => 1200,
-                4 => 2400,
-                5 => 4800,
-                6 => 9600,
-                7 => 19200,
-                8 => 38400,
-                9 => 57600,
-                10 => 76800,
-                11 => 115_200,
-                _ => 0,
-            };
-            buf.terminal_state.set_baud_rate(baud_rate);
-            return Ok(CallbackAction::ChangeBaudRate(baud_rate));
+            let baud_option = *BaudEmulation::OPTIONS
+                .get(*ps2 as usize)
+                .unwrap_or(&BaudEmulation::Off);
+
+            buf.terminal_state.set_baud_rate(baud_option);
+            return Ok(CallbackAction::ChangeBaudEmulation(baud_option));
         }
         Ok(CallbackAction::None)
         // DECSCS—Select Communication Speed https://vt100.net/docs/vt510-rm/DECSCS.html

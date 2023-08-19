@@ -1,6 +1,6 @@
 #![allow(clippy::float_cmp)]
 use crate::{
-    ansi::MusicOption,
+    ansi::{BaudEmulation, MusicOption},
     convert_to_ans,
     parsers::{
         ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
@@ -1024,9 +1024,12 @@ fn test_scroll_down_with_margins() {
 fn test_select_communication_speed() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    assert_eq!(0, buf.terminal_state.get_baud_rate());
+    assert_eq!(BaudEmulation::Off, buf.terminal_state.get_baud_emulation());
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[0;8*r");
-    assert_eq!(38400, buf.terminal_state.get_baud_rate());
+    assert_eq!(
+        BaudEmulation::Rate(38400),
+        buf.terminal_state.get_baud_emulation()
+    );
 }
 
 #[test]

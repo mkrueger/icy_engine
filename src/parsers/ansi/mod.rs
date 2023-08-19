@@ -10,7 +10,7 @@ use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret,
     EngineResult, FontSelectionState, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError,
-    Position, TerminalScrolling, TextAttribute, BEL, BS, CR, FF, LF,
+    Position, TerminalScrolling, BEL, BS, CR, FF, LF,
 };
 
 mod ansi_commands;
@@ -84,20 +84,45 @@ impl From<String> for MusicOption {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BaudOption {
-    Off,
-    Emulation(u32),
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum BaudEmulation {
+    #[default] Off,
+    Rate(u32),
 }
 
-impl Display for BaudOption {
+impl Display for BaudEmulation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Off => write!(f, "Off"),
-            Self::Emulation(v) => write!(f, "{v}"),
+            Self::Rate(v) => write!(f, "{v}"),
         }
     }
 }
+
+impl BaudEmulation {
+    pub const OPTIONS: [BaudEmulation; 12] = [
+        BaudEmulation::Off,
+        BaudEmulation::Rate(300),
+        BaudEmulation::Rate(600),
+        BaudEmulation::Rate(1200),
+        BaudEmulation::Rate(2400),
+        BaudEmulation::Rate(4800),
+        BaudEmulation::Rate(9600),
+        BaudEmulation::Rate(19200),
+        BaudEmulation::Rate(38400),
+        BaudEmulation::Rate(57600),
+        BaudEmulation::Rate(76800),
+        BaudEmulation::Rate(115_200),
+    ];
+
+    pub fn get_baud_rate(&self) -> u32 {
+        match self {
+            BaudEmulation::Off => 0,
+            BaudEmulation::Rate(baud) => *baud
+        }
+    }
+}
+
 
 /*
 Generated with:

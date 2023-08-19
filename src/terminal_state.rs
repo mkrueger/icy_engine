@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use crate::{Buffer, Caret};
+use crate::{ansi::BaudEmulation, Buffer, Caret};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerminalScrolling {
@@ -49,7 +49,7 @@ pub struct TerminalState {
 
     tab_stops: Vec<i32>,
     use_ice: bool,
-    baud_rate: u32,
+    baud_rate: BaudEmulation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -88,7 +88,7 @@ impl TerminalState {
             margins_left_right: None,
             use_ice: false,
             dec_margin_mode_left_right: false,
-            baud_rate: 0,
+            baud_rate: BaudEmulation::Off,
             tab_stops: vec![],
             font_selection_state: FontSelectionState::NoRequest,
             normal_attribute_font_slot: 0,
@@ -156,11 +156,11 @@ impl TerminalState {
         }
     }
 
-    pub fn get_baud_rate(&self) -> u32 {
+    pub fn get_baud_emulation(&self) -> BaudEmulation {
         self.baud_rate
     }
 
-    pub fn set_baud_rate(&mut self, baud_rate: u32) {
+    pub fn set_baud_rate(&mut self, baud_rate: BaudEmulation) {
         self.baud_rate = baud_rate;
     }
 

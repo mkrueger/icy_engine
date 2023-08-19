@@ -48,7 +48,7 @@ pub enum CallbackAction {
     Beep,
     SendString(String),
     PlayMusic(AnsiMusic),
-    ChangeBaudRate(u32),
+    ChangeBaudEmulation(ansi::BaudEmulation),
 }
 
 pub trait BufferParser {
@@ -472,7 +472,7 @@ fn update_buffer_force<T: BufferParser>(
 ) {
     for b in input {
         if let Some(ch) = char::from_u32(*b as u32) {
-            parser.print_char(buf, caret, ch); // test code
+            let _ = parser.print_char(buf, caret, ch); // test code
         }
     }
 }
