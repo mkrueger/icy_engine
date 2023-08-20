@@ -29,7 +29,7 @@ impl std::fmt::Debug for TextAttribute {
             .field("foreground_color", &self.foreground_color)
             .field("background_color", &self.background_color)
             .field("attr", &format!("{:08b}", self.attr))
-            .field("font_page", &format!("{:08b}", self.attr))
+            .field("font_page", &self.font_page)
             .finish()
     }
 }

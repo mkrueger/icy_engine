@@ -4,8 +4,8 @@ use super::{
     set_font_selection_success, BaudEmulation, EngineState, Parser,
 };
 use crate::{
-    update_crc16, BitFont, Buffer, CallbackAction, Caret, EngineResult, FontSelectionState,
-    ParserError, XTERM_256_PALETTE,
+    update_crc16, AttributedChar, BitFont, Buffer, CallbackAction, Caret, EngineResult,
+    FontSelectionState, ParserError, XTERM_256_PALETTE,
 };
 
 impl Parser {
@@ -950,5 +950,149 @@ impl Parser {
                 self.current_escape_sequence
             )))),
         }
+    }
+
+    /// Sequence: `CSI Pn1 ; Pn2 ; Pn3 ; Pn4 ; Pn5 $ x`</p>
+    /// Mnemonic: DECFRA</p>
+    /// Description: Fill rectangular area</p>
+    ///
+    /// Fill an area in display memory with a specified character. The fill
+    /// character takes on the visual attributes set by the last SGR control
+    /// function, not the attributes of the characters that it replaces.
+    /// Current line attributes (for example, the attributes that specify
+    /// double-wide, double-high characters) remain unchanged. The parameters
+    /// are:
+    ///
+    /// Pn1 Decimal code of fill character
+    /// Pn2 Top line
+    /// Pn3 Left column
+    /// Pn4 Bottom line
+    /// Pn5 Right column
+    ///
+    /// Source: Reflection TRM (VT) Version 7.0
+    /// Status: DEC private; VT400
+    pub(crate) fn fill_rectangular_area(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &Caret,
+    ) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
+
+        if self.parsed_numbers.len() != 5 {
+            return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                "Fill rectangular area needs 5 parameters {:?}",
+                self.current_escape_sequence
+            ))));
+        }
+        let ch: char = unsafe { char::from_u32_unchecked(self.parsed_numbers[0] as u32) };
+
+        let top_line: i32 =
+            self.parsed_numbers[1].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
+        let left_column = self.parsed_numbers[2].min(buf.get_buffer_width() - 1);
+        let bottom_line =
+            self.parsed_numbers[3].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
+        let right_column = self.parsed_numbers[4].min(buf.get_buffer_width() - 1);
+        for y in top_line..=bottom_line {
+            for x in left_column..=right_column {
+                buf.set_char_xy(0, x, y, Some(AttributedChar::new(ch, caret.attribute)));
+            }
+        }
+
+        Ok(CallbackAction::None)
+    }
+
+    /// Sequence: `CSU Pn1 ; Pn2 ; Pn3 ; Pn4 $ z`</p>
+    /// Mnemonic: DECERA</p>
+    /// Description: Erase rectangular area</p>
+    ///
+    /// Erase the characters (and their visual attributes) in the specified
+    /// rectangular area and replace each one with a space (decimal 32). Line
+    /// attributes (for example, the attributes that specify double-wide,
+    /// double-high characters) are not erased. The areas to erase are:
+    ///
+    /// Pn1 Top line
+    /// Pn2 Left column
+    /// Pn3 Bottom line
+    /// Pn4 Right column
+    ///
+    /// Source: Reflection TRM (VT) Version 7.0
+    /// Status: DEC private; VT400
+    pub(crate) fn erase_rectangular_area(
+        &mut self,
+        buf: &mut Buffer,
+    ) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
+
+        if self.parsed_numbers.len() != 4 {
+            return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                "Erase rectangular area needs 4 parameters {:?}",
+                self.current_escape_sequence
+            ))));
+        }
+
+        let top_line: i32 =
+            self.parsed_numbers[0].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
+        let left_column = self.parsed_numbers[1].min(buf.get_buffer_width() - 1);
+        let bottom_line =
+            self.parsed_numbers[2].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
+        let right_column = self.parsed_numbers[3].min(buf.get_buffer_width() - 1);
+
+        for y in top_line..=bottom_line {
+            for x in left_column..=right_column {
+                buf.set_char_xy(0, x, y, Some(AttributedChar::default()));
+            }
+        }
+
+        Ok(CallbackAction::None)
+    }
+
+    /// Sequence: `CSI Pn1 ; Pn2 ; Pn3 ; Pn4 $ {`</p>
+    /// Mnemonic: DECSERA</p>
+    /// Description: Selective erase rectangular area</p>
+    ///
+    /// Erase all erasable characters from a specified rectangular area in
+    /// page memory; a space character replaces erased character
+    /// positions. The DECSERA control function does not change:
+    ///
+    /// * Visual attributes set by the select graphic rendition (SGR) function.
+    /// * Protection attributes set by DECSCA.
+    /// * Line attributes.
+    ///
+    /// The parameters are:
+    /// Pn1 Top line
+    /// Pn2 Left column
+    /// Pn3 Bottom line
+    /// Pn4 Right column
+    ///
+    /// Source: Reflection TRM (VT) Version 7.0
+    /// Status: DEC private; VT400
+    pub(crate) fn selective_erase_rectangular_area(
+        &mut self,
+        buf: &mut Buffer,
+    ) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
+
+        if self.parsed_numbers.len() != 4 {
+            return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                "Selective erase rectangular area needs 4 parameters {:?}",
+                self.current_escape_sequence
+            ))));
+        }
+
+        let top_line: i32 =
+            self.parsed_numbers[0].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
+        let left_column = self.parsed_numbers[1].min(buf.get_buffer_width() - 1);
+        let bottom_line =
+            self.parsed_numbers[2].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
+        let right_column = self.parsed_numbers[3].min(buf.get_buffer_width() - 1);
+
+        for y in top_line..=bottom_line {
+            for x in left_column..=right_column {
+                let ch = buf.get_char_xy(x, y).unwrap_or_default();
+                buf.set_char_xy(0, x, y, Some(AttributedChar::new(' ', ch.attribute)));
+            }
+        }
+
+        Ok(CallbackAction::None)
     }
 }

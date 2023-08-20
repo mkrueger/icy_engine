@@ -436,12 +436,20 @@ impl Buffer {
         cur_layer.set_char(pos, dos_char);
     }
 
+    pub fn set_char_xy(&mut self, layer: usize, x: i32, y: i32, dos_char: Option<AttributedChar>) {
+        self.set_char(layer, Position::new(x, y), dos_char);
+    }
+
     pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> Option<AttributedChar> {
         if let Some(layer) = self.layers.get(layer) {
             layer.get_char(pos)
         } else {
             None
         }
+    }
+
+    pub fn get_char_from_layer_xy(&self, layer: usize, x: i32, y: i32) -> Option<AttributedChar> {
+        self.get_char_from_layer(layer, Position::new(x, y))
     }
 
     pub fn get_char_xy(&self, x: i32, y: i32) -> Option<AttributedChar> {

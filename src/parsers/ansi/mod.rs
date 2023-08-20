@@ -665,6 +665,10 @@ impl BufferParser for Parser {
                                 return Ok(CallbackAction::SendString(str));
                             }
                         }
+                        'x' => return self.fill_rectangular_area(buf, caret),
+                        'z' => return self.erase_rectangular_area(buf),
+                        '{' => return self.selective_erase_rectangular_area(buf),
+
                         _ => {}
                     },
 

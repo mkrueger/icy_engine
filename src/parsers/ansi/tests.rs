@@ -1262,3 +1262,62 @@ fn test_window_manipulation() {
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t");
     assert_eq!(CallbackAction::ResizeTerminal(80, 25), act);
 }
+
+#[test]
+fn test_fill_rectangular_area() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        format!("\x1B[{};5;5;10;10$x", b'#').as_bytes(),
+    );
+    for x in 5..=5 {
+        for y in 5..=10 {
+            assert_eq!('#', buf.get_char_xy(x, y).unwrap().ch);
+        }
+    }
+}
+
+#[test]
+fn test_erase_rectangular_area() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[42m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10$z",
+    );
+    for x in 5..=5 {
+        for y in 5..=10 {
+            assert_eq!(' ', buf.get_char_xy(x, y).unwrap().ch);
+            assert_eq!(
+                TextAttribute::default(),
+                buf.get_char_xy(x, y).unwrap().attribute
+            );
+        }
+    }
+}
+
+#[test]
+fn test_selective_erase_rectangular_area() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[32m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10${",
+    );
+    for x in 5..=5 {
+        for y in 5..=10 {
+            assert_eq!(' ', buf.get_char_xy(x, y).unwrap().ch);
+            assert_eq!(
+                TextAttribute::from_color(2, 0),
+                buf.get_char_xy(x, y).unwrap().attribute
+            );
+        }
+    }
+}
