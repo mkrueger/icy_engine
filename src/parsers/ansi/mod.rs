@@ -6,32 +6,24 @@ use std::{
     fmt::Display,
 };
 
+use self::sound::{AnsiMusic, MusicState};
+
 use super::{ascii, BufferParser};
 use crate::{
-    update_crc16, AnsiMusic, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret,
-    EngineResult, FontSelectionState, MouseMode, MusicAction, MusicStyle, OriginMode, ParserError,
+    update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret,
+    EngineResult, FontSelectionState, MouseMode, OriginMode, ParserError,
     Position, TerminalScrolling, BEL, BS, CR, FF, LF,
 };
 
 mod ansi_commands;
 mod constants;
 mod dcs;
+pub mod sound;
 
 #[cfg(test)]
 mod sixel_tests;
 #[cfg(test)]
 mod tests;
-
-#[derive(Debug, Clone, Copy)]
-pub enum MusicState {
-    Default,
-    ParseMusicStyle,
-    SetTempo(u16),
-    Pause(i32),
-    SetOctave,
-    Note(usize, u32),
-    SetLength(i32),
-}
 
 #[derive(Debug, Clone)]
 pub enum EngineState {
@@ -47,7 +39,7 @@ pub enum EngineState {
     RecordDCS(ReadSTState),
     ReadPossibleMacroInDCS(u8),
 
-    ParseAnsiMusic(MusicState),
+    ParseAnsiMusic(sound::MusicState),
 
     ReadAPS(ReadSTState),
 }
@@ -124,29 +116,6 @@ impl BaudEmulation {
 }
 
 
-/*
-Generated with:
-for oct in range(1, 8):
-    for i in range(16, 28):
-        n = i + (28-16) * (oct - 1)
-        freq = 440.0 * pow(2.0, (n - 49.0) / 12.0)
-        print("{:.4f}".format(freq), end=", ")
-    print()
-*/
-pub const FREQ: [f32; 12 * 7] = [
-    //  C      C#       D        D#       E        F        F#       G         G#        A         A#        B
-    65.4064, 69.2957, 73.4162, 77.7817, 82.4069, 87.3071, 92.4986, 97.9989, 103.8262, 110.0000,
-    116.5409, 123.4708, 130.8128, 138.5913, 146.8324, 155.5635, 164.8138, 174.6141, 184.9972,
-    195.9977, 207.6523, 220.0000, 233.0819, 246.9417, 261.6256, 277.1826, 293.6648, 311.127,
-    329.6276, 349.2282, 369.9944, 391.9954, 415.3047, 440.0000, 466.1638, 493.8833, 523.2511,
-    554.3653, 587.3295, 622.254, 659.2551, 698.4565, 739.9888, 783.9909, 830.6094, 880.0000,
-    932.3275, 987.7666, 1046.5023, 1108.7305, 1_174.659, 1244.5079, 1318.5102, 1396.9129,
-    1479.9777, 1567.9817, 1661.2188, 1760.0000, 1_864.655, 1975.5332, 2093.0045, 2217.461,
-    2_349.318, 2489.0159, 2637.0205, 2_793.826, 2959.9554, 3135.9635, 3322.4376, 3520.0000,
-    3_729.31, 3951.0664, 4_186.009, 4_434.922, 4_698.636, 4978.0317, 5_274.041, 5_587.652,
-    5919.9108, 6_271.927, 6_644.875, 7040.0000, 7_458.62, 7_902.132,
-];
-
 pub struct Parser {
     ascii_parser: ascii::Parser,
     pub(crate) state: EngineState,
@@ -165,6 +134,8 @@ pub struct Parser {
     cur_octave: usize,
     cur_length: u32,
     cur_tempo: u32,
+    dotted_note: bool,
+
 
     last_char: char,
     pub aps_string: String,
@@ -186,6 +157,7 @@ impl Default for Parser {
             cur_octave: 3,
             cur_length: 4,
             cur_tempo: 120,
+            dotted_note: false,
             aps_string: String::new(),
             macros: HashMap::new(),
             dcs_string: String::new(),
@@ -962,6 +934,7 @@ impl BufferParser for Parser {
                             || matches!(self.ansi_music, MusicOption::Both)
                         {
                             self.cur_music = Some(AnsiMusic::default());
+                            self.dotted_note = false;
                             self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         } else if self.parsed_numbers.is_empty() {
                             if let Some(layer) = buf.layers.get(0) {
@@ -999,6 +972,7 @@ impl BufferParser for Parser {
                             || matches!(self.ansi_music, MusicOption::Both)
                         {
                             self.cur_music = Some(AnsiMusic::default());
+                            self.dotted_note = false;
                             self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         }
                     }
@@ -1006,6 +980,7 @@ impl BufferParser for Parser {
                     '|' => {
                         if !matches!(self.ansi_music, MusicOption::Off) {
                             self.cur_music = Some(AnsiMusic::default());
+                            self.dotted_note = false;
                             self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         }
                     }
@@ -1392,188 +1367,6 @@ impl BufferParser for Parser {
 }
 
 impl Parser {
-    fn parse_ansi_music(&mut self, ch: char) -> EngineResult<CallbackAction> {
-        if let EngineState::ParseAnsiMusic(state) = self.state {
-            match state {
-                MusicState::ParseMusicStyle => {
-                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                    match ch {
-                        'F' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Foreground)),
-                        'B' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Background)),
-                        'N' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Normal)),
-                        'L' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Legato)),
-                        'S' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Staccato)),
-                        _ => return self.parse_ansi_music(ch),
-                    }
-                }
-                MusicState::SetTempo(x) => {
-                    let mut x = x;
-                    if ch.is_ascii_digit() {
-                        x = x * 10 + ch as u16 - b'0' as u16;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(x));
-                    } else {
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                        self.cur_tempo = x.clamp(32, 255) as u32;
-                        return Ok(self.parse_default_ansi_music(ch));
-                    }
-                }
-                MusicState::SetOctave => {
-                    if ('0'..='6').contains(&ch) {
-                        self.cur_octave = ((ch as u8) - b'0') as usize;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                    } else {
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )));
-                    }
-                }
-                MusicState::Note(n, len) => {
-                    self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                    match ch {
-                        '+' | '#' => {
-                            if n + 1 < FREQ.len() {
-                                self.state =
-                                    EngineState::ParseAnsiMusic(MusicState::Note(n + 1, len));
-                            }
-                        }
-                        '-' => {
-                            if n > 0 {
-                                // B
-                                self.state =
-                                    EngineState::ParseAnsiMusic(MusicState::Note(n - 1, len));
-                            }
-                        }
-                        '0'..='9' => {
-                            let len = len * 10 + ch as u32 - b'0' as u32;
-                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
-                        }
-                        '.' => {
-                            let len = len * 3 / 2;
-                            self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
-                        }
-                        _ => {
-                            self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                            let len = if len == 0 { self.cur_length } else { len };
-                            self.cur_music.as_mut().unwrap().music_actions.push(
-                                MusicAction::PlayNote(
-                                    FREQ[n + (self.cur_octave * 12)],
-                                    self.cur_tempo * len,
-                                ),
-                            );
-                            return Ok(self.parse_default_ansi_music(ch));
-                        }
-                    }
-                }
-                MusicState::SetLength(x) => {
-                    let mut x = x;
-                    if ch.is_ascii_digit() {
-                        x = x * 10 + ch as i32 - b'0' as i32;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
-                    } else if ch == '.' {
-                        x = x * 3 / 2;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
-                    } else {
-                        self.cur_length = (x as u32).clamp(1, 64);
-                        return Ok(self.parse_default_ansi_music(ch));
-                    }
-                }
-                MusicState::Pause(x) => {
-                    let mut x = x;
-                    if ch.is_ascii_digit() {
-                        x = x * 10 + ch as i32 - b'0' as i32;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
-                    } else if ch == '.' {
-                        x = x * 3 / 2;
-                        self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
-                    } else {
-                        let pause = (x as u32).clamp(1, 64);
-                        self.cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::Pause(self.cur_tempo * pause));
-                        return Ok(self.parse_default_ansi_music(ch));
-                    }
-                }
-                MusicState::Default => {
-                    return Ok(self.parse_default_ansi_music(ch));
-                }
-            }
-        }
-        Ok(CallbackAction::None)
-    }
-
-    /// .
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if .
-    fn parse_default_ansi_music(&mut self, ch: char) -> CallbackAction {
-        match ch {
-            '\x0E' => {
-                self.state = EngineState::Default;
-                self.cur_octave = 3;
-                return CallbackAction::PlayMusic(
-                    self.cur_music.replace(AnsiMusic::default()).unwrap(),
-                );
-            }
-            'T' => self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(0)),
-            'L' => self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(0)),
-            'O' => self.state = EngineState::ParseAnsiMusic(MusicState::SetOctave),
-            'C' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(0, 0)),
-            'D' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(2, 0)),
-            'E' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(4, 0)),
-            'F' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(5, 0)),
-            'G' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(7, 0)),
-            'A' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(9, 0)),
-            'B' => self.state = EngineState::ParseAnsiMusic(MusicState::Note(11, 0)),
-            'M' => self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle),
-            '<' => {
-                if self.cur_octave > 0 {
-                    self.cur_octave -= 1;
-                }
-            }
-            '>' => {
-                if self.cur_octave < 6 {
-                    self.cur_octave += 1;
-                }
-            }
-            'P' => {
-                self.state = EngineState::ParseAnsiMusic(MusicState::Pause(0));
-            }
-            _ => {}
-        }
-        CallbackAction::None
-    }
 
     fn invoke_macro_by_id(
         &mut self,
