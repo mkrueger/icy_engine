@@ -325,7 +325,7 @@ impl Buffer {
 
     pub fn get_first_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
-            if let Some((start, _)) = self.terminal_state.margins_top_bottom {
+            if let Some((start, _)) = self.terminal_state.get_margins_top_bottom() {
                 return self.get_first_visible_line() + start;
             }
         }
@@ -334,7 +334,7 @@ impl Buffer {
 
     pub fn get_first_editable_column(&self) -> i32 {
         if self.is_terminal_buffer {
-            if let Some((start, _)) = self.terminal_state.margins_left_right {
+            if let Some((start, _)) = self.terminal_state.get_margins_left_right() {
                 return start;
             }
         }
@@ -343,7 +343,7 @@ impl Buffer {
 
     pub fn get_last_editable_column(&self) -> i32 {
         if self.is_terminal_buffer {
-            if let Some((_, end)) = self.terminal_state.margins_left_right {
+            if let Some((_, end)) = self.terminal_state.get_margins_left_right() {
                 return end;
             }
         }
@@ -358,7 +358,7 @@ impl Buffer {
     #[must_use]
     pub fn get_last_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
-            if let Some((_, end)) = self.terminal_state.margins_top_bottom {
+            if let Some((_, end)) = self.terminal_state.get_margins_top_bottom() {
                 self.get_first_visible_line() + end
             } else {
                 self.get_first_visible_line() + self.get_buffer_height() - 1

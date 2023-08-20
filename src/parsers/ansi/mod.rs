@@ -401,7 +401,7 @@ impl BufferParser for Parser {
 
                             Some(69) => {
                                 buf.terminal_state.dec_margin_mode_left_right = false;
-                                buf.terminal_state.margins_left_right = None;
+                                buf.terminal_state.clear_margins_left_right();
                             }
 
                             Some(9 | 1000..=1007 | 1015 | 1016) => {
@@ -617,6 +617,14 @@ impl BufferParser for Parser {
                         self.parsed_numbers.push(0);
                     }
                     'r' => return self.reset_margins(buf),
+                    'm' => {
+                        if self.parsed_numbers.len() != 2 {
+                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            )));
+                        }
+                        return self.set_specific_margin(buf);
+                    }
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
@@ -1379,7 +1387,6 @@ impl Parser {
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
         println!("TODO execute APS command: {}", self.aps_string);
     }
-
 }
 
 fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) {

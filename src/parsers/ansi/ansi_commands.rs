@@ -404,7 +404,7 @@ impl Parser {
         caret: &mut Caret,
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
-        let (start, end) = match self.parsed_numbers.len() {
+        let (top, bottom) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
             0 => (0, buf.terminal_state.height),
@@ -417,13 +417,8 @@ impl Parser {
         // CSI Pt ; Pb r
         // DECSTBM - Set Top and Bottom Margins
 
-        if start > end {
-            // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
-            buf.terminal_state.margins_top_bottom = None;
-        } else {
-            caret.pos = buf.upper_left_position();
-            buf.terminal_state.margins_top_bottom = Some((start, end));
-        }
+        buf.terminal_state.set_margins_top_bottom(top, bottom);
+        caret.pos = buf.upper_left_position();
         Ok(CallbackAction::None)
     }
 
@@ -440,7 +435,7 @@ impl Parser {
         buf: &mut Buffer,
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
-        let (start, end) = match self.parsed_numbers.len() {
+        let (left, right) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
             0 => (0, buf.terminal_state.height),
@@ -451,12 +446,8 @@ impl Parser {
             }
         };
         // Set Left and Right Margins
-        if start > end {
-            // undocumented behavior but CSI 1; 0 s seems to turn off on some terminals.
-            buf.terminal_state.margins_left_right = None;
-        } else {
-            buf.terminal_state.margins_left_right = Some((start, end));
-        }
+        buf.terminal_state.set_margins_left_right(left, right);
+
         Ok(CallbackAction::None)
     }
 
@@ -503,22 +494,69 @@ impl Parser {
             }
         };
 
-        if top > bottom {
-            // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
-            buf.terminal_state.margins_top_bottom = None;
-        } else {
-            caret.pos = buf.upper_left_position();
-            buf.terminal_state.margins_top_bottom = Some((top, bottom));
-        }
+        caret.pos = buf.upper_left_position();
+        buf.terminal_state.set_margins_top_bottom(top, bottom);
+        buf.terminal_state.set_margins_left_right(left, right);
 
-        // Set Left and Right Margins
-        if left > right {
-            // undocumented behavior but CSI 1; 0 s seems to turn off on some terminals.
-            buf.terminal_state.margins_left_right = None;
-        } else {
-            buf.terminal_state.margins_left_right = Some((left, right));
-        }
+        Ok(CallbackAction::None)
+    }
 
+    /// Sequence: CSI = Ps ; Pn m
+    /// Mnemonic: SSM
+    /// Description: Set specific margin
+    ///
+    ///  This sequence can be used to set any one of the 4 margins. Parameter
+    ///  Ps indicates which margin to set (Ps=0 for the top margin, Ps=1 for
+    ///  the bottom, Ps=2 for the left and Ps=3 for the right). Pn is the row
+    ///  or column to set the margin to. If after this control sequence has
+    ///  been processed, the top or bottom margins are not at the top of the
+    ///  screen, and the left and right margins are at the screen boundary,
+    ///  then the scrolling region is set to the size specified.  If either of
+    ///  the left or right margins are not at the screen boundary then the
+    ///  scrolling region is bound by the current margins.
+    pub(crate) fn set_specific_margin(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
+        let n = self.parsed_numbers[1] - 1;
+
+        match self.parsed_numbers.first().unwrap() {
+            0 => {
+                let top = if let Some((t, _)) = buf.terminal_state.get_margins_top_bottom() {
+                    t
+                } else {
+                    0
+                };
+                buf.terminal_state.set_margins_top_bottom(top, n);
+            }
+            1 => {
+                let bottom = if let Some((_, b)) = buf.terminal_state.get_margins_top_bottom() {
+                    b
+                } else {
+                    buf.get_buffer_height() - 1
+                };
+                buf.terminal_state.set_margins_top_bottom(n, bottom);
+            }
+            2 => {
+                let left = if let Some((l, _)) = buf.terminal_state.get_margins_left_right() {
+                    l
+                } else {
+                    0
+                };
+                buf.terminal_state.set_margins_left_right(left, n);
+            }
+            3 => {
+                let right = if let Some((_, r)) = buf.terminal_state.get_margins_left_right() {
+                    r
+                } else {
+                    buf.get_buffer_width() - 1
+                };
+                buf.terminal_state.set_margins_left_right(n, right);
+            }
+            n => {
+                return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                    "Set specific margin '{n}' is invalid."
+                ))));
+            }
+        }
         Ok(CallbackAction::None)
     }
 
@@ -535,8 +573,8 @@ impl Parser {
     /// Status: SCO private
     pub(crate) fn reset_margins(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
-        buf.terminal_state.margins_left_right = None;
-        buf.terminal_state.margins_top_bottom = None;
+        buf.terminal_state.clear_margins_left_right();
+        buf.terminal_state.clear_margins_top_bottom();
         Ok(CallbackAction::None)
     }
 
@@ -1094,10 +1132,6 @@ impl Parser {
             .max(1)
             .min(buf.get_buffer_width())
             - 1;
-        println!(
-            "top_line: {}, left_column: {}, bottom_line: {}, right_column: {}",
-            top_line, left_column, bottom_line, right_column
-        );
 
         (top_line, left_column, bottom_line, right_column)
     }

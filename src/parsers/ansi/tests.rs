@@ -455,7 +455,7 @@ fn test_cursor_previous_line_n() {
 #[test]
 fn test_set_top_and_bottom_margins() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1b[5;10r");
-    assert_eq!(Some((4, 9)), buf.terminal_state.margins_top_bottom);
+    assert_eq!(Some((4, 9)), buf.terminal_state.get_margins_top_bottom());
 }
 
 #[test]
@@ -802,7 +802,7 @@ fn test_left_right_margin_mode() {
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[?69h");
     assert!(buf.terminal_state.dec_margin_mode_left_right);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[5;10s");
-    assert_eq!(Some((4, 9)), buf.terminal_state.margins_left_right);
+    assert_eq!(Some((4, 9)), buf.terminal_state.get_margins_left_right());
 
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[?69l");
     assert!(!buf.terminal_state.dec_margin_mode_left_right);
@@ -1327,17 +1327,17 @@ fn test_change_scrolling_region() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[5;10;6;11r");
-    assert_eq!(Some((5, 10)), buf.terminal_state.margins_left_right);
-    assert_eq!(Some((4, 9)), buf.terminal_state.margins_top_bottom);
+    assert_eq!(Some((5, 10)), buf.terminal_state.get_margins_left_right());
+    assert_eq!(Some((4, 9)), buf.terminal_state.get_margins_top_bottom());
 }
 
 #[test]
 fn test_reset_margins() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[5;10;6;11r");
-    assert_eq!(Some((5, 10)), buf.terminal_state.margins_left_right);
-    assert_eq!(Some((4, 9)), buf.terminal_state.margins_top_bottom);
+    assert_eq!(Some((5, 10)), buf.terminal_state.get_margins_left_right());
+    assert_eq!(Some((4, 9)), buf.terminal_state.get_margins_top_bottom());
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[=r");
-    assert_eq!(None, buf.terminal_state.margins_left_right);
-    assert_eq!(None, buf.terminal_state.margins_top_bottom);
+    assert_eq!(None, buf.terminal_state.get_margins_left_right());
+    assert_eq!(None, buf.terminal_state.get_margins_top_bottom());
 }

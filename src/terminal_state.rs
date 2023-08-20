@@ -35,8 +35,8 @@ pub struct TerminalState {
     pub origin_mode: OriginMode,
     pub scroll_state: TerminalScrolling,
     pub auto_wrap_mode: AutoWrapMode,
-    pub margins_top_bottom: Option<(i32, i32)>,
-    pub margins_left_right: Option<(i32, i32)>,
+    margins_top_bottom: Option<(i32, i32)>,
+    margins_left_right: Option<(i32, i32)>,
     pub mouse_mode: MouseMode,
     pub dec_margin_mode_left_right: bool,
 
@@ -198,5 +198,37 @@ impl TerminalState {
                 caret.pos.x = caret.pos.x.clamp(0, max(0, self.width - 1));
             }
         }
+    }
+
+    pub fn get_margins_top_bottom(&self) -> Option<(i32, i32)> {
+        self.margins_top_bottom
+    }
+
+    pub fn get_margins_left_right(&self) -> Option<(i32, i32)> {
+        self.margins_left_right
+    }
+
+    pub fn set_margins_top_bottom(&mut self, top: i32, bottom: i32) {
+        self.margins_top_bottom = if top > bottom {
+            None
+        } else {
+            Some((top, bottom))
+        };
+    }
+
+    pub fn set_margins_left_right(&mut self, left: i32, right: i32) {
+        self.margins_left_right = if left > right {
+            None
+        } else {
+            Some((left, right))
+        };
+    }
+
+    pub fn clear_margins_top_bottom(&mut self) {
+        self.margins_top_bottom = None;
+    }
+
+    pub fn clear_margins_left_right(&mut self) {
+        self.margins_left_right = None;
     }
 }
