@@ -1,6 +1,8 @@
 use crate::{EngineResult, Line};
 use std::cmp::{max, min};
 
+use self::ansi::sound::AnsiMusic;
+
 use super::{AttributedChar, Buffer, Caret, Position};
 
 mod parser_errors;
@@ -20,27 +22,6 @@ pub const LF: char = '\n';
 pub const CR: char = '\r';
 pub const BS: char = '\x08';
 pub const FF: char = '\x0C';
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MusicStyle {
-    Foreground,
-    Background,
-    Normal,
-    Legato,
-    Staccato,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum MusicAction {
-    PlayNote(f32, u32), // freq / note length
-    Pause(u32),
-    SetStyle(MusicStyle),
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct AnsiMusic {
-    pub music_actions: Vec<MusicAction>,
-}
 
 #[derive(Debug, PartialEq)]
 pub enum CallbackAction {

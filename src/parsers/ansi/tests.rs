@@ -1,11 +1,11 @@
 #![allow(clippy::float_cmp)]
 use crate::{
-    ansi::{BaudEmulation, MusicOption},
+    ansi::{sound::MusicAction, BaudEmulation, MusicOption},
     convert_to_ans,
     parsers::{
         ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
     },
-    AttributedChar, BufferType, CallbackAction, Caret, Color, MusicAction, Position, SaveOptions,
+    AttributedChar, BufferType, CallbackAction, Caret, Color, Position, SaveOptions,
     TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
 };
 
@@ -659,7 +659,7 @@ fn test_music() {
         panic!();
     };
     assert_eq!(1, music.music_actions.len());
-    let MusicAction::PlayNote(f, len) = music.music_actions[0] else {
+    let MusicAction::PlayNote(f, len, _) = music.music_actions[0] else {
         panic!();
     };
     assert_eq!(523.2511, f);
@@ -677,7 +677,7 @@ fn test_set_length() {
         panic!();
     };
     assert_eq!(2, music.music_actions.len());
-    let MusicAction::PlayNote(f, len) = music.music_actions[1] else {
+    let MusicAction::PlayNote(f, len, _) = music.music_actions[1] else {
         panic!();
     };
     assert_eq!(523.2511, f);
