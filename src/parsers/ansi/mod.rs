@@ -616,6 +616,7 @@ impl BufferParser for Parser {
                     ';' => {
                         self.parsed_numbers.push(0);
                     }
+                    'r' => return self.reset_margins(buf),
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
@@ -1127,7 +1128,11 @@ impl BufferParser for Parser {
                         }
                     }
                     'c' => return self.device_attributes(),
-                    'r' => return self.set_top_and_bottom_margins(buf, caret),
+                    'r' => return if self.parsed_numbers.len() > 2 {
+                        self.change_scrolling_region(buf, caret)
+                    } else {
+                        self.set_top_and_bottom_margins(buf, caret)
+                    },
                     'h' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
@@ -1374,6 +1379,7 @@ impl Parser {
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
         println!("TODO execute APS command: {}", self.aps_string);
     }
+
 }
 
 fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) {

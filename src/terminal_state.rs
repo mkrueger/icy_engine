@@ -35,7 +35,7 @@ pub struct TerminalState {
     pub origin_mode: OriginMode,
     pub scroll_state: TerminalScrolling,
     pub auto_wrap_mode: AutoWrapMode,
-    pub margins_up_down: Option<(i32, i32)>,
+    pub margins_top_bottom: Option<(i32, i32)>,
     pub margins_left_right: Option<(i32, i32)>,
     pub mouse_mode: MouseMode,
     pub dec_margin_mode_left_right: bool,
@@ -84,7 +84,7 @@ impl TerminalState {
             origin_mode: OriginMode::UpperLeftCorner,
             auto_wrap_mode: AutoWrapMode::AutoWrap,
             mouse_mode: MouseMode::Default,
-            margins_up_down: None,
+            margins_top_bottom: None,
             margins_left_right: None,
             use_ice: false,
             dec_margin_mode_left_right: false,
@@ -165,7 +165,7 @@ impl TerminalState {
     }
 
     pub fn reset(&mut self) {
-        self.margins_up_down = None;
+        self.margins_top_bottom = None;
         self.origin_mode = OriginMode::UpperLeftCorner;
         self.scroll_state = TerminalScrolling::Smooth;
         self.auto_wrap_mode = AutoWrapMode::AutoWrap;

@@ -389,13 +389,13 @@ impl Buffer {
             return;
         }
         self.layers[0].remove_line(line);
-        if let Some((_, end)) = self.terminal_state.margins_up_down {
+        if let Some((_, end)) = self.terminal_state.margins_top_bottom {
             self.layers[0].insert_line(end, Line::new());
         }
     }
 
     fn insert_terminal_line(&mut self, line: i32) {
-        if let Some((_, end)) = self.terminal_state.margins_up_down {
+        if let Some((_, end)) = self.terminal_state.margins_top_bottom {
             if end < self.layers[0].lines.len() as i32 {
                 self.layers[0].lines.remove(end as usize);
             }

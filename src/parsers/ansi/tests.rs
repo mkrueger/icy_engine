@@ -455,7 +455,7 @@ fn test_cursor_previous_line_n() {
 #[test]
 fn test_set_top_and_bottom_margins() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1b[5;10r");
-    assert_eq!(Some((4, 9)), buf.terminal_state.margins_up_down);
+    assert_eq!(Some((4, 9)), buf.terminal_state.margins_top_bottom);
 }
 
 #[test]
@@ -1273,8 +1273,8 @@ fn test_fill_rectangular_area() {
         &mut parser,
         format!("\x1B[{};5;5;10;10$x", b'#').as_bytes(),
     );
-    for x in 5..=5 {
-        for y in 5..=10 {
+    for y in 4..9 {
+        for x in 4..9 {
             assert_eq!('#', buf.get_char_xy(x, y).unwrap().ch);
         }
     }
@@ -1290,8 +1290,8 @@ fn test_erase_rectangular_area() {
         &mut parser,
         b"\x1B[42m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10$z",
     );
-    for x in 5..=5 {
-        for y in 5..=10 {
+    for y in 4..9 {
+        for x in 4..9 {
             assert_eq!(' ', buf.get_char_xy(x, y).unwrap().ch);
             assert_eq!(
                 TextAttribute::default(),
@@ -1311,8 +1311,8 @@ fn test_selective_erase_rectangular_area() {
         &mut parser,
         b"\x1B[32m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10${",
     );
-    for x in 5..=5 {
-        for y in 5..=10 {
+    for y in 4..9 {
+        for x in 4..9 {
             assert_eq!(' ', buf.get_char_xy(x, y).unwrap().ch);
             assert_eq!(
                 TextAttribute::from_color(2, 0),
@@ -1320,4 +1320,24 @@ fn test_selective_erase_rectangular_area() {
             );
         }
     }
+}
+
+#[test]
+fn test_change_scrolling_region() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[5;10;6;11r");
+    assert_eq!(Some((5, 10)), buf.terminal_state.margins_left_right);
+    assert_eq!(Some((4, 9)), buf.terminal_state.margins_top_bottom);
+}
+
+#[test]
+fn test_reset_margins() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[5;10;6;11r");
+    assert_eq!(Some((5, 10)), buf.terminal_state.margins_left_right);
+    assert_eq!(Some((4, 9)), buf.terminal_state.margins_top_bottom);
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[=r");
+    assert_eq!(None, buf.terminal_state.margins_left_right);
+    assert_eq!(None, buf.terminal_state.margins_top_bottom);
 }

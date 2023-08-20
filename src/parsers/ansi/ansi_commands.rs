@@ -419,10 +419,10 @@ impl Parser {
 
         if start > end {
             // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
-            buf.terminal_state.margins_up_down = None;
+            buf.terminal_state.margins_top_bottom = None;
         } else {
             caret.pos = buf.upper_left_position();
-            buf.terminal_state.margins_up_down = Some((start, end));
+            buf.terminal_state.margins_top_bottom = Some((start, end));
         }
         Ok(CallbackAction::None)
     }
@@ -457,6 +457,86 @@ impl Parser {
         } else {
             buf.terminal_state.margins_left_right = Some((start, end));
         }
+        Ok(CallbackAction::None)
+    }
+
+    /// Sequence: `CSI Pn1 ; Pn2 ; Pn3 ; Pn4 r`</p>
+    /// Mnemonic: CSR</p>
+    /// Description: Change Scrolling Region</p>
+    ///
+    /// Where 3 or more parameters are specified, the parameters are the top,
+    /// bottom, left and right margins respectively. If you omit the last
+    /// parameter, the extreme edge of the screen is assumed to be the right
+    /// margin.
+    ///
+    /// If any of the parameters are out of bounds, they are clipped. If any
+    /// of the parameters would cause an overlap (i.e. the bottom margin is
+    /// higher than the top margin, or the right margin is less that the left
+    /// margin), then this command is ignored and no scrolling region or
+    /// window will be active. If all of the parameters are correct, then the
+    /// cursor is moved to the top left hand corner of the newly-created
+    /// region. The new region will now define the bounds of all scroll and
+    /// cursor motion operations.
+    pub(crate) fn change_scrolling_region(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+    ) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
+        let (top, bottom, left, right) = match self.parsed_numbers.len() {
+            3 => (
+                self.parsed_numbers[0] - 1,
+                self.parsed_numbers[1] - 1,
+                self.parsed_numbers[2] - 1,
+                buf.get_buffer_width(),
+            ),
+            4 => (
+                self.parsed_numbers[0] - 1,
+                self.parsed_numbers[1] - 1,
+                self.parsed_numbers[2] - 1,
+                self.parsed_numbers[3] - 1,
+            ),
+            _ => {
+                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                    self.current_escape_sequence.clone(),
+                )));
+            }
+        };
+
+        if top > bottom {
+            // undocumented behavior but CSI 1; 0 r seems to turn off on some terminals.
+            buf.terminal_state.margins_top_bottom = None;
+        } else {
+            caret.pos = buf.upper_left_position();
+            buf.terminal_state.margins_top_bottom = Some((top, bottom));
+        }
+
+        // Set Left and Right Margins
+        if left > right {
+            // undocumented behavior but CSI 1; 0 s seems to turn off on some terminals.
+            buf.terminal_state.margins_left_right = None;
+        } else {
+            buf.terminal_state.margins_left_right = Some((left, right));
+        }
+
+        Ok(CallbackAction::None)
+    }
+
+    /// Sequence: `CSI = r`</p>
+    /// Mnemonic: RSM</p>
+    /// Description: Reset margins</p>
+    ///
+    ///  This sequence can be used to reset all of the margins to cover the
+    ///  entire screen. This will deactivate the scrolling region (if
+    ///  defined). If not, this sequence has no effect.  The cursor is not
+    ///  moved.
+    ///
+    /// Source: `OpenServer 5.0.6 screen(HW)`
+    /// Status: SCO private
+    pub(crate) fn reset_margins(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
+        self.state = EngineState::Default;
+        buf.terminal_state.margins_left_right = None;
+        buf.terminal_state.margins_top_bottom = None;
         Ok(CallbackAction::None)
     }
 
@@ -986,12 +1066,7 @@ impl Parser {
         }
         let ch: char = unsafe { char::from_u32_unchecked(self.parsed_numbers[0] as u32) };
 
-        let top_line: i32 =
-            self.parsed_numbers[1].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
-        let left_column = self.parsed_numbers[2].min(buf.get_buffer_width() - 1);
-        let bottom_line =
-            self.parsed_numbers[3].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
-        let right_column = self.parsed_numbers[4].min(buf.get_buffer_width() - 1);
+        let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 1);
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
                 buf.set_char_xy(0, x, y, Some(AttributedChar::new(ch, caret.attribute)));
@@ -999,6 +1074,32 @@ impl Parser {
         }
 
         Ok(CallbackAction::None)
+    }
+
+    fn get_rect_area(&self, buf: &Buffer, offset: usize) -> (i32, i32, i32, i32) {
+        let top_line: i32 = self.parsed_numbers[offset]
+            .max(1)
+            .min(buf.get_real_buffer_height().max(buf.get_buffer_height()))
+            - 1;
+        let left_column = self.parsed_numbers[offset + 1]
+            .max(1)
+            .min(buf.get_buffer_width())
+            - 1;
+
+        let bottom_line = self.parsed_numbers[offset + 2]
+            .max(1)
+            .min(buf.get_real_buffer_height().max(buf.get_buffer_height()))
+            - 1;
+        let right_column = self.parsed_numbers[offset + 3]
+            .max(1)
+            .min(buf.get_buffer_width())
+            - 1;
+        println!(
+            "top_line: {}, left_column: {}, bottom_line: {}, right_column: {}",
+            top_line, left_column, bottom_line, right_column
+        );
+
+        (top_line, left_column, bottom_line, right_column)
     }
 
     /// Sequence: `CSU Pn1 ; Pn2 ; Pn3 ; Pn4 $ z`</p>
@@ -1030,12 +1131,7 @@ impl Parser {
             ))));
         }
 
-        let top_line: i32 =
-            self.parsed_numbers[0].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
-        let left_column = self.parsed_numbers[1].min(buf.get_buffer_width() - 1);
-        let bottom_line =
-            self.parsed_numbers[2].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
-        let right_column = self.parsed_numbers[3].min(buf.get_buffer_width() - 1);
+        let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 0);
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
@@ -1079,12 +1175,7 @@ impl Parser {
             ))));
         }
 
-        let top_line: i32 =
-            self.parsed_numbers[0].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
-        let left_column = self.parsed_numbers[1].min(buf.get_buffer_width() - 1);
-        let bottom_line =
-            self.parsed_numbers[2].min(buf.get_real_buffer_height().max(buf.get_buffer_height()));
-        let right_column = self.parsed_numbers[3].min(buf.get_buffer_width() - 1);
+        let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 0);
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
