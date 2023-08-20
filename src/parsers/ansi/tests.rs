@@ -1254,3 +1254,11 @@ fn test_rip_support_request_ignore() {
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[!#");
     assert_eq!('#', buf.get_char_xy(0, 0).unwrap().ch);
 }
+
+#[test]
+fn test_window_manipulation() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t");
+    assert_eq!(CallbackAction::ResizeTerminal(80, 25), act);
+}

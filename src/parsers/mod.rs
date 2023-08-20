@@ -30,6 +30,7 @@ pub enum CallbackAction {
     SendString(String),
     PlayMusic(AnsiMusic),
     ChangeBaudEmulation(ansi::BaudEmulation),
+    ResizeTerminal(usize, usize),
 }
 
 pub trait BufferParser {

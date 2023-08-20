@@ -10,9 +10,9 @@ use self::sound::{AnsiMusic, MusicState};
 
 use super::{ascii, BufferParser};
 use crate::{
-    update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret,
-    EngineResult, FontSelectionState, MouseMode, OriginMode, ParserError,
-    Position, TerminalScrolling, BEL, BS, CR, FF, LF,
+    update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
+    FontSelectionState, MouseMode, OriginMode, ParserError, Position, TerminalScrolling, BEL, BS,
+    CR, FF, LF,
 };
 
 mod ansi_commands;
@@ -78,7 +78,8 @@ impl From<String> for MusicOption {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum BaudEmulation {
-    #[default] Off,
+    #[default]
+    Off,
     Rate(u32),
 }
 
@@ -110,11 +111,10 @@ impl BaudEmulation {
     pub fn get_baud_rate(&self) -> u32 {
         match self {
             BaudEmulation::Off => 0,
-            BaudEmulation::Rate(baud) => *baud
+            BaudEmulation::Rate(baud) => *baud,
         }
     }
 }
-
 
 pub struct Parser {
     ascii_parser: ascii::Parser,
@@ -135,7 +135,6 @@ pub struct Parser {
     cur_length: u32,
     cur_tempo: u32,
     dotted_note: bool,
-
 
     last_char: char,
     pub aps_string: String,
@@ -767,7 +766,7 @@ impl BufferParser for Parser {
                     's' => {
                         if buf.terminal_state.dec_margin_mode_left_right {
                             return self.set_left_and_right_margins(buf);
-                        } 
+                        }
                         self.save_cursor_position(caret);
                     }
                     'u' => self.restore_cursor_position(caret),
@@ -1193,28 +1192,12 @@ impl BufferParser for Parser {
 
                     't' => {
                         self.state = EngineState::Default;
-                        if self.parsed_numbers.len() != 4 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        match self.parsed_numbers.len() {
+                            3 => return self.window_manipulation(buf),
+                            4 => return self.select_24bit_color(buf, caret),
+                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
-                        }
-                        let r = self.parsed_numbers[1];
-                        let g = self.parsed_numbers[2];
-                        let b = self.parsed_numbers[3];
-                        let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
-
-                        match self.parsed_numbers.first() {
-                            Some(0) => {
-                                caret.attribute.set_background(color);
-                            }
-                            Some(1) => {
-                                caret.attribute.set_foreground(color);
-                            }
-                            _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )))
-                            }
+                            )))
                         }
                     }
                     'S' => {
@@ -1367,7 +1350,6 @@ impl BufferParser for Parser {
 }
 
 impl Parser {
-
     fn invoke_macro_by_id(
         &mut self,
         buf: &mut Buffer,
@@ -1388,7 +1370,6 @@ impl Parser {
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
         println!("TODO execute APS command: {}", self.aps_string);
     }
-
 }
 
 fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) {
