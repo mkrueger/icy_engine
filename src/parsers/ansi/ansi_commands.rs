@@ -699,13 +699,15 @@ impl Parser {
             // 5 	Modem Lo
             return Ok(CallbackAction::None);
         }
-        let index = *self.parsed_numbers.get(1).unwrap_or(&0) as usize;
+
+        // no ps2 or 0 are equiv in disabling baud emulation
+        let ps2 = self.parsed_numbers.get(1).unwrap_or(&0);
         let baud_option = *BaudEmulation::OPTIONS
-            .get(index)
+            .get(*ps2 as usize)
             .unwrap_or(&BaudEmulation::Off);
 
         buf.terminal_state.set_baud_rate(baud_option);
-        return Ok(CallbackAction::ChangeBaudEmulation(baud_option));
+        Ok(CallbackAction::ChangeBaudEmulation(baud_option))
         // DECSCS—Select Communication Speed https://vt100.net/docs/vt510-rm/DECSCS.html
     }
 
