@@ -13,7 +13,7 @@ impl Parser {
     /// Mnemonic: SGR</p>
     /// Description: Select graphic rendition</p>
     ///
-    /// Parameter default value: Ps = 0
+    /// Parameter default value: Ps is 0
     ///
     /// SGR is used to establish one or more graphic rendition aspects for
     /// subsequent text. The established aspects remain in effect until the
@@ -937,7 +937,7 @@ impl Parser {
     /// Mnemonic: DA</p>
     /// Description: Device attributes</p>
     ///
-    /// Parameter default value: Ps = 0
+    /// Parameter default value: Ps is 0
     ///
     /// With a parameter value not equal to 0, DA is used to identify the
     /// device which sends the DA. The parameter value is a device type
@@ -1007,43 +1007,43 @@ impl Parser {
     /// These controls may be disabled using the `allowWindowOps`
     /// resource.  Valid values for the first (and any additional parameters) are:
     ///
-    ///    Ps = 1  -> De-iconify window.
-    ///    Ps = 2  -> Iconify window.
-    ///    Ps = 3  ;  x ;  y -> Move window to [x, y].
-    ///    Ps = 4  ;  height ;  width -> Resize the xterm window to
+    /// Ps is 1  -> Deiconify window.
+    ///  Ps is 2  -> Iconify window.
+    ///  Ps is 3  ;  x ;  y -> Move window to [x, y].
+    ///  Ps is 4  ;  height ;  width -> Resize the xterm window to
     ///given height and width in pixels.  Omitted parameters reuse
     ///the current height or width.  Zero parameters use the dis-
     ///play's height or width.
-    ///    Ps = 5  -> Raise the xterm window to the front of the stack-ing order.
-    ///    Ps = 6  -> Lower the xterm window to the bottom of the stacking order.
-    ///    Ps = 7  -> Refresh the xterm window.
-    ///    Ps = 8  ;  height ;  width -> Resize the text area to given
+    ///  Ps is 5  -> Raise the xterm window to the front of the stack-ing order.
+    ///  Ps is 6  -> Lower the xterm window to the bottom of the stacking order.
+    ///  Ps is 7  -> Refresh the xterm window.
+    ///  Ps is 8  ;  height ;  width -> Resize the text area to given
     ///height and width in characters.  Omitted parameters reuse the
     ///current height or width.  Zero parameters use the display's
     ///height or width.
-    ///    Ps = 9  ;  0  -> Restore maximized window.
-    ///    Ps = 9  ;  1  -> Maximize window (i.e., resize to screen size).
-    ///    Ps = 9  ;  2  -> Maximize window vertically.
-    ///    Ps = 9  ;  3  -> Maximize window horizontally.
-    ///    Ps = 1 0  ;  0  -> Undo full-screen mode.
-    ///    Ps = 1 0  ;  1  -> Change to full-screen.
-    ///    Ps = 1 0  ;  2  -> Toggle full-screen.
-    ///    Ps = 1 1  -> Report xterm window state.  If the xterm window
+    ///  Ps is 9  ;  0  -> Restore maximized window.
+    ///  Ps is 9  ;  1  -> Maximize window (i.e., resize to screen size).
+    ///  Ps is 9  ;  2  -> Maximize window vertically.
+    ///  Ps is 9  ;  3  -> Maximize window horizontally.
+    ///  Ps is 1 0  ;  0  -> Undo full-screen mode.
+    ///  Ps is 1 0  ;  1  -> Change to full-screen.
+    ///  Ps is 1 0  ;  2  -> Toggle full-screen.
+    ///  Ps is 1 1  -> Report xterm window state.  If the xterm window
     ///is open (non-iconified), it returns CSI 1 t .  If the xterm
     ///window is iconified, it returns CSI 2 t .
-    ///    Ps = 1 3  -> Report xterm window position. Result is CSI 3 ; x ; y t
-    ///    Ps = 1 4  -> Report xterm window in pixels. Result is CSI  4  ;  height ;  width t
-    ///    Ps = 1 8  -> Report the size of the text area in characters. Result is CSI  8  ;  height ;  width t
-    ///    Ps = 1 9  -> Report the size of the screen in characters. Result is CSI  9  ;  height ;  width t
-    ///    Ps = 2 0  -> Report xterm window's icon label. Result is OSC  L  label ST
-    ///    Ps = 2 1  -> Report xterm window's title. Result is OSC  l  label ST
-    ///    Ps = 2 2  ;  0  -> Save xterm icon and window title on stack.
-    ///    Ps = 2 2  ;  1  -> Save xterm icon title on stack.
-    ///    Ps = 2 2  ;  2  -> Save xterm window title on stack.
-    ///    Ps = 2 3  ;  0  -> Restore xterm icon and window title from stack.
-    ///    Ps = 2 3  ;  1  -> Restore xterm icon title from stack.
-    ///    Ps = 2 3  ;  2  -> Restore xterm window title from stack.
-    ///    Ps >= 2 4  -> Resize to Ps lines (DECSLPP).    /// Source: XTerm-Control-Sequences.txt
+    ///  Ps is 1 3  -> Report xterm window position. Result is CSI 3 ; x ; y t
+    ///  Ps is 1 4  -> Report xterm window in pixels. Result is CSI  4  ;  height ;  width t
+    ///  Ps is 1 8  -> Report the size of the text area in characters. Result is CSI  8  ;  height ;  width t
+    ///  Ps is 1 9  -> Report the size of the screen in characters. Result is CSI  9  ;  height ;  width t
+    ///  Ps is 2 0  -> Report xterm window's icon label. Result is OSC  L  label ST
+    ///  Ps is 2 1  -> Report xterm window's title. Result is OSC  l  label ST
+    ///  Ps is 2 2  ;  0  -> Save xterm icon and window title on stack.
+    ///  Ps is 2 2  ;  1  -> Save xterm icon title on stack.
+    ///  Ps is 2 2  ;  2  -> Save xterm window title on stack.
+    ///  Ps is 2 3  ;  0  -> Restore xterm icon and window title from stack.
+    ///  Ps is 2 3  ;  1  -> Restore xterm icon title from stack.
+    ///  Ps is 2 3  ;  2  -> Restore xterm window title from stack.
+    ///  Ps >= 2 4  -> Resize to Ps lines (DECSLPP).    /// Source: XTerm-Control-Sequences.txt
     /// Status: NON-STANDARD EXTENSION
     pub(crate) fn window_manipulation(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         match self.parsed_numbers.first() {
