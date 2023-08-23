@@ -164,14 +164,6 @@ impl TerminalState {
         self.baud_rate = baud_rate;
     }
 
-    pub fn reset(&mut self) {
-        self.margins_top_bottom = None;
-        self.origin_mode = OriginMode::UpperLeftCorner;
-        self.scroll_state = TerminalScrolling::Smooth;
-        self.auto_wrap_mode = AutoWrapMode::AutoWrap;
-        self.reset_tabs();
-    }
-
     pub fn use_ice_colors(&self) -> bool {
         self.use_ice
     }

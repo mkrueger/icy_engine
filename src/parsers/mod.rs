@@ -73,7 +73,7 @@ impl Caret {
 
     /// (form feed, FF, \f, ^L), to cause a printer to eject paper to the top of the next page, or a video terminal to clear the screen.
     pub fn ff(&mut self, buf: &mut Buffer) {
-        buf.terminal_state.reset();
+        buf.reset_terminal();
         buf.clear();
         self.pos = Position::default();
         self.is_visible = true;

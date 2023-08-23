@@ -210,7 +210,7 @@ impl BufferParser for Parser {
                         'c' => {
                             // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
                             caret.ff(buf);
-                            buf.terminal_state.reset();
+                            buf.reset_terminal();
                             self.macros.clear();
                             Ok(CallbackAction::None)
                         }

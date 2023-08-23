@@ -282,7 +282,7 @@ impl BufferParser for Parser {
             }
             0b000_1100 => {
                 // 12 / 0x0C
-                buf.terminal_state.reset();
+                buf.reset_terminal();
                 buf.clear();
                 caret.pos = Position::default();
                 caret.reset_color_attribute();

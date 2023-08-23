@@ -264,15 +264,21 @@ impl Buffer {
         (w as i32) + 1
     }
 
+    pub fn reset_terminal(&mut self) {
+        self.terminal_state =
+            TerminalState::from(self.terminal_state.width, self.terminal_state.height);
+    }
+
     /// Sets the buffer size of this [`Buffer`].
     ///
     /// # Panics
     ///
     /// Panics if .
     pub fn set_buffer_size<T: NumCast>(&mut self, size: Size<T>) {
-        self.terminal_state.width = num::cast(size.width).unwrap();
-        self.terminal_state.height = num::cast(size.height).unwrap();
-        self.terminal_state.reset();
+        self.terminal_state = TerminalState::from(
+            num::cast(size.width).unwrap(),
+            num::cast(size.height).unwrap(),
+        );
     }
 
     /// Sets the buffer width of this [`Buffer`].
@@ -281,8 +287,8 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_width<T: NumCast>(&mut self, width: T) {
-        self.terminal_state.width = num::cast(width).unwrap();
-        self.terminal_state.reset();
+        self.terminal_state =
+            TerminalState::from(num::cast(width).unwrap(), self.terminal_state.height);
     }
 
     /// Sets the buffer height of this [`Buffer`].
@@ -291,7 +297,8 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_height<T: NumCast>(&mut self, height: T) {
-        self.terminal_state.height = num::cast(height).unwrap();
+        self.terminal_state =
+            TerminalState::from(self.terminal_state.width, num::cast(height).unwrap());
     }
 
     /// Returns the clear of this [`Buffer`].

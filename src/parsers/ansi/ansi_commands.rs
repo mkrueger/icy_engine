@@ -764,7 +764,7 @@ impl Parser {
     /// Status: DEC private; VT220
     pub(crate) fn soft_terminal_reset(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         self.state = EngineState::Default;
-        buf.terminal_state.reset();
+        buf.reset_terminal();
         caret.reset();
     }
 
