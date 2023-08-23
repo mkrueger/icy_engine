@@ -139,7 +139,9 @@ impl Caret {
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
         self.pos.x += num;
-        if self.pos.x > buf.get_buffer_width() && self.pos.y < buf.get_last_editable_line() {
+        if self.pos.x > buf.get_buffer_width()
+        /*&& self.pos.y < buf.get_last_editable_line() */
+        {
             self.pos.y += self.pos.x / buf.get_buffer_width();
             while self.pos.y >= buf.layers[0].lines.len() as i32 {
                 let len = buf.layers[0].lines.len();

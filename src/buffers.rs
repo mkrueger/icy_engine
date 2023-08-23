@@ -109,7 +109,7 @@ impl std::fmt::Display for Buffer {
         let mut str = String::new();
         let p = parsers::ansi::Parser::default();
 
-        for y in 0..self.get_buffer_height() {
+        for y in 0..self.get_real_buffer_height() {
             str.extend(format!("{y:3}: ").chars());
             for x in 0..self.get_buffer_width() {
                 let ch = self.get_char_xy(x, y).unwrap_or_default();
