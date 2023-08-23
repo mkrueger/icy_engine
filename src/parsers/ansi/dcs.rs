@@ -19,11 +19,11 @@ impl Parser {
         buf: &mut Buffer,
         caret: &Caret,
     ) -> EngineResult<CallbackAction> {
-        if self.dcs_string.starts_with("CTerm:Font:") {
+        if self.parse_string.starts_with("CTerm:Font:") {
             return self.load_custom_font(buf);
         }
         let mut i = 0;
-        for ch in self.dcs_string.chars() {
+        for ch in self.parse_string.chars() {
             match ch {
                 '0'..='9' => {
                     let d = match self.parsed_numbers.pop() {
@@ -42,11 +42,11 @@ impl Parser {
             i += 1;
         }
 
-        if self.dcs_string[i..].starts_with("!z") {
+        if self.parse_string[i..].starts_with("!z") {
             return self.parse_macro(i + 2);
         }
 
-        if self.dcs_string[i..].starts_with('q') {
+        if self.parse_string[i..].starts_with('q') {
             let vertical_scale = match self.parsed_numbers.first() {
                 Some(0 | 1 | 5 | 6) | None => 2,
                 Some(2) => 5,
@@ -63,7 +63,7 @@ impl Parser {
             };
 
             let p = caret.get_position();
-            let dcs_string = std::mem::take(&mut self.dcs_string);
+            let dcs_string = std::mem::take(&mut self.parse_string);
             let handle = thread::spawn(move || {
                 Sixel::parse_from(p, 1, vertical_scale, bg_color, &dcs_string[i + 1..]).unwrap()
             });
@@ -73,10 +73,9 @@ impl Parser {
             return Ok(CallbackAction::None);
         }
 
-        Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-            "encountered unsupported dcs: '{}'",
-            self.dcs_string
-        ))))
+        Err(Box::new(ParserError::UnsupportedDCSSequence(
+            self.parse_string.clone(),
+        )))
     }
 
     fn parse_macro(&mut self, start_index: usize) -> EngineResult<CallbackAction> {
@@ -99,7 +98,7 @@ impl Parser {
                 _ => {
                     return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                         "encountered p3 in macro definition: '{}' only 0 and 1 are valid.",
-                        self.dcs_string
+                        self.parse_string
                     ))))
                 }
             };
@@ -107,13 +106,13 @@ impl Parser {
         }
         Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
             "encountered unsupported macro definition: '{}'",
-            self.dcs_string
+            self.parse_string
         ))))
     }
 
     fn parse_macro_sequence(&mut self, id: usize, start_index: usize) {
         self.macros
-            .insert(id, self.dcs_string[start_index..].to_string());
+            .insert(id, self.parse_string[start_index..].to_string());
     }
 
     fn parse_hex_macro_sequence(
@@ -127,7 +126,7 @@ impl Parser {
         let mut repeat_number = 0;
         let mut marco_rec = String::new();
 
-        for ch in self.dcs_string[start_index..].chars() {
+        for ch in self.parse_string[start_index..].chars() {
             match &state {
                 HexMacroState::FirstHex => {
                     if ch == ';' && read_repeat {
@@ -189,12 +188,12 @@ impl Parser {
 
     fn load_custom_font(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         let start_index = "CTerm:Font:".len();
-        if let Some(idx) = self.dcs_string[start_index..].find(':') {
+        if let Some(idx) = self.parse_string[start_index..].find(':') {
             let idx = idx + start_index;
 
-            if let Ok(num) = self.dcs_string[start_index..idx].parse::<usize>() {
+            if let Ok(num) = self.parse_string[start_index..idx].parse::<usize>() {
                 if let Ok(font_data) =
-                    general_purpose::STANDARD.decode(self.dcs_string[idx + 1..].as_bytes())
+                    general_purpose::STANDARD.decode(self.parse_string[idx + 1..].as_bytes())
                 {
                     match BitFont::from_bytes(format!("custom font {num}"), &font_data) {
                         Ok(font) => {
@@ -211,14 +210,14 @@ impl Parser {
                 }
                 return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                     "Can't decode base64 in dcs: {}",
-                    self.dcs_string
+                    self.parse_string
                 ))));
             }
         }
 
         Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
             "invalid custom font in dcs: {}",
-            self.dcs_string
+            self.parse_string
         ))))
     }
 }

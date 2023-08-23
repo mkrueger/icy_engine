@@ -6,6 +6,7 @@ pub enum ParserError {
     InvalidBuffer,
     UnsupportedEscapeSequence(String),
     UnsupportedDCSSequence(String),
+    UnsupportedOSCSequence(String),
     UnsupportedCustomCommand(i32),
     Description(&'static str),
     UnsupportedControlCode(u32),
@@ -32,6 +33,9 @@ impl std::fmt::Display for ParserError {
             }
             ParserError::UnsupportedDCSSequence(seq) => {
                 write!(f, "unsupported DCS sequence {seq}")
+            }
+            ParserError::UnsupportedOSCSequence(seq) => {
+                write!(f, "unsupported OSC sequence {seq}")
             }
             ParserError::Description(str) => write!(f, "{str}"),
             ParserError::UnsupportedControlCode(code) => {

@@ -14,6 +14,14 @@ pub struct Layer {
     pub lines: Vec<Line>,
 
     pub sixels: Vec<Sixel>,
+    pub(crate) hyperlinks: Vec<HyperLink>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct HyperLink {
+    pub url: String,
+    pub position: Position,
+    pub length: i32,
 }
 
 impl Layer {
@@ -27,6 +35,7 @@ impl Layer {
             lines: Vec::new(),
             sixels: Vec::new(),
             offset: Position::default(),
+            hyperlinks: Vec::new(),
         }
     }
 
@@ -121,6 +130,14 @@ impl Layer {
         let tmp = self.get_char(pos1);
         self.set_char(pos1, self.get_char(pos2));
         self.set_char(pos2, tmp);
+    }
+
+    pub fn add_hyperlink(&mut self, p: HyperLink) {
+        self.hyperlinks.push(p);
+    }
+
+    pub fn hyperlinks(&self) -> &Vec<HyperLink> {
+        &self.hyperlinks
     }
 }
 

@@ -1196,7 +1196,7 @@ fn test_aps_parsing() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B_Foo\x1BBar\x1B\\");
-    assert_eq!("Foo\x1BBar", parser.aps_string);
+    assert_eq!("Foo\x1BBar", parser.parse_string);
 }
 
 #[test]
@@ -1360,4 +1360,20 @@ fn test_clear_screen_size_reset() {
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t\x1B[2J");
     assert_eq!(25, buf.get_buffer_height());
     assert_eq!(0, buf.get_real_buffer_height());
+}
+
+#[test]
+fn test_ocs8_hyperlinks() {
+    let mut parser = ansi::Parser::default();
+    let (buf, _) = create_buffer(
+        &mut parser,
+        b"\x1B]8;;http://example.com\x1B\\This is a link\x1B]8;;\x1B\\",
+    );
+    assert_eq!('T', buf.get_char_xy(0, 0).unwrap().ch);
+    assert!(buf.get_char_xy(0, 0).unwrap().attribute.is_underlined());
+    assert_eq!(1, buf.layers[0].hyperlinks.len());
+    assert_eq!(
+        "http://example.com".to_string(),
+        buf.layers[0].hyperlinks[0].url
+    );
 }

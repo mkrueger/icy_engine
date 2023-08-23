@@ -11,13 +11,14 @@ use self::sound::{AnsiMusic, MusicState};
 use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
-    FontSelectionState, MouseMode, OriginMode, ParserError, Position, TerminalScrolling, BEL, BS,
-    CR, FF, LF,
+    FontSelectionState, HyperLink, MouseMode, OriginMode, ParserError, Position, TerminalScrolling,
+    BEL, BS, CR, FF, LF,
 };
 
 mod ansi_commands;
 mod constants;
 mod dcs;
+mod osc;
 pub mod sound;
 
 #[cfg(test)]
@@ -42,6 +43,8 @@ pub enum EngineState {
     ParseAnsiMusic(sound::MusicState),
 
     ReadAPS(ReadSTState),
+
+    ReadOSCSequence(ReadSTState),
 }
 
 #[repr(u8)]
@@ -123,6 +126,8 @@ pub struct Parser {
     saved_cursor_opt: Option<Caret>,
     pub(crate) parsed_numbers: Vec<i32>,
 
+    pub hyper_links: Vec<HyperLink>,
+
     current_escape_sequence: String,
 
     /*     current_sixel_color: i32,
@@ -137,9 +142,8 @@ pub struct Parser {
     dotted_note: bool,
 
     last_char: char,
-    pub aps_string: String,
     pub(crate) macros: HashMap<usize, String>,
-    pub dcs_string: String,
+    pub parse_string: String,
 }
 
 impl Default for Parser {
@@ -157,10 +161,10 @@ impl Default for Parser {
             cur_length: 4,
             cur_tempo: 120,
             dotted_note: false,
-            aps_string: String::new(),
+            parse_string: String::new(),
             macros: HashMap::new(),
-            dcs_string: String::new(),
             last_char: '\0',
+            hyper_links: Vec::new(),
         }
     }
 }
@@ -194,6 +198,12 @@ impl BufferParser for Parser {
                         '[' => {
                             self.state = EngineState::ReadCSISequence(true);
                             self.parsed_numbers.clear();
+                            Ok(CallbackAction::None)
+                        }
+                        ']' => {
+                            self.state = EngineState::ReadOSCSequence(ReadSTState::Default(0));
+                            self.parsed_numbers.clear();
+                            self.parse_string.clear();
                             Ok(CallbackAction::None)
                         }
                         '7' => {
@@ -235,7 +245,7 @@ impl BufferParser for Parser {
                         'P' => {
                             // DCS
                             self.state = EngineState::RecordDCS(ReadSTState::Default(0));
-                            self.dcs_string.clear();
+                            self.parse_string.clear();
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::None)
                         }
@@ -249,7 +259,7 @@ impl BufferParser for Parser {
                         '_' => {
                             // Application Program String
                             self.state = EngineState::ReadAPS(ReadSTState::Default(0));
-                            self.aps_string.clear();
+                            self.parse_string.clear();
                             Ok(CallbackAction::None)
                         }
 
@@ -271,7 +281,7 @@ impl BufferParser for Parser {
                         self.state = EngineState::ReadAPS(ReadSTState::GotEscape(*nesting_level));
                         return Ok(CallbackAction::None);
                     }
-                    self.aps_string.push(ch);
+                    self.parse_string.push(ch);
                 }
                 ReadSTState::GotEscape(nesting_level) => {
                     if ch == '\\' {
@@ -280,8 +290,8 @@ impl BufferParser for Parser {
                         return Ok(CallbackAction::None);
                     }
                     self.state = EngineState::ReadAPS(ReadSTState::Default(*nesting_level));
-                    self.aps_string.push('\x1B');
-                    self.aps_string.push(ch);
+                    self.parse_string.push('\x1B');
+                    self.parse_string.push(ch);
                 }
             },
             EngineState::ReadPossibleMacroInDCS(i) => {
@@ -366,7 +376,7 @@ impl BufferParser for Parser {
                     }
                     return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
                         "sequence: {} end char <ESC>{ch}",
-                        self.dcs_string
+                        self.parse_string
                     ))));
                 }
                 ReadSTState::Default(nesting_level) => match ch {
@@ -374,9 +384,29 @@ impl BufferParser for Parser {
                         self.state = EngineState::RecordDCS(ReadSTState::GotEscape(*nesting_level));
                     }
                     _ => {
-                        self.dcs_string.push(ch);
+                        self.parse_string.push(ch);
                     }
                 },
+            },
+
+            EngineState::ReadOSCSequence(dcs_state) => match dcs_state {
+                ReadSTState::Default(nesting_level) => {
+                    if ch == '\x1B' {
+                        self.state =
+                            EngineState::ReadOSCSequence(ReadSTState::GotEscape(*nesting_level));
+                        return Ok(CallbackAction::None);
+                    }
+                    self.parse_string.push(ch);
+                }
+                ReadSTState::GotEscape(nesting_level) => {
+                    if ch == '\\' {
+                        self.state = EngineState::Default;
+                        return self.parse_osc(buf, caret);
+                    }
+                    self.state = EngineState::ReadOSCSequence(ReadSTState::Default(*nesting_level));
+                    self.parse_string.push('\x1B');
+                    self.parse_string.push(ch);
+                }
             },
 
             EngineState::ReadCSICommand => {
@@ -1385,7 +1415,7 @@ impl Parser {
     }
 
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
-        println!("TODO execute APS command: {}", self.aps_string);
+        println!("TODO execute APS command: {}", self.parse_string);
     }
 }
 
