@@ -174,12 +174,12 @@ impl TerminalState {
     pub fn limit_caret_pos(&self, buf: &Buffer, caret: &mut Caret) {
         match self.origin_mode {
             crate::OriginMode::UpperLeftCorner => {
-                /*      let first = buf.get_first_visible_line();
-                let n = min(first + buf.get_buffer_height() - 1, max(first, caret.pos.y));
-                if n < caret.pos.y {
-                    println!("limit! {}", Backtrace::force_capture());
+                if buf.is_terminal_buffer {
+                    let first = buf.get_first_visible_line();
+                    let n = (first + buf.get_buffer_height() - 1).min(first.max(caret.pos.y));
+
+                    caret.pos.y = n;
                 }
-                caret.pos.y = n;*/
                 caret.pos.x = caret.pos.x.clamp(0, max(0, self.width - 1));
             }
             crate::OriginMode::WithinMargins => {

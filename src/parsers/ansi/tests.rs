@@ -1377,3 +1377,12 @@ fn test_ocs8_hyperlinks() {
         buf.layers[0].hyperlinks[0].url
     );
 }
+
+#[test]
+fn test_caret_bounds_bug() {
+    let mut parser = ansi::Parser::default();
+    let (_, caret) = create_buffer(&mut parser, b"\x1B[100;1H");
+
+    assert_eq!(0, caret.get_position().x);
+    assert_eq!(24, caret.get_position().y);
+}
