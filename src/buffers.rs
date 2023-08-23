@@ -300,8 +300,10 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn clear(&mut self) {
-        self.layers[0].clear();
-        self.layers[0].sixels.clear();
+        for layer in &mut self.layers {
+            layer.clear();
+            layer.sixels.clear();
+        }
         self.sixel_threads.clear();
     }
 

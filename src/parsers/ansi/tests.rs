@@ -1341,3 +1341,23 @@ fn test_reset_margins() {
     assert_eq!(None, buf.terminal_state.get_margins_left_right());
     assert_eq!(None, buf.terminal_state.get_margins_top_bottom());
 }
+
+#[test]
+fn test_clear_screen_size_reset() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[8;50;80t");
+    assert_eq!(0, buf.get_real_buffer_height());
+
+    for i in 0..50 {
+        update_buffer(
+            &mut buf,
+            &mut caret,
+            &mut parser,
+            format!("{i}\n\r").as_bytes(),
+        );
+    }
+    assert_eq!(50, buf.get_buffer_height());
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t\x1B[2J");
+    assert_eq!(25, buf.get_buffer_height());
+    assert_eq!(0, buf.get_real_buffer_height());
+}

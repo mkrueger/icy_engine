@@ -317,7 +317,6 @@ impl Buffer {
     pub fn clear_screen(&mut self, caret: &mut Caret) {
         caret.pos = Position::default();
         self.clear();
-        self.clear_buffer_down(caret);
     }
 
     fn clear_buffer_down(&mut self, caret: &Caret) {
