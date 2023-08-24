@@ -140,20 +140,8 @@ impl Caret {
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
-    pub fn right(&mut self, buf: &mut Buffer, num: i32) {
-        let buffer_width = buf.get_buffer_width();
-        if self.pos.x >= buffer_width {
-            self.pos.x += num;
-            self.pos.y += self.pos.x / buffer_width;
-            while self.pos.y >= buf.layers[0].lines.len() as i32 {
-                buf.layers[0]
-                    .lines
-                    .push(Line::with_capacity(buffer_width as usize));
-            }
-            self.pos.x %= buffer_width;
-        } else {
-            self.pos.x += num;
-        }
+    pub fn right(&mut self, buf: &Buffer, num: i32) {
+        self.pos.x = self.pos.x.saturating_add(num);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
 
@@ -225,6 +213,9 @@ impl Buffer {
             }
             layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, AttributedChar::default());
         }
+
+        self.set_char(0, caret.pos, ch);
+        caret.pos.x += 1;
         if caret.pos.x >= buffer_width {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self);
@@ -232,8 +223,6 @@ impl Buffer {
                 caret.pos.x -= 1;
             }
         }
-        self.set_char(0, caret.pos, ch);
-        caret.pos.x += 1;
     }
 
     /*fn get_buffer_last_line(&mut self) -> i32

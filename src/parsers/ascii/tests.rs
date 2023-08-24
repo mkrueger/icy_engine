@@ -29,7 +29,7 @@ fn test_full_line_height() {
     let mut vec = Vec::new();
     vec.resize(80, b'-');
     let (mut buf, mut caret) = create_buffer(&mut Parser::default(), &vec);
-    assert_eq!(1, buf.get_real_buffer_height());
+    assert_eq!(2, buf.get_real_buffer_height());
     vec.push(b'-');
     update_buffer(&mut buf, &mut caret, &mut Parser::default(), &vec);
     assert_eq!(3, buf.get_real_buffer_height());
@@ -41,7 +41,7 @@ fn test_emptylastline_height() {
     vec.resize(80, b'-');
     vec.resize(80 * 2, b' ');
     let (buf, _) = create_buffer(&mut Parser::default(), &vec);
-    assert_eq!(2, buf.get_real_buffer_height());
+    assert_eq!(3, buf.get_real_buffer_height());
 }
 
 /*
@@ -90,9 +90,9 @@ fn test_eol_line_break() {
         &mut Parser::default(),
         b"################################################################################\r\n",
     );
-    assert_eq!(Position::new(0, 1), caret.pos);
+    assert_eq!(Position::new(0, 2), caret.pos);
 
     update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"#");
-    assert_eq!(Position::new(1, 1), caret.pos);
-    assert_eq!(b'#', buf.get_char(Position::new(0, 1)).ch as u8);
+    assert_eq!(Position::new(1, 2), caret.pos);
+    assert_eq!(b'#', buf.get_char(Position::new(0, 2)).ch as u8);
 }
