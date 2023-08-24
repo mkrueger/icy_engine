@@ -83,10 +83,10 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             result.set_char(
                 0,
                 pos,
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     char::from_u32(char_code as u32).unwrap(),
                     TextAttribute::from_u8(attr, result.buffer_type),
-                )),
+                ),
             );
             advance_pos(x1, x2, &mut pos);
             rle_count -= 1;
@@ -134,16 +134,10 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let len = buf.get_real_buffer_height() * buf.get_buffer_width();
     let mut x = 0;
     while x < len {
-        let ch = buf
-            .get_char(Position::from_index(buf, x))
-            .unwrap_or_default();
+        let ch = buf.get_char(Position::from_index(buf, x));
         let mut rle_count = 1;
         while x + rle_count < len && rle_count < (u16::MAX) as i32 {
-            if ch
-                != buf
-                    .get_char(Position::from_index(buf, x + rle_count))
-                    .unwrap_or_default()
-            {
+            if ch != buf.get_char(Position::from_index(buf, x + rle_count)) {
                 break;
             }
             rle_count += 1;

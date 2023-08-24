@@ -1,6 +1,6 @@
 use super::BufferType;
 
-mod attribute {
+pub mod attribute {
     pub const NONE: u16 = 0;
     pub const BOLD: u16 = 0b0000_0000_0000_0001;
     pub const FAINT: u16 = 0b0000_0000_0000_0010;
@@ -13,13 +13,14 @@ mod attribute {
     pub const CROSSED_OUT: u16 = 0b0000_0000_1000_0000;
     pub const DOUBLE_HEIGHT: u16 = 0b0000_0001_0000_0000;
     pub const OVERLINE: u16 = 0b0000_0010_0000_0000;
+    pub const INVISIBLE: u16 = 0b1000_0000_0000_0000;
 }
 
 #[derive(Clone, Copy)]
 pub struct TextAttribute {
-    font_page: usize,
-    foreground_color: u32,
-    background_color: u32,
+    pub(super) font_page: usize,
+    pub(super) foreground_color: u32,
+    pub(super) background_color: u32,
     pub attr: u16,
 }
 

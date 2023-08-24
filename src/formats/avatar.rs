@@ -53,14 +53,14 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
         while pos.x < line_length {
             let mut repeat_count = 1;
-            let mut ch = buf.get_char(pos).unwrap_or_default();
+            let mut ch = buf.get_char(pos);
 
             while pos.x < buf.get_buffer_width() - 3
-                && ch == buf.get_char(pos + Position::new(1, 0)).unwrap_or_default()
+                && ch == buf.get_char(pos + Position::new(1, 0))
             {
                 repeat_count += 1;
                 pos.x += 1;
-                ch = buf.get_char(pos).unwrap_or_default();
+                ch = buf.get_char(pos);
             }
 
             if first_char || ch.attribute != last_attr {
@@ -147,26 +147,11 @@ mod tests {
         .unwrap();
         assert_eq!(1, buf.get_real_buffer_height());
         assert_eq!(5, buf.get_real_buffer_width());
-        assert_eq!(
-            b'X',
-            buf.get_char(Position::new(0, 0)).unwrap_or_default().ch as u8
-        );
-        assert_eq!(
-            b'b',
-            buf.get_char(Position::new(1, 0)).unwrap_or_default().ch as u8
-        );
-        assert_eq!(
-            b'b',
-            buf.get_char(Position::new(2, 0)).unwrap_or_default().ch as u8
-        );
-        assert_eq!(
-            b'b',
-            buf.get_char(Position::new(3, 0)).unwrap_or_default().ch as u8
-        );
-        assert_eq!(
-            b'X',
-            buf.get_char(Position::new(4, 0)).unwrap_or_default().ch as u8
-        );
+        assert_eq!(b'X', buf.get_char(Position::new(0, 0)).ch as u8);
+        assert_eq!(b'b', buf.get_char(Position::new(1, 0)).ch as u8);
+        assert_eq!(b'b', buf.get_char(Position::new(2, 0)).ch as u8);
+        assert_eq!(b'b', buf.get_char(Position::new(3, 0)).ch as u8);
+        assert_eq!(b'X', buf.get_char(Position::new(4, 0)).ch as u8);
     }
 
     #[test]

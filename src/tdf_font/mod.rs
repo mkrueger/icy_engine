@@ -161,7 +161,7 @@ impl TheDrawFont {
                 cur.x = pos.x;
                 cur.y += 1;
             } else {
-                let dos_char = match self.font_type {
+                let attributed_char = match self.font_type {
                     TheDrawFontType::Outline => AttributedChar::new(
                         unsafe {
                             char::from_u32_unchecked(TheDrawFont::transform_outline(
@@ -188,7 +188,7 @@ impl TheDrawFont {
                     && cur.x < buffer.get_buffer_width()
                     && cur.y < buffer.get_real_buffer_height()
                 {
-                    buffer.set_char(layer, cur, Some(dos_char));
+                    buffer.set_char(layer, cur, attributed_char);
                 }
                 cur.x += 1;
             }

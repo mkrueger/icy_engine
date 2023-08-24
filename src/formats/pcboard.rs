@@ -29,7 +29,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         let line_length = buf.get_line_length(pos.y);
 
         while pos.x < line_length {
-            let ch = buf.get_char(pos).unwrap_or_default();
+            let ch = buf.get_char(pos);
 
             if first_char || ch.attribute != last_attr {
                 result.extend_from_slice(b"@X");

@@ -57,7 +57,7 @@ fn test_vt() {
 fn test_ff() {
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"test\x0C");
     assert_eq!(Position::new(0, 0), caret.pos);
-    assert_eq!(' ', buf.get_char(Position::new(0, 0)).unwrap().ch);
+    assert_eq!(' ', buf.get_char(Position::new(0, 0)).ch);
 }
 
 #[test]
@@ -113,10 +113,7 @@ fn test_line_lose_color_bug() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BAfoo\x1BBbar\x1E\x1E");
     assert_eq!(
         1,
-        buf.get_char(Position::new(1, 0))
-            .unwrap()
-            .attribute
-            .get_foreground()
+        buf.get_char(Position::new(1, 0)).attribute.get_foreground()
     );
 }
 
@@ -126,7 +123,7 @@ fn testpage_bug_1() {
         &mut Parser::default(),
         b"\x1BT\x1BZ\x1B^s\x1BQ\x1BY\x1BU\x1B@\x1BU\x1BA\x1BM",
     );
-    assert_eq!(' ', buf.get_char(Position::new(10, 0)).unwrap().ch);
+    assert_eq!(' ', buf.get_char(Position::new(10, 0)).ch);
 }
 
 #[test]
@@ -135,10 +132,7 @@ fn testpage_bug_2() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BM \x1BE\x1B]\x1BBT");
     assert_eq!(
         5,
-        buf.get_char(Position::new(3, 0))
-            .unwrap()
-            .attribute
-            .get_background()
+        buf.get_char(Position::new(3, 0)).attribute.get_background()
     );
 }
 
@@ -148,17 +142,11 @@ fn testpage_bug_3() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BM \x1BE\x1B]\x1BBT\x1B\\X");
     assert_eq!(
         0,
-        buf.get_char(Position::new(6, 0))
-            .unwrap()
-            .attribute
-            .get_background()
+        buf.get_char(Position::new(6, 0)).attribute.get_background()
     );
     assert_eq!(
         0,
-        buf.get_char(Position::new(7, 0))
-            .unwrap()
-            .attribute
-            .get_background()
+        buf.get_char(Position::new(7, 0)).attribute.get_background()
     );
 }
 
@@ -170,11 +158,7 @@ fn testpage_bug_4() {
         b"\x1B^\x1BRs\x1BV\x1BX\x1BS\x1B@\x1BW\x1BX\x1BA05",
     );
     for i in 0..10 {
-        assert!(!buf
-            .get_char(Position::new(i, 0))
-            .unwrap()
-            .attribute
-            .is_concealed());
+        assert!(!buf.get_char(Position::new(i, 0)).attribute.is_concealed());
     }
 }
 
@@ -185,10 +169,7 @@ fn test_cr_at_eol() {
     for x in 1..buf.get_buffer_width() {
         assert_eq!(
             1,
-            buf.get_char(Position::new(x, 0))
-                .unwrap()
-                .attribute
-                .get_foreground(),
+            buf.get_char(Position::new(x, 0)).attribute.get_foreground(),
             "wrong color at {x}"
         );
     }
@@ -200,10 +181,7 @@ fn test_lf_fill_bg_bug() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BD\x1B] \x1B\\\r\n");
     assert_eq!(
         0,
-        buf.get_char(Position::new(5, 0))
-            .unwrap()
-            .attribute
-            .get_background()
+        buf.get_char(Position::new(5, 0)).attribute.get_background()
     );
 }
 
@@ -214,11 +192,10 @@ fn test_drop_shadow() {
         &mut Parser::default(),
         b"\x1B^\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F",
     );
-    assert_eq!('«', buf.get_char(Position::new(18, 0)).unwrap().ch);
+    assert_eq!('«', buf.get_char(Position::new(18, 0)).ch);
     assert_eq!(
         0,
         buf.get_char(Position::new(18, 0))
-            .unwrap()
             .attribute
             .get_background()
     );
@@ -231,7 +208,6 @@ fn test_color_on_clreol() {
     assert_eq!(
         2,
         buf.get_char(Position::new(3, buf.get_buffer_height() - 1))
-            .unwrap()
             .attribute
             .get_foreground()
     );

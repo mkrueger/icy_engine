@@ -37,7 +37,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
 
         while pos.x < line_length {
             let mut space_count = 0;
-            let mut ch = buf.get_char(pos).unwrap_or_default();
+            let mut ch = buf.get_char(pos);
             let mut cur_attr = ch.attribute;
 
             // doesn't work well with unix terminal - background color needs to be painted.
@@ -48,7 +48,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                 {
                     space_count += 1;
                     pos.x += 1;
-                    ch = buf.get_char(pos).unwrap_or_default();
+                    ch = buf.get_char(pos);
                 }
             }
 

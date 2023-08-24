@@ -59,7 +59,10 @@ impl Caret {
         self.pos.y += 1;
         while self.pos.y >= buf.layers[0].lines.len() as i32 {
             let len = buf.layers[0].lines.len();
-            buf.layers[0].lines.insert(len, Line::new());
+            let buffer_width = buf.get_buffer_width() as usize;
+            buf.layers[0]
+                .lines
+                .insert(len, Line::with_capacity(buffer_width));
         }
         if !buf.is_terminal_buffer {
             return;
@@ -96,7 +99,7 @@ impl Caret {
     /// (backspace, BS, \b, ^H), may overprint the previous character
     pub fn bs(&mut self, buf: &mut Buffer) {
         self.pos.x = max(0, self.pos.x - 1);
-        buf.set_char(0, self.pos, Some(AttributedChar::new(' ', self.attribute)));
+        buf.set_char(0, self.pos, AttributedChar::new(' ', self.attribute));
     }
 
     pub fn del(&mut self, buf: &mut Buffer) {
@@ -113,7 +116,7 @@ impl Caret {
             let i = self.pos.x as usize;
             if i < line.chars.len() {
                 line.chars
-                    .insert(i, Some(AttributedChar::new(' ', self.attribute)));
+                    .insert(i, AttributedChar::new(' ', self.attribute));
             }
         }
     }
@@ -126,7 +129,7 @@ impl Caret {
         }
         if let Some(line) = buf.layers[0].lines.get_mut(self.pos.y as usize) {
             for _ in 0..number {
-                line.set_char(i as i32, Some(AttributedChar::new(' ', self.attribute)));
+                line.set_char(i as i32, AttributedChar::new(' ', self.attribute));
                 i += 1;
             }
         }
@@ -139,13 +142,16 @@ impl Caret {
 
     pub fn right(&mut self, buf: &mut Buffer, num: i32) {
         self.pos.x += num;
-        if self.pos.x > buf.get_buffer_width()
+        let buffer_width = buf.get_buffer_width();
+        if self.pos.x > buffer_width
         /*&& self.pos.y < buf.get_last_editable_line() */
         {
-            self.pos.y += self.pos.x / buf.get_buffer_width();
+            self.pos.y += self.pos.x / buffer_width;
             while self.pos.y >= buf.layers[0].lines.len() as i32 {
                 let len = buf.layers[0].lines.len();
-                buf.layers[0].lines.insert(len, Line::new());
+                buf.layers[0]
+                    .lines
+                    .insert(len, Line::with_capacity(buffer_width as usize));
             }
             self.pos.x %= buf.get_buffer_width();
         }
@@ -209,15 +215,18 @@ impl Buffer {
     }
 
     fn print_char(&mut self, caret: &mut Caret, ch: AttributedChar) {
+        let buffer_width = self.get_buffer_width();
         if caret.insert_mode {
             let layer = &mut self.layers[0];
             if layer.lines.len() < caret.pos.y as usize + 1 {
-                layer.lines.resize(caret.pos.y as usize + 1, Line::new());
+                layer.lines.resize(
+                    caret.pos.y as usize + 1,
+                    Line::with_capacity(buffer_width as usize),
+                );
             }
-            layer.lines[caret.pos.y as usize]
-                .insert_char(caret.pos.x, Some(AttributedChar::default()));
+            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, AttributedChar::default());
         }
-        if caret.pos.x >= self.get_buffer_width() {
+        if caret.pos.x >= buffer_width {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self);
             } else {
@@ -225,7 +234,7 @@ impl Buffer {
             }
         }
 
-        self.set_char(0, caret.pos, Some(ch));
+        self.set_char(0, caret.pos, ch);
 
         caret.pos.x += 1;
     }
@@ -252,7 +261,7 @@ impl Buffer {
                     let ch = layer.get_char(Position::new(x, y + 1));
                     layer.set_char(Position::new(x, y), ch);
                 });
-                layer.set_char(Position::new(x, end_line), Some(AttributedChar::default()));
+                layer.set_char(Position::new(x, end_line), AttributedChar::default());
             }
         }
     }
@@ -270,10 +279,7 @@ impl Buffer {
                     let ch = layer.get_char(Position::new(x, y - 1));
                     layer.set_char(Position::new(x, y), ch);
                 });
-                layer.set_char(
-                    Position::new(x, start_line),
-                    Some(AttributedChar::default()),
-                );
+                layer.set_char(Position::new(x, start_line), AttributedChar::default());
             }
         }
     }
@@ -289,8 +295,7 @@ impl Buffer {
             for i in start_line..=end_line {
                 let line = &mut layer.lines[i as usize];
                 if line.chars.len() > start_column {
-                    line.chars
-                        .insert(end_column, Some(AttributedChar::default()));
+                    line.chars.insert(end_column, AttributedChar::default());
                     line.chars.remove(start_column);
                 }
             }
@@ -308,8 +313,7 @@ impl Buffer {
             for i in start_line..=end_line {
                 let line = &mut layer.lines[i as usize];
                 if line.chars.len() > start_column {
-                    line.chars
-                        .insert(start_column, Some(AttributedChar::default()));
+                    line.chars.insert(start_column, AttributedChar::default());
                     line.chars.remove(end_column + 1);
                 }
             }
@@ -330,7 +334,7 @@ impl Buffer {
 
         for y in pos.y..self.get_last_visible_line() {
             for x in 0..self.get_buffer_width() {
-                self.set_char(0, Position::new(x, y), Some(ch));
+                self.set_char(0, Position::new(x, y), ch);
             }
         }
     }
@@ -344,7 +348,7 @@ impl Buffer {
 
         for y in self.get_first_visible_line()..pos.y {
             for x in 0..self.get_buffer_width() {
-                self.set_char(0, Position::new(x, y), Some(ch));
+                self.set_char(0, Position::new(x, y), ch);
             }
         }
     }
@@ -357,7 +361,7 @@ impl Buffer {
         };
         for x in 0..self.get_buffer_width() {
             pos.x = x;
-            self.set_char(0, pos, Some(ch));
+            self.set_char(0, pos, ch);
         }
     }
 
@@ -369,7 +373,7 @@ impl Buffer {
         };
         for x in pos.x..self.get_buffer_width() {
             pos.x = x;
-            self.set_char(0, pos, Some(ch));
+            self.set_char(0, pos, ch);
         }
     }
 
@@ -381,7 +385,7 @@ impl Buffer {
         };
         for x in 0..pos.x {
             pos.x = x;
-            self.set_char(0, pos, Some(ch));
+            self.set_char(0, pos, ch);
         }
     }
 
@@ -391,7 +395,8 @@ impl Buffer {
         }
         self.layers[0].remove_line(line);
         if let Some((_, end)) = self.terminal_state.get_margins_top_bottom() {
-            self.layers[0].insert_line(end, Line::new());
+            let buffer_width = self.get_buffer_width() as usize;
+            self.layers[0].insert_line(end, Line::with_capacity(buffer_width));
         }
     }
 
@@ -401,7 +406,8 @@ impl Buffer {
                 self.layers[0].lines.remove(end as usize);
             }
         }
-        self.layers[0].insert_line(line, Line::new());
+        let buffer_width = self.get_buffer_width() as usize;
+        self.layers[0].insert_line(line, Line::with_capacity(buffer_width));
     }
 }
 

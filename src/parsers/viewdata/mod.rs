@@ -56,16 +56,16 @@ impl Parser {
         let sx = caret.get_position().x;
         let sy = caret.get_position().y;
 
-        let attr = buf.get_char(Position::new(sx, sy)).unwrap().attribute;
+        let attr = buf.get_char(Position::new(sx, sy)).attribute;
 
         for x in sx..buf.get_buffer_width() {
             let p = Position::new(x, sy);
-            let mut ch = buf.get_char(p).unwrap();
+            let mut ch = buf.get_char(p);
             if ch.attribute != attr {
                 break;
             }
             ch.attribute = caret.attribute;
-            buf.set_char(0, p, Some(ch));
+            buf.set_char(0, p, ch);
         }
     }
 
@@ -75,7 +75,7 @@ impl Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: AttributedChar) {
-        buf.set_char(0, caret.pos, Some(ch));
+        buf.set_char(0, caret.pos, ch);
         self.caret_right(buf, caret);
     }
 

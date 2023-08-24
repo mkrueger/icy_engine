@@ -112,7 +112,7 @@ impl std::fmt::Display for Buffer {
         for y in 0..self.get_real_buffer_height() {
             str.extend(format!("{y:3}: ").chars());
             for x in 0..self.get_buffer_width() {
-                let ch = self.get_char_xy(x, y).unwrap_or_default();
+                let ch = self.get_char_xy(x, y);
                 str.push(p.convert_to_unicode(ch.ch));
             }
             str.push('\n');
@@ -436,41 +436,35 @@ impl Buffer {
         self.font_table[&0].size
     }
 
-    pub fn set_char(&mut self, layer: usize, pos: Position, dos_char: Option<AttributedChar>) {
+    pub fn set_char(&mut self, layer: usize, pos: Position, attributed_char: AttributedChar) {
         if layer >= self.layers.len() {
             return;
         }
 
         let cur_layer = &mut self.layers[layer];
-        cur_layer.set_char(pos, dos_char);
+        cur_layer.set_char(pos, attributed_char);
     }
 
-    pub fn set_char_xy(&mut self, layer: usize, x: i32, y: i32, dos_char: Option<AttributedChar>) {
-        self.set_char(layer, Position::new(x, y), dos_char);
+    pub fn set_char_xy(&mut self, layer: usize, x: i32, y: i32, attributed_char: AttributedChar) {
+        self.set_char(layer, Position::new(x, y), attributed_char);
     }
 
-    pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> Option<AttributedChar> {
-        if let Some(layer) = self.layers.get(layer) {
-            layer.get_char(pos)
-        } else {
-            None
-        }
+    pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> AttributedChar {
+        self.layers[layer].get_char(pos)
     }
 
-    pub fn get_char_from_layer_xy(&self, layer: usize, x: i32, y: i32) -> Option<AttributedChar> {
+    pub fn get_char_from_layer_xy(&self, layer: usize, x: i32, y: i32) -> AttributedChar {
         self.get_char_from_layer(layer, Position::new(x, y))
     }
 
-    pub fn get_char_xy(&self, x: i32, y: i32) -> Option<AttributedChar> {
+    pub fn get_char_xy(&self, x: i32, y: i32) -> AttributedChar {
         self.get_char(Position::new(x, y))
     }
 
-    pub fn get_char(&self, pos: Position) -> Option<AttributedChar> {
+    pub fn get_char(&self, pos: Position) -> AttributedChar {
         if let Some(overlay) = &self.overlay_layer {
             let ch = overlay.get_char(pos);
-            if ch.is_some() {
-                return ch;
-            }
+            return ch;
         }
 
         for i in 0..self.layers.len() {
@@ -479,12 +473,11 @@ impl Buffer {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
-            if ch.is_some() {
+            if ch.is_visible() {
                 return ch;
             }
         }
-
-        None
+        AttributedChar::invisible()
     }
 
     /// .
@@ -708,18 +701,17 @@ impl Buffer {
         let mut pos = Position::new(0, line);
         for x in 0..self.get_buffer_width() {
             pos.x = x;
-            if let Some(ch) = self.get_char(pos) {
-                /*if x > 0 && ch.is_transparent() {
-                    if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
-                        if prev.attribute.get_background() > 0 {
-                            length = x + 1;
-                        }
-
+            let ch = self.get_char(pos);
+            /*if x > 0 && ch.is_transparent() {
+                if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
+                    if prev.attribute.get_background() > 0 {
+                        length = x + 1;
                     }
-                } else */
-                if !ch.is_transparent() {
-                    length = x + 1;
+
                 }
+            } else */
+            if !ch.is_transparent() {
+                length = x + 1;
             }
         }
         length

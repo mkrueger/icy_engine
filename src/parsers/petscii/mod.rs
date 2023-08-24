@@ -143,10 +143,9 @@ impl Parser {
         self.shift_mode = shift_mode;
         for y in 0..buf.get_buffer_height() {
             for x in 0..buf.get_buffer_width() {
-                if let Some(ch) = &mut buf.get_char(Position::new(x, y)) {
-                    ch.set_font_page(usize::from(shift_mode));
-                    buf.set_char(0, Position::new(x, y), Some(*ch));
-                }
+                let mut ch = buf.get_char(Position::new(x, y));
+                ch.set_font_page(usize::from(shift_mode));
+                buf.set_char(0, Position::new(x, y), ch);
             }
         }
     }

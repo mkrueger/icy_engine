@@ -467,7 +467,7 @@ impl Buffer {
                 } else {
                     self.buffer_type = BufferType::LegacyDos;
                 }
-                // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                // self.font = BitFont::from_name(&t_info_str.to_string());
             }
             SauceDataType::XBin => {
                 self.set_buffer_width(t_info1);
@@ -488,7 +488,7 @@ impl Buffer {
                         } else {
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                        // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                        // self.font = BitFont::from_name(&t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSI => {
                         self.set_buffer_width(t_info1);
@@ -501,7 +501,7 @@ impl Buffer {
                         } else {
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                        // self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                        // self.font = BitFont::from_name(&t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
                         self.set_buffer_width(t_info1);
@@ -514,7 +514,7 @@ impl Buffer {
                         } else {
                             self.buffer_type = BufferType::LegacyDos;
                         }
-                        //  self.font = BitFont::from_name(&t_info_str.to_string()).unwrap_or_default();
+                        //  self.font = BitFont::from_name(&t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_PCBOARD => {
                         self.set_buffer_width(t_info1);

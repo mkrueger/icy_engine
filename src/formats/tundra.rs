@@ -104,10 +104,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         result.set_char(
             0,
             pos,
-            Some(AttributedChar::new(
-                char::from_u32(cmd as u32).unwrap(),
-                attr,
-            )),
+            AttributedChar::new(char::from_u32(cmd as u32).unwrap(), attr),
         );
         advance_pos(result, &mut pos);
     }
@@ -123,7 +120,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         let mut line = crate::Line::new();
         line.chars.resize(
             result.get_buffer_width() as usize,
-            Some(AttributedChar::default()),
+            AttributedChar::default(),
         );
         background.lines.push(line);
     }
@@ -166,13 +163,12 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         for x in 0..buf.get_buffer_width() {
             let pos = Position::new(x, y);
             let ch = buf.get_char(pos);
-            if ch.is_none() {
+            if !ch.is_visible() {
                 if skip_pos.is_none() {
                     skip_pos = Some(pos);
                 }
                 continue;
             }
-            let ch = ch.unwrap();
             if ch.is_transparent() && attr.get_background() == 0 {
                 if skip_pos.is_none() {
                     skip_pos = Some(pos);

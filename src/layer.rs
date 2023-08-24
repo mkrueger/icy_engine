@@ -55,7 +55,7 @@ impl Layer {
             let line = &layer.lines[y];
             for x in 0..line.chars.len() {
                 let ch = line.chars[x];
-                if ch.is_some() {
+                if ch.is_visible() {
                     self.set_char(Position::new(x as i32, y as i32), ch);
                 }
             }
@@ -66,7 +66,7 @@ impl Layer {
         self.lines.clear();
     }
 
-    pub fn set_char(&mut self, pos: Position, dos_char: Option<AttributedChar>) {
+    pub fn set_char(&mut self, pos: Position, attributed_char: AttributedChar) {
         let pos = pos - self.offset;
         if pos.x < 0 || pos.y < 0 || self.is_locked || !self.is_visible {
             return;
@@ -75,22 +75,22 @@ impl Layer {
             self.lines.resize(pos.y as usize + 1, Line::new());
         }
         let cur_line = &mut self.lines[pos.y as usize];
-        cur_line.set_char(pos.x, dos_char);
+        cur_line.set_char(pos.x, attributed_char);
     }
 
-    pub fn get_char(&self, pos: Position) -> Option<AttributedChar> {
+    pub fn get_char(&self, pos: Position) -> AttributedChar {
         let pos = pos - self.offset;
         let y = pos.y as usize;
         if y < self.lines.len() {
             let cur_line = &self.lines[y];
-            if let Some(Some(ch)) = cur_line.chars.get(pos.x as usize) {
-                return Some(*ch);
+            if pos.x < cur_line.chars.len() as i32 {
+                return cur_line.chars[pos.x as usize];
             }
         }
         if self.is_transparent {
-            None
+            AttributedChar::invisible()
         } else {
-            Some(AttributedChar::default())
+            AttributedChar::default()
         }
     }
 
@@ -149,15 +149,27 @@ mod tests {
     fn test_get_char() {
         let mut layer = Layer::new();
         let mut line = Line::new();
-        line.set_char(10, Some(AttributedChar::new('a', TextAttribute::default())));
+        line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
         layer.insert_line(0, line);
 
-        assert_eq!(None, layer.get_char(Position::new(-1, -1)));
-        assert_eq!(None, layer.get_char(Position::new(1000, 1000)));
-        assert_eq!('a', layer.get_char(Position::new(10, 0)).unwrap().ch);
-        assert_eq!(None, layer.get_char(Position::new(9, 0)));
-        assert_eq!(None, layer.get_char(Position::new(11, 0)));
+        assert_eq!(
+            AttributedChar::invisible(),
+            layer.get_char(Position::new(-1, -1))
+        );
+        assert_eq!(
+            AttributedChar::invisible(),
+            layer.get_char(Position::new(1000, 1000))
+        );
+        assert_eq!('a', layer.get_char(Position::new(10, 0)).ch);
+        assert_eq!(
+            AttributedChar::invisible(),
+            layer.get_char(Position::new(9, 0))
+        );
+        assert_eq!(
+            AttributedChar::invisible(),
+            layer.get_char(Position::new(11, 0))
+        );
     }
 
     #[test]
@@ -165,26 +177,26 @@ mod tests {
         let mut layer = Layer::new();
         layer.is_transparent = false;
         let mut line = Line::new();
-        line.set_char(10, Some(AttributedChar::new('a', TextAttribute::default())));
+        line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
         layer.insert_line(0, line);
 
         assert_eq!(
             AttributedChar::default(),
-            layer.get_char(Position::new(-1, -1)).unwrap()
+            layer.get_char(Position::new(-1, -1))
         );
         assert_eq!(
             AttributedChar::default(),
-            layer.get_char(Position::new(1000, 1000)).unwrap()
+            layer.get_char(Position::new(1000, 1000))
         );
-        assert_eq!('a', layer.get_char(Position::new(10, 0)).unwrap().ch);
+        assert_eq!('a', layer.get_char(Position::new(10, 0)).ch);
+        assert_eq!(
+            AttributedChar::invisible(),
+            layer.get_char(Position::new(9, 0))
+        );
         assert_eq!(
             AttributedChar::default(),
-            layer.get_char(Position::new(9, 0)).unwrap()
-        );
-        assert_eq!(
-            AttributedChar::default(),
-            layer.get_char(Position::new(11, 0)).unwrap()
+            layer.get_char(Position::new(11, 0))
         );
     }
 
@@ -193,10 +205,10 @@ mod tests {
         let mut layer = Layer::new();
         let mut line = Line::new();
         line.chars
-            .push(Some(AttributedChar::new('a', TextAttribute::default())));
+            .push(AttributedChar::new('a', TextAttribute::default()));
         layer.insert_line(10, line);
 
-        assert_eq!('a', layer.lines[10].chars[0].unwrap().ch);
+        assert_eq!('a', layer.lines[10].chars[0].ch);
         assert_eq!(11, layer.lines.len());
 
         layer.insert_line(11, Line::new());

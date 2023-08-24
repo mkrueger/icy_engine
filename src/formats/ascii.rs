@@ -17,7 +17,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     while pos.y < height {
         let line_length = buf.get_line_length(pos.y);
         while pos.x < line_length {
-            let ch = buf.get_char(pos).unwrap_or_default();
+            let ch = buf.get_char(pos);
             result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
             pos.x += 1;
         }

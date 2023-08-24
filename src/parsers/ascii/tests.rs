@@ -94,5 +94,5 @@ fn test_eol_line_break() {
 
     update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"#");
     assert_eq!(Position::new(1, 1), caret.pos);
-    assert_eq!(b'#', buf.get_char(Position::new(0, 1)).unwrap().ch as u8);
+    assert_eq!(b'#', buf.get_char(Position::new(0, 1)).ch as u8);
 }

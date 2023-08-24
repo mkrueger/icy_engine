@@ -16,6 +16,20 @@ impl Default for AttributedChar {
 }
 
 impl AttributedChar {
+    // TODO: invisible char
+    pub fn invisible() -> Self {
+        AttributedChar {
+            ch: ' ',
+            attribute: super::TextAttribute {
+                attr: crate::attribute::INVISIBLE,
+                ..Default::default()
+            },
+        }
+    }
+    pub fn is_visible(&self) -> bool {
+        self.attribute.attr != crate::attribute::INVISIBLE
+    }
+
     #[must_use]
     pub fn new(ch: char, attribute: TextAttribute) -> Self {
         AttributedChar { ch, attribute }

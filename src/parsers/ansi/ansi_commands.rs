@@ -888,7 +888,8 @@ impl Parser {
         let mut crc16 = 0;
         for y in pt..pb {
             for x in pl..pr {
-                if let Some(ch) = buf.get_char_xy(x, y) {
+                let ch = buf.get_char_xy(x, y);
+                if ch.is_visible() {
                     crc16 = update_crc16(crc16, ch.ch as u8);
                     for b in ch.attribute.attr.to_be_bytes() {
                         crc16 = update_crc16(crc16, b);
@@ -1107,7 +1108,7 @@ impl Parser {
         let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 1);
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                buf.set_char_xy(0, x, y, Some(AttributedChar::new(ch, caret.attribute)));
+                buf.set_char_xy(0, x, y, AttributedChar::new(ch, caret.attribute));
             }
         }
 
@@ -1169,7 +1170,7 @@ impl Parser {
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                buf.set_char_xy(0, x, y, Some(AttributedChar::default()));
+                buf.set_char_xy(0, x, y, AttributedChar::default());
             }
         }
 
@@ -1213,8 +1214,8 @@ impl Parser {
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                let ch = buf.get_char_xy(x, y).unwrap_or_default();
-                buf.set_char_xy(0, x, y, Some(AttributedChar::new(' ', ch.attribute)));
+                let ch = buf.get_char_xy(x, y);
+                buf.set_char_xy(0, x, y, AttributedChar::new(' ', ch.attribute));
             }
         }
 

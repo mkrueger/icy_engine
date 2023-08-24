@@ -216,10 +216,10 @@ pub fn read_mdf(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                                 };
                                 layer.set_char(
                                     pos,
-                                    Some(AttributedChar::new(
+                                    AttributedChar::new(
                                         char::from_u32(char_code as u32).unwrap(),
                                         attribute,
-                                    )),
+                                    ),
                                 );
                                 len -= 1;
                                 i += 1;
@@ -286,10 +286,7 @@ fn decompress(
                     };
                     result.set_char(
                         pos,
-                        Some(AttributedChar::new(
-                            char::from_u32(char_code as u32).unwrap(),
-                            attribute,
-                        )),
+                        AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute),
                     );
                     i += 1;
                 }
@@ -304,10 +301,7 @@ fn decompress(
                     };
                     result.set_char(
                         pos,
-                        Some(AttributedChar::new(
-                            char::from_u32(char_code as u32).unwrap(),
-                            attribute,
-                        )),
+                        AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute),
                     );
                     i += 1;
                 }
@@ -322,10 +316,7 @@ fn decompress(
                     };
                     result.set_char(
                         pos,
-                        Some(AttributedChar::new(
-                            char::from_u32(char_code as u32).unwrap(),
-                            attribute,
-                        )),
+                        AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute),
                     );
                     i += 1;
                 }
@@ -334,10 +325,8 @@ fn decompress(
                 let char_code = read_char(bytes, o, buffer_type.use_extended_font());
                 let attribute = decode_attribute(bytes, o, attr_mode, buffer_type);
 
-                let rep_ch = Some(AttributedChar::new(
-                    char::from_u32(char_code as u32).unwrap(),
-                    attribute,
-                ));
+                let rep_ch =
+                    AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute);
 
                 for _ in 0..repeat_counter {
                     let pos = Position {
@@ -519,18 +508,20 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
                         x: j % (width as i32),
                         y: j / (width as i32),
                     });
-                    if ch.is_some() != n.is_some() || ch.is_none() != n.is_none() {
+                    if ch.is_visible() != n.is_visible()
+                        || ch.is_transparent() != n.is_transparent()
+                    {
                         break;
                     }
                     rle_count += 1;
                     j += 1;
                 }
-                if ch.is_none() {
+                if !ch.is_visible() {
                     rle_count |= 0b1000_0000_0000_0000;
                 }
                 result.extend(u16::to_be_bytes(rle_count as u16));
 
-                if ch.is_some() {
+                if ch.is_visible() {
                     if flags & LAYER_COMPRESSED == LAYER_COMPRESSED {
                         compress_greedy(
                             &mut result,
@@ -544,12 +535,10 @@ pub fn convert_to_mdf(buf: &Buffer) -> io::Result<Vec<u8>> {
                         i += rle_count;
                     } else {
                         while rle_count > 0 {
-                            let ch = layer
-                                .get_char(Position {
-                                    x: i % (width as i32),
-                                    y: i / (width as i32),
-                                })
-                                .unwrap();
+                            let ch = layer.get_char(Position {
+                                x: i % (width as i32),
+                                y: i / (width as i32),
+                            });
                             if buf.has_fonts() {
                                 result.push(((ch.ch as u16) >> 8) as u8);
                             }
@@ -647,20 +636,16 @@ fn compress_greedy(
     let mut run_ch = AttributedChar::default();
     let len = i + rle_count;
     for x in i..len {
-        let cur = layer
-            .get_char(Position {
-                x: x % (width as i32),
-                y: x / (width as i32),
-            })
-            .unwrap();
+        let cur = layer.get_char(Position {
+            x: x % (width as i32),
+            y: x / (width as i32),
+        });
 
         let next = if x < len - 1 {
-            layer
-                .get_char(Position {
-                    x: (x + 1) % (width as i32),
-                    y: (x + 1) / (width as i32),
-                })
-                .unwrap()
+            layer.get_char(Position {
+                x: (x + 1) % (width as i32),
+                y: (x + 1) / (width as i32),
+            })
         } else {
             AttributedChar::default()
         };
@@ -675,12 +660,10 @@ fn compress_greedy(
                         if x < len - 2 && cur == next {
                             end_run = true;
                         } else if x < len - 2 {
-                            let next2 = layer
-                                .get_char(Position {
-                                    x: (x + 2) % (width as i32),
-                                    y: (x + 2) / (width as i32),
-                                })
-                                .unwrap();
+                            let next2 = layer.get_char(Position {
+                                x: (x + 2) % (width as i32),
+                                y: (x + 2) / (width as i32),
+                            });
                             end_run = cur.ch == next.ch && cur.ch == next2.ch
                                 || cur.attribute == next.attribute
                                     && cur.attribute == next2.attribute;
@@ -690,18 +673,14 @@ fn compress_greedy(
                         if cur.ch != run_ch.ch {
                             end_run = true;
                         } else if x < len - 3 {
-                            let next2 = layer
-                                .get_char(Position {
-                                    x: (x + 2) % (width as i32),
-                                    y: (x + 2) / (width as i32),
-                                })
-                                .unwrap();
-                            let next3 = layer
-                                .get_char(Position {
-                                    x: (x + 3) % (width as i32),
-                                    y: (x + 3) / (width as i32),
-                                })
-                                .unwrap();
+                            let next2 = layer.get_char(Position {
+                                x: (x + 2) % (width as i32),
+                                y: (x + 2) / (width as i32),
+                            });
+                            let next3 = layer.get_char(Position {
+                                x: (x + 3) % (width as i32),
+                                y: (x + 3) / (width as i32),
+                            });
                             end_run = cur == next && cur == next2 && cur == next3;
                         }
                     }
@@ -709,18 +688,14 @@ fn compress_greedy(
                         if cur.attribute != run_ch.attribute {
                             end_run = true;
                         } else if x < len - 3 {
-                            let next2 = layer
-                                .get_char(Position {
-                                    x: (x + 2) % (width as i32),
-                                    y: (x + 2) / (width as i32),
-                                })
-                                .unwrap();
-                            let next3 = layer
-                                .get_char(Position {
-                                    x: (x + 3) % (width as i32),
-                                    y: (x + 3) / (width as i32),
-                                })
-                                .unwrap();
+                            let next2 = layer.get_char(Position {
+                                x: (x + 2) % (width as i32),
+                                y: (x + 2) / (width as i32),
+                            });
+                            let next3 = layer.get_char(Position {
+                                x: (x + 3) % (width as i32),
+                                y: (x + 3) / (width as i32),
+                            });
                             end_run = cur == next && cur == next2 && cur == next3;
                         }
                     }

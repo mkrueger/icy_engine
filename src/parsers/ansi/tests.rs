@@ -1,4 +1,6 @@
 #![allow(clippy::float_cmp)]
+use std::time::Instant;
+
 use crate::{
     ansi::{sound::MusicAction, BaudEmulation, MusicOption},
     convert_to_ans,
@@ -16,31 +18,31 @@ fn test_ansi_sequence() {
         b"\x1B[0;40;37mFoo-\x1B[1mB\x1B[0ma\x1B[35mr",
     );
 
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'F', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 
-    let ch = buf.get_char(Position::new(1, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(1, 0));
     assert_eq!(b'o', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 
-    let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(b'o', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 
-    let ch = buf.get_char(Position::new(3, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(3, 0));
     assert_eq!(b'-', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 
-    let ch = buf.get_char(Position::new(4, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(4, 0));
     assert_eq!(b'B', ch.ch as u8);
     assert_eq!(15, ch.attribute.as_u8(BufferType::LegacyDos));
 
-    let ch = buf.get_char(Position::new(5, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(5, 0));
     assert_eq!(b'a', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 
-    let ch = buf.get_char(Position::new(6, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(6, 0));
     assert_eq!(b'r', ch.ch as u8);
     assert_eq!(5, ch.attribute.as_u8(BufferType::LegacyDos));
 }
@@ -51,13 +53,13 @@ fn test_ansi_30() {
         &mut ansi::Parser::default(),
         b"\x1B[1;35mA\x1B[30mB\x1B[0mC",
     );
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
     assert_eq!(13, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(1, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(1, 0));
     assert_eq!(b'B', ch.ch as u8);
     assert_eq!(8, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(b'C', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 }
@@ -68,25 +70,25 @@ fn test_bg_colorrsequence() {
         &mut ansi::Parser::default(),
         b"\x1B[1;30m1\x1B[0;34m2\x1B[33m3\x1B[1;41m4\x1B[40m5\x1B[43m6\x1B[40m7",
     );
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!('1', ch.ch);
     assert_eq!(8, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(1, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(1, 0));
     assert_eq!('2', ch.ch);
     assert_eq!(1, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(2, 0));
     assert_eq!('3', ch.ch);
     assert_eq!(6, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(3, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(3, 0));
     assert_eq!('4', ch.ch);
     assert_eq!(14 + (4 << 4), ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(4, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(4, 0));
     assert_eq!('5', ch.ch);
     assert_eq!(14, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(5, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(5, 0));
     assert_eq!('6', ch.ch);
     assert_eq!(14 + (6 << 4), ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(6, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(6, 0));
     assert_eq!('7', ch.ch);
     assert_eq!(14, ch.attribute.as_u8(BufferType::LegacyDos));
 }
@@ -97,13 +99,13 @@ fn test_char_missing_bug() {
         b"\x1B[1;35mA\x1B[30mB\x1B[0mC",
     );
 
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
     assert_eq!(13, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(1, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(1, 0));
     assert_eq!(b'B', ch.ch as u8);
     assert_eq!(8, ch.attribute.as_u8(BufferType::LegacyDos));
-    let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(b'C', ch.ch as u8);
     assert_eq!(7, ch.attribute.as_u8(BufferType::LegacyDos));
 }
@@ -111,21 +113,21 @@ fn test_char_missing_bug() {
 #[test]
 fn test_caret_forward() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[70Ctest_me\x1B[2CF");
-    let ch = buf.get_char(Position::new(79, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(79, 0));
     assert_eq!('F', char::from_u32(ch.ch as u32).unwrap());
 }
 
 #[test]
 fn test_caret_forward_at_eol() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[75CTEST_\x1B[2CF");
-    let ch = buf.get_char(Position::new(2, 1)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(2, 1));
     assert_eq!(b'F', ch.ch as u8);
 }
 
 #[test]
 fn test_char0_bug() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x00A");
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
 }
 
@@ -241,10 +243,7 @@ fn test_emptylastline_roundtrip() {
 #[test]
 fn test_linebreak_bug() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"XX");
-    assert_eq!(
-        '\x16',
-        buf.get_char(Position { x: 1, y: 0 }).unwrap_or_default().ch
-    );
+    assert_eq!('\x16', buf.get_char(Position { x: 1, y: 0 }).ch);
 }
 
 #[test]
@@ -262,14 +261,14 @@ fn test_insert_n_line() {
 #[test]
 fn test_remove_line_default() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"test\x1b[M");
-    assert_eq!(b' ', buf.get_char(Position::default()).unwrap().ch as u8);
+    assert_eq!(b' ', buf.get_char(Position::default()).ch as u8);
 }
 
 #[test]
 fn test_remove_n_line() {
     let (mut buf, _) = create_buffer(&mut ansi::Parser::default(), b"test\ntest\ntest\ntest");
     for i in 0..4 {
-        assert_eq!(b't', buf.get_char(Position::new(0, i)).unwrap().ch as u8);
+        assert_eq!(b't', buf.get_char(Position::new(0, i)).ch as u8);
     }
     update_buffer(
         &mut buf,
@@ -277,8 +276,8 @@ fn test_remove_n_line() {
         &mut ansi::Parser::default(),
         b"\x1b[3M",
     );
-    assert_eq!(b't', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
-    assert_eq!(b' ', buf.get_char(Position::new(0, 1)).unwrap().ch as u8);
+    assert_eq!(b't', buf.get_char(Position::new(0, 0)).ch as u8);
+    assert_eq!(b' ', buf.get_char(Position::new(0, 1)).ch as u8);
 }
 
 #[test]
@@ -290,21 +289,21 @@ fn test_delete_character_default() {
         &mut ansi::Parser::default(),
         b"\x1b[P",
     );
-    assert_eq!(b'e', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
+    assert_eq!(b'e', buf.get_char(Position::new(0, 0)).ch as u8);
     update_buffer(
         &mut buf,
         &mut Caret::new_xy(0, 0),
         &mut ansi::Parser::default(),
         b"\x1b[P",
     );
-    assert_eq!(b's', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
+    assert_eq!(b's', buf.get_char(Position::new(0, 0)).ch as u8);
     update_buffer(
         &mut buf,
         &mut Caret::new_xy(0, 0),
         &mut ansi::Parser::default(),
         b"\x1b[P",
     );
-    assert_eq!(b't', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
+    assert_eq!(b't', buf.get_char(Position::new(0, 0)).ch as u8);
 }
 
 #[test]
@@ -316,7 +315,7 @@ fn test_delete_n_character() {
         &mut ansi::Parser::default(),
         b"\x1b[4P",
     );
-    assert_eq!(b'm', buf.get_char(Position::new(0, 0)).unwrap().ch as u8);
+    assert_eq!(b'm', buf.get_char(Position::new(0, 0)).ch as u8);
 }
 
 #[test]
@@ -485,16 +484,16 @@ fn test_reset_empty_colors() {
         b"\x1B[m\x1B[33mN\x1B[1m\x1B[33ma\x1B[m\x1B[33mCHR\x1B[1m\x1B[33mi\x1B[m\x1B[33mCHT",
     );
     assert_eq!(
-        buf.get_char(Position::new(0, 0)).unwrap().attribute,
-        buf.get_char(Position::new(2, 0)).unwrap().attribute
+        buf.get_char(Position::new(0, 0)).attribute,
+        buf.get_char(Position::new(2, 0)).attribute
     );
     assert_eq!(
-        buf.get_char(Position::new(1, 0)).unwrap().attribute,
-        buf.get_char(Position::new(5, 0)).unwrap().attribute
+        buf.get_char(Position::new(1, 0)).attribute,
+        buf.get_char(Position::new(5, 0)).attribute
     );
     assert_eq!(
-        buf.get_char(Position::new(2, 0)).unwrap().attribute,
-        buf.get_char(Position::new(8, 0)).unwrap().attribute
+        buf.get_char(Position::new(2, 0)).attribute,
+        buf.get_char(Position::new(8, 0)).attribute
     );
 }
 
@@ -534,7 +533,7 @@ fn test_index_line() {
 fn test_reverse_index_line() {
     let (buf, caret) = create_buffer(&mut ansi::Parser::default(), b"test\x1BM\x1BM\x1BM");
     assert_eq!(Position::new(4, 0), caret.get_position());
-    let ch = buf.get_char(Position::new(0, 3)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 3));
     assert_eq!('t', ch.ch);
 }
 
@@ -545,7 +544,7 @@ fn test_next_line() {
         b"\x1B[25;1Htest\x1BE\x1BE\x1BE",
     );
     assert_eq!(Position::new(0, 24), caret.get_position());
-    let ch = buf.get_char(Position::new(0, 24 - 3)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 24 - 3));
     assert_eq!('t', ch.ch);
 }
 
@@ -553,7 +552,7 @@ fn test_next_line() {
 fn test_insert_character() {
     let (buf, caret) = create_buffer(&mut ansi::Parser::default(), b"foo\x1B[1;1H\x1B[5@");
     assert_eq!(Position::new(0, 0), caret.get_position());
-    let ch = buf.get_char(Position::new(5, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(5, 0));
     assert_eq!('f', ch.ch);
 }
 
@@ -561,10 +560,10 @@ fn test_insert_character() {
 fn test_erase_character() {
     let (buf, caret) = create_buffer(&mut ansi::Parser::default(), b"foobar\x1B[1;1H\x1B[3X");
     assert_eq!(Position::new(0, 0), caret.get_position());
-    assert_eq!(' ', buf.get_char(Position::new(0, 0)).unwrap().ch);
-    assert_eq!(' ', buf.get_char(Position::new(1, 0)).unwrap().ch);
-    assert_eq!(' ', buf.get_char(Position::new(2, 0)).unwrap().ch);
-    assert_eq!('b', buf.get_char(Position::new(3, 0)).unwrap().ch);
+    assert_eq!(' ', buf.get_char(Position::new(0, 0)).ch);
+    assert_eq!(' ', buf.get_char(Position::new(1, 0)).ch);
+    assert_eq!(' ', buf.get_char(Position::new(2, 0)).ch);
+    assert_eq!('b', buf.get_char(Position::new(3, 0)).ch);
 }
 
 #[test]
@@ -573,16 +572,8 @@ fn test_xterm_256_colors() {
         &mut ansi::Parser::default(),
         b"\x1B[38;5;232m\x1B[48;5;42mf",
     );
-    let fg = buf
-        .get_char(Position::new(0, 0))
-        .unwrap()
-        .attribute
-        .get_foreground();
-    let bg = buf
-        .get_char(Position::new(0, 0))
-        .unwrap()
-        .attribute
-        .get_background();
+    let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
+    let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
     assert_eq!(XTERM_256_PALETTE[232], buf.palette.colors[fg as usize]);
     assert_eq!(XTERM_256_PALETTE[42], buf.palette.colors[bg as usize]);
 }
@@ -593,16 +584,8 @@ fn test_xterm_24bit_colors() {
         &mut ansi::Parser::default(),
         b"\x1B[38;2;12;13;14m\x1B[48;2;55;54;19mf",
     );
-    let fg = buf
-        .get_char(Position::new(0, 0))
-        .unwrap()
-        .attribute
-        .get_foreground();
-    let bg = buf
-        .get_char(Position::new(0, 0))
-        .unwrap()
-        .attribute
-        .get_background();
+    let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
+    let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
     assert_eq!(Color::new(12, 13, 14), buf.palette.colors[fg as usize]);
     assert_eq!(Color::new(55, 54, 19), buf.palette.colors[bg as usize]);
 }
@@ -613,16 +596,8 @@ fn test_alt_24bit_colors() {
         &mut ansi::Parser::default(),
         b"\x1B[1;12;13;14t\x1B[0;55;54;19tf",
     );
-    let fg = buf
-        .get_char(Position::new(0, 0))
-        .unwrap()
-        .attribute
-        .get_foreground();
-    let bg = buf
-        .get_char(Position::new(0, 0))
-        .unwrap()
-        .attribute
-        .get_background();
+    let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
+    let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
     assert_eq!(Color::new(12, 13, 14), buf.palette.colors[fg as usize]);
     assert_eq!(Color::new(55, 54, 19), buf.palette.colors[bg as usize]);
 }
@@ -642,9 +617,9 @@ fn test_cursor_position_with0() {
 #[test]
 fn test_font_switch() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"foo\x1B[0;40 Dbar");
-    let ch = buf.get_char(Position::new(2, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(0, ch.get_font_page());
-    let ch = buf.get_char(Position::new(3, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(3, 0));
     assert_eq!(40, ch.get_font_page());
 }
 
@@ -734,21 +709,17 @@ fn test_melody() {
 fn test_macro() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;0!zHello\x1B\\");
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
 
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'H', ch.ch as u8);
-    let ch = buf
-        .get_char(Position::new("Hello".len() as i32, 0))
-        .unwrap_or_default();
+    let ch = buf.get_char(Position::new("Hello".len() as i32, 0));
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
 
-    let ch = buf
-        .get_char(Position::new("Hello".len() as i32, 0))
-        .unwrap_or_default();
+    let ch = buf.get_char(Position::new("Hello".len() as i32, 0));
     assert_eq!(b'H', ch.ch as u8);
 }
 
@@ -756,21 +727,17 @@ fn test_macro() {
 fn test_macro_hex() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;1!z4848484848\x1B\\");
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
 
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'H', ch.ch as u8);
-    let ch = buf
-        .get_char(Position::new("Hello".len() as i32, 0))
-        .unwrap_or_default();
+    let ch = buf.get_char(Position::new("Hello".len() as i32, 0));
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
 
-    let ch = buf
-        .get_char(Position::new("Hello".len() as i32, 0))
-        .unwrap_or_default();
+    let ch = buf.get_char(Position::new("Hello".len() as i32, 0));
     assert_eq!(b'H', ch.ch as u8);
 }
 
@@ -778,21 +745,17 @@ fn test_macro_hex() {
 fn test_macro_repeat_hex() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;1!z!5;48;\x1B\\");
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
 
-    let ch = buf.get_char(Position::new(0, 0)).unwrap_or_default();
+    let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'H', ch.ch as u8);
-    let ch = buf
-        .get_char(Position::new("Hello".len() as i32, 0))
-        .unwrap_or_default();
+    let ch = buf.get_char(Position::new("Hello".len() as i32, 0));
     assert_eq!(b' ', ch.ch as u8);
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1b[0*z");
 
-    let ch = buf
-        .get_char(Position::new("Hello".len() as i32, 0))
-        .unwrap_or_default();
+    let ch = buf.get_char(Position::new("Hello".len() as i32, 0));
     assert_eq!(b'H', ch.ch as u8);
 }
 
@@ -818,19 +781,19 @@ fn test_scroll_left() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     for y in 0..buf.get_buffer_height() {
-        assert_eq!('9', buf.get_char_xy(79, y).unwrap().ch);
+        assert_eq!('9', buf.get_char_xy(79, y).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ @");
     for y in 0..buf.get_buffer_height() {
-        assert_eq!(' ', buf.get_char_xy(79, y).unwrap().ch);
+        assert_eq!(' ', buf.get_char_xy(79, y).ch);
     }
 }
 
@@ -844,19 +807,19 @@ fn test_scroll_left_with_margins() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ @");
     for y in 0..buf.get_buffer_height() {
         if (4..=9).contains(&y) {
-            assert_eq!(' ', buf.get_char_xy(9, y).unwrap().ch);
+            assert_eq!(' ', buf.get_char_xy(9, y).ch);
         } else {
-            assert_eq!('9', buf.get_char_xy(9, y).unwrap().ch);
+            assert_eq!('9', buf.get_char_xy(9, y).ch);
         }
     }
 }
@@ -871,19 +834,19 @@ fn test_scroll_right() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     for y in 0..buf.get_buffer_height() {
-        assert_eq!('0', buf.get_char_xy(0, y).unwrap().ch);
+        assert_eq!('0', buf.get_char_xy(0, y).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ A");
     for y in 0..buf.get_buffer_height() {
-        assert_eq!(' ', buf.get_char_xy(0, y).unwrap().ch);
+        assert_eq!(' ', buf.get_char_xy(0, y).ch);
     }
 }
 
@@ -897,19 +860,19 @@ fn test_scroll_right_with_margins() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ A");
     for y in 0..buf.get_buffer_height() {
         if (4..=9).contains(&y) {
-            assert_eq!(' ', buf.get_char_xy(4, y).unwrap().ch);
+            assert_eq!(' ', buf.get_char_xy(4, y).ch);
         } else {
-            assert_eq!('4', buf.get_char_xy(4, y).unwrap().ch);
+            assert_eq!('4', buf.get_char_xy(4, y).ch);
         }
     }
 }
@@ -924,19 +887,19 @@ fn test_scroll_up() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     for x in 0..buf.get_buffer_width() {
-        assert_ne!(' ', buf.get_char_xy(x, 24).unwrap().ch);
+        assert_ne!(' ', buf.get_char_xy(x, 24).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[S");
     for x in 0..buf.get_buffer_width() {
-        assert_eq!(' ', buf.get_char_xy(x, 24).unwrap().ch);
+        assert_eq!(' ', buf.get_char_xy(x, 24).ch);
     }
 }
 
@@ -950,19 +913,19 @@ fn test_scroll_up_with_margins() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[S");
     for x in 0..buf.get_buffer_width() {
         if (4..=9).contains(&x) {
-            assert_eq!(' ', buf.get_char_xy(x, 9).unwrap().ch);
+            assert_eq!(' ', buf.get_char_xy(x, 9).ch);
         } else {
-            assert_ne!(' ', buf.get_char_xy(x, 9).unwrap().ch);
+            assert_ne!(' ', buf.get_char_xy(x, 9).ch);
         }
     }
 }
@@ -977,19 +940,19 @@ fn test_scroll_down() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     for x in 0..buf.get_buffer_width() {
-        assert_ne!(' ', buf.get_char_xy(x, 0).unwrap().ch);
+        assert_ne!(' ', buf.get_char_xy(x, 0).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[T");
     for x in 0..buf.get_buffer_width() {
-        assert_eq!(' ', buf.get_char_xy(x, 0).unwrap().ch);
+        assert_eq!(' ', buf.get_char_xy(x, 0).ch);
     }
 }
 
@@ -1003,19 +966,19 @@ fn test_scroll_down_with_margins() {
             buf.set_char(
                 0,
                 Position::new(x, y),
-                Some(AttributedChar::new(
+                AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
-                )),
+                ),
             );
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[T");
     for x in 0..buf.get_buffer_width() {
         if (4..=9).contains(&x) {
-            assert_eq!(' ', buf.get_char_xy(x, 4).unwrap().ch);
+            assert_eq!(' ', buf.get_char_xy(x, 4).ch);
         } else {
-            assert_ne!(' ', buf.get_char_xy(x, 4).unwrap().ch);
+            assert_ne!(' ', buf.get_char_xy(x, 4).ch);
         }
     }
 }
@@ -1050,7 +1013,7 @@ fn test_font_loading() {
     for i in 0.."Hello World".len() {
         assert_eq!(
             100,
-            buf.get_char_xy(i as i32, 0).unwrap().get_font_page(),
+            buf.get_char_xy(i as i32, 0).get_font_page(),
             "font test failed at {i}"
         );
     }
@@ -1103,9 +1066,9 @@ fn test_repeat_last_char() {
     let mut parser = ansi::Parser::default();
     let (buf, _) = create_buffer(&mut parser, b"#\x1B[10b\n");
     for x in 0..11 {
-        assert_eq!('#', buf.get_char_xy(x, 0).unwrap().ch);
+        assert_eq!('#', buf.get_char_xy(x, 0).ch);
     }
-    assert_eq!(' ', buf.get_char_xy(11, 0).unwrap().ch);
+    assert_eq!(' ', buf.get_char_xy(11, 0).ch);
 }
 
 #[test]
@@ -1162,17 +1125,17 @@ fn test_tab_forward() {
     let mut parser = ansi::Parser::default();
     let (buf, _) = create_buffer(&mut parser, b"1\x1B[Y2\x1B[2Y3");
 
-    assert_eq!('1', buf.get_char_xy(0, 0).unwrap().ch);
-    assert_eq!('2', buf.get_char_xy(8, 0).unwrap().ch);
-    assert_eq!('3', buf.get_char_xy(24, 0).unwrap().ch);
+    assert_eq!('1', buf.get_char_xy(0, 0).ch);
+    assert_eq!('2', buf.get_char_xy(8, 0).ch);
+    assert_eq!('3', buf.get_char_xy(24, 0).ch);
 }
 
 #[test]
 fn test_tab_backward() {
     let mut parser = ansi::Parser::default();
     let (buf, _) = create_buffer(&mut parser, b"\x1B[1;60H1\x1B[4Z2");
-    assert_eq!('1', buf.get_char_xy(59, 0).unwrap().ch);
-    assert_eq!('2', buf.get_char_xy(32, 0).unwrap().ch);
+    assert_eq!('1', buf.get_char_xy(59, 0).ch);
+    assert_eq!('2', buf.get_char_xy(32, 0).ch);
 }
 
 #[test]
@@ -1203,7 +1166,7 @@ fn test_aps_parsing() {
 fn test_extended_background_color() {
     let mut parser = ansi::Parser::default();
     let (buf, _) = create_buffer(&mut parser, b"\x1B[38;5;088;48;5;107m#$");
-    let ch = buf.get_char_xy(0, 0).unwrap();
+    let ch = buf.get_char_xy(0, 0);
     assert_eq!('#', ch.ch);
     assert_eq!(
         XTERM_256_PALETTE[88],
@@ -1252,7 +1215,7 @@ fn test_rip_support_request_ignore() {
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
 
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[!#");
-    assert_eq!('#', buf.get_char_xy(0, 0).unwrap().ch);
+    assert_eq!('#', buf.get_char_xy(0, 0).ch);
 }
 
 #[test]
@@ -1275,7 +1238,7 @@ fn test_fill_rectangular_area() {
     );
     for y in 4..9 {
         for x in 4..9 {
-            assert_eq!('#', buf.get_char_xy(x, y).unwrap().ch);
+            assert_eq!('#', buf.get_char_xy(x, y).ch);
         }
     }
 }
@@ -1292,11 +1255,8 @@ fn test_erase_rectangular_area() {
     );
     for y in 4..9 {
         for x in 4..9 {
-            assert_eq!(' ', buf.get_char_xy(x, y).unwrap().ch);
-            assert_eq!(
-                TextAttribute::default(),
-                buf.get_char_xy(x, y).unwrap().attribute
-            );
+            assert_eq!(' ', buf.get_char_xy(x, y).ch);
+            assert_eq!(TextAttribute::default(), buf.get_char_xy(x, y).attribute);
         }
     }
 }
@@ -1313,10 +1273,10 @@ fn test_selective_erase_rectangular_area() {
     );
     for y in 4..9 {
         for x in 4..9 {
-            assert_eq!(' ', buf.get_char_xy(x, y).unwrap().ch);
+            assert_eq!(' ', buf.get_char_xy(x, y).ch);
             assert_eq!(
                 TextAttribute::from_color(2, 0),
-                buf.get_char_xy(x, y).unwrap().attribute
+                buf.get_char_xy(x, y).attribute
             );
         }
     }
@@ -1369,8 +1329,8 @@ fn test_ocs8_hyperlinks() {
         &mut parser,
         b"\x1B]8;;http://example.com\x1B\\This is a link\x1B]8;;\x1B\\",
     );
-    assert_eq!('T', buf.get_char_xy(0, 0).unwrap().ch);
-    assert!(buf.get_char_xy(0, 0).unwrap().attribute.is_underlined());
+    assert_eq!('T', buf.get_char_xy(0, 0).ch);
+    assert!(buf.get_char_xy(0, 0).attribute.is_underlined());
     assert_eq!(1, buf.layers[0].hyperlinks.len());
     assert_eq!(
         "http://example.com".to_string(),
