@@ -1,32 +1,52 @@
 use crate::Position;
 
 #[derive(Debug, Clone)]
+pub struct Coordinates {
+    pub x: f32,
+    pub y: f32,
+}
+
+impl Coordinates {
+    pub fn new(x: f32, y: f32) -> Self {
+        Self { x, y }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Shape {
+    Rectangle,
+    Lines,
+}
+
+#[derive(Debug, Clone)]
 pub struct Selection {
-    pub anchor: (f32, f32),
-    pub lead: (f32, f32),
+    pub anchor: Coordinates,
+    pub lead: Coordinates,
     pub block_selection: bool,
 
     pub anchor_pos: Position,
     pub lead_pos: Position,
 
     pub locked: bool,
+    pub shape: Shape,
 }
 
 impl Default for Selection {
     fn default() -> Self {
-        Selection::new((0., 0.))
+        Selection::new(0., 0.)
     }
 }
 
 impl Selection {
-    pub fn new(pos: (f32, f32)) -> Self {
+    pub fn new(x: f32, y: f32) -> Self {
         Self {
-            anchor: pos,
-            lead: pos,
-            anchor_pos: Position::new(pos.0 as i32, pos.1 as i32),
-            lead_pos: Position::new(pos.0 as i32, pos.1 as i32),
+            anchor: Coordinates::new(x, y),
+            lead: Coordinates::new(x, y),
+            anchor_pos: Position::new(x as i32, y as i32),
+            lead_pos: Position::new(x as i32, y as i32),
             block_selection: false,
             locked: false,
+            shape: Shape::Lines,
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -35,8 +55,8 @@ impl Selection {
 }
 
 impl Selection {
-    pub fn set_lead(&mut self, lead: (f32, f32)) {
-        self.lead = lead;
-        self.lead_pos = Position::new(lead.0 as i32, lead.1 as i32);
+    pub fn set_lead(&mut self, x: f32, y: f32) {
+        self.lead = Coordinates::new(x, y);
+        self.lead_pos = Position::new(x as i32, y as i32);
     }
 }
