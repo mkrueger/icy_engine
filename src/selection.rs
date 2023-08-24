@@ -22,7 +22,6 @@ pub enum Shape {
 pub struct Selection {
     pub anchor: Coordinates,
     pub lead: Coordinates,
-    pub block_selection: bool,
 
     pub anchor_pos: Position,
     pub lead_pos: Position,
@@ -44,11 +43,22 @@ impl Selection {
             lead: Coordinates::new(x, y),
             anchor_pos: Position::new(x as i32, y as i32),
             lead_pos: Position::new(x as i32, y as i32),
-            block_selection: false,
             locked: false,
             shape: Shape::Lines,
         }
     }
+
+    pub fn from_rectangle(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self {
+            anchor: Coordinates::new(x, y),
+            lead: Coordinates::new(x + width, y + height),
+            anchor_pos: Position::new(x as i32, y as i32),
+            lead_pos: Position::new((x + height) as i32, (y + height) as i32),
+            locked: false,
+            shape: Shape::Rectangle,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.anchor_pos == self.lead_pos
     }
