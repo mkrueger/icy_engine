@@ -1351,7 +1351,6 @@ fn test_caret_bounds_bug() {
 fn test_caret_bounds_bug_2() {
     let mut parser = ansi::Parser::default();
     let (buf, caret) = create_buffer(&mut parser, b"\x1B[25;1H01234567890123456789012345678901234567890123456789012345678901234567890123456789\x1B[6CHello");
-    println!("{buf} {:?}", caret.get_position());
     assert_eq!(11, caret.get_position().x);
     assert_eq!(25, caret.get_position().y);
 }
