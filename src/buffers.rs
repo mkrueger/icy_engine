@@ -362,7 +362,7 @@ impl Buffer {
 
     #[must_use]
     pub fn needs_scrolling(&self) -> bool {
-        self.is_terminal_buffer /*&& self.terminal_state.margins.is_some()*/
+        self.is_terminal_buffer && self.terminal_state.get_margins_top_bottom().is_some()
     }
 
     #[must_use]
