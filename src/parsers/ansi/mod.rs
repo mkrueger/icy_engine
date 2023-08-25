@@ -427,7 +427,7 @@ impl BufferParser for Parser {
                             }
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap,
                             Some(25) => caret.is_visible = false,
-                            Some(33) => caret.ice_mode = false,
+                            Some(33) => caret.set_ice_mode(false),
                             Some(35) => caret.is_blinking = true,
 
                             Some(69) => {
@@ -457,7 +457,7 @@ impl BufferParser for Parser {
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
                             Some(25) => caret.is_visible = true,
-                            Some(33) => caret.ice_mode = true,
+                            Some(33) => caret.set_ice_mode(true),
                             Some(35) => caret.is_blinking = false,
 
                             Some(69) => buf.terminal_state.dec_margin_mode_left_right = true,
@@ -593,7 +593,7 @@ impl BufferParser for Parser {
                                     mode_report.push_str(";25");
                                 }
 
-                                if caret.ice_mode {
+                                if caret.ice_mode() {
                                     mode_report.push_str(";33");
                                 }
 

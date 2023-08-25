@@ -7,7 +7,7 @@ pub struct Caret {
     pub insert_mode: bool,
     pub is_visible: bool,
     pub is_blinking: bool,
-    pub ice_mode: bool,
+    ice_mode: bool,
 }
 
 impl Caret {
@@ -90,7 +90,13 @@ impl Caret {
         let font_page = self.attribute.get_font_page();
         self.attribute = TextAttribute::default();
         self.attribute.set_font_page(font_page);
-        self.ice_mode = false;
+    }
+
+    pub fn ice_mode(&self) -> bool {
+        self.ice_mode
+    }
+    pub fn set_ice_mode(&mut self, ice_mode: bool) {
+        self.ice_mode = ice_mode;
     }
 }
 

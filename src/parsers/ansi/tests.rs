@@ -1365,7 +1365,7 @@ fn test_caret_bounds_bug_3() {
 fn test_ice_colors() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[5;41m#");
-    assert!(!caret.ice_mode);
+    assert!(!caret.ice_mode());
     assert!(buf.get_char_xy(0, 0).attribute.is_blinking());
     assert_eq!(4, buf.get_char_xy(0, 0).attribute.background_color);
 
@@ -1375,7 +1375,7 @@ fn test_ice_colors() {
         &mut parser,
         b"\x1B[2J\x1B[?33h\x1B[5;41m#",
     );
-    assert!(caret.ice_mode);
+    assert!(caret.ice_mode());
     assert!(!buf.get_char_xy(0, 0).attribute.is_blinking());
     assert_eq!(4 + 8, buf.get_char_xy(0, 0).attribute.background_color);
 }

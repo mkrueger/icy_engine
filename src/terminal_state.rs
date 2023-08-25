@@ -48,7 +48,6 @@ pub struct TerminalState {
     pub high_intensity_blink_attribute_font_slot: usize,
 
     tab_stops: Vec<i32>,
-    use_ice: bool,
     baud_rate: BaudEmulation,
 }
 
@@ -86,7 +85,6 @@ impl TerminalState {
             mouse_mode: MouseMode::Default,
             margins_top_bottom: None,
             margins_left_right: None,
-            use_ice: false,
             dec_margin_mode_left_right: false,
             baud_rate: BaudEmulation::Off,
             tab_stops: vec![],
