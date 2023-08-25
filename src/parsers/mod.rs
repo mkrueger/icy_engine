@@ -180,7 +180,8 @@ impl Caret {
 
     fn check_scrolling_on_caret_up(&mut self, buf: &mut Buffer, force: bool) {
         if buf.needs_scrolling() || force {
-            while self.pos.y < buf.get_first_editable_line() {
+            let last = buf.get_first_editable_line();
+            while self.pos.y < last {
                 buf.scroll_down();
                 self.pos.y += 1;
             }
