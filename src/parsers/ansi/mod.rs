@@ -1229,7 +1229,7 @@ impl BufferParser for Parser {
                             Some(4) => {
                                 caret.eol(buf);
                             }
-                            Some(5 | 6) => {} // pg up/down
+                            Some(5 | 6) => {} // pg up/downf
                             _ => {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),

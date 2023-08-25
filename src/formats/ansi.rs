@@ -125,26 +125,36 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
 
                     // color changes
                     if last_attr.get_foreground() != cur_attr.get_foreground() {
-                        if wrote_part {
-                            result.push(b';');
-                        }
                         let fg = cur_attr.get_foreground() as usize;
                         if fg < FG_TABLE.len() {
-                            // TODO: Use extended color table as well.
+                            if wrote_part {
+                                result.push(b';');
+                            }
                             result.extend_from_slice(FG_TABLE[fg]);
+                        } else if let Some(col) = get_extended_color(buf, fg) {
+                            if wrote_part {
+                                result.push(b';');
+                            }
+                            result.extend_from_slice(b"38;5;");
+                            result.extend_from_slice(col.to_string().as_bytes());
+                            wrote_part = true;
                         } else {
                             write_24bit_fg_color = true;
                         }
-                        wrote_part = true;
                     }
                     if last_attr.get_background() != cur_attr.get_background() {
-                        if wrote_part {
-                            result.push(b';');
-                        }
                         let bg = cur_attr.get_background() as usize;
                         if bg < BG_TABLE.len() {
-                            // TODO: Use extended color table as well.
+                            if wrote_part {
+                                result.push(b';');
+                            }
                             result.extend_from_slice(BG_TABLE[bg]);
+                        } else if let Some(col) = get_extended_color(buf, bg) {
+                            if wrote_part {
+                                result.push(b';');
+                            }
+                            result.extend_from_slice(b"48;5;");
+                            result.extend_from_slice(col.to_string().as_bytes());
                         } else {
                             write_24bit_bg_color = true;
                         }
@@ -220,6 +230,16 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
         buf.write_sauce_info(&crate::SauceFileType::Ansi, &mut result)?;
     }
     Ok(result)
+}
+
+fn get_extended_color(buf: &Buffer, color: usize) -> Option<usize> {
+    let color = buf.palette.colors[color];
+    for i in 0..crate::XTERM_256_PALETTE.len() {
+        if color == crate::XTERM_256_PALETTE[i] {
+            return Some(i);
+        }
+    }
+    None
 }
 
 fn push_int(result: &mut Vec<u8>, number: usize) {

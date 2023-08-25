@@ -126,6 +126,22 @@ mod tests {
     }
 
     #[test]
+    fn test_23bit() {
+        let data = b"\x1B[0m\x1B[1;24;12;200t#";
+        test_ansi(data);
+        let data = b"\x1B[0m\x1B[0;44;2;120t#";
+        test_ansi(data);
+    }
+
+    #[test]
+    fn test_extended_color() {
+        let data = b"\x1B[0;38;5;42m#";
+        test_ansi(data);
+        let data = b"\x1B[0;48;5;100m#";
+        test_ansi(data);
+    }
+
+    #[test]
     fn test_first_char_color() {
         let data = b"\x1B[0;1;36mA";
         test_ansi(data);
