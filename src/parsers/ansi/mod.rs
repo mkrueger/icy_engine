@@ -427,7 +427,7 @@ impl BufferParser for Parser {
                             }
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap,
                             Some(25) => caret.is_visible = false,
-                            Some(33) => buf.terminal_state.set_use_ice_colors(false),
+                            Some(33) => caret.ice_mode = false,
                             Some(35) => caret.is_blinking = true,
 
                             Some(69) => {
@@ -457,7 +457,7 @@ impl BufferParser for Parser {
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
                             Some(25) => caret.is_visible = true,
-                            Some(33) => buf.terminal_state.set_use_ice_colors(true),
+                            Some(33) => caret.ice_mode = true,
                             Some(35) => caret.is_blinking = false,
 
                             Some(69) => buf.terminal_state.dec_margin_mode_left_right = true,
@@ -593,7 +593,7 @@ impl BufferParser for Parser {
                                     mode_report.push_str(";25");
                                 }
 
-                                if buf.terminal_state.use_ice_colors() {
+                                if caret.ice_mode {
                                     mode_report.push_str(";33");
                                 }
 
@@ -1387,7 +1387,7 @@ impl BufferParser for Parser {
                 '\x7F' => caret.del(buf),
                 _ => {
                     self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
-                    let ch = AttributedChar::new(self.last_char, caret.attribute);
+                    let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                     buf.print_char(caret, ch);
                 }
             },

@@ -202,7 +202,9 @@ impl Parser {
                     caret.attribute.set_is_italic(true);
                 }
                 4 => caret.attribute.set_is_underlined(true),
-                5 | 6 => caret.attribute.set_is_blinking(true),
+                5 | 6 => {
+                    caret.attribute.set_is_blinking(true);
+                }
                 7 => {
                     let fg = caret.attribute.get_foreground();
                     caret

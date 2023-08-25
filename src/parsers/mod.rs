@@ -80,7 +80,7 @@ impl Caret {
         buf.clear();
         self.pos = Position::default();
         self.is_visible = true;
-        self.attribute = super::TextAttribute::default();
+        self.reset_color_attribute();
     }
 
     /// (carriage return, CR, \r, ^M), moves the printing position to the start of the line.

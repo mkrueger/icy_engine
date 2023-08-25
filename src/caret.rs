@@ -7,6 +7,7 @@ pub struct Caret {
     pub insert_mode: bool,
     pub is_visible: bool,
     pub is_blinking: bool,
+    pub ice_mode: bool,
 }
 
 impl Caret {
@@ -25,7 +26,15 @@ impl Caret {
     }
 
     pub fn get_attribute(&self) -> TextAttribute {
-        self.attribute
+        let mut result = self.attribute;
+        if self.ice_mode {
+            let bg = result.get_background();
+            if bg < 8 && result.is_blinking() {
+                result.set_background(bg + 8);
+                result.set_is_blinking(false);
+            }
+        }
+        result
     }
 
     pub fn get_position(&self) -> Position {
@@ -66,6 +75,7 @@ impl Caret {
         self.insert_mode = false;
         self.is_visible = true;
         self.is_blinking = true;
+        self.ice_mode = false;
     }
 
     pub fn get_font_page(&self) -> usize {
@@ -80,6 +90,7 @@ impl Caret {
         let font_page = self.attribute.get_font_page();
         self.attribute = TextAttribute::default();
         self.attribute.set_font_page(font_page);
+        self.ice_mode = false;
     }
 }
 
@@ -102,6 +113,7 @@ impl Default for Caret {
             insert_mode: false,
             is_visible: true,
             is_blinking: true,
+            ice_mode: false,
         }
     }
 }

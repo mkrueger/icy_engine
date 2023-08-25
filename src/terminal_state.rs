@@ -164,13 +164,6 @@ impl TerminalState {
         self.baud_rate = baud_rate;
     }
 
-    pub fn use_ice_colors(&self) -> bool {
-        self.use_ice
-    }
-    pub fn set_use_ice_colors(&mut self, use_ice: bool) {
-        self.use_ice = use_ice;
-    }
-
     pub fn limit_caret_pos(&self, buf: &Buffer, caret: &mut Caret) {
         match self.origin_mode {
             crate::OriginMode::UpperLeftCorner => {
