@@ -83,6 +83,8 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                         result.push(b'm');
                     }
                 } else {
+                    let mut write_24bit_fg_color = false;
+                    let mut write_24bit_bg_color = false;
                     result.extend_from_slice(b"\x1b[");
 
                     let mut wrote_part = false;
@@ -126,16 +128,52 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                         if wrote_part {
                             result.push(b';');
                         }
-                        result.extend_from_slice(FG_TABLE[cur_attr.get_foreground() as usize]);
+                        let fg = cur_attr.get_foreground() as usize;
+                        if fg < FG_TABLE.len() {
+                            // TODO: Use extended color table as well.
+                            result.extend_from_slice(FG_TABLE[fg]);
+                        } else {
+                            write_24bit_fg_color = true;
+                        }
                         wrote_part = true;
                     }
                     if last_attr.get_background() != cur_attr.get_background() {
                         if wrote_part {
                             result.push(b';');
                         }
-                        result.extend_from_slice(BG_TABLE[cur_attr.get_background() as usize]);
+                        let bg = cur_attr.get_background() as usize;
+                        if bg < BG_TABLE.len() {
+                            // TODO: Use extended color table as well.
+                            result.extend_from_slice(BG_TABLE[bg]);
+                        } else {
+                            write_24bit_bg_color = true;
+                        }
                     }
                     result.push(b'm');
+
+                    if write_24bit_fg_color {
+                        result.extend_from_slice(b"\x1b[1;");
+                        let color = buf.palette.colors[cur_attr.get_foreground() as usize];
+                        let (r, g, b) = color.get_rgb();
+                        result.extend_from_slice(r.to_string().as_bytes());
+                        result.push(b';');
+                        result.extend_from_slice(g.to_string().as_bytes());
+                        result.push(b';');
+                        result.extend_from_slice(b.to_string().as_bytes());
+                        result.push(b't');
+                    }
+
+                    if write_24bit_bg_color {
+                        result.extend_from_slice(b"\x1b[0;");
+                        let color = buf.palette.colors[cur_attr.get_background() as usize];
+                        let (r, g, b) = color.get_rgb();
+                        result.extend_from_slice(r.to_string().as_bytes());
+                        result.push(b';');
+                        result.extend_from_slice(g.to_string().as_bytes());
+                        result.push(b';');
+                        result.extend_from_slice(b.to_string().as_bytes());
+                        result.push(b't');
+                    }
                 }
                 last_attr = cur_attr;
             }
