@@ -48,8 +48,9 @@ pub enum EngineState {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MusicOption {
+    #[default]
     Off,
     Conflicting,
     Banana,
