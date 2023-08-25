@@ -1,5 +1,4 @@
 #![allow(clippy::float_cmp)]
-use std::time::Instant;
 
 use crate::{
     ansi::{sound::MusicAction, BaudEmulation, MusicOption},
@@ -1350,7 +1349,7 @@ fn test_caret_bounds_bug() {
 #[test]
 fn test_caret_bounds_bug_2() {
     let mut parser = ansi::Parser::default();
-    let (buf, caret) = create_buffer(&mut parser, b"\x1B[25;1H01234567890123456789012345678901234567890123456789012345678901234567890123456789\x1B[6CHello");
+    let (_, caret) = create_buffer(&mut parser, b"\x1B[25;1H01234567890123456789012345678901234567890123456789012345678901234567890123456789\x1B[6CHello");
     assert_eq!(11, caret.get_position().x);
     assert_eq!(25, caret.get_position().y);
 }
@@ -1358,6 +1357,6 @@ fn test_caret_bounds_bug_2() {
 #[test]
 fn test_caret_bounds_bug_3() {
     let mut parser = ansi::Parser::default();
-    let (buf, caret) = create_buffer(&mut parser, b"\x1B[25;1H0123456789012345678901234567890123456789012345678901234567890123456789012345678\x1B[6CA");
+    let (buf, _) = create_buffer(&mut parser, b"\x1B[25;1H0123456789012345678901234567890123456789012345678901234567890123456789012345678\x1B[6CA");
     assert_eq!('A', buf.get_char_xy(79, 24).ch);
 }

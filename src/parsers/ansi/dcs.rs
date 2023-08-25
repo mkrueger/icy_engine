@@ -4,7 +4,7 @@ use base64::{engine::general_purpose, Engine};
 
 use crate::{BitFont, Buffer, CallbackAction, Caret, EngineResult, ParserError, Sixel, HEX_TABLE};
 
-use super::Parser;
+use super::{parse_next_number, Parser};
 
 #[derive(Debug, Clone, Copy)]
 enum HexMacroState {
@@ -30,7 +30,7 @@ impl Parser {
                         Some(number) => number,
                         _ => 0,
                     };
-                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    self.parsed_numbers.push(parse_next_number(d, ch as u8));
                 }
                 ';' => {
                     self.parsed_numbers.push(0);
@@ -161,7 +161,7 @@ impl Parser {
                 }
                 HexMacroState::RepeatNumber(n) => {
                     if ch.is_ascii_digit() {
-                        state = HexMacroState::RepeatNumber(*n * 10 + ch as i32 - b'0' as i32);
+                        state = HexMacroState::RepeatNumber(parse_next_number(*n, ch as u8));
                         continue;
                     }
                     if ch == ';' {

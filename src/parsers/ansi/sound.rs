@@ -1,6 +1,6 @@
 use crate::{CallbackAction, EngineResult, ParserError};
 
-use super::{EngineState, Parser};
+use super::{parse_next_number, EngineState, Parser};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MusicState {
@@ -9,7 +9,7 @@ pub enum MusicState {
     SetTempo(u16),
     Pause(i32),
     SetOctave,
-    Note(usize, u32),
+    Note(usize, i32),
     SetLength(i32),
 }
 
@@ -24,8 +24,8 @@ pub enum MusicStyle {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MusicAction {
-    PlayNote(f32, u32, bool), // freq / note length / dotted
-    Pause(u32),
+    PlayNote(f32, i32, bool), // freq / note length / dotted
+    Pause(i32),
     SetStyle(MusicStyle),
 }
 
@@ -109,11 +109,11 @@ impl Parser {
                 MusicState::SetTempo(x) => {
                     let mut x = x;
                     if ch.is_ascii_digit() {
-                        x = x * 10 + ch as u16 - b'0' as u16;
+                        x = parse_next_number(x as i32, ch as u8) as u16;
                         self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(x));
                     } else {
                         self.state = EngineState::ParseAnsiMusic(MusicState::Default);
-                        self.cur_tempo = x.clamp(32, 255) as u32;
+                        self.cur_tempo = x.clamp(32, 255) as i32;
                         return Ok(self.parse_default_ansi_music(ch));
                     }
                 }
@@ -144,7 +144,7 @@ impl Parser {
                             }
                         }
                         '0'..='9' => {
-                            let len = len * 10 + ch as u32 - b'0' as u32;
+                            let len = parse_next_number(len, ch as u8);
                             self.state = EngineState::ParseAnsiMusic(MusicState::Note(n, len));
                         }
                         '.' => {
@@ -170,26 +170,26 @@ impl Parser {
                 MusicState::SetLength(x) => {
                     let mut x = x;
                     if ch.is_ascii_digit() {
-                        x = x * 10 + ch as i32 - b'0' as i32;
+                        x = parse_next_number(x, ch as u8);
                         self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
                     } else if ch == '.' {
                         x = x * 3 / 2;
                         self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(x));
                     } else {
-                        self.cur_length = (x as u32).clamp(1, 64);
+                        self.cur_length = x.clamp(1, 64);
                         return Ok(self.parse_default_ansi_music(ch));
                     }
                 }
                 MusicState::Pause(x) => {
                     let mut x = x;
                     if ch.is_ascii_digit() {
-                        x = x * 10 + ch as i32 - b'0' as i32;
+                        x = parse_next_number(x, ch as u8);
                         self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
                     } else if ch == '.' {
                         x = x * 3 / 2;
                         self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
                     } else {
-                        let pause = (x as u32).clamp(1, 64);
+                        let pause = x.clamp(1, 64);
                         self.cur_music
                             .as_mut()
                             .unwrap()

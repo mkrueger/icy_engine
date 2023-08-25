@@ -131,6 +131,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                                 result.push(b';');
                             }
                             result.extend_from_slice(FG_TABLE[fg]);
+                            wrote_part = true;
                         } else if let Some(col) = get_extended_color(buf, fg) {
                             if wrote_part {
                                 result.push(b';');

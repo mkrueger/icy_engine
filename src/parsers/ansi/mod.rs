@@ -138,8 +138,8 @@ pub struct Parser {
     pub ansi_music: MusicOption,
     cur_music: Option<AnsiMusic>,
     cur_octave: usize,
-    cur_length: u32,
-    cur_tempo: u32,
+    cur_length: i32,
+    cur_tempo: i32,
     dotted_note: bool,
 
     last_char: char,
@@ -314,7 +314,7 @@ impl BufferParser for Parser {
                         Some(number) => number,
                         _ => 0,
                     };
-                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    self.parsed_numbers.push(parse_next_number(d, ch as u8));
                     return Ok(CallbackAction::None);
                 }
                 if ch == '[' {
@@ -499,7 +499,7 @@ impl BufferParser for Parser {
                             Some(number) => number,
                             _ => 0,
                         };
-                        self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                        self.parsed_numbers.push(parse_next_number(d, ch as u8));
                     }
                     ';' => {
                         self.parsed_numbers.push(0);
@@ -642,7 +642,7 @@ impl BufferParser for Parser {
                             Some(number) => number,
                             _ => 0,
                         };
-                        self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                        self.parsed_numbers.push(parse_next_number(d, ch as u8));
                     }
                     ';' => {
                         self.parsed_numbers.push(0);
@@ -1355,7 +1355,7 @@ impl BufferParser for Parser {
                                 Some(number) => number,
                                 _ => 0,
                             };
-                            self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                            self.parsed_numbers.push(parse_next_number(d, ch as u8));
                         } else if ch == ';' {
                             self.parsed_numbers.push(0);
                         } else {
@@ -1434,4 +1434,10 @@ fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) 
     } else {
         buf.terminal_state.normal_attribute_font_slot = slot;
     }
+}
+
+pub fn parse_next_number(x: i32, ch: u8) -> i32 {
+    x.saturating_mul(10)
+        .saturating_add(ch as i32)
+        .saturating_sub(b'0' as i32)
 }

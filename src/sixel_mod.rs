@@ -1,4 +1,6 @@
-use crate::{EngineResult, Palette, ParserError, Position, Rectangle, Size};
+use crate::{
+    ansi::parse_next_number, EngineResult, Palette, ParserError, Position, Rectangle, Size,
+};
 
 #[derive(Clone, Debug, Copy)]
 pub enum SixelState {
@@ -95,7 +97,7 @@ impl SixelParser {
                         Some(number) => number,
                         _ => 0,
                     };
-                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    self.parsed_numbers.push(parse_next_number(d, ch as u8));
                 } else if ch == ';' {
                     self.parsed_numbers.push(0);
                 } else {
@@ -139,7 +141,7 @@ impl SixelParser {
                         Some(number) => number,
                         _ => 0,
                     };
-                    self.parsed_numbers.push(d * 10 + ch as i32 - b'0' as i32);
+                    self.parsed_numbers.push(parse_next_number(d, ch as u8));
                 } else if ch == ';' {
                     self.parsed_numbers.push(0);
                 } else {
@@ -171,7 +173,7 @@ impl SixelParser {
                         Some(number) => number,
                         _ => 0,
                     };
-                    self.parsed_numbers.push(d * 10 + ch as i32 - '0' as i32);
+                    self.parsed_numbers.push(parse_next_number(d, ch as u8));
                 } else {
                     if let Some(i) = self.parsed_numbers.first() {
                         for _ in 0..*i {
