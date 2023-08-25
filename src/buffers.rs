@@ -309,6 +309,7 @@ impl Buffer {
     pub fn clear(&mut self) {
         for layer in &mut self.layers {
             layer.clear();
+            layer.hyperlinks.clear();
             layer.sixels.clear();
         }
         self.sixel_threads.clear();
