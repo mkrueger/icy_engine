@@ -1379,3 +1379,29 @@ fn test_ice_colors() {
     assert!(!buf.get_char_xy(0, 0).attribute.is_blinking());
     assert_eq!(4 + 8, buf.get_char_xy(0, 0).attribute.background_color);
 }
+
+#[test]
+fn test_margins_bug() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"\x1B[27L\x1B[0;25rtest\r\n",
+    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[27L\x1B[1;25r");
+    update_buffer(&mut buf, &mut caret, &mut parser, b"test1\r\n");
+    update_buffer(&mut buf, &mut caret, &mut parser, b"test2\r\n");
+    update_buffer(&mut buf, &mut caret, &mut parser, b"test3\r\n");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"test4\r\n\x1B[1;1Hhello",
+    );
+    caret.up(&mut buf, 1);
+    caret.up(&mut buf, 1);
+    caret.up(&mut buf, 1);
+    println!("{buf}");
+}

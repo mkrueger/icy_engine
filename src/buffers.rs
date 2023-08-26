@@ -9,7 +9,7 @@ use std::{
 
 use num::NumCast;
 
-use crate::{parsers, BufferParser, Caret, EngineResult, Glyph, Sixel, TerminalState};
+use crate::{parsers, BufferParser, Caret, EngineResult, Glyph, SauceData, Sixel, TerminalState};
 
 use super::{
     read_binary, read_xb, AttributedChar, BitFont, Layer, Palette, Position, SauceString,
@@ -560,8 +560,20 @@ impl Buffer {
                 return Ok(result);
             }
         }
+        let sauce_data = SauceData::extract(bytes).ok();
+        let mut sauce_type = super::SauceFileType::Undefined;
+        let mut file_size = bytes.len();
+        let mut use_ice = false;
+        if let Some(sauce) = &sauce_data {
+            result.title = sauce.title.clone();
+            result.author = sauce.author.clone();
+            result.group = sauce.group.clone();
+            result.comments = sauce.comments.clone();
+            sauce_type = sauce.sauce_file_type;
+            use_ice = sauce.use_ice;
+            file_size -= sauce.sauce_header_len;
+        }
 
-        let (sauce_type, file_size) = result.read_sauce_info(bytes)?;
         let mut check_extension = false;
         let mut interpreter = CharInterpreter::Ascii;
 
@@ -674,6 +686,7 @@ impl Buffer {
         };
 
         let mut caret = Caret::default();
+        caret.set_ice_mode(use_ice);
         for b in bytes.iter().take(file_size) {
             let res = interpreter.as_mut().print_char(
                 &mut result,
