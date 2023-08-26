@@ -79,6 +79,7 @@ pub enum SauceFileType {
     XBin,
 }
 
+#[derive(Clone)]
 pub struct SauceData {
     pub title: SauceString<35, b' '>,
     pub author: SauceString<20, b' '>,
