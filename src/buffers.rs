@@ -569,6 +569,7 @@ impl Buffer {
             result.author = sauce.author.clone();
             result.group = sauce.group.clone();
             result.comments = sauce.comments.clone();
+            result.set_buffer_size(sauce.buffer_size);
             sauce_type = sauce.sauce_file_type;
             use_ice = sauce.use_ice;
             file_size -= sauce.sauce_header_len;
