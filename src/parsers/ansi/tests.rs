@@ -1332,8 +1332,8 @@ fn test_ocs8_hyperlinks() {
     assert!(buf.get_char_xy(0, 0).attribute.is_underlined());
     assert_eq!(1, buf.layers[0].hyperlinks.len());
     assert_eq!(
-        "http://example.com".to_string(),
-        buf.layers[0].hyperlinks[0].url
+        "http://example.com",
+        buf.layers[0].hyperlinks[0].get_url(&buf)
     );
 }
 

@@ -50,17 +50,17 @@ impl Parser {
             let mut p = self.hyper_links.pop().unwrap();
             let cp = caret.get_position();
             if cp.y == p.position.y {
-                p.length = cp.x - p.position.x;
+                p.length = (cp.x - p.position.x) as usize;
             } else {
-                p.length = buf.get_buffer_width() - p.position.x
+                p.length = (buf.get_buffer_width() - p.position.x
                     + (cp.y - p.position.y) * buf.get_buffer_width()
-                    + p.position.x;
+                    + p.position.x) as usize;
             }
             buf.layers[0].add_hyperlink(p);
         } else {
             caret.attribute.set_is_underlined(true);
             self.hyper_links.push(crate::HyperLink {
-                url,
+                url: Some(url),
                 position: caret.get_position(),
                 length: 0,
             });

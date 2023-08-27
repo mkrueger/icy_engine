@@ -64,6 +64,9 @@ pub use sixel_mod::*;
 mod selection;
 pub use selection::*;
 
+mod url_scanner;
+pub use url_scanner::*;
+
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Copy, Clone, Debug, Default)]

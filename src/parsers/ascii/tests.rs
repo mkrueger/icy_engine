@@ -96,3 +96,37 @@ fn test_eol_line_break() {
     assert_eq!(Position::new(1, 2), caret.pos);
     assert_eq!(b'#', buf.get_char(Position::new(0, 2)).ch as u8);
 }
+
+#[test]
+fn test_url_scanner_simple() {
+    let (buf, _) = create_buffer(
+        &mut Parser::default(),
+        b"\n\r http://www.example.com",
+    );
+
+    let hyperlinks = buf.parse_hyperlinks();
+
+    assert_eq!(1, hyperlinks.len());    
+    assert_eq!("http://www.example.com", hyperlinks[0].get_url(&buf));    
+    assert_eq!(Position::new(1,1), hyperlinks[0].position);    
+}
+
+#[test]
+fn test_url_scanner_multiple() {
+    let (buf, _) = create_buffer(
+        &mut Parser::default(),
+        b"\n\r http://www.example.com https://www.google.com\n\rhttps://github.com/mkrueger/icy_engine",
+    );
+
+    let hyperlinks = buf.parse_hyperlinks();
+
+    assert_eq!(3, hyperlinks.len());    
+    assert_eq!("http://www.example.com", hyperlinks[2].get_url(&buf));    
+    assert_eq!(Position::new(1,1), hyperlinks[2].position);    
+
+    assert_eq!("https://www.google.com", hyperlinks[1].get_url(&buf));    
+    assert_eq!(Position::new(24,1), hyperlinks[1].position);    
+
+    assert_eq!("https://github.com/mkrueger/icy_engine", hyperlinks[0].get_url(&buf));    
+    assert_eq!(Position::new(0,2), hyperlinks[0].position);    
+}

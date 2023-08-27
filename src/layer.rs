@@ -1,4 +1,4 @@
-use crate::{Line, Sixel};
+use crate::{Line, Sixel, Buffer};
 
 use super::{AttributedChar, Position};
 
@@ -19,9 +19,19 @@ pub struct Layer {
 
 #[derive(Debug, Default, Clone)]
 pub struct HyperLink {
-    pub url: String,
+    pub url: Option<String>,
     pub position: Position,
-    pub length: i32,
+    pub length: usize,
+}
+
+impl HyperLink {
+    pub fn get_url(&self, buf: &Buffer) -> String {
+        if let Some(ref url) = self.url {
+            url.clone()
+        } else {
+            buf.get_string(self.position, self.length as usize)
+        }
+    }
 }
 
 impl Layer {
