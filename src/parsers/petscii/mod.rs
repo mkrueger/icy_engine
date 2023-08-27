@@ -182,8 +182,12 @@ impl BufferParser for Parser {
     }
 
     fn convert_to_unicode(&self, ch: char) -> char {
-        // TODO
-        ascii::Parser::default().convert_to_unicode(ch)
+        for (k,v) in &*UNICODE_TO_PETSCII {
+            if *v == ch as u8 {
+                return unsafe { char::from_u32_unchecked(*k as u32) };
+            }
+        }
+        ch
     }
 
     fn print_char(
