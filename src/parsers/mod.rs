@@ -34,8 +34,8 @@ pub enum CallbackAction {
 }
 
 pub trait BufferParser {
-    fn convert_from_unicode(&self, ch: char) -> char;
-    fn convert_to_unicode(&self, ch: char) -> char;
+    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char;
+    fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char;
 
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
     ///

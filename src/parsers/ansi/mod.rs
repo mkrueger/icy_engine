@@ -171,11 +171,11 @@ impl Default for Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char) -> char {
-        self.ascii_parser.convert_from_unicode(ch)
+    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
+        self.ascii_parser.convert_from_unicode(ch, font_page)
     }
 
-    fn convert_to_unicode(&self, ch: char) -> char {
+    fn convert_to_unicode(&self, ch: AttributedChar) -> char {
         self.ascii_parser.convert_to_unicode(ch)
     }
 

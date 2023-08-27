@@ -1,5 +1,5 @@
 use super::BufferParser;
-use crate::{Buffer, CallbackAction, Caret, EngineResult};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, AttributedChar};
 
 #[derive(Default)]
 pub struct Parser {
@@ -7,17 +7,17 @@ pub struct Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char) -> char {
+    fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         match UNICODE_TO_ATARI.get(&ch) {
             Some(out_ch) => *out_ch,
             _ => ch,
         }
     }
 
-    fn convert_to_unicode(&self, ch: char) -> char {
-        match ATARI_TO_UNICODE.get(ch as usize) {
+    fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char {
+        match ATARI_TO_UNICODE.get(attributed_char.ch as usize) {
             Some(out_ch) => *out_ch,
-            _ => ch,
+            _ => attributed_char.ch,
         }
     }
 

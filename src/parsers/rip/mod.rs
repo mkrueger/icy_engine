@@ -1,6 +1,6 @@
 use super::{ansi, BufferParser};
 use crate::{
-    ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle,
+    ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle, AttributedChar,
 };
 
 #[derive(Default)]
@@ -38,11 +38,11 @@ impl Parser {
 static RIP_TERMINAL_ID: &str = "RIPSCRIP01540\0";
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char) -> char {
-        self.ansi_parser.convert_from_unicode(ch)
+    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
+        self.ansi_parser.convert_from_unicode(ch, font_page)
     }
 
-    fn convert_to_unicode(&self, ch: char) -> char {
+    fn convert_to_unicode(&self, ch: AttributedChar) -> char {
         self.ansi_parser.convert_to_unicode(ch)
     }
 

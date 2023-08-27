@@ -1,4 +1,4 @@
-use super::{ascii, Buffer, BufferParser};
+use super::{Buffer, BufferParser};
 use crate::{AttributedChar, CallbackAction, Caret, EngineResult, ParserError, Position};
 
 #[derive(Default)]
@@ -169,7 +169,7 @@ const LIGHT_BLUE: u32 = 0x0e;
 const GREY3: u32 = 0x0f;
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char) -> char {
+    fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
             if let Some(out_ch) = char::from_u32(*tch as u32) {
                 out_ch
@@ -181,15 +181,15 @@ impl BufferParser for Parser {
         }
     }
 
-    fn convert_to_unicode(&self, ch: char) -> char {
-        if let Some(tch) = PETSCII_TO_UNICODE.get(&(ch as u8)) {
+    fn convert_to_unicode(&self, ch: AttributedChar) -> char {
+        if let Some(tch) = PETSCII_TO_UNICODE.get(&(ch.ch as u8)) {
             if let Some(out_ch) = char::from_u32(*tch as u32) {
                 out_ch
             } else {
-                ch
+                ch.ch
             }
         } else {
-            ch
+            ch.ch
         }
     }
 

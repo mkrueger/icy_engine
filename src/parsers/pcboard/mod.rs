@@ -1,5 +1,5 @@
 use super::{ansi, BufferParser};
-use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute, AttributedChar};
 
 #[derive(Default)]
 pub struct Parser {
@@ -13,12 +13,12 @@ pub struct Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char) -> char {
-        self.ansi_parser.convert_from_unicode(ch)
+    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
+        self.ansi_parser.convert_from_unicode(ch, font_page)
     }
 
-    fn convert_to_unicode(&self, ch: char) -> char {
-        self.ansi_parser.convert_to_unicode(ch)
+    fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char {
+        self.ansi_parser.convert_to_unicode(attributed_char)
     }
 
     fn print_char(
