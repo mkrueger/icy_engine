@@ -29,7 +29,7 @@ impl HyperLink {
         if let Some(ref url) = self.url {
             url.clone()
         } else {
-            buf.get_string(self.position, self.length as usize)
+            buf.get_string(self.position, self.length)
         }
     }
 }

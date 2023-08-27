@@ -83,8 +83,8 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                         result.push(b'm');
                     }
                 } else {
-                    let mut write_24bit_fg_color = false;
-                    let mut write_24bit_bg_color = false;
+                    let mut write_24bit_fore_color = false;
+                    let mut write_24bit_back_color = false;
                     result.extend_from_slice(b"\x1b[");
 
                     let mut wrote_part = false;
@@ -140,7 +140,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                             result.extend_from_slice(col.to_string().as_bytes());
                             wrote_part = true;
                         } else {
-                            write_24bit_fg_color = true;
+                            write_24bit_fore_color = true;
                         }
                     }
                     if last_attr.get_background() != cur_attr.get_background() {
@@ -157,12 +157,12 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                             result.extend_from_slice(b"48;5;");
                             result.extend_from_slice(col.to_string().as_bytes());
                         } else {
-                            write_24bit_bg_color = true;
+                            write_24bit_back_color = true;
                         }
                     }
                     result.push(b'm');
 
-                    if write_24bit_fg_color {
+                    if write_24bit_fore_color {
                         result.extend_from_slice(b"\x1b[1;");
                         let color = buf.palette.colors[cur_attr.get_foreground() as usize];
                         let (r, g, b) = color.get_rgb();
@@ -174,7 +174,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                         result.push(b't');
                     }
 
-                    if write_24bit_bg_color {
+                    if write_24bit_back_color {
                         result.extend_from_slice(b"\x1b[0;");
                         let color = buf.palette.colors[cur_attr.get_background() as usize];
                         let (r, g, b) = color.get_rgb();
@@ -235,12 +235,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
 
 fn get_extended_color(buf: &Buffer, color: usize) -> Option<usize> {
     let color = buf.palette.colors[color];
-    for i in 0..crate::XTERM_256_PALETTE.len() {
-        if color == crate::XTERM_256_PALETTE[i] {
-            return Some(i);
-        }
-    }
-    None
+    (0..crate::XTERM_256_PALETTE.len()).find(|&i| color == crate::XTERM_256_PALETTE[i])
 }
 
 fn push_int(result: &mut Vec<u8>, number: usize) {

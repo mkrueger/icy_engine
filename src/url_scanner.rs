@@ -59,21 +59,21 @@ impl Buffer {
     }
 
     pub fn is_position_in_range(&self, pos: Position, from: Position, size: usize) -> bool { 
-        if pos.y < from.y {
-            false
-        } else  if pos.y == from.y {
-            from.x <= pos.x && pos.x < from.x + size as i32
-        } else {
-            let mut x = from.x + size as i32;
-            let remainder = x - self.get_buffer_width();
-            let lines = remainder / self.get_buffer_width();
-            let mut y = from.y + lines;
-
-            if remainder > 0 {
-                x = remainder - lines * self.get_buffer_width();
-            }
-
-            pos.y < y  || pos.y == y && pos.x < x
+        match pos.y.cmp(&from.y) {
+            std::cmp::Ordering::Less => false,
+            std::cmp::Ordering::Equal => from.x <= pos.x && pos.x < from.x + size as i32,
+            std::cmp::Ordering::Greater => {
+                let remainder = (size as i32 - self.get_buffer_width() + from.x ).max(0);
+                let lines = remainder / self.get_buffer_width();
+                let mut y = from.y + lines;
+                let x = if remainder > 0 {
+                    y += 1; // remainder > 1 wraps 1 extra line
+                    remainder - lines * self.get_buffer_width()
+                } else {
+                    remainder
+                };
+                pos.y < y  || pos.y == y && pos.x < x
+            },
         }
     }
 
@@ -81,7 +81,7 @@ impl Buffer {
     {
         self.layers[0].hyperlinks.retain(|l| l.url.is_none());
         for hl in &hyperlinks {
-            self.underline(hl.position, hl.length as usize);
+            self.underline(hl.position, hl.length);
         }
         self.layers[0].hyperlinks.extend(hyperlinks);
     }
