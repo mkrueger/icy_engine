@@ -1,6 +1,7 @@
 use super::{ansi, BufferParser};
 use crate::{
-    ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle, AttributedChar,
+    ansi::EngineState, AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError,
+    Rectangle,
 };
 
 #[derive(Default)]

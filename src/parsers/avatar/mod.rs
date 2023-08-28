@@ -1,5 +1,7 @@
 use super::BufferParser;
-use crate::{Buffer, CallbackAction, Caret, EngineResult, ParserError, TextAttribute, AttributedChar};
+use crate::{
+    AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError, TextAttribute,
+};
 use std::cmp::{max, min};
 
 enum AvtReadState {

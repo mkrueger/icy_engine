@@ -1,7 +1,6 @@
 use crate::{Buffer, HyperLink, Position};
 
 impl Buffer {
-
     pub fn get_string(&self, pos: Position, size: usize) -> String {
         let mut result = String::new();
         let mut pos = pos;
@@ -13,11 +12,10 @@ impl Buffer {
                 pos.y += 1;
             }
         }
-        result 
+        result
     }
 
-    pub fn parse_hyperlinks(&self) -> Vec<HyperLink>
-    {
+    pub fn parse_hyperlinks(&self) -> Vec<HyperLink> {
         let mut result = Vec::new();
 
         let mut pos = Position::new(self.get_buffer_width() - 1, self.get_buffer_height() - 1);
@@ -25,8 +23,8 @@ impl Buffer {
 
         while pos.y >= 0 {
             let attr_char = self.get_char(pos);
-            if let rfind_url::ParserState::Url(size) =  parser.advance(attr_char.ch) {
-                let p =  crate::HyperLink {
+            if let rfind_url::ParserState::Url(size) = parser.advance(attr_char.ch) {
+                let p = crate::HyperLink {
                     url: None,
                     position: pos,
                     length: size,
@@ -43,8 +41,7 @@ impl Buffer {
         result
     }
 
-
-    fn underline(&mut self, pos: Position, size: usize){
+    fn underline(&mut self, pos: Position, size: usize) {
         let mut pos = pos;
         for _ in 0..size {
             let mut ch = self.get_char(pos);
@@ -58,12 +55,12 @@ impl Buffer {
         }
     }
 
-    pub fn is_position_in_range(&self, pos: Position, from: Position, size: usize) -> bool { 
+    pub fn is_position_in_range(&self, pos: Position, from: Position, size: usize) -> bool {
         match pos.y.cmp(&from.y) {
             std::cmp::Ordering::Less => false,
             std::cmp::Ordering::Equal => from.x <= pos.x && pos.x < from.x + size as i32,
             std::cmp::Ordering::Greater => {
-                let remainder = (size as i32 - self.get_buffer_width() + from.x ).max(0);
+                let remainder = (size as i32 - self.get_buffer_width() + from.x).max(0);
                 let lines = remainder / self.get_buffer_width();
                 let mut y = from.y + lines;
                 let x = if remainder > 0 {
@@ -72,13 +69,12 @@ impl Buffer {
                 } else {
                     remainder
                 };
-                pos.y < y  || pos.y == y && pos.x < x
-            },
+                pos.y < y || pos.y == y && pos.x < x
+            }
         }
     }
 
-    pub fn join_hyperlinks(&mut self, hyperlinks: Vec<HyperLink>)
-    {
+    pub fn join_hyperlinks(&mut self, hyperlinks: Vec<HyperLink>) {
         self.layers[0].hyperlinks.retain(|l| l.url.is_none());
         for hl in &hyperlinks {
             self.underline(hl.position, hl.length);
@@ -86,8 +82,7 @@ impl Buffer {
         self.layers[0].hyperlinks.extend(hyperlinks);
     }
 
-    pub fn update_hyperlinks(&mut self)
-    {
+    pub fn update_hyperlinks(&mut self) {
         self.join_hyperlinks(self.parse_hyperlinks());
     }
 }

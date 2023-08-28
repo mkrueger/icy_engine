@@ -465,7 +465,9 @@ impl Buffer {
     pub fn get_char(&self, pos: Position) -> AttributedChar {
         if let Some(overlay) = &self.overlay_layer {
             let ch = overlay.get_char(pos);
-            return ch;
+            if ch.is_visible() {
+                return ch;
+            }
         }
 
         for i in 0..self.layers.len() {
@@ -474,7 +476,7 @@ impl Buffer {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
-            if ch.is_visible() {
+            if ch.is_visible() || !cur_layer.is_transparent {
                 return ch;
             }
         }

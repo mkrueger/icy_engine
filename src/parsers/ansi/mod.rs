@@ -1382,7 +1382,7 @@ impl BufferParser for Parser {
                 LF => caret.lf(buf),
                 FF => caret.ff(buf),
                 CR => caret.cr(buf),
-                BS => caret.bs(buf),
+                //                BS => caret.bs(buf),
                 BEL => return Ok(CallbackAction::Beep),
                 '\x7F' => caret.del(buf),
                 _ => {

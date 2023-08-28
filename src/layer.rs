@@ -1,4 +1,4 @@
-use crate::{Line, Sixel, Buffer};
+use crate::{Buffer, Line, Sixel};
 
 use super::{AttributedChar, Position};
 
