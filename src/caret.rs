@@ -1,3 +1,5 @@
+use std::backtrace::{self, Backtrace};
+
 use super::{Position, TextAttribute};
 
 #[derive(Clone)]
@@ -31,8 +33,9 @@ impl Caret {
             let bg = result.get_background();
             if bg < 8 && result.is_blinking() {
                 result.set_background(bg + 8);
-                result.set_is_blinking(false);
             }
+            // ice mode is not blinking
+            result.set_is_blinking(false);
         }
         result
     }
