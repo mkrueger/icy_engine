@@ -16,7 +16,6 @@ impl Default for AttributedChar {
 }
 
 impl AttributedChar {
-    // TODO: invisible char
     pub fn invisible() -> Self {
         AttributedChar {
             ch: ' ',
@@ -27,7 +26,7 @@ impl AttributedChar {
         }
     }
     pub fn is_visible(&self) -> bool {
-        self.attribute.attr != crate::attribute::INVISIBLE
+        (self.attribute.attr & crate::attribute::INVISIBLE) == 0
     }
 
     #[must_use]
