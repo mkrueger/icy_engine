@@ -56,17 +56,17 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         if cmd == TUNDRA_POSITION {
             pos.y = to_u32(&bytes[o..]);
             if pos.y >= (u16::MAX) as i32 {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_real_buffer_height())));
+                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_line_count())));
             }
             o += 4;
             pos.x = to_u32(&bytes[o..]);
-            if pos.x >= result.get_buffer_width() {
+            if pos.x >= result.get_width() {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     format!(
                         "Invalid Tundra Draw file.\nJump x position {} out of bounds (width is {})",
                         pos.x,
-                        result.get_buffer_width()
+                        result.get_width()
                     ),
                 ));
             }
@@ -101,8 +101,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             }
             cmd = ch;
         }
-        result.set_char(
-            0,
+        result.layers[0].set_char(
             pos,
             AttributedChar::new(char::from_u32(cmd as u32).unwrap(), attr),
         );
@@ -113,15 +112,13 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
     result.layers[0].title = "Editing".to_string();
 
-    let mut background = crate::Layer::new();
+    let mut background = crate::Layer::new("Background", 80, 25);
     background.title = "Background".to_string();
 
-    for _ in 0..result.get_real_buffer_height() {
+    for _ in 0..result.get_line_count() {
         let mut line = crate::Line::new();
-        line.chars.resize(
-            result.get_buffer_width() as usize,
-            AttributedChar::default(),
-        );
+        line.chars
+            .resize(result.get_width() as usize, AttributedChar::default());
         background.lines.push(line);
     }
 
@@ -132,7 +129,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
 fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     pos.x += 1;
-    if pos.x >= result.get_buffer_width() {
+    if pos.x >= result.get_width() {
         pos.x = 0;
         pos.y += 1;
     }
@@ -159,8 +156,8 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.extend(TUNDRA_HEADER);
     let mut attr = TextAttribute::from_u8(0, buf.buffer_type);
     let mut skip_pos = None;
-    for y in 0..buf.get_real_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
+    for y in 0..buf.get_line_count() {
+        for x in 0..buf.get_width() {
             let pos = Position::new(x, y);
             let ch = buf.get_char(pos);
             if !ch.is_visible() {
@@ -177,8 +174,8 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             }
 
             if let Some(pos2) = skip_pos {
-                let skip_len = (pos.x + pos.y * buf.get_buffer_width())
-                    - (pos2.x + pos2.y * buf.get_buffer_width());
+                let skip_len =
+                    (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width());
                 if skip_len <= TND_GOTO_BLOCK_LEN {
                     result.resize(result.len() + skip_len as usize, 0);
                 } else {
@@ -232,11 +229,9 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
     }
     if let Some(pos2) = skip_pos {
-        let pos = Position::new(buf.get_buffer_width() - 1, buf.get_real_buffer_height() - 1);
+        let pos = Position::new(buf.get_width() - 1, buf.get_line_count() - 1);
 
-        let skip_len = (pos.x + pos.y * buf.get_buffer_width())
-            - (pos2.x + pos2.y * buf.get_buffer_width())
-            + 1;
+        let skip_len = (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width()) + 1;
         result.resize(result.len() + skip_len as usize, 0);
     }
 
@@ -247,7 +242,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 }
 
 pub fn get_save_sauce_default_tnd(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 80 {
+    if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
     }
 

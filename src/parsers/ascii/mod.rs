@@ -25,6 +25,7 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
@@ -35,12 +36,12 @@ impl BufferParser for Parser {
             BEL => {
                 return Ok(CallbackAction::Beep);
             }
-            LF => caret.lf(buf),
-            FF => caret.ff(buf),
+            LF => caret.lf(buf, current_layer),
+            FF => caret.ff(buf, current_layer),
             CR => caret.cr(buf),
-            BS => caret.bs(buf),
-            '\x7F' => caret.del(buf),
-            _ => buf.print_value(caret, ch as u16),
+            BS => caret.bs(buf, current_layer),
+            '\x7F' => caret.del(buf, current_layer),
+            _ => buf.print_value(current_layer, caret, ch as u16),
         }
         Ok(CallbackAction::None)
     }

@@ -58,14 +58,14 @@ impl Parser {
 
         let attr = buf.get_char(Position::new(sx, sy)).attribute;
 
-        for x in sx..buf.get_buffer_width() {
+        for x in sx..buf.get_width() {
             let p = Position::new(x, sy);
             let mut ch = buf.get_char(p);
             if ch.attribute != attr {
                 break;
             }
             ch.attribute = caret.attribute;
-            buf.set_char(0, p, ch);
+            buf.layers[0].set_char(p, ch);
         }
     }
 
@@ -75,13 +75,13 @@ impl Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: AttributedChar) {
-        buf.set_char(0, caret.pos, ch);
+        buf.layers[0].set_char(caret.pos, ch);
         self.caret_right(buf, caret);
     }
 
     fn caret_down(&mut self, buf: &Buffer, caret: &mut Caret) {
         caret.pos.y += 1;
-        if caret.pos.y >= buf.get_buffer_height() {
+        if caret.pos.y >= buf.get_height() {
             caret.pos.y = 0;
         }
         self.reset_on_row_change(caret);
@@ -91,13 +91,13 @@ impl Parser {
         if caret.pos.y > 0 {
             caret.pos.y = caret.pos.y.saturating_sub(1);
         } else {
-            caret.pos.y = buf.get_buffer_height() - 1;
+            caret.pos.y = buf.get_height() - 1;
         }
     }
 
     fn caret_right(&mut self, buf: &Buffer, caret: &mut Caret) {
         caret.pos.x += 1;
-        if caret.pos.x >= buf.get_buffer_width() {
+        if caret.pos.x >= buf.get_width() {
             caret.pos.x = 0;
             self.caret_down(buf, caret);
         }
@@ -108,7 +108,7 @@ impl Parser {
         if caret.pos.x > 0 {
             caret.pos.x = caret.pos.x.saturating_sub(1);
         } else {
-            caret.pos.x = buf.get_buffer_width() - 1;
+            caret.pos.x = buf.get_width() - 1;
             Parser::caret_up(buf, caret);
         }
     }
@@ -250,6 +250,7 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
@@ -283,7 +284,7 @@ impl BufferParser for Parser {
             0b000_1100 => {
                 // 12 / 0x0C
                 buf.reset_terminal();
-                buf.clear();
+                buf.layers[current_layer].clear();
                 caret.pos = Position::default();
                 caret.reset_color_attribute();
 

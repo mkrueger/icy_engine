@@ -167,7 +167,7 @@ impl TerminalState {
             crate::OriginMode::UpperLeftCorner => {
                 if buf.is_terminal_buffer {
                     let first = buf.get_first_visible_line();
-                    let n = (first + buf.get_buffer_height() - 1).min(first.max(caret.pos.y));
+                    let n = (first + buf.get_height() - 1).min(first.max(caret.pos.y));
 
                     caret.pos.y = n;
                 }

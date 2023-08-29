@@ -32,8 +32,8 @@ impl Position {
 
     pub fn from_index(buf: &Buffer, i: i32) -> Self {
         Position {
-            x: i % buf.get_buffer_width(),
-            y: i / buf.get_buffer_width(),
+            x: i % buf.get_width(),
+            y: i / buf.get_width(),
         }
     }
 

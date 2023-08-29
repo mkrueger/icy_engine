@@ -29,10 +29,10 @@ fn test_full_line_height() {
     let mut vec = Vec::new();
     vec.resize(80, b'-');
     let (mut buf, mut caret) = create_buffer(&mut Parser::default(), &vec);
-    assert_eq!(2, buf.get_real_buffer_height());
+    assert_eq!(2, buf.get_line_count());
     vec.push(b'-');
     update_buffer(&mut buf, &mut caret, &mut Parser::default(), &vec);
-    assert_eq!(3, buf.get_real_buffer_height());
+    assert_eq!(3, buf.get_line_count());
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn test_emptylastline_height() {
     vec.resize(80, b'-');
     vec.resize(80 * 2, b' ');
     let (buf, _) = create_buffer(&mut Parser::default(), &vec);
-    assert_eq!(3, buf.get_real_buffer_height());
+    assert_eq!(3, buf.get_line_count());
 }
 
 /*
@@ -63,7 +63,7 @@ fn test_emptylastline_roundtrip() {
 fn test_eol() {
     let data = b"foo\r\n";
     let (buf, _) = create_buffer(&mut Parser::default(), data);
-    assert_eq!(2, buf.get_real_buffer_height());
+    assert_eq!(2, buf.get_line_count());
 }
 /*
 #[test]

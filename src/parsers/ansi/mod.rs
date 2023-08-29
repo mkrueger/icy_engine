@@ -12,7 +12,7 @@ use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
     FontSelectionState, HyperLink, MouseMode, OriginMode, ParserError, Position, TerminalScrolling,
-    BEL, BS, CR, FF, LF,
+    BEL, CR, FF, LF,
 };
 
 mod ansi_commands;
@@ -183,6 +183,7 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
@@ -220,7 +221,7 @@ impl BufferParser for Parser {
 
                         'c' => {
                             // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
-                            caret.ff(buf);
+                            caret.ff(buf, current_layer);
                             buf.reset_terminal();
                             self.macros.clear();
                             Ok(CallbackAction::None)
@@ -228,18 +229,18 @@ impl BufferParser for Parser {
 
                         'D' => {
                             // Index
-                            caret.index(buf);
+                            caret.index(buf, current_layer);
                             Ok(CallbackAction::None)
                         }
                         'M' => {
                             // Reverse Index
-                            caret.reverse_index(buf);
+                            caret.reverse_index(buf, current_layer);
                             Ok(CallbackAction::None)
                         }
 
                         'E' => {
                             // Next Line
-                            caret.next_line(buf);
+                            caret.next_line(buf, current_layer);
                             Ok(CallbackAction::None)
                         }
 
@@ -354,6 +355,7 @@ impl BufferParser for Parser {
                     self.state = EngineState::RecordDCS(ReadSTState::Default(0));
                     return self.invoke_macro_by_id(
                         buf,
+                        current_layer,
                         caret,
                         *self.parsed_numbers.first().unwrap(),
                     );
@@ -675,7 +677,7 @@ impl BufferParser for Parser {
                     // potential rip support request
                     // ignore that for now and continue parsing
                     self.state = EngineState::Default;
-                    return self.print_char(buf, caret, ch);
+                    return self.print_char(buf, current_layer, caret, ch);
                 }
             }
 
@@ -683,7 +685,7 @@ impl BufferParser for Parser {
                 self.current_escape_sequence.push(ch);
                 match *func {
                     '*' => match ch {
-                        'z' => return self.invoke_macro(buf, caret),
+                        'z' => return self.invoke_macro(buf, current_layer, caret),
                         'r' => return self.select_communication_speed(buf),
                         'y' => return self.request_checksum_of_rectangular_area(buf),
                         _ => {}
@@ -717,8 +719,8 @@ impl BufferParser for Parser {
 
                         match ch {
                             'D' => return self.font_selection(buf, caret),
-                            'A' => self.scroll_right(buf),
-                            '@' => self.scroll_left(buf),
+                            'A' => self.scroll_right(buf, current_layer),
+                            '@' => self.scroll_left(buf, current_layer),
                             'd' => return self.tabulation_stop_remove(buf),
                             _ => {
                                 self.current_escape_sequence.push(ch);
@@ -793,18 +795,18 @@ impl BufferParser for Parser {
                         // Cursor Up
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            caret.up(buf, 1);
+                            caret.up(buf, current_layer, 1);
                         } else {
-                            caret.up(buf, self.parsed_numbers[0]);
+                            caret.up(buf, current_layer, self.parsed_numbers[0]);
                         }
                     }
                     'B' => {
                         // Cursor Down
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            caret.down(buf, 1);
+                            caret.down(buf, current_layer, 1);
                         } else {
-                            caret.down(buf, self.parsed_numbers[0]);
+                            caret.down(buf, current_layer,self.parsed_numbers[0]);
                         }
                     }
                     's' => {
@@ -845,7 +847,7 @@ impl BufferParser for Parser {
                         };
                         if let Some(layer) = &buf.layers.get(0) {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
-                                caret.pos.x = num.clamp(0, line.get_line_length() as i32 + 1);
+                                caret.pos.x = num.clamp(0, line.get_line_length() as i32);
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
@@ -863,7 +865,7 @@ impl BufferParser for Parser {
                         if let Some(layer) = &buf.layers.get(0) {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
                                 caret.pos.x =
-                                    min(line.get_line_length() as i32 + 1, caret.pos.x + num);
+                                    min(line.get_line_length() as i32, caret.pos.x + num);
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
@@ -927,8 +929,8 @@ impl BufferParser for Parser {
                                 // Get cursor position
                                 let s = format!(
                                     "\x1b[{};{}R",
-                                    min(buf.get_buffer_height(), caret.pos.y + 1),
-                                    min(buf.get_buffer_width(), caret.pos.x + 1)
+                                    min(buf.get_height(), caret.pos.y + 1),
+                                    min(buf.get_width(), caret.pos.x + 1)
                                 );
                                 return Ok(CallbackAction::SendString(s));
                             }
@@ -952,17 +954,17 @@ impl BufferParser for Parser {
                         Insert Column 	  CSI Pn ' }
                         Delete Column 	  CSI Pn ' ~
                     */
-                    'X' => return self.erase_character(caret, buf),
+                    'X' => return self.erase_character(caret, buf, current_layer),
                     '@' => {
                         // Insert character
                         self.state = EngineState::Default;
 
                         if let Some(number) = self.parsed_numbers.first() {
                             for _ in 0..*number {
-                                caret.ins(buf);
+                                caret.ins(buf, current_layer);
                             }
                         } else {
-                            caret.ins(buf);
+                            caret.ins(buf, current_layer);
                             if self.parsed_numbers.len() != 1 {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
@@ -982,7 +984,7 @@ impl BufferParser for Parser {
                         } else if self.parsed_numbers.is_empty() {
                             if let Some(layer) = buf.layers.get(0) {
                                 if caret.pos.y < layer.lines.len() as i32 {
-                                    buf.remove_terminal_line(caret.pos.y);
+                                    buf.remove_terminal_line(current_layer, caret.pos.y);
                                 }
                             } else {
                                 return Err(Box::new(ParserError::InvalidBuffer));
@@ -1001,7 +1003,7 @@ impl BufferParser for Parser {
                                     return Err(Box::new(ParserError::InvalidBuffer));
                                 }
                                 for _ in 0..number {
-                                    buf.remove_terminal_line(caret.pos.y);
+                                    buf.remove_terminal_line(current_layer, caret.pos.y);
                                 }
                             } else {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1032,7 +1034,7 @@ impl BufferParser for Parser {
                         // Delete character
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            caret.del(buf);
+                            caret.del(buf, current_layer);
                         } else {
                             if self.parsed_numbers.len() != 1 {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1041,7 +1043,7 @@ impl BufferParser for Parser {
                             }
                             if let Some(number) = self.parsed_numbers.first() {
                                 for _ in 0..*number {
-                                    caret.del(buf);
+                                    caret.del(buf,current_layer);
                                 }
                             } else {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1055,7 +1057,7 @@ impl BufferParser for Parser {
                         // Insert line
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            buf.insert_terminal_line(caret.pos.y);
+                            buf.insert_terminal_line( current_layer, caret.pos.y);
                         } else {
                             if self.parsed_numbers.len() != 1 {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1064,7 +1066,7 @@ impl BufferParser for Parser {
                             }
                             if let Some(number) = self.parsed_numbers.first() {
                                 for _ in 0..*number {
-                                    buf.insert_terminal_line(caret.pos.y);
+                                    buf.insert_terminal_line(current_layer,caret.pos.y);
                                 }
                             } else {
                                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1078,21 +1080,21 @@ impl BufferParser for Parser {
                         // Erase in Display
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            buf.clear_buffer_down(caret);
+                            buf.clear_buffer_down(current_layer,caret);
                         } else if let Some(number) = self.parsed_numbers.first() {
                             match *number {
                                 0 => {
-                                    buf.clear_buffer_down(caret);
+                                    buf.clear_buffer_down(current_layer,caret);
                                 }
                                 1 => {
-                                    buf.clear_buffer_up(caret);
+                                    buf.clear_buffer_up(current_layer,caret);
                                 }
                                 2 |  // clear entire screen
                                 3 => {
-                                    buf.clear_screen(caret);
+                                    buf.clear_screen(current_layer,caret);
                                 }
                                 _ => {
-                                    buf.clear_buffer_down(caret);
+                                    buf.clear_buffer_down(current_layer,caret);
                                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone())));
                                 }
                             }
@@ -1146,17 +1148,17 @@ impl BufferParser for Parser {
                         // Erase in line
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            buf.clear_line_end(caret);
+                            buf.clear_line_end(current_layer,caret);
                         } else {
                             match self.parsed_numbers.first() {
                                 Some(0) => {
-                                    buf.clear_line_end(caret);
+                                    buf.clear_line_end(current_layer,caret);
                                 }
                                 Some(1) => {
-                                    buf.clear_line_start(caret);
+                                    buf.clear_line_start(current_layer,caret);
                                 }
                                 Some(2) => {
-                                    buf.clear_line(caret);
+                                    buf.clear_line(current_layer,caret);
                                 }
                                 _ => {
                                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -1221,10 +1223,10 @@ impl BufferParser for Parser {
                                 caret.pos.x = 0;
                             } // home
                             Some(2) => {
-                                caret.ins(buf);
+                                caret.ins(buf, current_layer);
                             } // home
                             Some(3) => {
-                                caret.del(buf);
+                                caret.del(buf, current_layer);
                             }
                             Some(4) => {
                                 caret.eol(buf);
@@ -1256,7 +1258,7 @@ impl BufferParser for Parser {
                         } else {
                             1
                         };
-                        (0..num).for_each(|_| buf.scroll_up());
+                        (0..num).for_each(|_| buf.scroll_up(current_layer));
                     }
                     'T' => {
                         // Scroll Down
@@ -1266,7 +1268,7 @@ impl BufferParser for Parser {
                         } else {
                             1
                         };
-                        (0..num).for_each(|_| buf.scroll_down());
+                        (0..num).for_each(|_| buf.scroll_down(current_layer));
                     }
                     'b' => {
                         // CSI Pn b
@@ -1278,7 +1280,7 @@ impl BufferParser for Parser {
                             1
                         };
                         let ch = AttributedChar::new(self.last_char, caret.attribute);
-                        (0..num).for_each(|_| buf.print_char(caret, ch));
+                        (0..num).for_each(|_| buf.print_char(current_layer, caret, ch));
                     }
                     'g' => {
                         // CSI Ps g
@@ -1379,16 +1381,16 @@ impl BufferParser for Parser {
                 '\x00' | '\u{00FF}' => {
                     caret.reset_color_attribute();
                 }
-                LF => caret.lf(buf),
-                FF => caret.ff(buf),
+                LF => caret.lf(buf, current_layer),
+                FF => caret.ff(buf, current_layer),
                 CR => caret.cr(buf),
                 //                BS => caret.bs(buf),
                 BEL => return Ok(CallbackAction::Beep),
-                '\x7F' => caret.del(buf),
+                '\x7F' => caret.del(buf, current_layer),
                 _ => {
                     self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
                     let ch = AttributedChar::new(self.last_char, caret.get_attribute());
-                    buf.print_char(caret, ch);
+                    buf.print_char(current_layer, caret, ch);
                 }
             },
         }
@@ -1401,6 +1403,7 @@ impl Parser {
     fn invoke_macro_by_id(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         id: i32,
     ) -> EngineResult<CallbackAction> {
@@ -1410,7 +1413,7 @@ impl Parser {
             return Ok(CallbackAction::None);
         };
         for ch in m.chars() {
-            self.print_char(buf, caret, ch)?;
+            self.print_char(buf, current_layer, caret, ch)?;
         }
         Ok(CallbackAction::None)
     }

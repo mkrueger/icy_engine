@@ -16,7 +16,7 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
     let mut o = 0;
     let mut pos = Position::default();
     loop {
-        for _ in 0..result.get_buffer_width() {
+        for _ in 0..result.get_width() {
             if o >= file_size {
                 result.set_height_for_pos(pos);
                 return Ok(true);
@@ -29,8 +29,7 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
                 ));
             }
 
-            result.set_char(
-                0,
+            result.layers[0].set_char(
                 pos,
                 AttributedChar::new(
                     char::from_u32(bytes[o] as u32).unwrap(),
@@ -53,8 +52,8 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
 pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
             let ch = buf.get_char(Position::new(x, y));
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(buf.buffer_type));
@@ -67,7 +66,7 @@ pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<
 }
 
 pub fn get_save_sauce_default_binary(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 160 {
+    if buf.get_width() != 160 {
         return (true, "width != 160".to_string());
     }
 

@@ -185,10 +185,10 @@ impl TheDrawFont {
                 };
                 if cur.x >= 0
                     && cur.y >= 0
-                    && cur.x < buffer.get_buffer_width()
-                    && cur.y < buffer.get_real_buffer_height()
+                    && cur.x < buffer.get_width()
+                    && cur.y < buffer.get_line_count()
                 {
-                    buffer.set_char(layer, cur, attributed_char);
+                    buffer.layers[layer].set_char(cur, attributed_char);
                 }
                 cur.x += 1;
             }

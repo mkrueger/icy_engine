@@ -50,6 +50,7 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
@@ -81,7 +82,8 @@ impl BufferParser for Parser {
                         // RIP_ERASE_WINDOW
                         // level1: RIP_END_TEXT
                         self.state = State::Default;
-                        buf.clear();
+                        buf.layers[current_layer].clear();
+                        buf.stop_sixel_threads();
                         return Ok(CallbackAction::None);
                     }
                     'g' => {
@@ -97,7 +99,7 @@ impl BufferParser for Parser {
                     '>' => {
                         // RIP_ERASE_EOL
                         self.state = State::Default;
-                        buf.clear_line_end(caret);
+                        buf.clear_line_end(current_layer, caret);
                         return Ok(CallbackAction::None);
                     }
                     'c' => {
@@ -252,9 +254,11 @@ impl BufferParser for Parser {
                     }
                     _ => {
                         self.state = State::Default;
-                        self.ansi_parser.print_char(buf, caret, '!')?;
-                        self.ansi_parser.print_char(buf, caret, '|')?;
-                        return self.ansi_parser.print_char(buf, caret, ch);
+                        self.ansi_parser
+                            .print_char(buf, current_layer, caret, '!')?;
+                        self.ansi_parser
+                            .print_char(buf, current_layer, caret, '|')?;
+                        return self.ansi_parser.print_char(buf, current_layer, caret, ch);
                     }
                 }
             }
@@ -262,8 +266,9 @@ impl BufferParser for Parser {
                 // got !
                 if ch != '|' {
                     self.state = State::Default;
-                    self.ansi_parser.print_char(buf, caret, '!')?;
-                    return self.ansi_parser.print_char(buf, caret, ch);
+                    self.ansi_parser
+                        .print_char(buf, current_layer, caret, '!')?;
+                    return self.ansi_parser.print_char(buf, current_layer, caret, ch);
                 }
                 self.state = State::ReadCommand;
                 return Ok(CallbackAction::None);
@@ -301,7 +306,7 @@ impl BufferParser for Parser {
                     }
                     EngineState::Default => {
                         if !self.enable_rip {
-                            return self.ansi_parser.print_char(buf, caret, ch);
+                            return self.ansi_parser.print_char(buf, current_layer, caret, ch);
                         }
 
                         if let '!' = ch {
@@ -314,6 +319,6 @@ impl BufferParser for Parser {
             }
         }
 
-        self.ansi_parser.print_char(buf, caret, ch)
+        self.ansi_parser.print_char(buf, current_layer, caret, ch)
     }
 }

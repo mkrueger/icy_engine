@@ -24,35 +24,36 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
         if self.got_escape {
             self.got_escape = false;
-            buf.print_value(caret, ch as u16);
+            buf.print_value(current_layer, caret, ch as u16);
             return Ok(CallbackAction::None);
         }
 
         match ch {
-            '\x1C' => caret.up(buf, 1),
-            '\x1D' => caret.down(buf, 1),
+            '\x1C' => caret.up(buf, current_layer, 1),
+            '\x1D' => caret.down(buf, current_layer, 1),
             '\x1E' => caret.left(buf, 1),
             '\x1F' => caret.right(buf, 1),
-            '\x7D' => buf.clear_screen(caret),
-            '\x7E' => caret.bs(buf),
+            '\x7D' => buf.clear_screen(current_layer, caret),
+            '\x7E' => caret.bs(buf, current_layer),
             '\x7F' | '\u{009E}' | '\u{009F}' => { /* TAB TODO */ }
-            '\u{009B}' => caret.lf(buf),
-            '\u{009C}' => buf.remove_terminal_line(caret.pos.y),
-            '\u{009D}' => buf.insert_terminal_line(caret.pos.y),
+            '\u{009B}' => caret.lf(buf, current_layer),
+            '\u{009C}' => buf.remove_terminal_line(current_layer, caret.pos.y),
+            '\u{009D}' => buf.insert_terminal_line(current_layer, caret.pos.y),
             //   '\u{009E}' => { /* clear TAB stops TODO */ }
             //   '\u{009F}' => { /* set TAB stops TODO */ }
             '\u{00FD}' => return Ok(CallbackAction::Beep),
-            '\u{00FE}' => caret.del(buf),
-            '\u{00FF}' => caret.ins(buf),
+            '\u{00FE}' => caret.del(buf, current_layer),
+            '\u{00FF}' => caret.ins(buf, current_layer),
             '\x1B' => {
                 self.got_escape = true;
             }
-            _ => buf.print_value(caret, ch as u16),
+            _ => buf.print_value(current_layer, caret, ch as u16),
         }
         Ok(CallbackAction::None)
     }

@@ -27,6 +27,7 @@ impl Parser {
     pub fn handle_c128_escapes(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: u8,
     ) -> EngineResult<CallbackAction> {
@@ -35,13 +36,13 @@ impl Parser {
         match ch {
             b'O' => {} // Cancel quote and insert mode
             b'Q' => {
-                buf.clear_line_end(caret);
+                buf.clear_line_end(current_layer, caret);
             } // Erase to end of current line
             b'P' => {
-                buf.clear_line_start(caret);
+                buf.clear_line_start(current_layer, caret);
             } // Cancel quote and insert mode
             b'@' => {
-                buf.clear_buffer_down(caret);
+                buf.clear_buffer_down(current_layer, caret);
             } // Erase to end of screen
 
             b'J' => {
@@ -59,10 +60,10 @@ impl Parser {
             } // Disable auto-insert mode
 
             b'D' => {
-                buf.remove_terminal_line(caret.pos.y);
+                buf.remove_terminal_line(current_layer, caret.pos.y);
             } // Delete current line
             b'I' => {
-                buf.insert_terminal_line(caret.pos.y);
+                buf.insert_terminal_line(current_layer, caret.pos.y);
             } // Insert line
 
             b'Y' => {
@@ -136,16 +137,16 @@ impl Parser {
         Ok(CallbackAction::None)
     }
 
-    pub fn update_shift_mode(&mut self, buf: &mut Buffer, shift_mode: bool) {
+    pub fn update_shift_mode(&mut self, buf: &mut Buffer, current_layer: usize, shift_mode: bool) {
         if self.shift_mode == shift_mode {
             return;
         }
         self.shift_mode = shift_mode;
-        for y in 0..buf.get_buffer_height() {
-            for x in 0..buf.get_buffer_width() {
+        for y in 0..buf.get_height() {
+            for x in 0..buf.get_width() {
                 let mut ch = buf.get_char(Position::new(x, y));
                 ch.set_font_page(usize::from(shift_mode));
-                buf.set_char(0, Position::new(x, y), ch);
+                buf.layers[current_layer].set_char(Position::new(x, y), ch);
             }
         }
     }
@@ -196,12 +197,13 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         if self.got_esc {
-            return self.handle_c128_escapes(buf, caret, ch);
+            return self.handle_c128_escapes(buf, current_layer, caret, ch);
         }
 
         match ch {
@@ -212,26 +214,26 @@ impl BufferParser for Parser {
             0x09 => self.c_shift = true,
             0x0A => caret.cr(buf),
             0x0D | 0x8D => {
-                caret.lf(buf);
+                caret.lf(buf, current_layer);
                 self.reverse_mode = false;
             }
-            0x0E => self.update_shift_mode(buf, false),
-            0x11 => caret.down(buf, 1),
+            0x0E => self.update_shift_mode(buf, current_layer, false),
+            0x11 => caret.down(buf, current_layer, 1),
             0x12 => self.reverse_mode = true,
             0x13 => caret.home(buf),
-            0x14 => caret.bs(buf),
+            0x14 => caret.bs(buf, current_layer),
             0x1B => self.got_esc = true,
             0x1C => caret.set_foreground(RED),
             0x1D => caret.right(buf, 1),
             0x1E => caret.set_foreground(GREEN),
             0x1F => caret.set_foreground(BLUE),
             0x81 => caret.set_foreground(ORANGE),
-            0x8E => self.update_shift_mode(buf, true),
+            0x8E => self.update_shift_mode(buf, current_layer, true),
             0x90 => caret.set_foreground(BLACK),
-            0x91 => caret.up(buf, 1),
+            0x91 => caret.up(buf, current_layer, 1),
             0x92 => self.reverse_mode = false,
             0x93 => {
-                buf.clear_screen(caret);
+                buf.clear_screen(current_layer, caret);
             }
             0x95 => caret.set_foreground(BROWN),
             0x96 => caret.set_foreground(PINK),
@@ -244,7 +246,7 @@ impl BufferParser for Parser {
             0x9D => caret.left(buf, 1),
             0x9E => caret.set_foreground(YELLOW),
             0x9F => caret.set_foreground(CYAN),
-            0xFF => buf.print_value(caret, 94), // PI character
+            0xFF => buf.print_value(current_layer, caret, 94), // PI character
             _ => {
                 let tch = match ch {
                     0x20..=0x3F => ch,
@@ -260,7 +262,7 @@ impl BufferParser for Parser {
                     caret.attribute,
                 );
                 ch.set_font_page(usize::from(self.shift_mode));
-                buf.print_char(caret, ch);
+                buf.print_char(current_layer, caret, ch);
             }
         }
         Ok(CallbackAction::None)

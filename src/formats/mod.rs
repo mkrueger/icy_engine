@@ -26,8 +26,8 @@ pub use ice_draw::*;
 mod tundra;
 pub use tundra::*;
 
-mod mystic_draw;
-pub use mystic_draw::*;
+mod icy_draw;
+pub use icy_draw::*;
 
 use super::{Position, TextAttribute};
 

@@ -23,7 +23,7 @@ fn test_bs() {
     assert_eq!(Position::new(1, 0), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x08");
-    assert_eq!(Position::new(buf.get_buffer_width() - 1, 23), caret.pos);
+    assert_eq!(Position::new(buf.get_width() - 1, 23), caret.pos);
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn test_vt() {
     assert_eq!(Position::new(0, 1), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x0B");
-    assert_eq!(Position::new(0, buf.get_buffer_height() - 1), caret.pos);
+    assert_eq!(Position::new(0, buf.get_height() - 1), caret.pos);
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn testpage_bug_4() {
 fn test_cr_at_eol() {
     // conceal has no effect in graphics mode
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA01\x1B\x08\r");
-    for x in 1..buf.get_buffer_width() {
+    for x in 1..buf.get_width() {
         assert_eq!(
             1,
             buf.get_char(Position::new(x, 0)).attribute.get_foreground(),
@@ -207,7 +207,7 @@ fn test_color_on_clreol() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1E\x0B\x1BAACCESS DENIED.\x11\x1E\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\x1E\x0B\x1BB*1\x14\x1E\x09\n");
     assert_eq!(
         2,
-        buf.get_char(Position::new(3, buf.get_buffer_height() - 1))
+        buf.get_char(Position::new(3, buf.get_height() - 1))
             .attribute
             .get_foreground()
     );

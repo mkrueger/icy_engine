@@ -24,6 +24,7 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
@@ -65,7 +66,7 @@ impl BufferParser for Parser {
                 self.pcb_code = true;
                 Ok(CallbackAction::None)
             }
-            _ => self.ansi_parser.print_char(buf, caret, ch),
+            _ => self.ansi_parser.print_char(buf, current_layer, caret, ch),
         }
     }
 }

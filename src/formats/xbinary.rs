@@ -114,7 +114,7 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
 
 fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     pos.x += 1;
-    if pos.x >= result.get_buffer_width() {
+    if pos.x >= result.get_width() {
         pos.x = 0;
         pos.y += 1;
     }
@@ -147,11 +147,8 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                     let char_code = bytes[o];
                     let attribute = bytes[o + 1];
                     o += 2;
-                    result.set_char(
-                        0,
-                        pos,
-                        decode_char(char_code, attribute, result.buffer_type),
-                    );
+                    result.layers[0]
+                        .set_char(pos, decode_char(char_code, attribute, result.buffer_type));
 
                     if !advance_pos(result, &mut pos) {
                         return Err(io::Error::new(
@@ -170,7 +167,8 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                         break;
                     }
 
-                    result.set_char(0, pos, decode_char(char_code, bytes[o], result.buffer_type));
+                    result.layers[0]
+                        .set_char(pos, decode_char(char_code, bytes[o], result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
                         return Err(io::Error::new(
@@ -188,7 +186,8 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                         log::error!("Invalid XBin. Read attribute compression block beyond EOF.");
                         break;
                     }
-                    result.set_char(0, pos, decode_char(bytes[o], attribute, result.buffer_type));
+                    result.layers[0]
+                        .set_char(pos, decode_char(bytes[o], attribute, result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
                         return Err(io::Error::new(
@@ -210,7 +209,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                 let rep_ch = decode_char(char_code, attr, result.buffer_type);
 
                 for _ in 0..repeat_counter {
-                    result.set_char(0, pos, rep_ch);
+                    result.layers[0].set_char(pos, rep_ch);
                     if !advance_pos(result, &mut pos) {
                         return Err(io::Error::new(
                             io::ErrorKind::UnexpectedEof,
@@ -256,11 +255,7 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -
                 "Invalid XBin.\n Uncompressed data length needs to be % 2 == 0",
             ));
         }
-        result.set_char(
-            0,
-            pos,
-            decode_char(bytes[o], bytes[o + 1], result.buffer_type),
-        );
+        result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], result.buffer_type));
         o += 2;
         if !advance_pos(result, &mut pos) {
             return Err(io::Error::new(
@@ -288,10 +283,10 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
     result.extend_from_slice(b"XBIN");
     result.push(0x1A); // CP/M EOF char (^Z) - used by DOS as well
 
-    result.push(buf.get_buffer_width() as u8);
-    result.push((buf.get_buffer_width() >> 8) as u8);
-    result.push(buf.get_real_buffer_height() as u8);
-    result.push((buf.get_real_buffer_height() >> 8) as u8);
+    result.push(buf.get_width() as u8);
+    result.push((buf.get_width() >> 8) as u8);
+    result.push(buf.get_line_count() as u8);
+    result.push((buf.get_line_count() >> 8) as u8);
 
     let mut flags = 0;
     let font = buf.get_font(0).unwrap();
@@ -337,8 +332,8 @@ pub fn convert_to_xb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>>
         CompressionLevel::Medium => compress_greedy(&mut result, buf, buf.buffer_type),
         CompressionLevel::High => compress_backtrack(&mut result, buf, buf.buffer_type),
         CompressionLevel::Off => {
-            for y in 0..buf.get_real_buffer_height() {
-                for x in 0..buf.get_buffer_width() {
+            for y in 0..buf.get_line_count() {
+                for x in 0..buf.get_width() {
                     let ch = buf.get_char(Position::new(x, y));
 
                     result.push(ch.ch as u8);
@@ -359,7 +354,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = buffer.get_real_buffer_height() * buffer.get_buffer_width();
+    let len = buffer.get_line_count() * buffer.get_width();
     for x in 0..len {
         let cur = buffer.get_char(Position::from_index(buffer, x));
 
@@ -475,10 +470,7 @@ fn count_length(
     buffer: &Buffer,
     mut x: i32,
 ) -> i32 {
-    let len = min(
-        x + 256,
-        (buffer.get_real_buffer_height() * buffer.get_buffer_width()) - 1,
-    );
+    let len = min(x + 256, (buffer.get_line_count() * buffer.get_width()) - 1);
     let mut count = 0;
     while x < len {
         let cur = buffer.get_char(Position::from_index(buffer, x));
@@ -575,7 +567,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = buffer.get_real_buffer_height() * buffer.get_buffer_width();
+    let len = buffer.get_line_count() * buffer.get_width();
     for x in 0..len {
         let cur = buffer.get_char(Position::from_index(buffer, x));
 

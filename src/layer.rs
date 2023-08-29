@@ -1,4 +1,4 @@
-use crate::{Buffer, Line, Sixel};
+use crate::{Buffer, Line, Sixel, Size};
 
 use super::{AttributedChar, Position};
 
@@ -11,6 +11,7 @@ pub struct Layer {
     pub is_transparent: bool,
 
     pub offset: Position,
+    pub size: Size<i32>,
     pub lines: Vec<Line>,
 
     pub sixels: Vec<Sixel>,
@@ -35,9 +36,9 @@ impl HyperLink {
 }
 
 impl Layer {
-    pub fn new() -> Self {
+    pub fn new(title: impl Into<String>, width: i32, height: i32) -> Self {
         Layer {
-            title: "Background".to_string(),
+            title: title.into(),
             is_visible: true,
             is_locked: false,
             is_position_locked: false,
@@ -46,6 +47,7 @@ impl Layer {
             sixels: Vec::new(),
             offset: Position::default(),
             hyperlinks: Vec::new(),
+            size: Size::new(width, height),
         }
     }
 
@@ -74,6 +76,8 @@ impl Layer {
 
     pub fn clear(&mut self) {
         self.lines.clear();
+        self.hyperlinks.clear();
+        self.sixels.clear();
     }
 
     pub fn set_char(&mut self, pos: Position, attributed_char: AttributedChar) {
@@ -88,6 +92,9 @@ impl Layer {
         cur_line.set_char(pos.x, attributed_char);
     }
 
+    pub(crate) fn set_char_xy(&mut self, x: i32, y: i32, attributed_char: AttributedChar) {
+        self.set_char(Position::new(x, y), attributed_char);
+    }
     pub fn get_char(&self, pos: Position) -> AttributedChar {
         let pos = pos - self.offset;
         let y = pos.y as usize;
@@ -133,6 +140,7 @@ impl Layer {
         if index > self.lines.len() as i32 {
             self.lines.resize(index as usize, Line::new());
         }
+
         self.lines.insert(index as usize, line);
     }
 
@@ -149,6 +157,18 @@ impl Layer {
     pub fn hyperlinks(&self) -> &Vec<HyperLink> {
         &self.hyperlinks
     }
+
+    pub fn get_width(&self) -> i32 {
+        self.size.width
+    }
+
+    pub fn get_line_count(&self) -> i32 {
+        self.lines.len() as i32
+    }
+
+    pub fn get_line_length(&self, line: i32) -> i32 {
+        self.lines[line as usize].get_line_length() as i32
+    }
 }
 
 #[cfg(test)]
@@ -157,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_get_char() {
-        let mut layer = Layer::new();
+        let mut layer = Layer::new("Background", 80, 25);
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
@@ -184,7 +204,7 @@ mod tests {
 
     #[test]
     fn test_get_char_intransparent() {
-        let mut layer = Layer::new();
+        let mut layer = Layer::new("Background", 80, 25);
         layer.is_transparent = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
@@ -212,7 +232,7 @@ mod tests {
 
     #[test]
     fn test_insert_line() {
-        let mut layer = Layer::new();
+        let mut layer = Layer::new("Background", 80, 25);
         let mut line = Line::new();
         line.chars
             .push(AttributedChar::new('a', TextAttribute::default()));

@@ -354,13 +354,13 @@ impl Parser {
     ///
     /// Source: ECMA-48 5th Ed. 8.3.121
     /// Status: standard
-    pub(crate) fn scroll_left(&mut self, buf: &mut Buffer) {
+    pub(crate) fn scroll_left(&mut self, buf: &mut Buffer, layer: usize) {
         let num = if let Some(number) = self.parsed_numbers.first() {
             *number
         } else {
             1
         };
-        (0..num).for_each(|_| buf.scroll_left());
+        (0..num).for_each(|_| buf.scroll_left(layer));
     }
 
     /// Sequence: `CSI Pn SP A`</p>
@@ -379,13 +379,13 @@ impl Parser {
     ///
     /// Source: ECMA-48 5th Ed. 8.3.135
     /// Status: standard
-    pub(crate) fn scroll_right(&mut self, buf: &mut Buffer) {
+    pub(crate) fn scroll_right(&mut self, buf: &mut Buffer, layer: usize) {
         let num = if let Some(number) = self.parsed_numbers.first() {
             *number
         } else {
             1
         };
-        (0..num).for_each(|_| buf.scroll_right());
+        (0..num).for_each(|_| buf.scroll_right(layer));
     }
 
     /// Sequence: `CSI Pt ; Pb r`</p>
@@ -481,7 +481,7 @@ impl Parser {
                 self.parsed_numbers[0] - 1,
                 self.parsed_numbers[1] - 1,
                 self.parsed_numbers[2] - 1,
-                buf.get_buffer_width(),
+                buf.get_width(),
             ),
             4 => (
                 self.parsed_numbers[0] - 1,
@@ -533,7 +533,7 @@ impl Parser {
                 let bottom = if let Some((_, b)) = buf.terminal_state.get_margins_top_bottom() {
                     b
                 } else {
-                    buf.get_buffer_height() - 1
+                    buf.get_height() - 1
                 };
                 buf.terminal_state.set_margins_top_bottom(n, bottom);
             }
@@ -549,7 +549,7 @@ impl Parser {
                 let right = if let Some((_, r)) = buf.terminal_state.get_margins_left_right() {
                     r
                 } else {
-                    buf.get_buffer_width() - 1
+                    buf.get_width() - 1
                 };
                 buf.terminal_state.set_margins_left_right(n, right);
             }
@@ -636,14 +636,15 @@ impl Parser {
         &mut self,
         caret: &mut Caret,
         buf: &mut Buffer,
+        current_layer: usize,
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         // ECH - Erase character
 
         if let Some(number) = self.parsed_numbers.first() {
-            caret.erase_charcter(buf, *number);
+            caret.erase_charcter(buf, current_layer, *number);
         } else {
-            caret.erase_charcter(buf, 1);
+            caret.erase_charcter(buf, current_layer, 1);
             if self.parsed_numbers.len() != 1 {
                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                     self.current_escape_sequence.clone(),
@@ -876,13 +877,7 @@ impl Parser {
         let pl = self.parsed_numbers[3];
         let pb = self.parsed_numbers[4];
         let pr = self.parsed_numbers[5];
-        if pt > pb
-            || pl > pr
-            || pr > buf.get_buffer_width()
-            || pb > buf.get_buffer_height()
-            || pl < 0
-            || pt < 0
-        {
+        if pt > pb || pl > pr || pr > buf.get_width() || pb > buf.get_height() || pl < 0 || pt < 0 {
             return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
                 "invalid area for requesting checksum pt:{pt} pl:{pl} pb:{pb} pr:{pr}"
             ))));
@@ -927,11 +922,12 @@ impl Parser {
     pub(crate) fn invoke_macro(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if let Some(id) = self.parsed_numbers.first() {
-            return self.invoke_macro_by_id(buf, caret, *id);
+            return self.invoke_macro_by_id(buf, current_layer, caret, *id);
         }
         Ok(CallbackAction::None)
     }
@@ -1110,7 +1106,7 @@ impl Parser {
         let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 1);
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                buf.set_char_xy(0, x, y, AttributedChar::new(ch, caret.attribute));
+                buf.layers[0].set_char_xy(x, y, AttributedChar::new(ch, caret.attribute));
             }
         }
 
@@ -1120,21 +1116,15 @@ impl Parser {
     fn get_rect_area(&self, buf: &Buffer, offset: usize) -> (i32, i32, i32, i32) {
         let top_line: i32 = self.parsed_numbers[offset]
             .max(1)
-            .min(buf.get_real_buffer_height().max(buf.get_buffer_height()))
+            .min(buf.get_line_count().max(buf.get_height()))
             - 1;
-        let left_column = self.parsed_numbers[offset + 1]
-            .max(1)
-            .min(buf.get_buffer_width())
-            - 1;
+        let left_column = self.parsed_numbers[offset + 1].max(1).min(buf.get_width()) - 1;
 
         let bottom_line = self.parsed_numbers[offset + 2]
             .max(1)
-            .min(buf.get_real_buffer_height().max(buf.get_buffer_height()))
+            .min(buf.get_line_count().max(buf.get_height()))
             - 1;
-        let right_column = self.parsed_numbers[offset + 3]
-            .max(1)
-            .min(buf.get_buffer_width())
-            - 1;
+        let right_column = self.parsed_numbers[offset + 3].max(1).min(buf.get_width()) - 1;
 
         (top_line, left_column, bottom_line, right_column)
     }
@@ -1172,7 +1162,7 @@ impl Parser {
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                buf.set_char_xy(0, x, y, AttributedChar::default());
+                buf.layers[0].set_char_xy(x, y, AttributedChar::default());
             }
         }
 
@@ -1217,7 +1207,7 @@ impl Parser {
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
                 let ch = buf.get_char_xy(x, y);
-                buf.set_char_xy(0, x, y, AttributedChar::new(' ', ch.attribute));
+                buf.layers[0].set_char_xy(x, y, AttributedChar::new(' ', ch.attribute));
             }
         }
 

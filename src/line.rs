@@ -22,10 +22,9 @@ impl Line {
     }
 
     pub fn get_line_length(&self) -> usize {
-        for i in 0..self.chars.len() {
-            let idx = self.chars.len() - 1 - i;
-            if self.chars[idx].is_visible() {
-                return idx;
+        for idx in (0..self.chars.len()).rev() {
+            if !self.chars[idx].is_transparent() {
+                return idx + 1;
             }
         }
         0

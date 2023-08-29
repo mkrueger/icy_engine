@@ -80,8 +80,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             o += 1;
         }
         while rle_count > 0 {
-            result.set_char(
-                0,
+            result.layers[0].set_char(
                 pos,
                 AttributedChar::new(
                     char::from_u32(char_code as u32).unwrap(),
@@ -92,7 +91,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             rle_count -= 1;
         }
     }
-    result.clear();
+    result.layers[0].clear();
     result.set_font(0, BitFont::from_basic(8, 16, &bytes[o..(o + FONT_SIZE)]));
     o += FONT_SIZE;
 
@@ -123,15 +122,15 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.push(0);
     result.push(0);
 
-    let w = buf.get_buffer_width() - 1;
+    let w = buf.get_width() - 1;
     result.push(w as u8);
     result.push((w >> 8) as u8);
 
-    let h = buf.get_real_buffer_height() - 1;
+    let h = buf.get_line_count() - 1;
     result.push(h as u8);
     result.push((h >> 8) as u8);
 
-    let len = buf.get_real_buffer_height() * buf.get_buffer_width();
+    let len = buf.get_line_count() * buf.get_width();
     let mut x = 0;
     while x < len {
         let ch = buf.get_char(Position::from_index(buf, x));
@@ -175,7 +174,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 }
 
 pub fn get_save_sauce_default_idf(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 80 {
+    if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
     }
 

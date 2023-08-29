@@ -7,7 +7,7 @@ impl Buffer {
         for _ in 0..size {
             result.push(self.get_char(pos).ch);
             pos.x += 1;
-            if pos.x >= self.get_buffer_width() {
+            if pos.x >= self.get_width() {
                 pos.x = 0;
                 pos.y += 1;
             }
@@ -18,7 +18,7 @@ impl Buffer {
     pub fn parse_hyperlinks(&self) -> Vec<HyperLink> {
         let mut result = Vec::new();
 
-        let mut pos = Position::new(self.get_buffer_width() - 1, self.get_buffer_height() - 1);
+        let mut pos = Position::new(self.get_width() - 1, self.get_height() - 1);
         let mut parser = rfind_url::Parser::new();
 
         while pos.y >= 0 {
@@ -33,7 +33,7 @@ impl Buffer {
             }
             pos.x -= 1;
             if pos.x < 0 {
-                pos.x = self.get_buffer_width() - 1;
+                pos.x = self.get_width() - 1;
                 pos.y -= 1;
             }
         }
@@ -46,9 +46,9 @@ impl Buffer {
         for _ in 0..size {
             let mut ch = self.get_char(pos);
             ch.attribute.set_is_underlined(true);
-            self.set_char(0, pos, ch);
+            self.layers[0].set_char(pos, ch);
             pos.x += 1;
-            if pos.x >= self.get_buffer_width() {
+            if pos.x >= self.get_width() {
                 pos.x = 0;
                 pos.y += 1;
             }
@@ -60,12 +60,12 @@ impl Buffer {
             std::cmp::Ordering::Less => false,
             std::cmp::Ordering::Equal => from.x <= pos.x && pos.x < from.x + size as i32,
             std::cmp::Ordering::Greater => {
-                let remainder = (size as i32 - self.get_buffer_width() + from.x).max(0);
-                let lines = remainder / self.get_buffer_width();
+                let remainder = (size as i32 - self.get_width() + from.x).max(0);
+                let lines = remainder / self.get_width();
                 let mut y = from.y + lines;
                 let x = if remainder > 0 {
                     y += 1; // remainder > 1 wraps 1 extra line
-                    remainder - lines * self.get_buffer_width()
+                    remainder - lines * self.get_width()
                 } else {
                     remainder
                 };

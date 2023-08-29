@@ -1,5 +1,3 @@
-use std::backtrace::{self, Backtrace};
-
 use super::{Position, TextAttribute};
 
 #[derive(Clone)]

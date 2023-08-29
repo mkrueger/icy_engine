@@ -31,7 +31,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height();
+    let height = buf.get_line_count();
     let mut first_char = true;
 
     match options.screen_preparation {
@@ -55,9 +55,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             let mut repeat_count = 1;
             let mut ch = buf.get_char(pos);
 
-            while pos.x < buf.get_buffer_width() - 3
-                && ch == buf.get_char(pos + Position::new(1, 0))
-            {
+            while pos.x < buf.get_width() - 3 && ch == buf.get_char(pos + Position::new(1, 0)) {
                 repeat_count += 1;
                 pos.x += 1;
                 ch = buf.get_char(pos);
@@ -95,7 +93,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             pos.x += 1;
         }
         // do not end with eol
-        if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
+        if pos.x < buf.get_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }
@@ -110,7 +108,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 }
 
 pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 80 {
+    if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
     }
 
@@ -133,7 +131,7 @@ mod tests {
             &[b'X', 12, b'X'],
         )
         .unwrap();
-        assert_eq!(1, buf.get_real_buffer_height());
+        assert_eq!(1, buf.get_line_count());
         assert_eq!(1, buf.get_real_buffer_width());
     }
 
@@ -145,7 +143,7 @@ mod tests {
             &[b'X', 25, b'b', 3, b'X'],
         )
         .unwrap();
-        assert_eq!(1, buf.get_real_buffer_height());
+        assert_eq!(1, buf.get_line_count());
         assert_eq!(5, buf.get_real_buffer_width());
         assert_eq!(b'X', buf.get_char(Position::new(0, 0)).ch as u8);
         assert_eq!(b'b', buf.get_char(Position::new(1, 0)).ch as u8);
@@ -158,8 +156,8 @@ mod tests {
     fn test_zero_repeat() {
         let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, &[25, b'b', 0])
             .unwrap();
-        assert_eq!(0, buf.get_real_buffer_height());
-        assert_eq!(1, buf.get_real_buffer_width());
+        assert_eq!(0, buf.get_line_count());
+        assert_eq!(0, buf.get_real_buffer_width());
     }
 
     #[test]
@@ -174,7 +172,7 @@ mod tests {
             ],
         )
         .unwrap();
-        assert_eq!(1, buf.get_real_buffer_height());
+        assert_eq!(1, buf.get_line_count());
         assert_eq!(47, buf.get_real_buffer_width());
     }
 

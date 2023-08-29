@@ -775,10 +775,9 @@ fn test_scroll_left() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
@@ -787,11 +786,11 @@ fn test_scroll_left() {
             );
         }
     }
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_height() {
         assert_eq!('9', buf.get_char_xy(79, y).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ @");
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_height() {
         assert_eq!(' ', buf.get_char_xy(79, y).ch);
     }
 }
@@ -801,10 +800,9 @@ fn test_scroll_left_with_margins() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[?69h\x1B[5;10r\x1B[5;10s");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
@@ -814,7 +812,7 @@ fn test_scroll_left_with_margins() {
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ @");
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_height() {
         if (4..=9).contains(&y) {
             assert_eq!(' ', buf.get_char_xy(9, y).ch);
         } else {
@@ -828,10 +826,9 @@ fn test_scroll_right() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
@@ -840,11 +837,11 @@ fn test_scroll_right() {
             );
         }
     }
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_height() {
         assert_eq!('0', buf.get_char_xy(0, y).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ A");
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_height() {
         assert_eq!(' ', buf.get_char_xy(0, y).ch);
     }
 }
@@ -854,10 +851,9 @@ fn test_scroll_right_with_margins() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[?69h\x1B[5;10r\x1B[5;10s");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
@@ -867,7 +863,7 @@ fn test_scroll_right_with_margins() {
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[ A");
-    for y in 0..buf.get_buffer_height() {
+    for y in 0..buf.get_height() {
         if (4..=9).contains(&y) {
             assert_eq!(' ', buf.get_char_xy(4, y).ch);
         } else {
@@ -881,10 +877,9 @@ fn test_scroll_up() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
@@ -893,11 +888,11 @@ fn test_scroll_up() {
             );
         }
     }
-    for x in 0..buf.get_buffer_width() {
+    for x in 0..buf.get_width() {
         assert_ne!(' ', buf.get_char_xy(x, 24).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[S");
-    for x in 0..buf.get_buffer_width() {
+    for x in 0..buf.get_width() {
         assert_eq!(' ', buf.get_char_xy(x, 24).ch);
     }
 }
@@ -907,10 +902,9 @@ fn test_scroll_up_with_margins() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[?69h\x1B[5;10r\x1B[5;10s");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
@@ -920,7 +914,7 @@ fn test_scroll_up_with_margins() {
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[S");
-    for x in 0..buf.get_buffer_width() {
+    for x in 0..buf.get_width() {
         if (4..=9).contains(&x) {
             assert_eq!(' ', buf.get_char_xy(x, 9).ch);
         } else {
@@ -934,10 +928,9 @@ fn test_scroll_down() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
@@ -946,11 +939,11 @@ fn test_scroll_down() {
             );
         }
     }
-    for x in 0..buf.get_buffer_width() {
+    for x in 0..buf.get_width() {
         assert_ne!(' ', buf.get_char_xy(x, 0).ch);
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[T");
-    for x in 0..buf.get_buffer_width() {
+    for x in 0..buf.get_width() {
         assert_eq!(' ', buf.get_char_xy(x, 0).ch);
     }
 }
@@ -960,10 +953,9 @@ fn test_scroll_down_with_margins() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[?69h\x1B[5;10r\x1B[5;10s");
 
-    for y in 0..buf.get_buffer_height() {
-        for x in 0..buf.get_buffer_width() {
-            buf.set_char(
-                0,
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char(
                 Position::new(x, y),
                 AttributedChar::new(
                     unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
@@ -973,7 +965,7 @@ fn test_scroll_down_with_margins() {
         }
     }
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[T");
-    for x in 0..buf.get_buffer_width() {
+    for x in 0..buf.get_width() {
         if (4..=9).contains(&x) {
             assert_eq!(' ', buf.get_char_xy(x, 4).ch);
         } else {
@@ -1305,7 +1297,7 @@ fn test_reset_margins() {
 fn test_clear_screen_size_reset() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[8;50;80t");
-    assert_eq!(0, buf.get_real_buffer_height());
+    assert_eq!(0, buf.get_line_count());
 
     for i in 0..50 {
         update_buffer(
@@ -1315,10 +1307,10 @@ fn test_clear_screen_size_reset() {
             format!("{i}\n\r").as_bytes(),
         );
     }
-    assert_eq!(50, buf.get_buffer_height());
+    assert_eq!(50, buf.get_height());
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t\x1B[2J");
-    assert_eq!(25, buf.get_buffer_height());
-    assert_eq!(0, buf.get_real_buffer_height());
+    assert_eq!(25, buf.get_height());
+    assert_eq!(0, buf.get_line_count());
 }
 
 #[test]
@@ -1400,8 +1392,8 @@ fn test_margins_bug() {
         &mut parser,
         b"test4\r\n\x1B[1;1Hhello",
     );
-    caret.up(&mut buf, 1);
-    caret.up(&mut buf, 1);
-    caret.up(&mut buf, 1);
+    caret.up(&mut buf, 0, 1);
+    caret.up(&mut buf, 0, 1);
+    caret.up(&mut buf, 0, 1);
     println!("{buf}");
 }

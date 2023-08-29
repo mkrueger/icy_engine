@@ -7,48 +7,38 @@ use super::SaveOptions;
 const FG_TABLE: [&[u8; 2]; 8] = [b"30", b"34", b"32", b"36", b"31", b"35", b"33", b"37"];
 const BG_TABLE: [&[u8; 2]; 8] = [b"40", b"44", b"42", b"46", b"41", b"45", b"43", b"47"];
 
-/// .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Vec<u8>> {
+pub fn convert_to_ansi_data(
+    buf: &Buffer,
+    current_layer: usize,
+    modern_terminal_output: bool,
+) -> Vec<u8> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height();
+    let layer = &buf.layers[current_layer];
+    let height = layer.get_line_count();
     let mut first_char = true;
-    match options.screen_preparation {
-        super::ScreenPreperation::None => {}
-        super::ScreenPreperation::ClearScreen => {
-            result.extend_from_slice(b"\x1b[2J");
-        }
-        super::ScreenPreperation::Home => {
-            result.extend_from_slice(b"\x1b[1;1H");
-        }
-    }
-
     while pos.y < height {
-        let line_length = if options.modern_terminal_output {
-            buf.get_buffer_width()
+        let line_length = if modern_terminal_output {
+            layer.get_width()
         } else {
-            buf.get_line_length(pos.y)
+            layer.get_line_length(pos.y)
         };
 
         while pos.x < line_length {
             let mut space_count = 0;
-            let mut ch = buf.get_char(pos);
+            let mut ch = layer.get_char(pos);
             let mut cur_attr = ch.attribute;
 
             // doesn't work well with unix terminal - background color needs to be painted.
-            if !options.modern_terminal_output {
+            if !modern_terminal_output {
                 while (ch.ch == ' ' || ch.ch == '\0')
                     && ch.attribute.get_background() == 0
                     && pos.x < line_length
                 {
                     space_count += 1;
                     pos.x += 1;
-                    ch = buf.get_char(pos);
+                    ch = layer.get_char(pos);
                 }
             }
 
@@ -58,7 +48,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
             }
 
             if last_attr != cur_attr || first_char {
-                if options.modern_terminal_output {
+                if modern_terminal_output {
                     if last_attr.get_foreground() != cur_attr.get_foreground() || first_char {
                         result.extend_from_slice(b"\x1b[38;2;");
                         let color = buf.palette.colors[cur_attr.get_foreground() as usize];
@@ -201,7 +191,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
                 }
                 continue;
             }
-            if options.modern_terminal_output {
+            if modern_terminal_output {
                 if ch.ch == '\0' {
                     result.push(b' ');
                 } else {
@@ -214,11 +204,11 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
             pos.x += 1;
         }
         // do not end with eol except for terminal support.
-        if options.modern_terminal_output {
+        if modern_terminal_output {
             result.extend_from_slice(b"\x1b[0m");
             result.push(10);
             first_char = true;
-        } else if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
+        } else if pos.x < layer.get_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }
@@ -226,6 +216,29 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
         pos.x = 0;
         pos.y += 1;
     }
+
+    result
+}
+
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
+pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Vec<u8>> {
+    let mut result = Vec::new();
+
+    match options.screen_preparation {
+        super::ScreenPreperation::None => {}
+        super::ScreenPreperation::ClearScreen => {
+            result.extend_from_slice(b"\x1b[2J");
+        }
+        super::ScreenPreperation::Home => {
+            result.extend_from_slice(b"\x1b[1;1H");
+        }
+    }
+
+    result.extend(convert_to_ansi_data(buf, 0, options.modern_terminal_output));
 
     if options.save_sauce {
         buf.write_sauce_info(&crate::SauceFileType::Ansi, &mut result)?;
@@ -243,7 +256,7 @@ fn push_int(result: &mut Vec<u8>, number: usize) {
 }
 
 pub fn get_save_sauce_default_ans(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 80 {
+    if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
     }
 

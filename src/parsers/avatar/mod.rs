@@ -43,10 +43,11 @@ impl Parser {
     fn print_fallback(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
-        self.ansi_parser.print_char(buf, caret, ch)
+        self.ansi_parser.print_char(buf, current_layer, caret, ch)
     }
 }
 
@@ -62,13 +63,14 @@ impl BufferParser for Parser {
     fn print_char(
         &mut self,
         buf: &mut Buffer,
+        current_layer: usize,
         caret: &mut Caret,
         ch: char,
     ) -> EngineResult<CallbackAction> {
         match self.avt_state {
             AvtReadState::Chars => {
                 match ch {
-                    AVT_CLR => caret.ff(buf), // clear & reset attributes
+                    AVT_CLR => caret.ff(buf, current_layer), // clear & reset attributes
                     AVT_REP => {
                         self.avt_state = AvtReadState::RepeatChars;
                         self.avatar_state = 1;
@@ -76,7 +78,7 @@ impl BufferParser for Parser {
                     AVT_CMD => {
                         self.avt_state = AvtReadState::ReadCommand;
                     }
-                    _ => return self.print_fallback(buf, caret, ch),
+                    _ => return self.print_fallback(buf, current_layer, caret, ch),
                 }
                 Ok(CallbackAction::None)
             }
@@ -131,8 +133,12 @@ impl BufferParser for Parser {
                     self.avatar_state = 3;
                     let repeat_count = ch as usize;
                     for _ in 0..repeat_count {
-                        self.ansi_parser
-                            .print_char(buf, caret, self.avt_repeat_char)?;
+                        self.ansi_parser.print_char(
+                            buf,
+                            current_layer,
+                            caret,
+                            self.avt_repeat_char,
+                        )?;
                     }
                     self.avt_state = AvtReadState::Chars;
                     Ok(CallbackAction::None)

@@ -12,7 +12,7 @@ use super::SaveOptions;
 pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height();
+    let height = buf.get_line_count();
 
     while pos.y < height {
         let line_length = buf.get_line_length(pos.y);
@@ -23,7 +23,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
 
         // do not end with eol
-        if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
+        if pos.x < buf.get_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }
@@ -39,7 +39,7 @@ pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 }
 
 pub fn get_save_sauce_default_asc(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 80 {
+    if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
     }
 

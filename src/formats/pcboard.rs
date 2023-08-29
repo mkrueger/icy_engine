@@ -15,7 +15,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let height = buf.get_real_buffer_height();
+    let height = buf.get_line_count();
     let mut first_char = true;
 
     match options.screen_preparation {
@@ -44,7 +44,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
 
         // do not end with eol
-        if pos.x < buf.get_buffer_width() && pos.y + 1 < height {
+        if pos.x < buf.get_width() && pos.y + 1 < height {
             result.push(13);
             result.push(10);
         }
@@ -59,7 +59,7 @@ pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 }
 
 pub fn get_save_sauce_default_pcb(buf: &Buffer) -> (bool, String) {
-    if buf.get_buffer_width() != 80 {
+    if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
     }
 

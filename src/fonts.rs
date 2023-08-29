@@ -253,7 +253,7 @@ impl BitFont {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn to_bytes(&self) -> EngineResult<Vec<u8>> {
+    pub fn to_psf2_bytes(&self) -> EngineResult<Vec<u8>> {
         let mut data = Vec::new();
         // Write PSF2 header.
         data.extend(u32::to_le_bytes(BitFont::PSF2_MAGIC)); // magic

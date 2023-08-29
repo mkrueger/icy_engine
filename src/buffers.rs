@@ -9,11 +9,13 @@ use std::{
 
 use num::NumCast;
 
-use crate::{parsers, BufferParser, Caret, EngineResult, Glyph, SauceData, Sixel, TerminalState};
+use crate::{
+    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, SauceData, Sixel, TerminalState,
+};
 
 use super::{
-    read_binary, read_xb, AttributedChar, BitFont, Layer, Palette, Position, SauceString,
-    SaveOptions, Size,
+    read_binary, read_xb, AttributedChar, BitFont, Palette, Position, SauceString, SaveOptions,
+    Size,
 };
 
 #[repr(u8)]
@@ -96,8 +98,8 @@ impl std::fmt::Debug for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Buffer")
             .field("file_name", &self.file_name)
-            .field("width", &self.get_buffer_width())
-            .field("height", &self.get_buffer_height())
+            .field("width", &self.get_width())
+            .field("height", &self.get_height())
             .field("custom_palette", &self.palette)
             .field("layers", &self.layers)
             .finish()
@@ -109,15 +111,75 @@ impl std::fmt::Display for Buffer {
         let mut str = String::new();
         let p = parsers::ansi::Parser::default();
 
-        for y in 0..self.get_real_buffer_height() {
+        for y in 0..self.get_line_count() {
             str.extend(format!("{y:3}: ").chars());
-            for x in 0..self.get_buffer_width() {
+            for x in 0..self.get_width() {
                 let ch = self.get_char_xy(x, y);
                 str.push(p.convert_to_unicode(ch));
             }
             str.push('\n');
         }
         write!(f, "{str}")
+    }
+}
+
+impl Buffer {
+    pub fn get_width(&self) -> i32 {
+        self.terminal_state.width
+    }
+
+    pub fn get_line_count(&self) -> i32 {
+        if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
+            len as i32
+        } else {
+            self.terminal_state.height
+        }
+    }
+
+    pub fn get_char(&self, pos: Position) -> AttributedChar {
+        if let Some(overlay) = &self.overlay_layer {
+            let ch = overlay.get_char(pos);
+            if ch.is_visible() {
+                return ch;
+            }
+        }
+
+        for i in 0..self.layers.len() {
+            let cur_layer = &self.layers[i];
+            if !cur_layer.is_visible {
+                continue;
+            }
+            let ch = cur_layer.get_char(pos);
+            if ch.is_visible() || !cur_layer.is_transparent {
+                return ch;
+            }
+        }
+        AttributedChar::invisible()
+    }
+
+    pub fn get_char_xy(&self, x: i32, y: i32) -> AttributedChar {
+        self.get_char(Position::new(x, y))
+    }
+
+    pub fn get_line_length(&self, line: i32) -> i32 {
+        let mut length = 0;
+        let mut pos = Position::new(0, line);
+        for x in 0..self.get_width() {
+            pos.x = x;
+            let ch = self.get_char(pos);
+            /*if x > 0 && ch.is_transparent() {
+                if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
+                    if prev.attribute.get_background() > 0 {
+                        length = x + 1;
+                    }
+
+                }
+            } else */
+            if !ch.is_transparent() {
+                length = x + 1;
+            }
+        }
+        length
     }
 }
 
@@ -141,7 +203,7 @@ impl Buffer {
             font_table,
             is_font_table_dirty: false,
             overlay_layer: None,
-            layers: vec![Layer::new()],
+            layers: vec![Layer::new("Background", 80, 25)],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
                                             // undo_stack: Vec::new(),
                                             // redo_stack: Vec::new()
@@ -238,20 +300,8 @@ impl Buffer {
         i
     }
 
-    pub fn get_buffer_width(&self) -> i32 {
-        self.terminal_state.width
-    }
-
-    pub fn get_buffer_height(&self) -> i32 {
+    pub fn get_height(&self) -> i32 {
         self.terminal_state.height
-    }
-
-    pub fn get_real_buffer_height(&self) -> i32 {
-        if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
-            len as i32
-        } else {
-            self.terminal_state.height
-        }
     }
 
     pub fn get_real_buffer_width(&self) -> i32 {
@@ -261,7 +311,7 @@ impl Buffer {
                 w = max(w, line.get_line_length());
             }
         }
-        (w as i32) + 1
+        (w as i32)
     }
 
     pub fn reset_terminal(&mut self) {
@@ -306,12 +356,7 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn clear(&mut self) {
-        for layer in &mut self.layers {
-            layer.clear();
-            layer.hyperlinks.clear();
-            layer.sixels.clear();
-        }
+    pub fn stop_sixel_threads(&mut self) {
         self.sixel_threads.clear();
     }
 
@@ -320,17 +365,14 @@ impl Buffer {
     #[must_use]
     pub fn get_first_visible_line(&self) -> i32 {
         if self.is_terminal_buffer {
-            max(
-                0,
-                self.layers[0].lines.len() as i32 - self.get_buffer_height(),
-            )
+            max(0, self.layers[0].lines.len() as i32 - self.get_height())
         } else {
             0
         }
     }
 
     pub fn get_last_visible_line(&self) -> i32 {
-        self.get_first_visible_line() + self.get_buffer_height()
+        self.get_first_visible_line() + self.get_height()
     }
 
     pub fn get_first_editable_line(&self) -> i32 {
@@ -357,7 +399,7 @@ impl Buffer {
                 return end;
             }
         }
-        self.get_buffer_width() - 1
+        self.get_width() - 1
     }
 
     #[must_use]
@@ -371,13 +413,10 @@ impl Buffer {
             if let Some((_, end)) = self.terminal_state.get_margins_top_bottom() {
                 self.get_first_visible_line() + end
             } else {
-                self.get_first_visible_line() + self.get_buffer_height() - 1
+                self.get_first_visible_line() + self.get_height() - 1
             }
         } else {
-            max(
-                self.layers[0].lines.len() as i32,
-                self.get_buffer_height() - 1,
-            )
+            max(self.layers[0].lines.len() as i32, self.get_height() - 1)
         }
     }
 
@@ -402,11 +441,12 @@ impl Buffer {
         res.set_buffer_height(height);
         res.layers[0].is_locked = true;
         res.layers[0].is_transparent = false;
+        res.layers[0].size = Size::new(width, height);
         res.layers[0]
             .lines
             .resize(height as usize, crate::Line::create(width as u16));
 
-        let mut editing_layer = Layer::new();
+        let mut editing_layer = Layer::new("Background", width, height);
         editing_layer.title = "Editing".to_string();
         res.layers.insert(0, editing_layer);
         res
@@ -414,7 +454,11 @@ impl Buffer {
 
     pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
         if self.overlay_layer.is_none() {
-            self.overlay_layer = Some(Layer::new());
+            self.overlay_layer = Some(Layer::new(
+                "Background",
+                self.get_width(),
+                self.get_height(),
+            ));
         }
 
         &mut self.overlay_layer
@@ -437,52 +481,6 @@ impl Buffer {
         self.font_table[&0].size
     }
 
-    pub fn set_char(&mut self, layer: usize, pos: Position, attributed_char: AttributedChar) {
-        if layer >= self.layers.len() {
-            return;
-        }
-
-        let cur_layer = &mut self.layers[layer];
-        cur_layer.set_char(pos, attributed_char);
-    }
-
-    pub fn set_char_xy(&mut self, layer: usize, x: i32, y: i32, attributed_char: AttributedChar) {
-        self.set_char(layer, Position::new(x, y), attributed_char);
-    }
-
-    pub fn get_char_from_layer(&self, layer: usize, pos: Position) -> AttributedChar {
-        self.layers[layer].get_char(pos)
-    }
-
-    pub fn get_char_from_layer_xy(&self, layer: usize, x: i32, y: i32) -> AttributedChar {
-        self.get_char_from_layer(layer, Position::new(x, y))
-    }
-
-    pub fn get_char_xy(&self, x: i32, y: i32) -> AttributedChar {
-        self.get_char(Position::new(x, y))
-    }
-
-    pub fn get_char(&self, pos: Position) -> AttributedChar {
-        if let Some(overlay) = &self.overlay_layer {
-            let ch = overlay.get_char(pos);
-            if ch.is_visible() {
-                return ch;
-            }
-        }
-
-        for i in 0..self.layers.len() {
-            let cur_layer = &self.layers[i];
-            if !cur_layer.is_visible {
-                continue;
-            }
-            let ch = cur_layer.get_char(pos);
-            if ch.is_visible() || !cur_layer.is_transparent {
-                return ch;
-            }
-        }
-        AttributedChar::invisible()
-    }
-
     /// .
     ///
     /// # Errors
@@ -503,7 +501,7 @@ impl Buffer {
     /// This function will return an error if .
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> io::Result<Vec<u8>> {
         match extension {
-            "mdf" => super::convert_to_mdf(self),
+            "icd" => super::convert_to_icd(self),
             "bin" => super::convert_to_binary(self, options),
             "xb" => super::convert_to_xb(self, options),
             "ice" | "ans" => super::convert_to_ans(self, options),
@@ -535,8 +533,6 @@ impl Buffer {
             || !self.group.is_empty()
             || !self.author.is_empty()
             || !self.comments.is_empty()
-            || self.font_table[&0].name.to_string() != super::DEFAULT_FONT_NAME
-                && self.font_table[&0].name.to_string() != super::ALT_DEFAULT_FONT_NAME
     }
 
     /// .
@@ -557,8 +553,8 @@ impl Buffer {
         if let Some(ext) = ext {
             // mdf doesn't need sauce info.
             let ext = OsStr::to_str(ext).unwrap().to_lowercase();
-            if ext.as_str() == "mdf" {
-                super::read_mdf(&mut result, bytes)?;
+            if ext.as_str() == "icd" {
+                super::read_icd(&mut result, bytes)?;
                 return Ok(result);
             }
         }
@@ -599,14 +595,14 @@ impl Buffer {
                 interpreter = CharInterpreter::Avatar;
             }
             super::SauceFileType::TundraDraw => {
-                if result.get_buffer_width() == 0 {
+                if result.get_width() == 0 {
                     result.set_buffer_width(80);
                 }
                 super::read_tnd(&mut result, bytes, file_size)?;
                 return Ok(result);
             }
             super::SauceFileType::Bin => {
-                if result.get_buffer_width() == 0 {
+                if result.get_width() == 0 {
                     result.set_buffer_width(160);
                 }
                 read_binary(&mut result, bytes, file_size)?;
@@ -626,7 +622,7 @@ impl Buffer {
                 let ext = OsStr::to_str(ext).unwrap().to_lowercase();
                 match ext.as_str() {
                     "bin" => {
-                        if result.get_buffer_width() == 0 {
+                        if result.get_width() == 0 {
                             result.set_buffer_width(160);
                         }
                         read_binary(&mut result, bytes, file_size)?;
@@ -637,7 +633,7 @@ impl Buffer {
                         return Ok(result);
                     }
                     "adf" => {
-                        if result.get_buffer_width() == 0 {
+                        if result.get_width() == 0 {
                             result.set_buffer_width(80);
                         }
                         super::read_adf(&mut result, bytes, file_size)?;
@@ -648,7 +644,7 @@ impl Buffer {
                         return Ok(result);
                     }
                     "tnd" => {
-                        if result.get_buffer_width() == 0 {
+                        if result.get_width() == 0 {
                             result.set_buffer_width(80);
                         }
                         super::read_tnd(&mut result, bytes, file_size)?;
@@ -675,7 +671,7 @@ impl Buffer {
             }
         }
 
-        if result.get_buffer_width() == 0 {
+        if result.get_width() == 0 {
             result.set_buffer_width(80);
         }
         result.set_buffer_height(25);
@@ -690,9 +686,11 @@ impl Buffer {
 
         let mut caret = Caret::default();
         caret.set_ice_mode(use_ice);
+
         for b in bytes.iter().take(file_size) {
             let res = interpreter.as_mut().print_char(
                 &mut result,
+                0,
                 &mut caret,
                 char::from_u32(*b as u32).unwrap(),
             );
@@ -711,27 +709,6 @@ impl Buffer {
     pub fn to_screeny(&self, y: i32) -> f64 {
         let font_dimensions = self.get_font_dimensions();
         y as f64 * font_dimensions.height as f64
-    }
-
-    pub fn get_line_length(&self, line: i32) -> i32 {
-        let mut length = 0;
-        let mut pos = Position::new(0, line);
-        for x in 0..self.get_buffer_width() {
-            pos.x = x;
-            let ch = self.get_char(pos);
-            /*if x > 0 && ch.is_transparent() {
-                if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
-                    if prev.attribute.get_background() > 0 {
-                        length = x + 1;
-                    }
-
-                }
-            } else */
-            if !ch.is_transparent() {
-                length = x + 1;
-            }
-        }
-        length
     }
 
     pub fn set_height_for_pos(&mut self, pos: Position) {
