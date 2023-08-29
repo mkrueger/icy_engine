@@ -8,7 +8,6 @@ pub struct Layer {
     pub is_visible: bool,
     pub is_locked: bool,
     pub is_position_locked: bool,
-    pub is_transparent: bool,
 
     pub offset: Position,
     pub size: Size<i32>,
@@ -42,7 +41,6 @@ impl Layer {
             is_visible: true,
             is_locked: false,
             is_position_locked: false,
-            is_transparent: true,
             lines: Vec::new(),
             sixels: Vec::new(),
             offset: Position::default(),
@@ -104,11 +102,7 @@ impl Layer {
                 return cur_line.chars[pos.x as usize];
             }
         }
-        if self.is_transparent {
-            AttributedChar::invisible()
-        } else {
-            AttributedChar::default()
-        }
+        AttributedChar::invisible()
     }
 
     /// .
@@ -205,7 +199,6 @@ mod tests {
     #[test]
     fn test_get_char_intransparent() {
         let mut layer = Layer::new("Background", 80, 25);
-        layer.is_transparent = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 

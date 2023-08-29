@@ -413,7 +413,6 @@ fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Care
     buf.is_terminal_buffer = true;
     buf.layers.remove(0);
     buf.layers[0].is_locked = false;
-    buf.layers[0].is_transparent = false;
     buf.layers.first_mut().unwrap().lines.clear();
 
     update_buffer(&mut buf, &mut caret, parser, input);
@@ -456,7 +455,6 @@ fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackA
     buf.is_terminal_buffer = true;
     buf.layers.remove(0);
     buf.layers[0].is_locked = false;
-    buf.layers[0].is_transparent = false;
 
     get_action(&mut buf, &mut caret, parser, input)
 }

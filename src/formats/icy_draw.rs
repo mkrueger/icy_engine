@@ -21,7 +21,6 @@ mod constants {
     }
 
     pub mod layer {
-        pub const IS_TRANSPARENT: u32 = 0b0000_1000;
         pub const IS_VISIBLE: u32 = 0b0000_0001;
         pub const EDIT_LOCK: u32 = 0b0000_0100;
         pub const POS_LOCK: u32 = 0b0000_0010;
@@ -138,8 +137,6 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                     (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
                 layer.is_position_locked =
                     (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
-                layer.is_transparent =
-                    (flags & constants::layer::IS_TRANSPARENT) == constants::layer::IS_TRANSPARENT;
 
                 let x_offset: i32 =
                     u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
@@ -271,9 +268,6 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         }
         if layer.is_position_locked {
             flags |= constants::layer::POS_LOCK;
-        }
-        if layer.is_transparent {
-            flags |= constants::layer::IS_TRANSPARENT;
         }
         result.extend(u32::to_be_bytes(flags));
 

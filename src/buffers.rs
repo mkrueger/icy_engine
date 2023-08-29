@@ -144,13 +144,13 @@ impl Buffer {
             }
         }
 
-        for i in 0..self.layers.len() {
+        for i in (0..self.layers.len()) {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
-            if ch.is_visible() || !cur_layer.is_transparent {
+            if ch.is_visible() {
                 return ch;
             }
         }
@@ -311,7 +311,7 @@ impl Buffer {
                 w = max(w, line.get_line_length());
             }
         }
-        (w as i32)
+        w as i32
     }
 
     pub fn reset_terminal(&mut self) {
@@ -440,7 +440,6 @@ impl Buffer {
         res.set_buffer_width(width);
         res.set_buffer_height(height);
         res.layers[0].is_locked = true;
-        res.layers[0].is_transparent = false;
         res.layers[0].size = Size::new(width, height);
         res.layers[0]
             .lines

@@ -10,7 +10,6 @@ fn create_viewdata_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buf
     buf.is_terminal_buffer = true;
     buf.layers.remove(0);
     buf.layers[0].is_locked = false;
-    buf.layers[0].is_transparent = false;
 
     update_buffer(&mut buf, &mut caret, parser, input);
 
