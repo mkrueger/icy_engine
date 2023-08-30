@@ -125,7 +125,7 @@ fn test_caret_forward_at_eol() {
 
 #[test]
 fn test_char0_bug() {
-    let mut parser =ansi::Parser::default();
+    let mut parser = ansi::Parser::default();
     parser.bs_is_ctrl_char = true;
 
     let (buf, _) = create_buffer(&mut parser, b"\x00A");
