@@ -167,7 +167,7 @@ impl Default for Parser {
             macros: HashMap::new(),
             last_char: '\0',
             hyper_links: Vec::new(),
-            bs_is_ctrl_char: false
+            bs_is_ctrl_char: false,
         }
     }
 }
@@ -1380,9 +1380,6 @@ impl BufferParser for Parser {
                     self.state = EngineState::Default;
                     self.state = EngineState::ReadEscapeSequence;
                 }
-                '\x00' | '\u{00FF}' => {
-                    caret.reset_color_attribute();
-                }
                 LF => caret.lf(buf, current_layer),
                 FF => caret.ff(buf, current_layer),
                 CR => caret.cr(buf),
@@ -1391,6 +1388,8 @@ impl BufferParser for Parser {
                 _ => {
                     if ch == crate::BS && self.bs_is_ctrl_char {
                         caret.bs(buf, current_layer);
+                    } else if (ch == '\x00' || ch == '\u{00FF}') && self.bs_is_ctrl_char {
+                        caret.reset_color_attribute();
                     } else {
                         self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
                         let ch = AttributedChar::new(self.last_char, caret.get_attribute());

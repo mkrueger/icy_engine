@@ -156,7 +156,7 @@ impl Buffer {
         }
         if self.is_terminal_buffer {
             AttributedChar::default()
-        }  else { 
+        } else {
             AttributedChar::invisible()
         }
     }
@@ -536,6 +536,7 @@ impl Buffer {
             || !self.group.is_empty()
             || !self.author.is_empty()
             || !self.comments.is_empty()
+            || self.get_width() != 80
     }
 
     /// .
@@ -571,6 +572,10 @@ impl Buffer {
             result.group = sauce.group.clone();
             result.comments = sauce.comments.clone();
             result.set_buffer_size(sauce.buffer_size);
+            result.layers[0].size = Size::new(
+                sauce.buffer_size.width as i32,
+                sauce.buffer_size.height as i32,
+            );
             sauce_type = sauce.sauce_file_type;
             use_ice = sauce.use_ice;
             file_size -= sauce.sauce_header_len;
@@ -727,5 +732,30 @@ impl Buffer {
 impl Default for Buffer {
     fn default() -> Self {
         Buffer::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{AttributedChar, Buffer, SaveOptions, TextAttribute};
+
+    #[test]
+    fn test_respect_sauce_width() {
+        let mut buf = Buffer::new();
+        buf.set_buffer_width(10);
+        for x in 0..buf.get_width() {
+            buf.layers[0].set_char_xy(x, 0, AttributedChar::new('1', TextAttribute::default()));
+            buf.layers[0].set_char_xy(x, 1, AttributedChar::new('2', TextAttribute::default()));
+            buf.layers[0].set_char_xy(x, 2, AttributedChar::new('3', TextAttribute::default()));
+        }
+
+        let mut opt = SaveOptions::new();
+        opt.save_sauce = true;
+        let ansi_bytes = buf.to_bytes("ans", &opt).unwrap();
+
+        let loaded_buf =
+            Buffer::from_bytes(&std::path::PathBuf::from("test.ans"), false, &ansi_bytes).unwrap();
+        assert_eq!(10, loaded_buf.get_width());
+        assert_eq!(10, loaded_buf.layers[0].get_width());
     }
 }

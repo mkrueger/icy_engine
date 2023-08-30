@@ -125,7 +125,10 @@ fn test_caret_forward_at_eol() {
 
 #[test]
 fn test_char0_bug() {
-    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x00A");
+    let mut parser =ansi::Parser::default();
+    parser.bs_is_ctrl_char = true;
+
+    let (buf, _) = create_buffer(&mut parser, b"\x00A");
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
 }
@@ -1396,4 +1399,14 @@ fn test_margins_bug() {
     caret.up(&mut buf, 0, 1);
     caret.up(&mut buf, 0, 1);
     println!("{buf}");
+}
+
+#[test]
+fn test_00_and_bs() {
+    let mut parser = ansi::Parser::default();
+    parser.bs_is_ctrl_char = false;
+    let (buf, _) = create_buffer(&mut parser, b"\x00\x08");
+
+    assert_eq!(0, buf.get_char_xy(0, 0).ch as u32);
+    assert_eq!(8, buf.get_char_xy(1, 0).ch as u32);
 }

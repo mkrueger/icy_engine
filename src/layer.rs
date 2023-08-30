@@ -84,7 +84,8 @@ impl Layer {
             return;
         }
         if pos.y >= self.lines.len() as i32 {
-            self.lines.resize(pos.y as usize + 1, Line::create(self.size.width));
+            self.lines
+                .resize(pos.y as usize + 1, Line::create(self.size.width));
         }
         let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
@@ -132,7 +133,8 @@ impl Layer {
         }
         assert!(index >= 0, "line out of range");
         if index > self.lines.len() as i32 {
-            self.lines.resize(index as usize, Line::create(self.size.width));
+            self.lines
+                .resize(index as usize, Line::create(self.size.width));
         }
 
         self.lines.insert(index as usize, line);
@@ -205,11 +207,11 @@ mod tests {
         layer.insert_line(0, line);
 
         assert_eq!(
-            AttributedChar::default(),
+            AttributedChar::invisible(),
             layer.get_char(Position::new(-1, -1))
         );
         assert_eq!(
-            AttributedChar::default(),
+            AttributedChar::invisible(),
             layer.get_char(Position::new(1000, 1000))
         );
         assert_eq!('a', layer.get_char(Position::new(10, 0)).ch);
@@ -218,7 +220,7 @@ mod tests {
             layer.get_char(Position::new(9, 0))
         );
         assert_eq!(
-            AttributedChar::default(),
+            AttributedChar::invisible(),
             layer.get_char(Position::new(11, 0))
         );
     }
