@@ -682,7 +682,11 @@ impl Buffer {
 
         let mut interpreter: Box<dyn BufferParser> = match interpreter {
             CharInterpreter::Ascii => Box::<parsers::ascii::Parser>::default(),
-            CharInterpreter::Ansi => Box::<parsers::ansi::Parser>::default(),
+            CharInterpreter::Ansi => {
+                let mut parser = Box::<parsers::ansi::Parser>::default();
+                parser.bs_is_ctrl_char = false;
+                parser
+            }
             CharInterpreter::Avatar => Box::<parsers::avatar::Parser>::default(),
             CharInterpreter::Pcb => Box::<parsers::pcboard::Parser>::default(),
             CharInterpreter::Petscii => Box::<parsers::petscii::Parser>::default(),
