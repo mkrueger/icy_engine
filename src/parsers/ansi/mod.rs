@@ -145,6 +145,7 @@ pub struct Parser {
     last_char: char,
     pub(crate) macros: HashMap<usize, String>,
     pub parse_string: String,
+    pub bs_is_ctrl_char: bool,
 }
 
 impl Default for Parser {
@@ -166,6 +167,7 @@ impl Default for Parser {
             macros: HashMap::new(),
             last_char: '\0',
             hyper_links: Vec::new(),
+            bs_is_ctrl_char: false
         }
     }
 }
@@ -1384,13 +1386,16 @@ impl BufferParser for Parser {
                 LF => caret.lf(buf, current_layer),
                 FF => caret.ff(buf, current_layer),
                 CR => caret.cr(buf),
-                //                BS => caret.bs(buf),
                 BEL => return Ok(CallbackAction::Beep),
                 '\x7F' => caret.del(buf, current_layer),
                 _ => {
-                    self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
-                    let ch = AttributedChar::new(self.last_char, caret.get_attribute());
-                    buf.print_char(current_layer, caret, ch);
+                    if ch == crate::BS && self.bs_is_ctrl_char {
+                        caret.bs(buf, current_layer);
+                    } else {
+                        self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
+                        let ch = AttributedChar::new(self.last_char, caret.get_attribute());
+                        buf.print_char(current_layer, caret, ch);
+                    }
                 }
             },
         }
