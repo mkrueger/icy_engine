@@ -82,6 +82,7 @@ Field      Bytes  Meaning
 [Title_Len]4      BE_U32 length of the utf8 title
 [Title]    *      U8 - UTF8 encoded chars - Note: May only be 16 chars depending on language.
 [Mode]     1      0 - normal, 1 - chars, 2 - attributes
+[Color]    4      RGBA_U8 A=00 means, no color
 [Flags]    4      BE_U32
                   Bit 1   : is_visible
                   Bit 2   : edit_locked

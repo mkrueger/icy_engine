@@ -1,8 +1,8 @@
-use crate::{Buffer, Line, Sixel, Size, UPosition};
+use crate::{Buffer, Line, Sixel, Size, UPosition, Color};
 
 use super::{AttributedChar, Position};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
     #[default]
     Normal,
@@ -18,6 +18,8 @@ pub struct Layer {
     pub is_position_locked: bool,
     pub is_alpha_channel_locked: bool,
     pub has_alpha_channel: bool,
+
+    pub color: Option<Color>,
 
     pub mode: Mode,
 

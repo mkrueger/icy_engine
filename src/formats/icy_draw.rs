@@ -136,6 +136,19 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 };
                 o += 1;
 
+                // read layer color
+                let red = bytes[o];
+                o += 1;
+                let green = bytes[o];
+                o += 1;
+                let blue = bytes[o];
+                o += 1;
+                let alpha = bytes[o];
+                o += 1;
+                if alpha != 0 {
+                    layer.color = Some(Color::new(red, green, blue));
+                }
+
                 let flags = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
                 o += 4;
                 layer.is_visible =
@@ -278,6 +291,16 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
             crate::Mode::Attributes => 2,
         };
         result.push(mode);
+
+        if let Some(color) = &layer.color {
+            let (r, g, b) = color.get_rgb();
+            result.push(r);
+            result.push(g);
+            result.push(b);
+            result.push(0xFF);
+        } else { 
+            result.extend([0, 0, 0, 0]);
+        }
 
         let mut flags = 0;
         if layer.is_visible {
