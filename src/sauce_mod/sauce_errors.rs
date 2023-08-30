@@ -9,6 +9,7 @@ pub enum SauceError {
     UnsupportedSauceVersion(String),
     InvalidCommentBlock,
     InvalidCommentId(String),
+    UnsupportedSauceDate(String),
 }
 
 impl std::fmt::Display for SauceError {
@@ -19,6 +20,9 @@ impl std::fmt::Display for SauceError {
             SauceError::UnsupportedSauceVersion(ver) => write!(f, "unsupported version {ver}"),
             SauceError::InvalidCommentBlock => write!(f, "invalid sauce comment block"),
             SauceError::InvalidCommentId(id) => write!(f, "invalid sauce comment id {id}"),
+            SauceError::UnsupportedSauceDate(err) => {
+                write!(f, "unsupported sauce date format: {err}")
+            }
         }
     }
 }

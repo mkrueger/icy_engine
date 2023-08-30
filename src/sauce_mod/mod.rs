@@ -6,6 +6,7 @@ use crate::{ascii::CP437_TO_UNICODE, EngineResult, Size};
 
 use super::Buffer;
 
+use chrono::{DateTime, FixedOffset, Utc};
 use sauce_errors::SauceError;
 mod sauce_errors;
 
@@ -89,6 +90,8 @@ pub struct SauceData {
     pub data_type: SauceDataType,
     pub buffer_size: Size<u16>,
 
+    pub creation_time: DateTime<FixedOffset>,
+
     pub font_opt: Option<String>,
     pub use_ice: bool,
     pub sauce_header_len: usize,
@@ -132,6 +135,12 @@ impl SauceData {
         o += title.read(&data[o..]);
         o += author.read(&data[o..]);
         o += group.read(&data[o..]);
+
+        let date_string = String::from_utf8_lossy(&data[o..(o + 8)]).to_string();
+        let date_time = match DateTime::parse_from_str(&date_string, "%Y%m%d") {
+            Ok(d) => d,
+            Err(err) => return Err(Box::new(SauceError::UnsupportedSauceDate(err.to_string()))),
+        };
 
         // skip date
         o += 8;
@@ -249,6 +258,7 @@ impl SauceData {
             group,
             comments,
             data_type,
+            creation_time: date_time,
             buffer_size,
             font_opt,
             use_ice,
@@ -433,7 +443,11 @@ impl Buffer {
         self.author.append_to(vec);
         self.group.append_to(vec);
         // TODO: Dates
-        vec.extend(b"20130504");
+
+        let cur_time = Utc::now();
+        let date_time = cur_time.format("%Y%m%d").to_string();
+        assert_eq!(date_time.len(), 8);
+        vec.extend(date_time.bytes());
         vec.extend(u32::to_le_bytes(file_size));
 
         let data_type;
