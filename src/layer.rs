@@ -84,7 +84,7 @@ impl Layer {
             return;
         }
         if pos.y >= self.lines.len() as i32 {
-            self.lines.resize(pos.y as usize + 1, Line::new());
+            self.lines.resize(pos.y as usize + 1, Line::create(self.size.width));
         }
         let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
@@ -132,7 +132,7 @@ impl Layer {
         }
         assert!(index >= 0, "line out of range");
         if index > self.lines.len() as i32 {
-            self.lines.resize(index as usize, Line::new());
+            self.lines.resize(index as usize, Line::create(self.size.width));
         }
 
         self.lines.insert(index as usize, line);

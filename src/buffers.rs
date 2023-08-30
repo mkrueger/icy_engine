@@ -144,7 +144,7 @@ impl Buffer {
             }
         }
 
-        for i in (0..self.layers.len()) {
+        for i in 0..self.layers.len() {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
                 continue;
@@ -154,7 +154,11 @@ impl Buffer {
                 return ch;
             }
         }
-        AttributedChar::invisible()
+        if self.is_terminal_buffer {
+            AttributedChar::default()
+        }  else { 
+            AttributedChar::invisible()
+        }
     }
 
     pub fn get_char_xy(&self, x: i32, y: i32) -> AttributedChar {
@@ -443,7 +447,7 @@ impl Buffer {
         res.layers[0].size = Size::new(width, height);
         res.layers[0]
             .lines
-            .resize(height as usize, crate::Line::create(width as u16));
+            .resize(height as usize, crate::Line::create(width));
 
         let mut editing_layer = Layer::new("Background", width, height);
         editing_layer.title = "Editing".to_string();
@@ -545,7 +549,7 @@ impl Buffer {
     /// This function will return an error if .
     pub fn from_bytes(file_name: &Path, skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
         let mut result = Buffer::new();
-        result.is_terminal_buffer = false;
+        result.is_terminal_buffer = true;
         result.file_name = Some(file_name.to_path_buf());
         let ext = file_name.extension();
 
@@ -674,6 +678,7 @@ impl Buffer {
             result.set_buffer_width(80);
         }
         result.set_buffer_height(25);
+        result.layers[0].lines.clear();
 
         let mut interpreter: Box<dyn BufferParser> = match interpreter {
             CharInterpreter::Ascii => Box::<parsers::ascii::Parser>::default(),
