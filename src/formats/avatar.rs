@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, Position, TextAttribute};
+use crate::{Buffer, TextAttribute, UPosition};
 
 use super::SaveOptions;
 
@@ -30,7 +30,7 @@ pub enum AvtReadState {
 pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
-    let mut pos = Position::default();
+    let mut pos = UPosition::default();
     let height = buf.get_line_count();
     let mut first_char = true;
 
@@ -55,7 +55,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             let mut repeat_count = 1;
             let mut ch = buf.get_char(pos);
 
-            while pos.x < buf.get_width() - 3 && ch == buf.get_char(pos + Position::new(1, 0)) {
+            while pos.x < buf.get_width() - 3 && ch == buf.get_char(pos + UPosition::new(1, 0)) {
                 repeat_count += 1;
                 pos.x += 1;
                 ch = buf.get_char(pos);
@@ -121,7 +121,7 @@ pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Buffer, Position, SaveOptions};
+    use crate::{Buffer, SaveOptions};
 
     #[test]
     fn test_clear() {
@@ -145,11 +145,11 @@ mod tests {
         .unwrap();
         assert_eq!(1, buf.get_line_count());
         assert_eq!(5, buf.get_real_buffer_width());
-        assert_eq!(b'X', buf.get_char(Position::new(0, 0)).ch as u8);
-        assert_eq!(b'b', buf.get_char(Position::new(1, 0)).ch as u8);
-        assert_eq!(b'b', buf.get_char(Position::new(2, 0)).ch as u8);
-        assert_eq!(b'b', buf.get_char(Position::new(3, 0)).ch as u8);
-        assert_eq!(b'X', buf.get_char(Position::new(4, 0)).ch as u8);
+        assert_eq!(b'X', buf.get_char((0, 0)).ch as u8);
+        assert_eq!(b'b', buf.get_char((1, 0)).ch as u8);
+        assert_eq!(b'b', buf.get_char((2, 0)).ch as u8);
+        assert_eq!(b'b', buf.get_char((3, 0)).ch as u8);
+        assert_eq!(b'X', buf.get_char((4, 0)).ch as u8);
     }
 
     #[test]

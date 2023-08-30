@@ -98,7 +98,7 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
     for y in 0..buf.get_line_count() {
         for x in 0..buf.get_width() {
-            let ch = buf.get_char(Position::new(x, y));
+            let ch = buf.get_char((x as i32, y as i32));
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(BufferType::LegacyIce));
         }

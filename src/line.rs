@@ -15,9 +15,9 @@ impl Line {
         }
     }
 
-    pub fn create(width: i32) -> Self {
+    pub fn create(width: usize) -> Self {
         let mut chars = Vec::new();
-        chars.resize(width as usize, AttributedChar::default());
+        chars.resize(width, AttributedChar::default());
         Line { chars }
     }
 
@@ -30,20 +30,18 @@ impl Line {
         0
     }
 
-    pub fn insert_char(&mut self, index: i32, char_opt: AttributedChar) {
-        if index > self.chars.len() as i32 {
-            self.chars
-                .resize(index as usize, AttributedChar::invisible());
+    pub fn insert_char(&mut self, index: usize, char_opt: AttributedChar) {
+        if index > self.chars.len() {
+            self.chars.resize(index, AttributedChar::invisible());
         }
-        self.chars.insert(index as usize, char_opt);
+        self.chars.insert(index, char_opt);
     }
 
-    pub fn set_char(&mut self, index: i32, char_opt: AttributedChar) {
-        if index >= self.chars.len() as i32 {
-            self.chars
-                .resize(index as usize + 1, AttributedChar::invisible());
+    pub fn set_char(&mut self, index: usize, char: AttributedChar) {
+        if index >= self.chars.len() {
+            self.chars.resize(index + 1, AttributedChar::invisible());
         }
-        self.chars[index as usize] = char_opt;
+        self.chars[index] = char;
     }
 }
 

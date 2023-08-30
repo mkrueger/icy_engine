@@ -6,7 +6,7 @@ use crate::{ascii::CP437_TO_UNICODE, EngineResult, Size};
 
 use super::Buffer;
 
-use chrono::{DateTime, FixedOffset, Utc};
+use chrono::{NaiveDateTime, Utc};
 use sauce_errors::SauceError;
 mod sauce_errors;
 
@@ -88,9 +88,9 @@ pub struct SauceData {
     pub comments: Vec<SauceString<64, 0>>,
 
     pub data_type: SauceDataType,
-    pub buffer_size: Size<u16>,
+    pub buffer_size: Size,
 
-    pub creation_time: DateTime<FixedOffset>,
+    pub creation_time: NaiveDateTime,
 
     pub font_opt: Option<String>,
     pub use_ice: bool,
@@ -127,7 +127,7 @@ impl SauceData {
         let mut author = SauceString::<20, b' '>::new();
         let mut group = SauceString::<20, b' '>::new();
         let mut comments: Vec<SauceString<64, 0>> = Vec::new();
-        let mut buffer_size = Size::<u16>::new(80, 25);
+        let mut buffer_size = Size::new(80, 25);
         let mut font_opt = None;
         let mut use_ice = false;
 
@@ -136,13 +136,12 @@ impl SauceData {
         o += author.read(&data[o..]);
         o += group.read(&data[o..]);
 
-        let date_string = String::from_utf8_lossy(&data[o..(o + 8)]).to_string();
-        let date_time = match DateTime::parse_from_str(&date_string, "%Y%m%d") {
+        let mut date_string = String::from_utf8_lossy(&data[o..(o + 8)]).to_string();
+        date_string.push_str("000000"); // otherwise the datetime parser will fail, it needs full info
+        let date_time = match NaiveDateTime::parse_from_str(&date_string, "%Y%m%d%H%M%S") {
             Ok(d) => d,
             Err(err) => return Err(Box::new(SauceError::UnsupportedSauceDate(err.to_string()))),
         };
-
-        // skip date
         o += 8;
 
         // skip file_size - we can calculate it, better than to rely on random 3rd party software.
@@ -173,49 +172,49 @@ impl SauceData {
 
         match data_type {
             SauceDataType::BinaryText => {
-                buffer_size.width = (file_type as u16) << 1;
+                buffer_size.width = ((file_type as u16) << 1) as usize;
                 sauce_file_type = SauceFileType::Bin;
                 use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                 font_opt = Some(t_info_str.to_string());
             }
             SauceDataType::XBin => {
-                buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                 sauce_file_type = SauceFileType::XBin;
                 // no flags according to spec
             }
             SauceDataType::Character => {
                 match file_type {
                     SAUCE_FILE_TYPE_ASCII => {
-                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::Ascii;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         font_opt = Some(t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSI => {
-                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::Ansi;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         font_opt = Some(t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
-                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::ANSiMation;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         font_opt = Some(t_info_str.to_string());
                     }
 
                     SAUCE_FILE_TYPE_PCBOARD => {
-                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::PCBoard;
                         // no flags according to spec
                     }
                     SAUCE_FILE_TYPE_AVATAR => {
-                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::Avatar;
                         // no flags according to spec
                     }
                     SAUCE_FILE_TYPE_TUNDRA_DRAW => {
-                        buffer_size = Size::new(t_info1 as u16, t_info2 as u16);
+                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::TundraDraw;
                         // no flags according to spec
                     }
@@ -442,8 +441,6 @@ impl Buffer {
         self.title.append_to(vec);
         self.author.append_to(vec);
         self.group.append_to(vec);
-        // TODO: Dates
-
         let cur_time = Utc::now();
         let date_time = cur_time.format("%Y%m%d").to_string();
         assert_eq!(date_time.len(), 8);
@@ -509,7 +506,7 @@ impl Buffer {
             SauceFileType::Bin => {
                 data_type = SauceDataType::BinaryText;
                 let w = self.get_width() / 2;
-                if w > u8::MAX as i32 {
+                if w > u8::MAX as usize {
                     return Err(io::Error::new(io::ErrorKind::InvalidData, "BIN files can only be saved up to 510 width."));
                 }
                 file_type = w as u8;

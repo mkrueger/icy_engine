@@ -13,7 +13,6 @@
 mod text_attribute;
 use std::{cmp::min, error::Error};
 
-use ::num::NumCast;
 pub use text_attribute::*;
 
 mod attributed_char;
@@ -70,41 +69,78 @@ pub use url_scanner::*;
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct Size<T: NumCast> {
-    pub width: T,
-    pub height: T,
+pub struct Size {
+    pub width: usize,
+    pub height: usize,
 }
 
-impl<T> PartialEq for Size<T>
-where
-    T: NumCast + Eq,
-{
-    fn eq(&self, other: &Size<T>) -> bool {
+impl PartialEq for Size {
+    fn eq(&self, other: &Size) -> bool {
         self.width == other.width && self.height == other.height
     }
 }
 
-impl<T> Size<T>
-where
-    T: NumCast,
-{
-    pub fn new(width: T, height: T) -> Self {
+impl Size {
+    pub fn new(width: usize, height: usize) -> Self {
         Size { width, height }
+    }
+}
+
+impl From<(usize, usize)> for Size {
+    fn from(value: (usize, usize)) -> Self {
+        Size {
+            width: value.0,
+            height: value.1,
+        }
+    }
+}
+impl From<(i32, i32)> for Size {
+    fn from(value: (i32, i32)) -> Self {
+        Size {
+            width: value.0 as usize,
+            height: value.1 as usize,
+        }
+    }
+}
+impl From<(u32, u32)> for Size {
+    fn from(value: (u32, u32)) -> Self {
+        Size {
+            width: value.0 as usize,
+            height: value.1 as usize,
+        }
+    }
+}
+
+impl From<(u16, u16)> for Size {
+    fn from(value: (u16, u16)) -> Self {
+        Size {
+            width: value.0 as usize,
+            height: value.1 as usize,
+        }
+    }
+}
+
+impl From<(u8, u8)> for Size {
+    fn from(value: (u8, u8)) -> Self {
+        Size {
+            width: value.0 as usize,
+            height: value.1 as usize,
+        }
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct Rectangle {
     pub start: Position,
-    pub size: Size<i32>,
+    pub size: Size,
 }
 
 impl Rectangle {
-    pub fn new(start: Position, size: Size<i32>) -> Self {
+    pub fn new(start: Position, size: Size) -> Self {
         Self { start, size }
     }
 
-    pub fn from(x: i32, y: i32, width: i32, height: i32) -> Self {
+    pub fn from(x: i32, y: i32, width: usize, height: usize) -> Self {
         Self {
             start: Position::new(x, y),
             size: Size::new(width, height),
@@ -121,7 +157,7 @@ impl Rectangle {
         assert!(y1 <= y2);
         Rectangle {
             start: Position::new(x1, y1),
-            size: Size::new((x2 - x1) + 1, (y2 - y1) + 1),
+            size: Size::new((x2 - x1) as usize + 1, (y2 - y1) as usize + 1),
         }
     }
 
@@ -130,22 +166,25 @@ impl Rectangle {
 
         Rectangle {
             start,
-            size: Size::new((p1.x - p2.x).abs(), (p1.y - p2.y).abs()),
+            size: Size::new(
+                (p1.x - p2.x).unsigned_abs() as usize,
+                (p1.y - p2.y).unsigned_abs() as usize,
+            ),
         }
     }
 
     pub fn lower_right(&self) -> Position {
         Position {
-            x: self.start.x + self.size.width,
-            y: self.start.y + self.size.height,
+            x: self.start.x + self.size.width as i32,
+            y: self.start.y + self.size.height as i32,
         }
     }
 
     pub fn contains_pt(&self, point: Position) -> bool {
         self.start.x <= point.x
-            && point.x <= self.start.x + self.size.width
+            && point.x <= self.start.x + self.size.width as i32
             && self.start.y <= point.y
-            && point.y <= self.start.y + self.size.height
+            && point.y <= self.start.y + self.size.height as i32
     }
 
     pub fn contains_rect(&self, other: &Rectangle) -> bool {

@@ -2,7 +2,7 @@ use std::io;
 
 use crate::{
     convert_to_ansi_data, crc, parsers, BitFont, Buffer, BufferParser, Caret, Color, Layer,
-    Position, SauceString, Size,
+    Position, SauceString,
 };
 
 mod constants {
@@ -70,9 +70,8 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
     o += 4;
     let height: i32 = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
     o += 4;
-    result.set_buffer_size(Size::new(width as u16, height as u16));
+    result.set_buffer_size((width, height));
 
-    println!("buffer size: {width}x{height}");
     while o < bytes.len() {
         let block_type = bytes[o];
         o += 1;
@@ -151,8 +150,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 let height: i32 = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                 o += 4;
 
-                layer.size = Size::new(width, height);
-                println!("layer {} size: {width}x{height}", &layer.title);
+                layer.size = (width, height).into();
 
                 let length = u64::from_be_bytes(bytes[o..(o + 8)].try_into().unwrap()) as usize;
                 o += 8;
@@ -160,7 +158,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 let mut caret = Caret::default();
                 result.layers.push(layer);
 
-                for i in o..(o + length) {
+                (o..(o + length)).for_each(|i| {
                     let b = bytes[i];
                     let _ = p.print_char(
                         result,
@@ -168,7 +166,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                         &mut caret,
                         char::from_u32(b as u32).unwrap(),
                     );
-                }
+                });
 
                 o += length;
             }
@@ -183,7 +181,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
     Ok(true)
 }
 
-pub fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
+fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
     let size = u32::from_be_bytes(data[0..4].try_into().unwrap()) as usize;
     (
         unsafe { String::from_utf8_unchecked(data[4..(4 + size)].to_vec()) },
@@ -191,7 +189,7 @@ pub fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
     )
 }
 
-pub fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
+fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
     data.extend(u32::to_be_bytes(s.len() as u32));
     data.extend(s.as_bytes());
 }
@@ -274,8 +272,8 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         result.extend(i32::to_be_bytes(layer.get_offset().x));
         result.extend(i32::to_be_bytes(layer.get_offset().y));
 
-        result.extend(i32::to_be_bytes(layer.size.width));
-        result.extend(i32::to_be_bytes(layer.size.height));
+        result.extend(i32::to_be_bytes(layer.size.width as i32));
+        result.extend(i32::to_be_bytes(layer.size.height as i32));
 
         let data = convert_to_ansi_data(buf, i, false);
         result.extend(u64::to_be_bytes(data.len() as u64));

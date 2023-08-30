@@ -29,8 +29,8 @@ pub enum FontSelectionState {
 
 #[derive(Debug)]
 pub struct TerminalState {
-    pub width: i32,
-    pub height: i32,
+    pub width: usize,
+    pub height: usize,
 
     pub origin_mode: OriginMode,
     pub scroll_state: TerminalScrolling,
@@ -75,7 +75,7 @@ pub enum MouseMode {
 }
 
 impl TerminalState {
-    pub fn from(width: i32, height: i32) -> Self {
+    pub fn from(width: usize, height: usize) -> Self {
         let mut ret = Self {
             width,
             height,
@@ -118,7 +118,7 @@ impl TerminalState {
         let mut i = 0;
         self.tab_stops.clear();
         while i < self.width {
-            self.tab_stops.push(i);
+            self.tab_stops.push(i as i32);
             i += 8;
         }
     }
@@ -131,7 +131,7 @@ impl TerminalState {
         if i < self.tab_stops.len() {
             self.tab_stops[i]
         } else {
-            self.width
+            self.width as i32
         }
     }
 
@@ -166,19 +166,19 @@ impl TerminalState {
         match self.origin_mode {
             crate::OriginMode::UpperLeftCorner => {
                 if buf.is_terminal_buffer {
-                    let first = buf.get_first_visible_line();
-                    let n = (first + buf.get_height() - 1).min(first.max(caret.pos.y));
+                    let first = buf.get_first_visible_line() as i32;
+                    let n = (first + buf.get_height() as i32 - 1).min(first.max(caret.pos.y));
 
                     caret.pos.y = n;
                 }
-                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width - 1));
+                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width as i32 - 1));
             }
             crate::OriginMode::WithinMargins => {
-                let first = buf.get_first_editable_line();
-                let height = buf.get_last_editable_line() - first;
+                let first = buf.get_first_editable_line() as i32;
+                let height = buf.get_last_editable_line() as i32 - first;
                 let n = caret.pos.y.clamp(first, max(first, first + height - 1));
                 caret.pos.y = n;
-                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width - 1));
+                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width as i32 - 1));
             }
         }
     }

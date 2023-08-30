@@ -1,7 +1,8 @@
-use crate::{Buffer, HyperLink, Position};
+use crate::{Buffer, HyperLink, UPosition};
 
 impl Buffer {
-    pub fn get_string(&self, pos: Position, size: usize) -> String {
+    pub fn get_string(&self, pos: impl Into<UPosition>, size: usize) -> String {
+        let pos = pos.into();
         let mut result = String::new();
         let mut pos = pos;
         for _ in 0..size {
@@ -18,10 +19,10 @@ impl Buffer {
     pub fn parse_hyperlinks(&self) -> Vec<HyperLink> {
         let mut result = Vec::new();
 
-        let mut pos = Position::new(self.get_width() - 1, self.get_height() - 1);
+        let mut pos = UPosition::new(self.get_width() - 1, self.get_height() - 1);
         let mut parser = rfind_url::Parser::new();
 
-        while pos.y >= 0 {
+        loop {
             let attr_char = self.get_char(pos);
             if let rfind_url::ParserState::Url(size) = parser.advance(attr_char.ch) {
                 let p = crate::HyperLink {
@@ -31,18 +32,22 @@ impl Buffer {
                 };
                 result.push(p);
             }
-            pos.x -= 1;
-            if pos.x < 0 {
+            if pos.x == 0 {
                 pos.x = self.get_width() - 1;
+                if pos.y == 0 {
+                    break;
+                }
                 pos.y -= 1;
+            } else {
+                pos.x -= 1;
             }
         }
 
         result
     }
 
-    fn underline(&mut self, pos: Position, size: usize) {
-        let mut pos = pos;
+    fn underline(&mut self, pos: impl Into<UPosition>, size: usize) {
+        let mut pos = pos.into();
         for _ in 0..size {
             let mut ch = self.get_char(pos);
             ch.attribute.set_is_underlined(true);
@@ -55,12 +60,20 @@ impl Buffer {
         }
     }
 
-    pub fn is_position_in_range(&self, pos: Position, from: Position, size: usize) -> bool {
+    pub fn is_position_in_range(
+        &self,
+        pos: impl Into<UPosition>,
+        from: impl Into<UPosition>,
+        size: usize,
+    ) -> bool {
+        let pos = pos.into();
+        let from = from.into();
+
         match pos.y.cmp(&from.y) {
             std::cmp::Ordering::Less => false,
-            std::cmp::Ordering::Equal => from.x <= pos.x && pos.x < from.x + size as i32,
+            std::cmp::Ordering::Equal => from.x <= pos.x && pos.x < from.x + size,
             std::cmp::Ordering::Greater => {
-                let remainder = (size as i32 - self.get_width() + from.x).max(0);
+                let remainder = (size - self.get_width() + from.x).max(0);
                 let lines = remainder / self.get_width();
                 let mut y = from.y + lines;
                 let x = if remainder > 0 {

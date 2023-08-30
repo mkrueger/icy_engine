@@ -54,7 +54,7 @@ pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<
 
     for y in 0..buf.get_height() {
         for x in 0..buf.get_width() {
-            let ch = buf.get_char(Position::new(x, y));
+            let ch = buf.get_char((x, y));
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(buf.buffer_type));
         }

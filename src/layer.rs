@@ -1,4 +1,4 @@
-use crate::{Buffer, Line, Sixel, Size};
+use crate::{Buffer, Line, Sixel, Size, UPosition};
 
 use super::{AttributedChar, Position};
 
@@ -10,7 +10,7 @@ pub struct Layer {
     pub is_position_locked: bool,
 
     pub offset: Position,
-    pub size: Size<i32>,
+    pub size: Size,
     pub lines: Vec<Line>,
 
     pub sixels: Vec<Sixel>,
@@ -20,7 +20,7 @@ pub struct Layer {
 #[derive(Debug, Default, Clone)]
 pub struct HyperLink {
     pub url: Option<String>,
-    pub position: Position,
+    pub position: UPosition,
     pub length: usize,
 }
 
@@ -35,7 +35,7 @@ impl HyperLink {
 }
 
 impl Layer {
-    pub fn new(title: impl Into<String>, width: i32, height: i32) -> Self {
+    pub fn new(title: impl Into<String>, width: usize, height: usize) -> Self {
         Layer {
             title: title.into(),
             is_visible: true,
@@ -66,7 +66,7 @@ impl Layer {
             for x in 0..line.chars.len() {
                 let ch = line.chars[x];
                 if ch.is_visible() {
-                    self.set_char(Position::new(x as i32, y as i32), ch);
+                    self.set_char((x as i32, y as i32), ch);
                 }
             }
         }
@@ -78,29 +78,31 @@ impl Layer {
         self.sixels.clear();
     }
 
-    pub fn set_char(&mut self, pos: Position, attributed_char: AttributedChar) {
-        let pos = pos - self.offset;
-        if pos.x < 0 || pos.y < 0 || self.is_locked || !self.is_visible {
+    pub fn set_char(&mut self, pos: impl Into<UPosition>, attributed_char: AttributedChar) {
+        let pos = pos.into();
+        let pos = pos - self.offset.as_uposition();
+        if self.is_locked || !self.is_visible {
             return;
         }
-        if pos.y >= self.lines.len() as i32 {
-            self.lines
-                .resize(pos.y as usize + 1, Line::create(self.size.width));
+        if pos.y >= self.lines.len() {
+            self.lines.resize(pos.y + 1, Line::create(self.size.width));
         }
-        let cur_line = &mut self.lines[pos.y as usize];
+        let cur_line = &mut self.lines[pos.y];
         cur_line.set_char(pos.x, attributed_char);
     }
 
     pub(crate) fn set_char_xy(&mut self, x: i32, y: i32, attributed_char: AttributedChar) {
-        self.set_char(Position::new(x, y), attributed_char);
+        self.set_char((x, y), attributed_char);
     }
-    pub fn get_char(&self, pos: Position) -> AttributedChar {
-        let pos = pos - self.offset;
-        let y = pos.y as usize;
+    pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
+        let pos = pos.into();
+        let pos = pos - self.offset.as_uposition();
+        let y = pos.y;
         if y < self.lines.len() {
             let cur_line = &self.lines[y];
-            if pos.x < cur_line.chars.len() as i32 {
-                return cur_line.chars[pos.x as usize];
+
+            if pos.x < cur_line.chars.len() {
+                return cur_line.chars[pos.x];
             }
         }
         AttributedChar::invisible()
@@ -140,7 +142,9 @@ impl Layer {
         self.lines.insert(index as usize, line);
     }
 
-    pub fn swap_char(&mut self, pos1: Position, pos2: Position) {
+    pub fn swap_char(&mut self, pos1: impl Into<UPosition>, pos2: impl Into<UPosition>) {
+        let pos1 = pos1.into();
+        let pos2 = pos2.into();
         let tmp = self.get_char(pos1);
         self.set_char(pos1, self.get_char(pos2));
         self.set_char(pos2, tmp);
@@ -154,22 +158,22 @@ impl Layer {
         &self.hyperlinks
     }
 
-    pub fn get_width(&self) -> i32 {
+    pub fn get_width(&self) -> usize {
         self.size.width
     }
 
-    pub fn get_line_count(&self) -> i32 {
-        self.lines.len() as i32
+    pub fn get_line_count(&self) -> usize {
+        self.lines.len()
     }
 
-    pub fn get_line_length(&self, line: i32) -> i32 {
-        self.lines[line as usize].get_line_length() as i32
+    pub fn get_line_length(&self, line: usize) -> usize {
+        self.lines[line].get_line_length()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{AttributedChar, Layer, Line, Position, TextAttribute};
+    use crate::{AttributedChar, Layer, Line, TextAttribute};
 
     #[test]
     fn test_get_char() {
@@ -179,23 +183,11 @@ mod tests {
 
         layer.insert_line(0, line);
 
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(-1, -1))
-        );
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(1000, 1000))
-        );
-        assert_eq!('a', layer.get_char(Position::new(10, 0)).ch);
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(9, 0))
-        );
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(11, 0))
-        );
+        assert_eq!(AttributedChar::invisible(), layer.get_char((-1, -1)));
+        assert_eq!(AttributedChar::invisible(), layer.get_char((1000, 1000)));
+        assert_eq!('a', layer.get_char((10, 0)).ch);
+        assert_eq!(AttributedChar::invisible(), layer.get_char((9, 0)));
+        assert_eq!(AttributedChar::invisible(), layer.get_char((11, 0)));
     }
 
     #[test]
@@ -206,23 +198,11 @@ mod tests {
 
         layer.insert_line(0, line);
 
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(-1, -1))
-        );
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(1000, 1000))
-        );
-        assert_eq!('a', layer.get_char(Position::new(10, 0)).ch);
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(9, 0))
-        );
-        assert_eq!(
-            AttributedChar::invisible(),
-            layer.get_char(Position::new(11, 0))
-        );
+        assert_eq!(AttributedChar::invisible(), layer.get_char((-1, -1)));
+        assert_eq!(AttributedChar::invisible(), layer.get_char((1000, 1000)));
+        assert_eq!('a', layer.get_char((10, 0)).ch);
+        assert_eq!(AttributedChar::invisible(), layer.get_char((9, 0)));
+        assert_eq!(AttributedChar::invisible(), layer.get_char((11, 0)));
     }
 
     #[test]

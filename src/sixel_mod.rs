@@ -18,8 +18,8 @@ pub struct Sixel {
     pub horizontal_scale: i32,
     pub picture_data: Vec<u8>,
 
-    pub(crate) width: u32,
-    pub(crate) height: u32,
+    pub(crate) width: usize,
+    pub(crate) height: usize,
 }
 
 struct SixelParser {
@@ -61,7 +61,7 @@ impl SixelParser {
         self.parse_char('#')?;
         let mut picture_data = Vec::new();
         for y in 0..self.height() {
-            let line = &self.picture_data[y as usize];
+            let line = &self.picture_data[y];
             picture_data.extend(line);
         }
         Ok(Sixel {
@@ -74,16 +74,16 @@ impl SixelParser {
         })
     }
 
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> usize {
         if let Some(first_line) = self.picture_data.get(0) {
-            first_line.len() as u32 / 4
+            first_line.len() / 4
         } else {
             0
         }
     }
 
-    pub fn height(&self) -> u32 {
-        self.picture_data.len() as u32
+    pub fn height(&self) -> usize {
+        self.picture_data.len()
     }
 
     fn parse_char(&mut self, ch: char) -> EngineResult<bool> {
@@ -204,13 +204,13 @@ impl SixelParser {
         let y_pos = self.sixel_cursor.y as usize * 6;
 
         let mut last_line = y_pos + 6;
-        if self.height_set && last_line > self.height() as usize {
-            last_line = self.height() as usize;
+        if self.height_set && last_line > self.height() {
+            last_line = self.height();
         }
 
         if self.picture_data.len() < last_line {
             self.picture_data
-                .resize(last_line, vec![0; self.width() as usize * 4]);
+                .resize(last_line, vec![0; self.width() * 4]);
         }
 
         for i in 0..6 {
@@ -282,11 +282,11 @@ impl Sixel {
         }
     }
 
-    pub fn width(&self) -> u32 {
+    pub fn width(&self) -> usize {
         self.width
     }
 
-    pub fn height(&self) -> u32 {
+    pub fn height(&self) -> usize {
         self.height
     }
 
@@ -295,7 +295,7 @@ impl Sixel {
         let y = self.position.y * 16;
         Rectangle {
             start: Position::new(x, y),
-            size: Size::new(self.width as i32, self.height as i32),
+            size: Size::new(self.width, self.height),
         }
     }
 

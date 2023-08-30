@@ -7,10 +7,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use num::NumCast;
-
 use crate::{
     parsers, BufferParser, Caret, EngineResult, Glyph, Layer, SauceData, Sixel, TerminalState,
+    UPosition,
 };
 
 use super::{
@@ -114,7 +113,7 @@ impl std::fmt::Display for Buffer {
         for y in 0..self.get_line_count() {
             str.extend(format!("{y:3}: ").chars());
             for x in 0..self.get_width() {
-                let ch = self.get_char_xy(x, y);
+                let ch = self.get_char((x, y));
                 str.push(p.convert_to_unicode(ch));
             }
             str.push('\n');
@@ -124,26 +123,26 @@ impl std::fmt::Display for Buffer {
 }
 
 impl Buffer {
-    pub fn get_width(&self) -> i32 {
+    pub fn get_width(&self) -> usize {
         self.terminal_state.width
     }
 
-    pub fn get_line_count(&self) -> i32 {
+    pub fn get_line_count(&self) -> usize {
         if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
-            len as i32
+            len
         } else {
             self.terminal_state.height
         }
     }
 
-    pub fn get_char(&self, pos: Position) -> AttributedChar {
+    pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
+        let pos = pos.into();
         if let Some(overlay) = &self.overlay_layer {
             let ch = overlay.get_char(pos);
             if ch.is_visible() {
                 return ch;
             }
         }
-
         for i in 0..self.layers.len() {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
@@ -161,13 +160,9 @@ impl Buffer {
         }
     }
 
-    pub fn get_char_xy(&self, x: i32, y: i32) -> AttributedChar {
-        self.get_char(Position::new(x, y))
-    }
-
-    pub fn get_line_length(&self, line: i32) -> i32 {
+    pub fn get_line_length(&self, line: usize) -> usize {
         let mut length = 0;
-        let mut pos = Position::new(0, line);
+        let mut pos = UPosition::new(0, line);
         for x in 0..self.get_width() {
             pos.x = x;
             let ch = self.get_char(pos);
@@ -304,18 +299,18 @@ impl Buffer {
         i
     }
 
-    pub fn get_height(&self) -> i32 {
+    pub fn get_height(&self) -> usize {
         self.terminal_state.height
     }
 
-    pub fn get_real_buffer_width(&self) -> i32 {
+    pub fn get_real_buffer_width(&self) -> usize {
         let mut w = 0;
         for layer in &self.layers {
             for line in &layer.lines {
                 w = max(w, line.get_line_length());
             }
         }
-        w as i32
+        w
     }
 
     pub fn reset_terminal(&mut self) {
@@ -328,11 +323,10 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn set_buffer_size<T: NumCast>(&mut self, size: Size<T>) {
-        self.terminal_state = TerminalState::from(
-            num::cast(size.width).unwrap(),
-            num::cast(size.height).unwrap(),
-        );
+    pub fn set_buffer_size(&mut self, size: impl Into<Size>) {
+        let size = size.into();
+        self.terminal_state.width = size.width;
+        self.terminal_state.height = size.height;
     }
 
     /// Sets the buffer width of this [`Buffer`].
@@ -340,9 +334,8 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn set_buffer_width<T: NumCast>(&mut self, width: T) {
-        self.terminal_state =
-            TerminalState::from(num::cast(width).unwrap(), self.terminal_state.height);
+    pub fn set_buffer_width(&mut self, width: usize) {
+        self.terminal_state.width = width;
     }
 
     /// Sets the buffer height of this [`Buffer`].
@@ -350,9 +343,8 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn set_buffer_height<T: NumCast>(&mut self, height: T) {
-        self.terminal_state =
-            TerminalState::from(self.terminal_state.width, num::cast(height).unwrap());
+    pub fn set_buffer_height(&mut self, height: usize) {
+        self.terminal_state.height = height;
     }
 
     /// Returns the clear of this [`Buffer`].
@@ -367,22 +359,25 @@ impl Buffer {
     /// terminal buffers have a viewport on the bottom of the buffer
     /// this function gives back the first visible line.
     #[must_use]
-    pub fn get_first_visible_line(&self) -> i32 {
+    pub fn get_first_visible_line(&self) -> usize {
         if self.is_terminal_buffer {
-            max(0, self.layers[0].lines.len() as i32 - self.get_height())
+            max(
+                0,
+                self.layers[0].lines.len().saturating_sub(self.get_height()),
+            )
         } else {
             0
         }
     }
 
-    pub fn get_last_visible_line(&self) -> i32 {
+    pub fn get_last_visible_line(&self) -> usize {
         self.get_first_visible_line() + self.get_height()
     }
 
-    pub fn get_first_editable_line(&self) -> i32 {
+    pub fn get_first_editable_line(&self) -> usize {
         if self.is_terminal_buffer {
             if let Some((start, _)) = self.terminal_state.get_margins_top_bottom() {
-                return self.get_first_visible_line() + start;
+                return self.get_first_visible_line() + start as usize;
             }
         }
         self.get_first_visible_line()
@@ -397,13 +392,13 @@ impl Buffer {
         0
     }
 
-    pub fn get_last_editable_column(&self) -> i32 {
+    pub fn get_last_editable_column(&self) -> usize {
         if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.get_margins_left_right() {
-                return end;
+                return end as usize;
             }
         }
-        self.get_width() - 1
+        self.get_width().saturating_sub(1)
     }
 
     #[must_use]
@@ -412,15 +407,18 @@ impl Buffer {
     }
 
     #[must_use]
-    pub fn get_last_editable_line(&self) -> i32 {
+    pub fn get_last_editable_line(&self) -> usize {
         if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.get_margins_top_bottom() {
-                self.get_first_visible_line() + end
+                self.get_first_visible_line() + end as usize
             } else {
-                self.get_first_visible_line() + self.get_height() - 1
+                (self.get_first_visible_line() + self.get_height()).saturating_sub(1)
             }
         } else {
-            max(self.layers[0].lines.len() as i32, self.get_height() - 1)
+            max(
+                self.layers[0].lines.len(),
+                self.get_height().saturating_sub(1),
+            )
         }
     }
 
@@ -429,17 +427,17 @@ impl Buffer {
         match self.terminal_state.origin_mode {
             crate::OriginMode::UpperLeftCorner => Position {
                 x: 0,
-                y: self.get_first_visible_line(),
+                y: self.get_first_visible_line() as i32,
             },
             crate::OriginMode::WithinMargins => Position {
                 x: 0,
-                y: self.get_first_editable_line(),
+                y: self.get_first_editable_line() as i32,
             },
         }
     }
 
     #[must_use]
-    pub fn create(width: i32, height: i32) -> Self {
+    pub fn create(width: usize, height: usize) -> Self {
         let mut res = Buffer::new();
         res.set_buffer_width(width);
         res.set_buffer_height(height);
@@ -447,7 +445,7 @@ impl Buffer {
         res.layers[0].size = Size::new(width, height);
         res.layers[0]
             .lines
-            .resize(height as usize, crate::Line::create(width));
+            .resize(height, crate::Line::create(width));
 
         let mut editing_layer = Layer::new("Background", width, height);
         editing_layer.title = "Editing".to_string();
@@ -480,7 +478,7 @@ impl Buffer {
     }
 
     #[must_use]
-    pub fn get_font_dimensions(&self) -> Size<u8> {
+    pub fn get_font_dimensions(&self) -> Size {
         self.font_table[&0].size
     }
 
@@ -562,7 +560,13 @@ impl Buffer {
                 return Ok(result);
             }
         }
-        let sauce_data = SauceData::extract(bytes).ok();
+        let sauce_data = match SauceData::extract(bytes) {
+            Ok(sauce) => Some(sauce),
+            Err(err) => {
+                log::error!("Error reading sauce data: {}", err);
+                None
+            }
+        };
         let mut sauce_type = super::SauceFileType::Undefined;
         let mut file_size = bytes.len();
         let mut use_ice = false;
@@ -572,10 +576,7 @@ impl Buffer {
             result.group = sauce.group.clone();
             result.comments = sauce.comments.clone();
             result.set_buffer_size(sauce.buffer_size);
-            result.layers[0].size = Size::new(
-                sauce.buffer_size.width as i32,
-                sauce.buffer_size.height as i32,
-            );
+            result.layers[0].size = sauce.buffer_size;
             sauce_type = sauce.sauce_file_type;
             use_ice = sauce.use_ice;
             file_size -= sauce.sauce_header_len;
@@ -724,7 +725,8 @@ impl Buffer {
         y as f64 * font_dimensions.height as f64
     }
 
-    pub fn set_height_for_pos(&mut self, pos: Position) {
+    pub fn set_height_for_pos(&mut self, pos: impl Into<UPosition>) {
+        let pos = pos.into();
         self.set_buffer_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
     }
 }
@@ -744,9 +746,21 @@ mod tests {
         let mut buf = Buffer::new();
         buf.set_buffer_width(10);
         for x in 0..buf.get_width() {
-            buf.layers[0].set_char_xy(x, 0, AttributedChar::new('1', TextAttribute::default()));
-            buf.layers[0].set_char_xy(x, 1, AttributedChar::new('2', TextAttribute::default()));
-            buf.layers[0].set_char_xy(x, 2, AttributedChar::new('3', TextAttribute::default()));
+            buf.layers[0].set_char_xy(
+                x as i32,
+                0,
+                AttributedChar::new('1', TextAttribute::default()),
+            );
+            buf.layers[0].set_char_xy(
+                x as i32,
+                1,
+                AttributedChar::new('2', TextAttribute::default()),
+            );
+            buf.layers[0].set_char_xy(
+                x as i32,
+                2,
+                AttributedChar::new('3', TextAttribute::default()),
+            );
         }
 
         let mut opt = SaveOptions::new();

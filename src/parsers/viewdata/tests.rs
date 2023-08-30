@@ -22,7 +22,7 @@ fn test_bs() {
     assert_eq!(Position::new(1, 0), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x08");
-    assert_eq!(Position::new(buf.get_width() - 1, 23), caret.pos);
+    assert_eq!(Position::new(buf.get_width() as i32 - 1, 23), caret.pos);
 }
 
 #[test]
@@ -49,7 +49,7 @@ fn test_vt() {
     assert_eq!(Position::new(0, 1), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x0B");
-    assert_eq!(Position::new(0, buf.get_height() - 1), caret.pos);
+    assert_eq!(Position::new(0, buf.get_height() as i32 - 1), caret.pos);
 }
 
 #[test]
@@ -168,7 +168,7 @@ fn test_cr_at_eol() {
     for x in 1..buf.get_width() {
         assert_eq!(
             1,
-            buf.get_char(Position::new(x, 0)).attribute.get_foreground(),
+            buf.get_char((x, 0)).attribute.get_foreground(),
             "wrong color at {x}"
         );
     }
@@ -178,10 +178,7 @@ fn test_cr_at_eol() {
 fn test_lf_fill_bg_bug() {
     // conceal has no effect in graphics mode
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BD\x1B] \x1B\\\r\n");
-    assert_eq!(
-        0,
-        buf.get_char(Position::new(5, 0)).attribute.get_background()
-    );
+    assert_eq!(0, buf.get_char((5, 0)).attribute.get_background());
 }
 
 #[test]
@@ -191,13 +188,8 @@ fn test_drop_shadow() {
         &mut Parser::default(),
         b"\x1B^\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F",
     );
-    assert_eq!('«', buf.get_char(Position::new(18, 0)).ch);
-    assert_eq!(
-        0,
-        buf.get_char(Position::new(18, 0))
-            .attribute
-            .get_background()
-    );
+    assert_eq!('«', buf.get_char((18, 0)).ch);
+    assert_eq!(0, buf.get_char((18, 0)).attribute.get_background());
 }
 
 #[test]
@@ -206,7 +198,7 @@ fn test_color_on_clreol() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1E\x0B\x1BAACCESS DENIED.\x11\x1E\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\x1E\x0B\x1BB*1\x14\x1E\x09\n");
     assert_eq!(
         2,
-        buf.get_char(Position::new(3, buf.get_height() - 1))
+        buf.get_char((3, buf.get_height() - 1))
             .attribute
             .get_foreground()
     );

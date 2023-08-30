@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read, path::Path};
 
-use crate::{AttributedChar, Buffer, BufferType, Position, Size, TextAttribute};
+use crate::{AttributedChar, Buffer, BufferType, Size, TextAttribute, UPosition};
 
 #[derive(Copy, Clone, Debug)]
 pub enum TheDrawFontType {
@@ -133,11 +133,11 @@ impl TheDrawFont {
         &self,
         buffer: &mut Buffer,
         layer: usize,
-        pos: Position,
+        pos: UPosition,
         color: TextAttribute,
         outline_style: usize,
         char_code: u8,
-    ) -> Option<Size<i32>> {
+    ) -> Option<Size> {
         let char_offset = (char_code as i32) - b' ' as i32 - 1;
         if char_offset < 0 || char_offset > self.char_table.len() as i32 {
             return None;
@@ -183,17 +183,13 @@ impl TheDrawFont {
                         AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, ch_attr)
                     }
                 };
-                if cur.x >= 0
-                    && cur.y >= 0
-                    && cur.x < buffer.get_width()
-                    && cur.y < buffer.get_line_count()
-                {
+                if cur.x < buffer.get_width() && cur.y < buffer.get_line_count() {
                     buffer.layers[layer].set_char(cur, attributed_char);
                 }
                 cur.x += 1;
             }
         }
-        Some(Size::new(max_x as i32, cur.y - pos.y + 1))
+        Some(Size::new(max_x as usize, cur.y - pos.y + 1))
     }
 
     pub const OUTLINE_STYLES: usize = 19;

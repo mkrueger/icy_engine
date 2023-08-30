@@ -4,6 +4,7 @@ use crate::{
 };
 use std::cmp::{max, min};
 
+#[derive(Debug)]
 enum AvtReadState {
     Chars,
     RepeatChars,

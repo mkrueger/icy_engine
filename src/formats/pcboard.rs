@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, Position, TextAttribute};
+use crate::{Buffer, TextAttribute, UPosition};
 
 use super::SaveOptions;
 
@@ -14,7 +14,7 @@ pub(crate) const HEX_TABLE: &[u8; 16] = b"0123456789ABCDEF";
 pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
-    let mut pos = Position::default();
+    let mut pos = UPosition::default();
     let height = buf.get_line_count();
     let mut first_char = true;
 

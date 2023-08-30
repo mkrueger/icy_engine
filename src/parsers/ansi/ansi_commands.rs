@@ -409,7 +409,7 @@ impl Parser {
         let (top, bottom) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
-            0 => (0, buf.terminal_state.height),
+            0 => (0, buf.terminal_state.height as i32),
             _ => {
                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                     self.current_escape_sequence.clone(),
@@ -440,7 +440,7 @@ impl Parser {
         let (left, right) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
-            0 => (0, buf.terminal_state.height),
+            0 => (0, buf.terminal_state.height as i32),
             _ => {
                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                     self.current_escape_sequence.clone(),
@@ -481,7 +481,7 @@ impl Parser {
                 self.parsed_numbers[0] - 1,
                 self.parsed_numbers[1] - 1,
                 self.parsed_numbers[2] - 1,
-                buf.get_width(),
+                buf.get_width() as i32,
             ),
             4 => (
                 self.parsed_numbers[0] - 1,
@@ -533,7 +533,7 @@ impl Parser {
                 let bottom = if let Some((_, b)) = buf.terminal_state.get_margins_top_bottom() {
                     b
                 } else {
-                    buf.get_height() - 1
+                    buf.get_height() as i32 - 1
                 };
                 buf.terminal_state.set_margins_top_bottom(n, bottom);
             }
@@ -549,7 +549,7 @@ impl Parser {
                 let right = if let Some((_, r)) = buf.terminal_state.get_margins_left_right() {
                     r
                 } else {
-                    buf.get_width() - 1
+                    buf.get_width() as i32 - 1
                 };
                 buf.terminal_state.set_margins_left_right(n, right);
             }
@@ -877,7 +877,13 @@ impl Parser {
         let pl = self.parsed_numbers[3];
         let pb = self.parsed_numbers[4];
         let pr = self.parsed_numbers[5];
-        if pt > pb || pl > pr || pr > buf.get_width() || pb > buf.get_height() || pl < 0 || pt < 0 {
+        if pt > pb
+            || pl > pr
+            || pr > buf.get_width() as i32
+            || pb > buf.get_height() as i32
+            || pl < 0
+            || pt < 0
+        {
             return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
                 "invalid area for requesting checksum pt:{pt} pl:{pl} pb:{pb} pr:{pr}"
             ))));
@@ -885,7 +891,7 @@ impl Parser {
         let mut crc16 = 0;
         for y in pt..pb {
             for x in pl..pr {
-                let ch = buf.get_char_xy(x, y);
+                let ch = buf.get_char((x, y));
                 if ch.is_visible() {
                     crc16 = update_crc16(crc16, ch.ch as u8);
                     for b in ch.attribute.attr.to_be_bytes() {
@@ -1053,14 +1059,11 @@ impl Parser {
                         self.current_escape_sequence
                     ))));
                 }
-                let width = self.parsed_numbers[2].min(132).max(1);
-                let height = self.parsed_numbers[1].min(60).max(1);
+                let width = self.parsed_numbers[2].min(132).max(1) as usize;
+                let height = self.parsed_numbers[1].min(60).max(1) as usize;
                 buf.terminal_state.width = width;
                 buf.terminal_state.height = height;
-                Ok(CallbackAction::ResizeTerminal(
-                    width as usize,
-                    height as usize,
-                ))
+                Ok(CallbackAction::ResizeTerminal(width, height))
             }
             _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
                 "Unsupported window manipulation sequence {:?}",
@@ -1116,15 +1119,21 @@ impl Parser {
     fn get_rect_area(&self, buf: &Buffer, offset: usize) -> (i32, i32, i32, i32) {
         let top_line: i32 = self.parsed_numbers[offset]
             .max(1)
-            .min(buf.get_line_count().max(buf.get_height()))
+            .min(buf.get_line_count().max(buf.get_height()) as i32)
             - 1;
-        let left_column = self.parsed_numbers[offset + 1].max(1).min(buf.get_width()) - 1;
+        let left_column = self.parsed_numbers[offset + 1]
+            .max(1)
+            .min(buf.get_width() as i32)
+            - 1;
 
         let bottom_line = self.parsed_numbers[offset + 2]
             .max(1)
-            .min(buf.get_line_count().max(buf.get_height()))
+            .min(buf.get_line_count().max(buf.get_height()) as i32)
             - 1;
-        let right_column = self.parsed_numbers[offset + 3].max(1).min(buf.get_width()) - 1;
+        let right_column = self.parsed_numbers[offset + 3]
+            .max(1)
+            .min(buf.get_width() as i32)
+            - 1;
 
         (top_line, left_column, bottom_line, right_column)
     }
@@ -1206,7 +1215,7 @@ impl Parser {
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                let ch = buf.get_char_xy(x, y);
+                let ch = buf.get_char((x, y));
                 buf.layers[0].set_char_xy(x, y, AttributedChar::new(' ', ch.attribute));
             }
         }

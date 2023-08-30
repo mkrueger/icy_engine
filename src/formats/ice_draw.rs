@@ -1,7 +1,7 @@
 use std::io;
 
 use super::{Position, SaveOptions, TextAttribute};
-use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Size};
+use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Size, UPosition};
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
 
@@ -55,7 +55,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
         ));
     }
 
-    result.set_buffer_width(x2 + 1);
+    result.set_buffer_width((x2 + 1) as usize);
     result.buffer_type = BufferType::LegacyIce;
     let data_size = file_size - FONT_SIZE - PALETTE_SIZE;
     let mut pos = Position::new(x1, y1);
@@ -133,10 +133,10 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let len = buf.get_line_count() * buf.get_width();
     let mut x = 0;
     while x < len {
-        let ch = buf.get_char(Position::from_index(buf, x));
+        let ch = buf.get_char(UPosition::from_index(buf, x));
         let mut rle_count = 1;
-        while x + rle_count < len && rle_count < (u16::MAX) as i32 {
-            if ch != buf.get_char(Position::from_index(buf, x + rle_count)) {
+        while x + rle_count < len && rle_count < (u16::MAX) as usize {
+            if ch != buf.get_char(UPosition::from_index(buf, x + rle_count)) {
                 break;
             }
             rle_count += 1;

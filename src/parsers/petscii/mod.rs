@@ -1,5 +1,5 @@
 use super::{Buffer, BufferParser};
-use crate::{AttributedChar, CallbackAction, Caret, EngineResult, ParserError, Position};
+use crate::{AttributedChar, CallbackAction, Caret, EngineResult, ParserError};
 
 #[derive(Default)]
 pub struct Parser {
@@ -144,9 +144,9 @@ impl Parser {
         self.shift_mode = shift_mode;
         for y in 0..buf.get_height() {
             for x in 0..buf.get_width() {
-                let mut ch = buf.get_char(Position::new(x, y));
+                let mut ch = buf.get_char((x, y));
                 ch.set_font_page(usize::from(shift_mode));
-                buf.layers[current_layer].set_char(Position::new(x, y), ch);
+                buf.layers[current_layer].set_char((x, y), ch);
             }
         }
     }

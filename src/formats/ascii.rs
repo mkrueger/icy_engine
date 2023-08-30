@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, Position};
+use crate::{Buffer, UPosition};
 
 use super::SaveOptions;
 
@@ -11,7 +11,7 @@ use super::SaveOptions;
 /// This function will return an error if .
 pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
-    let mut pos = Position::default();
+    let mut pos = UPosition::default();
     let height = buf.get_line_count();
 
     while pos.y < height {

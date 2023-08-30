@@ -42,7 +42,7 @@ impl Display for Glyph {
 #[allow(dead_code)]
 pub struct BitFont {
     pub name: SauceString<22, 0>,
-    pub size: Size<u8>,
+    pub size: Size,
     pub length: usize,
     font_type: BitFontType,
     glyphs: HashMap<char, Glyph>,
@@ -108,9 +108,9 @@ impl BitFont {
 
     pub fn set_glyphs_from_u8_data(&mut self, data: &[u8]) {
         for ch in 0..self.length {
-            let o = ch * self.size.height as usize;
+            let o = ch * self.size.height;
             let glyph = Glyph {
-                data: data[o..(o + self.size.height as usize)].into(),
+                data: data[o..(o + self.size.height)].into(),
             };
             self.glyphs
                 .insert(unsafe { char::from_u32_unchecked(ch as u32) }, glyph);
@@ -136,7 +136,7 @@ impl BitFont {
     pub fn create_8(name: SauceString<22, 0>, width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
             name,
-            size: Size::new(width, height),
+            size: Size::new(width as usize, height as usize),
             length: 256,
             font_type: BitFontType::Custom,
             glyphs: HashMap::new(),
@@ -149,7 +149,7 @@ impl BitFont {
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
             name: SauceString::EMPTY,
-            size: Size::new(width, height),
+            size: Size::new(width as usize, height as usize),
             length: 256,
             font_type: BitFontType::Custom,
             glyphs: HashMap::new(),
@@ -175,7 +175,7 @@ impl BitFont {
 
         let mut r = BitFont {
             name: SauceString::from(font_name),
-            size: Size::new(8, charsize),
+            size: Size::new(8, charsize as usize),
             length,
             font_type: BitFontType::BuiltIn,
             glyphs: HashMap::new(),
@@ -230,12 +230,12 @@ impl BitFont {
                 length * charsize + headersize,
             )));
         }
-        let height = u32::from_le_bytes(data[24..28].try_into().unwrap());
-        let width = u32::from_le_bytes(data[28..32].try_into().unwrap());
+        let height = u32::from_le_bytes(data[24..28].try_into().unwrap()) as usize;
+        let width = u32::from_le_bytes(data[28..32].try_into().unwrap()) as usize;
 
         let mut r = BitFont {
             name: SauceString::from(font_name),
-            size: Size::new(width as u8, height as u8),
+            size: Size::new(width, height),
             length,
             font_type: BitFontType::BuiltIn,
             glyphs: HashMap::new(),
