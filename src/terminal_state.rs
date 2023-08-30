@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use crate::{ansi::BaudEmulation, Buffer, Caret};
+use crate::{ansi::BaudEmulation, Buffer, Caret, Size};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerminalScrolling {
@@ -29,8 +29,7 @@ pub enum FontSelectionState {
 
 #[derive(Debug)]
 pub struct TerminalState {
-    pub width: usize,
-    pub height: usize,
+    size: Size,
 
     pub origin_mode: OriginMode,
     pub scroll_state: TerminalScrolling,
@@ -75,10 +74,9 @@ pub enum MouseMode {
 }
 
 impl TerminalState {
-    pub fn from(width: usize, height: usize) -> Self {
+    pub fn from(size: impl Into<Size>) -> Self {
         let mut ret = Self {
-            width,
-            height,
+            size: size.into(),
             scroll_state: TerminalScrolling::Smooth,
             origin_mode: OriginMode::UpperLeftCorner,
             auto_wrap_mode: AutoWrapMode::AutoWrap,
@@ -96,6 +94,30 @@ impl TerminalState {
         };
         ret.reset_tabs();
         ret
+    }
+
+    pub fn get_width(&self) -> usize {
+        self.size.width
+    }
+
+    pub fn set_width(&mut self, width: usize) {
+        self.size.width = width;
+        self.reset_tabs();
+    }
+
+    pub fn get_height(&self) -> usize {
+        self.size.height
+    }
+
+    pub fn set_height(&mut self, height: usize) {
+        self.size.height = height;
+    }
+
+    pub fn get_size(&self) -> Size {
+        self.size
+    }
+    pub fn set_size(&mut self, size: impl Into<Size>) {
+        self.size = size.into();
     }
 
     pub fn tab_count(&self) -> usize {
@@ -117,7 +139,7 @@ impl TerminalState {
     fn reset_tabs(&mut self) {
         let mut i = 0;
         self.tab_stops.clear();
-        while i < self.width {
+        while i < self.get_width() {
             self.tab_stops.push(i as i32);
             i += 8;
         }
@@ -131,7 +153,7 @@ impl TerminalState {
         if i < self.tab_stops.len() {
             self.tab_stops[i]
         } else {
-            self.width as i32
+            self.get_width() as i32
         }
     }
 
@@ -171,14 +193,14 @@ impl TerminalState {
 
                     caret.pos.y = n;
                 }
-                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width as i32 - 1));
+                caret.pos.x = caret.pos.x.clamp(0, max(0, self.get_width() as i32 - 1));
             }
             crate::OriginMode::WithinMargins => {
                 let first = buf.get_first_editable_line() as i32;
                 let height = buf.get_last_editable_line() as i32 - first;
                 let n = caret.pos.y.clamp(first, max(first, first + height - 1));
                 caret.pos.y = n;
-                caret.pos.x = caret.pos.x.clamp(0, max(0, self.width as i32 - 1));
+                caret.pos.x = caret.pos.x.clamp(0, max(0, self.get_width() as i32 - 1));
             }
         }
     }

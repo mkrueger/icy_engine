@@ -112,7 +112,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
 
     result.layers[0].title = "Editing".to_string();
 
-    let mut background = crate::Layer::new("Background", 80, 25);
+    let mut background = crate::Layer::new("Background", (80, 25));
     background.title = "Background".to_string();
 
     for _ in 0..result.get_line_count() {

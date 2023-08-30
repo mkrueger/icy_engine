@@ -124,14 +124,14 @@ impl std::fmt::Display for Buffer {
 
 impl Buffer {
     pub fn get_width(&self) -> usize {
-        self.terminal_state.width
+        self.terminal_state.get_width()
     }
 
     pub fn get_line_count(&self) -> usize {
         if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
             len
         } else {
-            self.terminal_state.height
+            self.terminal_state.get_height()
         }
     }
 
@@ -143,16 +143,30 @@ impl Buffer {
                 return ch;
             }
         }
+
+        let mut ch_opt = None;
+        let mut attr_opt = None;
+
         for i in 0..self.layers.len() {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
-            if ch.is_visible() {
-                return ch;
+            match cur_layer.mode {
+                crate::Mode::Normal => {
+                    if ch.is_visible() {
+                        return merge(ch, ch_opt, attr_opt);
+                    }
+                    if !cur_layer.has_alpha_channel {
+                        return merge(AttributedChar::default(), ch_opt, attr_opt);
+                    }
+                }
+                crate::Mode::Chars => ch_opt = Some(ch.ch),
+                crate::Mode::Attributes => attr_opt = Some(ch.attribute),
             }
         }
+
         if self.is_terminal_buffer {
             AttributedChar::default()
         } else {
@@ -182,13 +196,28 @@ impl Buffer {
     }
 }
 
+fn merge(
+    mut input_char: AttributedChar,
+    ch_opt: Option<char>,
+    attr_opt: Option<crate::TextAttribute>,
+) -> AttributedChar {
+    if let Some(ch) = ch_opt {
+        input_char.ch = ch;
+    }
+    if let Some(attr) = attr_opt {
+        input_char.attribute = attr;
+    }
+    input_char
+}
+
 impl Buffer {
-    pub fn new() -> Self {
+    pub fn new(size: impl Into<Size>) -> Self {
         let mut font_table = HashMap::new();
         font_table.insert(0, BitFont::default());
+        let size = size.into();
         Buffer {
             file_name: None,
-            terminal_state: TerminalState::from(80, 25),
+            terminal_state: TerminalState::from(size),
 
             title: SauceString::new(),
             author: SauceString::new(),
@@ -202,7 +231,7 @@ impl Buffer {
             font_table,
             is_font_table_dirty: false,
             overlay_layer: None,
-            layers: vec![Layer::new("Background", 80, 25)],
+            layers: vec![Layer::new("Background", size)],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
                                             // undo_stack: Vec::new(),
                                             // redo_stack: Vec::new()
@@ -300,7 +329,7 @@ impl Buffer {
     }
 
     pub fn get_height(&self) -> usize {
-        self.terminal_state.height
+        self.terminal_state.get_height()
     }
 
     pub fn get_real_buffer_width(&self) -> usize {
@@ -314,8 +343,7 @@ impl Buffer {
     }
 
     pub fn reset_terminal(&mut self) {
-        self.terminal_state =
-            TerminalState::from(self.terminal_state.width, self.terminal_state.height);
+        self.terminal_state = TerminalState::from(self.terminal_state.get_size());
     }
 
     /// Sets the buffer size of this [`Buffer`].
@@ -324,9 +352,7 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_size(&mut self, size: impl Into<Size>) {
-        let size = size.into();
-        self.terminal_state.width = size.width;
-        self.terminal_state.height = size.height;
+        self.terminal_state.set_size(size);
     }
 
     /// Sets the buffer width of this [`Buffer`].
@@ -335,16 +361,18 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_width(&mut self, width: usize) {
-        self.terminal_state.width = width;
+        self.terminal_state.set_width(width);
     }
-
+    pub fn get_buffer_size(&self) -> Size {
+        self.terminal_state.get_size()
+    }
     /// Sets the buffer height of this [`Buffer`].
     ///
     /// # Panics
     ///
     /// Panics if .
     pub fn set_buffer_height(&mut self, height: usize) {
-        self.terminal_state.height = height;
+        self.terminal_state.set_height(height);
     }
 
     /// Returns the clear of this [`Buffer`].
@@ -437,17 +465,15 @@ impl Buffer {
     }
 
     #[must_use]
-    pub fn create(width: usize, height: usize) -> Self {
-        let mut res = Buffer::new();
-        res.set_buffer_width(width);
-        res.set_buffer_height(height);
+    pub fn create(size: impl Into<Size>) -> Self {
+        let size = size.into();
+        let mut res = Buffer::new(size);
         res.layers[0].is_locked = true;
-        res.layers[0].size = Size::new(width, height);
         res.layers[0]
             .lines
-            .resize(height, crate::Line::create(width));
+            .resize(size.height, crate::Line::create(size.width));
 
-        let mut editing_layer = Layer::new("Background", width, height);
+        let mut editing_layer = Layer::new("Background", size);
         editing_layer.title = "Editing".to_string();
         res.layers.insert(0, editing_layer);
         res
@@ -455,11 +481,7 @@ impl Buffer {
 
     pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
         if self.overlay_layer.is_none() {
-            self.overlay_layer = Some(Layer::new(
-                "Background",
-                self.get_width(),
-                self.get_height(),
-            ));
+            self.overlay_layer = Some(Layer::new("Background", self.get_buffer_size()));
         }
 
         &mut self.overlay_layer
@@ -547,11 +569,13 @@ impl Buffer {
     ///
     /// This function will return an error if .
     pub fn from_bytes(file_name: &Path, skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
-        let mut result = Buffer::new();
-        result.is_terminal_buffer = true;
-        result.file_name = Some(file_name.to_path_buf());
-        let ext = file_name.extension();
+        let mut result = Buffer {
+            is_terminal_buffer: true,
+            file_name: Some(file_name.to_path_buf()),
+            ..Default::default()
+        };
 
+        let ext = file_name.extension();
         if let Some(ext) = ext {
             // mdf doesn't need sauce info.
             let ext = OsStr::to_str(ext).unwrap().to_lowercase();
@@ -733,7 +757,7 @@ impl Buffer {
 
 impl Default for Buffer {
     fn default() -> Self {
-        Buffer::new()
+        Buffer::new((80, 25))
     }
 }
 
@@ -743,7 +767,7 @@ mod tests {
 
     #[test]
     fn test_respect_sauce_width() {
-        let mut buf = Buffer::new();
+        let mut buf = Buffer::default();
         buf.set_buffer_width(10);
         for x in 0..buf.get_width() {
             buf.layers[0].set_char_xy(

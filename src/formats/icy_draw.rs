@@ -22,8 +22,10 @@ mod constants {
 
     pub mod layer {
         pub const IS_VISIBLE: u32 = 0b0000_0001;
-        pub const EDIT_LOCK: u32 = 0b0000_0100;
         pub const POS_LOCK: u32 = 0b0000_0010;
+        pub const EDIT_LOCK: u32 = 0b0000_0100;
+        pub const HAS_ALPHA: u32 = 0b0000_1000;
+        pub const ALPHA_LOCKED: u32 = 0b0001_0000;
     }
 }
 
@@ -38,16 +40,10 @@ mod constants {
 /// This function will return an error if .
 pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
     if bytes.len() < constants::ID_SIZE + constants::CRC32_SIZE + constants::HEADER_SIZE {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Invalid ICD.\nFile too short",
-        ));
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "File too short"));
     }
     if &bytes[0..constants::ICD_HEADER.len()] != constants::ICD_HEADER {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Invalid ICD.\nInvalid header",
-        ));
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid header"));
     }
     let crc32 = u32::from_be_bytes(
         bytes[constants::ID_SIZE..(constants::ID_SIZE + constants::CRC32_SIZE)]
@@ -56,10 +52,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
     );
     let mut o = constants::ID_SIZE + constants::CRC32_SIZE;
     if crc32 != crc::get_crc32(&bytes[o..]) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Invalid ICD.\nCRC32 mismatch",
-        ));
+        return Err(io::Error::new(io::ErrorKind::InvalidData, "CRC32 mismatch"));
     }
     result.layers.clear();
     o += 2; // skip version
@@ -126,7 +119,22 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 let (title, size) = read_utf8_encoded_string(&bytes[o..]);
                 o += size;
 
-                let mut layer = Layer::new(title, 0, 0);
+                let mut layer = Layer::new(title, (0, 0));
+
+                let mode = bytes[o];
+
+                layer.mode = match mode {
+                    0 => crate::Mode::Normal,
+                    1 => crate::Mode::Chars,
+                    2 => crate::Mode::Attributes,
+                    _ => {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            format!("Unsupported layer mode {mode}"),
+                        ));
+                    }
+                };
+                o += 1;
 
                 let flags = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
                 o += 4;
@@ -136,6 +144,12 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                     (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
                 layer.is_position_locked =
                     (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
+
+                layer.has_alpha_channel =
+                    (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
+
+                layer.is_alpha_channel_locked =
+                    (flags & constants::layer::ALPHA_LOCKED) == constants::layer::ALPHA_LOCKED;
 
                 let x_offset: i32 =
                     u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
@@ -173,7 +187,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
             _ => {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Invalid MDF.\nUnsupported block type {block_type}"),
+                    format!("Unsupported block type {block_type}"),
                 ));
             }
         }
@@ -257,6 +271,14 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
     for (i, layer) in buf.layers.iter().enumerate() {
         result.push(constants::block::LAYER);
         write_utf8_encoded_string(&mut result, &layer.title);
+
+        let mode = match layer.mode {
+            crate::Mode::Normal => 0,
+            crate::Mode::Chars => 1,
+            crate::Mode::Attributes => 2,
+        };
+        result.push(mode);
+
         let mut flags = 0;
         if layer.is_visible {
             flags |= constants::layer::IS_VISIBLE;
@@ -266,6 +288,12 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         }
         if layer.is_position_locked {
             flags |= constants::layer::POS_LOCK;
+        }
+        if layer.has_alpha_channel {
+            flags |= constants::layer::HAS_ALPHA;
+        }
+        if layer.is_alpha_channel_locked {
+            flags |= constants::layer::ALPHA_LOCKED;
         }
         result.extend(u32::to_be_bytes(flags));
 

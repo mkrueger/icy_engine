@@ -409,7 +409,7 @@ impl Parser {
         let (top, bottom) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
-            0 => (0, buf.terminal_state.height as i32),
+            0 => (0, buf.terminal_state.get_height() as i32),
             _ => {
                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                     self.current_escape_sequence.clone(),
@@ -440,7 +440,7 @@ impl Parser {
         let (left, right) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
-            0 => (0, buf.terminal_state.height as i32),
+            0 => (0, buf.terminal_state.get_height() as i32),
             _ => {
                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(
                     self.current_escape_sequence.clone(),
@@ -1061,8 +1061,8 @@ impl Parser {
                 }
                 let width = self.parsed_numbers[2].min(132).max(1) as usize;
                 let height = self.parsed_numbers[1].min(60).max(1) as usize;
-                buf.terminal_state.width = width;
-                buf.terminal_state.height = height;
+                buf.terminal_state.set_width(width);
+                buf.terminal_state.set_height(height);
                 Ok(CallbackAction::ResizeTerminal(width, height))
             }
             _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(

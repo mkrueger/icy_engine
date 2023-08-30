@@ -940,7 +940,7 @@ impl BufferParser for Parser {
                                 // Current screen size
                                 let s = format!(
                                     "\x1b[{};{}R",
-                                    buf.terminal_state.height, buf.terminal_state.width
+                                    buf.get_height(), buf.get_width()
                                 );
                                 return Ok(CallbackAction::SendString(s));
                             }

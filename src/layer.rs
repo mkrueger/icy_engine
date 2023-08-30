@@ -3,11 +3,23 @@ use crate::{Buffer, Line, Sixel, Size, UPosition};
 use super::{AttributedChar, Position};
 
 #[derive(Debug, Default, Clone)]
+pub enum Mode {
+    #[default]
+    Normal,
+    Chars,
+    Attributes,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct Layer {
     pub title: String,
     pub is_visible: bool,
     pub is_locked: bool,
     pub is_position_locked: bool,
+    pub is_alpha_channel_locked: bool,
+    pub has_alpha_channel: bool,
+
+    pub mode: Mode,
 
     pub offset: Position,
     pub size: Size,
@@ -35,17 +47,12 @@ impl HyperLink {
 }
 
 impl Layer {
-    pub fn new(title: impl Into<String>, width: usize, height: usize) -> Self {
+    pub fn new(title: impl Into<String>, size: impl Into<Size>) -> Self {
         Layer {
             title: title.into(),
             is_visible: true,
-            is_locked: false,
-            is_position_locked: false,
-            lines: Vec::new(),
-            sixels: Vec::new(),
-            offset: Position::default(),
-            hyperlinks: Vec::new(),
-            size: Size::new(width, height),
+            size: size.into(),
+            ..Default::default()
         }
     }
 
@@ -87,6 +94,14 @@ impl Layer {
         if pos.y >= self.lines.len() {
             self.lines.resize(pos.y + 1, Line::create(self.size.width));
         }
+
+        if self.has_alpha_channel && self.is_alpha_channel_locked {
+            let old_char = self.get_char(pos);
+            if !old_char.is_visible() {
+                return;
+            }
+        }
+
         let cur_line = &mut self.lines[pos.y];
         cur_line.set_char(pos.x, attributed_char);
     }
@@ -94,6 +109,7 @@ impl Layer {
     pub(crate) fn set_char_xy(&mut self, x: i32, y: i32, attributed_char: AttributedChar) {
         self.set_char((x, y), attributed_char);
     }
+
     pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
         let pos = pos.into();
         let pos = pos - self.offset.as_uposition();
@@ -105,7 +121,12 @@ impl Layer {
                 return cur_line.chars[pos.x];
             }
         }
-        AttributedChar::invisible()
+
+        if self.has_alpha_channel {
+            AttributedChar::invisible()
+        } else {
+            AttributedChar::default()
+        }
     }
 
     /// .
@@ -177,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_get_char() {
-        let mut layer = Layer::new("Background", 80, 25);
+        let mut layer = Layer::new("Background", (80, 25));
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
@@ -192,7 +213,7 @@ mod tests {
 
     #[test]
     fn test_get_char_intransparent() {
-        let mut layer = Layer::new("Background", 80, 25);
+        let mut layer = Layer::new("Background", (80, 25));
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
@@ -207,7 +228,7 @@ mod tests {
 
     #[test]
     fn test_insert_line() {
-        let mut layer = Layer::new("Background", 80, 25);
+        let mut layer = Layer::new("Background", (80, 25));
         let mut line = Line::new();
         line.chars
             .push(AttributedChar::new('a', TextAttribute::default()));
