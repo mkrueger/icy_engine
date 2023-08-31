@@ -17,7 +17,7 @@ impl Line {
 
     pub fn create(width: usize) -> Self {
         let mut chars = Vec::new();
-        chars.resize(width, AttributedChar::default());
+        chars.resize(width, AttributedChar::invisible());
         Line { chars }
     }
 

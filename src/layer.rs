@@ -50,10 +50,15 @@ impl HyperLink {
 
 impl Layer {
     pub fn new(title: impl Into<String>, size: impl Into<Size>) -> Self {
+        let size = size.into();
+        let mut lines = Vec::new();
+        lines.resize(size.height, Line::create(size.width));
+
         Layer {
             title: title.into(),
             is_visible: true,
-            size: size.into(),
+            size,
+            lines,
             ..Default::default()
         }
     }
@@ -114,13 +119,25 @@ impl Layer {
 
     pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
         let pos = pos.into();
-        let pos = pos - self.offset.as_uposition();
+        if (pos.x as i32) < self.offset.x || (pos.y as i32) < self.offset.y {
+            return if self.has_alpha_channel {
+                AttributedChar::invisible()
+            } else {
+                AttributedChar::default()
+            };
+        }
+
+        let pos = pos - self.offset;
         let y = pos.y;
         if y < self.lines.len() {
             let cur_line = &self.lines[y];
 
             if pos.x < cur_line.chars.len() {
-                return cur_line.chars[pos.x];
+                let ch = cur_line.chars[pos.x];
+                if !self.has_alpha_channel && !ch.is_visible() {
+                    return AttributedChar::default();
+                }
+                return ch;
             }
         }
 

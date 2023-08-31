@@ -481,7 +481,9 @@ impl Buffer {
 
     pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
         if self.overlay_layer.is_none() {
-            self.overlay_layer = Some(Layer::new("Background", self.get_buffer_size()));
+            let mut l = Layer::new("Overlay", self.get_buffer_size());
+            l.has_alpha_channel = true;
+            self.overlay_layer = Some(l);
         }
 
         &mut self.overlay_layer
