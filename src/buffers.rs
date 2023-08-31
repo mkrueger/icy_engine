@@ -468,14 +468,10 @@ impl Buffer {
     pub fn create(size: impl Into<Size>) -> Self {
         let size = size.into();
         let mut res = Buffer::new(size);
-        res.layers[0].is_locked = true;
         res.layers[0]
             .lines
             .resize(size.height, crate::Line::create(size.width));
 
-        let mut editing_layer = Layer::new("Background", size);
-        editing_layer.title = "Editing".to_string();
-        res.layers.insert(0, editing_layer);
         res
     }
 
