@@ -94,6 +94,9 @@ impl Layer {
 
     pub fn set_char(&mut self, pos: impl Into<UPosition>, attributed_char: AttributedChar) {
         let pos = pos.into();
+        if (pos.x as i32) < self.offset.x || (pos.y as i32) < self.offset.y {
+            return;
+        }
         let pos = pos - self.offset.as_uposition();
         if self.is_locked || !self.is_visible {
             return;

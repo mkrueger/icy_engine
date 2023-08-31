@@ -74,6 +74,12 @@ pub struct Size {
     pub height: usize,
 }
 
+impl std::fmt::Display for Size {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(width: {}, height: {})", self.width, self.height)
+    }
+}
+
 impl PartialEq for Size {
     fn eq(&self, other: &Size) -> bool {
         self.width == other.width && self.height == other.height
@@ -133,6 +139,15 @@ impl From<(u8, u8)> for Size {
 pub struct Rectangle {
     pub start: Position,
     pub size: Size,
+}
+impl std::fmt::Display for Rectangle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "(x:{}, y:{}, width: {}, height: {})",
+            self.start.x, self.start.y, self.size.width, self.size.height
+        )
+    }
 }
 
 impl Rectangle {

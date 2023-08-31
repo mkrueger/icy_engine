@@ -218,13 +218,12 @@ impl Sub<UPosition> for UPosition {
     }
 }
 
-
 impl Sub<Position> for UPosition {
     type Output = UPosition;
 
     fn sub(self, rhs: Position) -> UPosition {
         let x = (self.x as i32) - rhs.x;
-        let y = (self.y as i32)- rhs.y;
+        let y = (self.y as i32) - rhs.y;
         assert!(!(x < 0 || y < 0), "Negative position");
         UPosition {
             x: x as usize,

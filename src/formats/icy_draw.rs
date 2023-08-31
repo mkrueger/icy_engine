@@ -184,7 +184,16 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 let mut p = parsers::ansi::Parser::default();
                 let mut caret = Caret::default();
                 result.layers.push(layer);
-
+                if bytes.len() < o + length {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "data length out ouf bounds {} data lenth: {}",
+                            o + length,
+                            bytes.len()
+                        ),
+                    ));
+                }
                 (o..(o + length)).for_each(|i| {
                     let b = bytes[i];
                     let _ = p.print_char(
