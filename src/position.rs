@@ -140,6 +140,7 @@ impl From<(u8, u8)> for UPosition {
         }
     }
 }
+
 impl From<Position> for UPosition {
     fn from(value: Position) -> Self {
         UPosition {

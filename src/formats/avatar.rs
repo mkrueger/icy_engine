@@ -55,7 +55,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             let mut repeat_count = 1;
             let mut ch = buf.get_char(pos);
 
-            while pos.x < buf.get_width() - 3 && ch == buf.get_char(pos + UPosition::new(1, 0)) {
+            while pos.x + 3 < buf.get_width() && ch == buf.get_char(pos + UPosition::new(1, 0)) {
                 repeat_count += 1;
                 pos.x += 1;
                 ch = buf.get_char(pos);

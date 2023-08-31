@@ -701,7 +701,7 @@ impl BufferParser for Parser {
                                 (0..buf.terminal_state.tab_count()).for_each(|i| {
                                     let tab = buf.terminal_state.get_tabs()[i];
                                     str.push_str(&(tab + 1).to_string());
-                                    if i < buf.terminal_state.tab_count() - 1 {
+                                    if i < buf.terminal_state.tab_count().saturating_sub(1) {
                                         str.push('/');
                                     }
                                 });

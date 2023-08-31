@@ -33,7 +33,7 @@ impl Buffer {
                 result.push(p);
             }
             if pos.x == 0 {
-                pos.x = self.get_width() - 1;
+                pos.x = self.get_width().saturating_sub(1);
                 if pos.y == 0 {
                     break;
                 }
@@ -73,7 +73,7 @@ impl Buffer {
             std::cmp::Ordering::Less => false,
             std::cmp::Ordering::Equal => from.x <= pos.x && pos.x < from.x + size,
             std::cmp::Ordering::Greater => {
-                let remainder = (size.saturating_sub(self.get_width() + from.x)).max(0);
+                let remainder = size.saturating_sub(self.get_width() + from.x);
                 let lines = remainder / self.get_width();
                 let mut y = from.y + lines;
                 let x = if remainder > 0 {

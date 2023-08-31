@@ -189,7 +189,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                     let b = bytes[i];
                     let _ = p.print_char(
                         result,
-                        result.layers.len() - 1,
+                        result.layers.len().saturating_sub(1),
                         &mut caret,
                         char::from_u32(b as u32).unwrap(),
                     );
@@ -298,7 +298,7 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
             result.push(g);
             result.push(b);
             result.push(0xFF);
-        } else { 
+        } else {
             result.extend([0, 0, 0, 0]);
         }
 

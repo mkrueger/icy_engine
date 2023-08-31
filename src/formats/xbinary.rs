@@ -358,7 +358,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
     for x in 0..len {
         let cur = buffer.get_char(UPosition::from_index(buffer, x));
 
-        let next = if x < len - 1 {
+        let next = if x + 1 < len {
             buffer.get_char(UPosition::from_index(buffer, x + 1))
         } else {
             AttributedChar::default()
@@ -371,9 +371,9 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
             } else if run_count > 0 {
                 match run_mode {
                     Compression::Off => {
-                        if x < len - 2 && cur == next {
+                        if x + 2 < len && cur == next {
                             end_run = true;
-                        } else if x < len - 2 {
+                        } else if x + 2 < len {
                             let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                             end_run = cur.ch == next.ch && cur.ch == next2.ch
                                 || cur.attribute == next.attribute
@@ -383,7 +383,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
                     Compression::Char => {
                         if cur.ch != run_ch.ch {
                             end_run = true;
-                        } else if x < len - 3 {
+                        } else if x + 3 < len {
                             let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                             let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
                             end_run = cur == next && cur == next2 && cur == next3;
@@ -392,7 +392,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
                     Compression::Attr => {
                         if cur.attribute != run_ch.attribute {
                             end_run = true;
-                        } else if x < len - 3 {
+                        } else if x + 3 < len {
                             let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                             let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
                             end_run = cur == next && cur == next2 && cur == next3;
@@ -429,7 +429,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
             }
         } else {
             run_buf.clear();
-            if x < len - 1 {
+            if x + 1 < len {
                 if cur == next {
                     run_mode = Compression::Full;
                 } else if cur.ch == next.ch {
@@ -483,9 +483,9 @@ fn count_length(
                 } else if run_count > 0 {
                     match run_mode {
                         Compression::Off => {
-                            if x < len - 2 && cur == next {
+                            if x + 2 < len && cur == next {
                                 end_run = Some(true);
-                            } else if x < len - 2 {
+                            } else if x + 2 < len {
                                 let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                                 end_run = Some(
                                     cur.ch == next.ch && cur.ch == next2.ch
@@ -497,7 +497,7 @@ fn count_length(
                         Compression::Char => {
                             if cur.ch != run_ch.ch {
                                 end_run = Some(true);
-                            } else if x < len - 3 {
+                            } else if x + 3 < len {
                                 let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                                 let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
                                 end_run = Some(cur == next && cur == next2 && cur == next3);
@@ -506,7 +506,7 @@ fn count_length(
                         Compression::Attr => {
                             if cur.attribute != run_ch.attribute {
                                 end_run = Some(true);
-                            } else if x < len - 3 {
+                            } else if x + 3 < len {
                                 let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                                 let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
                                 end_run = Some(cur == next && cur == next2 && cur == next3);
@@ -539,7 +539,7 @@ fn count_length(
                 }
             }
         } else {
-            if x < len - 1 {
+            if x + 1 < len {
                 if cur == next {
                     run_mode = Compression::Full;
                 } else if cur.ch == next.ch {
@@ -571,7 +571,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
     for x in 0..len {
         let cur = buffer.get_char(UPosition::from_index(buffer, x));
 
-        let next = if x < len - 1 {
+        let next = if x + 1 < len {
             buffer.get_char(UPosition::from_index(buffer, x + 1))
         } else {
             AttributedChar::default()
@@ -584,7 +584,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
             } else if run_count > 0 {
                 match run_mode {
                     Compression::Off => {
-                        if x < len - 2 && (cur.ch == next.ch || cur.attribute == next.attribute) {
+                        if x + 2 < len && (cur.ch == next.ch || cur.attribute == next.attribute) {
                             let l1 =
                                 count_length(run_mode, run_ch, Some(true), run_count, buffer, x);
                             let l2 =
@@ -595,7 +595,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
                     Compression::Char => {
                         if cur.ch != run_ch.ch {
                             end_run = true;
-                        } else if x < len - 4 {
+                        } else if x + 4 < len {
                             let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                             if cur.attribute == next.attribute && cur.attribute == next2.attribute {
                                 let l1 = count_length(
@@ -621,7 +621,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
                     Compression::Attr => {
                         if cur.attribute != run_ch.attribute {
                             end_run = true;
-                        } else if x < len - 3 {
+                        } else if x + 3 < len {
                             let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
                             if cur.ch == next.ch && cur.ch == next2.ch {
                                 let l1 = count_length(
@@ -675,7 +675,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
             }
         } else {
             run_buf.clear();
-            if x < len - 1 {
+            if x + 1 < len {
                 if cur == next {
                     run_mode = Compression::Full;
                 } else if cur.ch == next.ch {

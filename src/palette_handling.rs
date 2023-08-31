@@ -48,6 +48,78 @@ impl PartialEq for Color {
     }
 }
 
+impl From<(u8, u8, u8)> for Color {
+    fn from(value: (u8, u8, u8)) -> Self {
+        Color {
+            r: value.0,
+            g: value.1,
+            b: value.2,
+        }
+    }
+}
+
+impl From<Color> for (u8, u8, u8) {
+    fn from(value: Color) -> (u8, u8, u8) {
+        (value.r, value.g, value.b)
+    }
+}
+
+impl From<[u8; 3]> for Color {
+    fn from(value: [u8; 3]) -> Self {
+        Color {
+            r: value[0],
+            g: value[1],
+            b: value[2],
+        }
+    }
+}
+
+impl From<Color> for [u8; 3] {
+    fn from(value: Color) -> [u8; 3] {
+        [value.r, value.g, value.b]
+    }
+}
+
+impl From<(f32, f32, f32)> for Color {
+    fn from(value: (f32, f32, f32)) -> Self {
+        Color {
+            r: (value.0 * 255_f32) as u8,
+            g: (value.1 * 255_f32) as u8,
+            b: (value.2 * 255_f32) as u8,
+        }
+    }
+}
+
+impl From<Color> for (f32, f32, f32) {
+    fn from(value: Color) -> (f32, f32, f32) {
+        (
+            (value.r as f32 / 255_f32),
+            (value.g as f32 / 255_f32),
+            (value.b as f32 / 255_f32),
+        )
+    }
+}
+
+impl From<[f32; 3]> for Color {
+    fn from(value: [f32; 3]) -> Self {
+        Color {
+            r: (value[0] * 255_f32) as u8,
+            g: (value[1] * 255_f32) as u8,
+            b: (value[2] * 255_f32) as u8,
+        }
+    }
+}
+
+impl From<Color> for [f32; 3] {
+    fn from(value: Color) -> [f32; 3] {
+        [
+            (value.r as f32 / 255_f32),
+            (value.g as f32 / 255_f32),
+            (value.b as f32 / 255_f32),
+        ]
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Palette {
     pub colors: Vec<Color>,

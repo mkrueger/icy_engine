@@ -122,11 +122,11 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     result.push(0);
     result.push(0);
 
-    let w = buf.get_width() - 1;
+    let w = buf.get_width().saturating_sub(1);
     result.push(w as u8);
     result.push((w >> 8) as u8);
 
-    let h = buf.get_line_count() - 1;
+    let h = buf.get_line_count().saturating_sub(1);
     result.push(h as u8);
     result.push((h >> 8) as u8);
 
