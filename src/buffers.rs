@@ -164,12 +164,12 @@ impl Buffer {
                 }
                 crate::Mode::Chars => {
                     if !ch.is_transparent() {
-                        ch_opt = Some(ch.ch)
+                        ch_opt = Some(ch.ch);
                     }
                 }
                 crate::Mode::Attributes => {
                     if ch.is_visible() {
-                        attr_opt = Some(ch.attribute)
+                        attr_opt = Some(ch.attribute);
                     }
                 }
             }

@@ -85,6 +85,7 @@ impl TheDrawFont {
         o += 1;
 
         while o < bytes.len() {
+            println!("{o}");
             let indicator = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
             if indicator != FONT_INDICATOR {
                 return Err(Box::new(TdfError::FontIndicatorMismatch));
@@ -129,7 +130,6 @@ impl TheDrawFont {
             }
 
             let mut char_table = Vec::new();
-            let mut cnt = 0;
             for char_offset in char_lookup_table {
                 let mut char_offset = char_offset as usize;
 
@@ -144,7 +144,6 @@ impl TheDrawFont {
                     return Err(Box::new(TdfError::GlyphOutsideFontDataSize(char_offset)));
                 }
                 char_offset += o;
-                let start = char_offset;
 
                 let width = bytes[char_offset] as usize;
                 char_offset += 1;
@@ -157,23 +156,22 @@ impl TheDrawFont {
                     }
 
                     let mut ch = bytes[char_offset];
-
-                    if matches!(font_type, FontType::Color) {
-                        char_data.push(ch);
-                        char_offset += 1;
-                        ch = bytes[char_offset];
-                    }
+                    char_offset += 1;
 
                     if ch == 0 {
                         break;
                     }
+                    char_data.push(ch);
 
-                    if ch == 13 {
+                    if matches!(font_type, FontType::Color) {
+                        if ch == 13 {
+                            continue;
+                        }
+                        ch = bytes[char_offset];
                         char_offset += 1;
-                        continue;
+                        char_data.push(ch);
                     }
                 }
-                cnt += char_offset - start;
                 char_table.push(Some(FontGlyph {
                     size: Size::new(width, height),
                     data: char_data,
@@ -255,12 +253,12 @@ impl TheDrawFont {
     }
 
     pub fn get_font_height(&self) -> usize {
-        for glyph_opt in &self.char_table {
-            if let Some(glyph) = glyph_opt {
-                return glyph.size.height;
-            }
+        let f = self.char_table.iter().flatten().next();
+        if let Some(glyph) = f {
+            glyph.size.height
+        } else {
+            0
         }
-        0
     }
 
     pub fn has_char(&self, char_code: u8) -> bool {
@@ -293,6 +291,8 @@ impl TheDrawFont {
         let mut char_offset = 0;
         while char_offset < glyph.data.len() {
             let ch = glyph.data[char_offset];
+            char_offset += 1;
+
             if ch == 13 {
                 cur.x = pos.x;
                 cur.y += 1;
@@ -311,12 +311,11 @@ impl TheDrawFont {
                         AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, color)
                     }
                     FontType::Color => {
-                        let ch_attr = TextAttribute::from_u8(ch, BufferType::LegacyIce); // tdf fonts don't support ice mode by default
+                        let ch = unsafe { char::from_u32_unchecked(ch as u32) };
+                        let ch_attr =
+                            TextAttribute::from_u8(glyph.data[char_offset], BufferType::LegacyIce); // tdf fonts don't support ice mode by default
                         char_offset += 1;
-                        AttributedChar::new(
-                            unsafe { char::from_u32_unchecked(glyph.data[char_offset] as u32) },
-                            ch_attr,
-                        )
+                        AttributedChar::new(ch, ch_attr)
                     }
                 };
                 if cur.x < buffer.get_width() && cur.y < buffer.get_line_count() {
@@ -324,7 +323,6 @@ impl TheDrawFont {
                 }
                 cur.x += 1;
             }
-            char_offset += 1;
         }
 
         Some(Size::new(glyph.size.width, cur.y - pos.y + 1))
