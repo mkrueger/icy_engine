@@ -1,5 +1,7 @@
 use std::{error::Error, fs::File, io::Read, path::Path};
 
+use base64::Engine;
+
 use crate::{
     AttributedChar, Buffer, BufferType, EngineResult, Layer, Size, TextAttribute, UPosition,
 };
@@ -139,17 +141,27 @@ impl TheDrawFont {
         o += 1;
 
         while o < bytes.len() {
-            println!("{o}");
+            if bytes[o] == 0 {
+                break;
+            }
             let indicator = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
             if indicator != FONT_INDICATOR {
                 return Err(Box::new(TdfError::FontIndicatorMismatch));
             }
             o += 4; // FONT_INDICATOR bytes!
 
-            let font_name_len = bytes[o] as usize;
+            let mut font_name_len = bytes[o] as usize;
             o += 1;
             if font_name_len > FONT_NAME_LEN {
                 return Err(Box::new(TdfError::NameTooLong(font_name_len)));
+            }
+
+            // May be 0 terminated and the font name len is wrong.
+            for i in 0..font_name_len {
+                if bytes[o + i] == 0 {
+                    font_name_len = i;
+                    break;
+                }
             }
 
             let name = String::from_utf8_lossy(&bytes[o..(o + font_name_len)]).to_string();
@@ -211,7 +223,6 @@ impl TheDrawFont {
 
                     let mut ch = bytes[char_offset];
                     char_offset += 1;
-
                     if ch == 0 {
                         break;
                     }
@@ -254,15 +265,19 @@ impl TheDrawFont {
         result.push(THE_DRAW_FONT_ID.len() as u8 + 1);
         result.extend(THE_DRAW_FONT_ID);
         result.push(CTRL_Z);
+        self.add_font_data(&mut result)?;
+        Ok(result)
+    }
+
+    fn add_font_data(&self, result: &mut Vec<u8>) -> EngineResult<()> {
         result.extend(u32::to_le_bytes(FONT_INDICATOR));
         if self.name.len() > FONT_NAME_LEN {
             return Err(Box::new(TdfError::NameTooLong(self.name.len())));
         }
-        result.push(FONT_NAME_LEN as u8); // font name length is always 11
+        result.push(FONT_NAME_LEN as u8);
         result.extend(self.name.as_bytes());
         result.extend(vec![0; FONT_NAME_LEN - self.name.len()]);
-
-        result.extend([0, 0, 0, 0]); // unused bytes?
+        result.extend([0, 0, 0, 0]);
         let type_byte = match self.font_type {
             FontType::Outline => 0,
             FontType::Block => 1,
@@ -273,10 +288,8 @@ impl TheDrawFont {
             return Err(Box::new(TdfError::LetterSpaceTooMuch(self.spaces)));
         }
         result.push(self.spaces as u8);
-
         let mut char_lookup_table = Vec::new();
         let mut font_data = Vec::new();
-
         for glyph in &self.char_table {
             match glyph {
                 Some(glyph) => {
@@ -289,11 +302,30 @@ impl TheDrawFont {
                 None => char_lookup_table.extend(u16::to_le_bytes(0xFFFF)),
             }
         }
-
         result.extend(u16::to_le_bytes(font_data.len() as u16));
         result.extend(char_lookup_table);
-
         result.extend(font_data);
+        // font name length is always 11
+
+        // unused bytes?
+        Ok(())
+    }
+
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn create_font_bundle(fonts: &[TheDrawFont]) -> EngineResult<Vec<u8>> {
+        let mut result = Vec::new();
+        result.push(THE_DRAW_FONT_ID.len() as u8 + 1);
+        result.extend(THE_DRAW_FONT_ID);
+        result.push(CTRL_Z);
+
+        for font in fonts {
+            font.add_font_data(&mut result)?;
+        }
+        result.push(0);
 
         Ok(result)
     }
@@ -502,13 +534,20 @@ mod tests {
         assert_eq!("Coder Silver", result[5].name);
     }
 
-    const TEST_FONT2: &[u8] = include_bytes!("CODERBLU.TDF");
-
     #[test]
-    fn test_load_save() {
-        let font = TheDrawFont::from_tdf_bytes(TEST_FONT2).unwrap();
-        assert_eq!(1, font.len());
-        let res: Vec<u8> = font[0].as_tdf_bytes().unwrap();
-        TheDrawFont::from_tdf_bytes(&res).unwrap();
+    fn test_load_save_multi() {
+        let result = TheDrawFont::from_tdf_bytes(TEST_FONT).unwrap();
+        let bundle = TheDrawFont::create_font_bundle(&result).unwrap();
+        let result = TheDrawFont::from_tdf_bytes(&bundle).unwrap();
+        for r in &result {
+            assert!(matches!(r.font_type, FontType::Color));
+        }
+        assert_eq!(6, result.len());
+        assert_eq!("Coder Blue", result[0].name);
+        assert_eq!("Coder Green", result[1].name);
+        assert_eq!("Coder Margen", result[2].name);
+        assert_eq!("Coder Purple", result[3].name);
+        assert_eq!("Coder Red", result[4].name);
+        assert_eq!("Coder Silver", result[5].name);
     }
 }
