@@ -1,7 +1,5 @@
 use std::{error::Error, fs::File, io::Read, path::Path};
 
-use base64::Engine;
-
 use crate::{
     AttributedChar, Buffer, BufferType, EngineResult, Layer, Size, TextAttribute, UPosition,
 };
