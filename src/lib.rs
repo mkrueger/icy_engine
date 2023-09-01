@@ -36,7 +36,7 @@ pub use palette_handling::*;
 mod fonts;
 pub use fonts::*;
 
-mod parsers;
+pub mod parsers;
 pub use parsers::*;
 
 mod caret;

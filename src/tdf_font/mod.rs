@@ -1,6 +1,8 @@
 use std::{error::Error, fs::File, io::Read, path::Path};
 
-use crate::{AttributedChar, Buffer, BufferType, EngineResult, Size, TextAttribute, UPosition};
+use crate::{
+    AttributedChar, Buffer, BufferType, EngineResult, Layer, Size, TextAttribute, UPosition,
+};
 
 #[derive(Copy, Clone, Debug)]
 pub enum FontType {
@@ -12,6 +14,58 @@ pub enum FontType {
 struct FontGlyph {
     pub size: Size,
     pub data: Vec<u8>,
+}
+impl FontGlyph {
+    fn render(
+        &self,
+        layer: &mut Layer,
+        pos: UPosition,
+        font_type: FontType,
+        outline_style: usize,
+        color: TextAttribute,
+    ) -> UPosition {
+        let mut cur: UPosition = pos;
+        let mut char_offset = 0;
+        while char_offset < self.data.len() {
+            let ch = self.data[char_offset];
+            char_offset += 1;
+
+            if ch == 13 {
+                cur.x = pos.x;
+                cur.y += 1;
+            } else {
+                let attributed_char = match font_type {
+                    FontType::Outline => AttributedChar::new(
+                        unsafe {
+                            char::from_u32_unchecked(TheDrawFont::transform_outline(
+                                outline_style,
+                                ch,
+                            ) as u32)
+                        },
+                        color,
+                    ),
+                    FontType::Block => {
+                        AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, color)
+                    }
+                    FontType::Color => {
+                        let ch = unsafe { char::from_u32_unchecked(ch as u32) };
+                        let ch_attr =
+                            TextAttribute::from_u8(self.data[char_offset], BufferType::LegacyIce); // tdf fonts don't support ice mode by default
+                        char_offset += 1;
+                        AttributedChar::new(ch, ch_attr)
+                    }
+                };
+                if cur.x < layer.get_width()
+                    && cur.y < layer.get_line_count()
+                    && !attributed_char.is_transparent()
+                {
+                    layer.set_char(cur, attributed_char);
+                }
+                cur.x += 1;
+            }
+        }
+        cur
+    }
 }
 
 #[allow(dead_code)]
@@ -286,46 +340,14 @@ impl TheDrawFont {
         let Some(glyph) = table_entry else {
             return None;
         };
-
-        let mut cur = pos;
-        let mut char_offset = 0;
-        while char_offset < glyph.data.len() {
-            let ch = glyph.data[char_offset];
-            char_offset += 1;
-
-            if ch == 13 {
-                cur.x = pos.x;
-                cur.y += 1;
-            } else {
-                let attributed_char = match self.font_type {
-                    FontType::Outline => AttributedChar::new(
-                        unsafe {
-                            char::from_u32_unchecked(TheDrawFont::transform_outline(
-                                outline_style,
-                                ch,
-                            ) as u32)
-                        },
-                        color,
-                    ),
-                    FontType::Block => {
-                        AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, color)
-                    }
-                    FontType::Color => {
-                        let ch = unsafe { char::from_u32_unchecked(ch as u32) };
-                        let ch_attr =
-                            TextAttribute::from_u8(glyph.data[char_offset], BufferType::LegacyIce); // tdf fonts don't support ice mode by default
-                        char_offset += 1;
-                        AttributedChar::new(ch, ch_attr)
-                    }
-                };
-                if cur.x < buffer.get_width() && cur.y < buffer.get_line_count() {
-                    buffer.layers[layer].set_char(cur, attributed_char);
-                }
-                cur.x += 1;
-            }
-        }
-
-        Some(Size::new(glyph.size.width, cur.y - pos.y + 1))
+        let end_pos = glyph.render(
+            &mut buffer.layers[layer],
+            pos,
+            self.font_type,
+            outline_style,
+            color,
+        );
+        Some(Size::new(glyph.size.width, end_pos.y - pos.y + 1))
     }
 
     pub const OUTLINE_STYLES: usize = 19;

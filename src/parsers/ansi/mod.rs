@@ -16,7 +16,7 @@ use crate::{
 };
 
 mod ansi_commands;
-mod constants;
+pub mod constants;
 mod dcs;
 mod osc;
 pub mod sound;
