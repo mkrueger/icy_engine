@@ -162,8 +162,8 @@ impl Buffer {
                         return merge(AttributedChar::default(), ch_opt, attr_opt);
                     }
                 }
-                crate::Mode::Chars => ch_opt = Some(ch.ch),
-                crate::Mode::Attributes => attr_opt = Some(ch.attribute),
+                crate::Mode::Chars => if !ch.is_transparent() { ch_opt = Some(ch.ch) },
+                crate::Mode::Attributes => if ch.is_visible() {  attr_opt = Some(ch.attribute) } ,
             }
         }
 
