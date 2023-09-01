@@ -1,6 +1,6 @@
-use std::{fs::File, io::Read, path::Path, error::Error};
+use std::{error::Error, fs::File, io::Read, path::Path};
 
-use crate::{AttributedChar, Buffer, BufferType, Size, TextAttribute, UPosition, EngineResult};
+use crate::{AttributedChar, Buffer, BufferType, EngineResult, Size, TextAttribute, UPosition};
 
 #[derive(Copy, Clone, Debug)]
 pub enum FontType {
@@ -19,7 +19,7 @@ pub struct TheDrawFont {
     pub name: String,
     pub font_type: FontType,
     pub spaces: i32,
-    char_table: Vec<Option<FontGlyph>>
+    char_table: Vec<Option<FontGlyph>>,
 }
 
 static THE_DRAW_FONT_ID: &[u8; 18] = b"TheDraw FONTS file";
@@ -52,7 +52,7 @@ impl TheDrawFont {
         f.read_to_end(&mut bytes).expect("error while reading file");
         TheDrawFont::from_tdf_bytes(&bytes)
     }
-    
+
     /// .
     ///
     /// # Panics
@@ -77,7 +77,7 @@ impl TheDrawFont {
             return Err(Box::new(TdfError::IdMismatch));
         }
         let mut o = THE_DRAW_FONT_ID.len() + 1;
-        
+
         let magic_byte = bytes[o];
         if magic_byte != CTRL_Z {
             return Err(Box::new(TdfError::IdMismatch));
@@ -99,7 +99,7 @@ impl TheDrawFont {
 
             let name = String::from_utf8_lossy(&bytes[o..(o + font_name_len)]).to_string();
             o += FONT_NAME_LEN;
-           
+
             o += 4; // 4 magic bytes!
 
             let font_type = match bytes[o] {
@@ -111,7 +111,7 @@ impl TheDrawFont {
                 }
             };
             o += 1;
-            
+
             let spaces: i32 = bytes[o] as i32;
             if spaces > MAX_LETTER_SPACE as i32 {
                 return Err(Box::new(TdfError::LetterSpaceTooMuch(spaces)));
@@ -129,7 +129,7 @@ impl TheDrawFont {
             }
 
             let mut char_table = Vec::new();
-
+            let mut cnt = 0;
             for char_offset in char_lookup_table {
                 let mut char_offset = char_offset as usize;
 
@@ -138,13 +138,13 @@ impl TheDrawFont {
                 if char_offset == 0xFFFF {
                     char_table.push(None);
                     continue;
-                }          
-                
+                }
+
                 if char_offset >= block_size {
                     return Err(Box::new(TdfError::GlyphOutsideFontDataSize(char_offset)));
                 }
-    
                 char_offset += o;
+                let start = char_offset;
 
                 let width = bytes[char_offset] as usize;
                 char_offset += 1;
@@ -156,23 +156,24 @@ impl TheDrawFont {
                         return Err(Box::new(TdfError::DataOverflow(char_offset)));
                     }
 
-                    let ch = bytes[char_offset];
-                    if ch == 0 {
-                        break;
-                    }
-                    if ch == 13 { 
-                        continue;
-                    }
+                    let mut ch = bytes[char_offset];
+
                     if matches!(font_type, FontType::Color) {
                         char_data.push(ch);
                         char_offset += 1;
-                        char_data.push(ch);
+                        ch = bytes[char_offset];
+                    }
+
+                    if ch == 0 {
+                        break;
+                    }
+
+                    if ch == 13 {
                         char_offset += 1;
-                    } else {
-                        char_data.push(ch);
-                        char_offset += 1;
+                        continue;
                     }
                 }
+                cnt += char_offset - start;
                 char_table.push(Some(FontGlyph {
                     size: Size::new(width, height),
                     data: char_data,
@@ -180,11 +181,11 @@ impl TheDrawFont {
             }
             o += block_size;
 
-            result.push( TheDrawFont {
+            result.push(TheDrawFont {
                 name,
                 font_type,
                 spaces,
-                char_table
+                char_table,
             });
         }
 
@@ -209,7 +210,7 @@ impl TheDrawFont {
         result.extend(self.name.as_bytes());
         result.extend(vec![0; FONT_NAME_LEN - self.name.len()]);
 
-        result.extend([0, 0, 0, 0]); // unused bytes? 
+        result.extend([0, 0, 0, 0]); // unused bytes?
         let type_byte = match self.font_type {
             FontType::Outline => 0,
             FontType::Block => 1,
@@ -226,20 +227,20 @@ impl TheDrawFont {
 
         for glyph in &self.char_table {
             match glyph {
-                Some(glyph) =>  {
+                Some(glyph) => {
                     char_lookup_table.extend(u16::to_le_bytes(font_data.len() as u16));
                     font_data.push(glyph.size.width as u8);
                     font_data.push(glyph.size.height as u8);
                     font_data.extend(&glyph.data);
                     font_data.push(0);
                 }
-                None => char_lookup_table.extend(u16::to_le_bytes(0xFFFF))
+                None => char_lookup_table.extend(u16::to_le_bytes(0xFFFF)),
             }
         }
 
         result.extend(u16::to_le_bytes(font_data.len() as u16));
         result.extend(char_lookup_table);
-  
+
         result.extend(font_data);
 
         Ok(result)
@@ -255,9 +256,9 @@ impl TheDrawFont {
 
     pub fn get_font_height(&self) -> usize {
         for glyph_opt in &self.char_table {
-            if let Some(glyph) = glyph_opt{
+            if let Some(glyph) = glyph_opt {
                 return glyph.size.height;
-            } 
+            }
         }
         0
     }
@@ -283,7 +284,7 @@ impl TheDrawFont {
         if char_index < 0 || char_index > self.char_table.len() as i32 {
             return None;
         }
-        let table_entry = &self.char_table[char_index as usize] ;
+        let table_entry = &self.char_table[char_index as usize];
         let Some(glyph) = table_entry else {
             return None;
         };
@@ -310,12 +311,12 @@ impl TheDrawFont {
                         AttributedChar::new(unsafe { char::from_u32_unchecked(ch as u32) }, color)
                     }
                     FontType::Color => {
-                        let ch_attr = TextAttribute::from_u8(
-                            ch,
-                            BufferType::LegacyIce,
-                        ); // tdf fonts don't support ice mode by default
+                        let ch_attr = TextAttribute::from_u8(ch, BufferType::LegacyIce); // tdf fonts don't support ice mode by default
                         char_offset += 1;
-                        AttributedChar::new(unsafe { char::from_u32_unchecked(glyph.data[char_offset] as u32) }, ch_attr)
+                        AttributedChar::new(
+                            unsafe { char::from_u32_unchecked(glyph.data[char_offset] as u32) },
+                            ch_attr,
+                        )
                     }
                 };
                 if cur.x < buffer.get_width() && cur.y < buffer.get_line_count() {
@@ -428,13 +429,21 @@ impl std::fmt::Display for TdfError {
         match self {
             TdfError::FileTooShort => write!(f, "file too short."),
             TdfError::IdMismatch => write!(f, "id mismatch."),
-            TdfError::NameTooLong(len) => write!(f, "name too long was {len} max is {FONT_NAME_LEN}"),
-            TdfError::UnsupportedTtfType(t) => write!(f, "unsupported ttf type {t}, only 0, 1, 2 are valid."),
+            TdfError::NameTooLong(len) => {
+                write!(f, "name too long was {len} max is {FONT_NAME_LEN}")
+            }
+            TdfError::UnsupportedTtfType(t) => {
+                write!(f, "unsupported ttf type {t}, only 0, 1, 2 are valid.")
+            }
             TdfError::DataOverflow(offset) => write!(f, "data overflow at offset {offset}"),
             TdfError::GlyphOutsideFontDataSize(i) => write!(f, "glyph {i} outside font data size"),
-            TdfError::LetterSpaceTooMuch(spaces) => write!(f, "letter space is max {MAX_LETTER_SPACE} was {spaces}"),
+            TdfError::LetterSpaceTooMuch(spaces) => {
+                write!(f, "letter space is max {MAX_LETTER_SPACE} was {spaces}")
+            }
             TdfError::IdLengthMismatch(len) => write!(f, "id length mismatch {len} should be 19."),
-            TdfError::FontIndicatorMismatch => write!(f, "font indicator mismatch should be 0x55AA00FF."),
+            TdfError::FontIndicatorMismatch => {
+                write!(f, "font indicator mismatch should be 0x55AA00FF.")
+            }
         }
     }
 }
@@ -455,23 +464,31 @@ impl Error for TdfError {
 
 #[cfg(test)]
 mod tests {
-    use crate::TheDrawFont;
+    use crate::{FontType, TheDrawFont};
     const TEST_FONT: &[u8] = include_bytes!("CODERX.TDF");
+
     #[test]
     fn test_load() {
         let result = TheDrawFont::from_tdf_bytes(TEST_FONT).unwrap();
+        for r in &result {
+            assert!(matches!(r.font_type, FontType::Color));
+        }
         assert_eq!(6, result.len());
+        assert_eq!("Coder Blue", result[0].name);
+        assert_eq!("Coder Green", result[1].name);
+        assert_eq!("Coder Margen", result[2].name);
+        assert_eq!("Coder Purple", result[3].name);
+        assert_eq!("Coder Red", result[4].name);
+        assert_eq!("Coder Silver", result[5].name);
     }
 
     const TEST_FONT2: &[u8] = include_bytes!("CODERBLU.TDF");
 
     #[test]
     fn test_load_save() {
-       let font = TheDrawFont::from_tdf_bytes(TEST_FONT2).unwrap();
-       assert_eq!(1, font.len());
-
-        let res = font[0].as_tdf_bytes().unwrap();
-        
-        assert_eq!(res.len(), TEST_FONT2.len());
+        let font = TheDrawFont::from_tdf_bytes(TEST_FONT2).unwrap();
+        assert_eq!(1, font.len());
+        let res: Vec<u8> = font[0].as_tdf_bytes().unwrap();
+        TheDrawFont::from_tdf_bytes(&res).unwrap();
     }
 }

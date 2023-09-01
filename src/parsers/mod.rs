@@ -408,11 +408,8 @@ fn _get_string_from_buffer(buf: &Buffer) -> String {
 #[cfg(test)]
 fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) {
     let mut buf = Buffer::create((80, 25));
-    let mut caret = Caret::default();
-    // remove editing layer
     buf.is_terminal_buffer = true;
-    buf.layers.remove(0);
-    buf.layers[0].is_locked = false;
+    let mut caret = Caret::default();
     buf.layers.first_mut().unwrap().lines.clear();
 
     update_buffer(&mut buf, &mut caret, parser, input);
@@ -453,8 +450,6 @@ fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackA
     let mut buf = Buffer::create((80, 25));
     let mut caret = Caret::default();
     buf.is_terminal_buffer = true;
-    buf.layers.remove(0);
-    buf.layers[0].is_locked = false;
 
     get_action(&mut buf, &mut caret, parser, input)
 }
@@ -466,8 +461,6 @@ fn get_action<T: BufferParser>(
     parser: &mut T,
     input: &[u8],
 ) -> CallbackAction {
-    // remove editing layer
-
     let mut action = CallbackAction::None;
     for b in input {
         if let Some(ch) = char::from_u32(*b as u32) {

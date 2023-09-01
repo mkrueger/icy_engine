@@ -220,22 +220,25 @@ mod tests {
 
     #[test]
     fn test_get_char() {
-        let mut layer = Layer::new("Background", (80, 25));
+        let mut layer = Layer::new("Background", (0, 0));
+        layer.has_alpha_channel = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
         layer.insert_line(0, line);
 
-        assert_eq!(AttributedChar::invisible(), layer.get_char((-1, -1)));
-        assert_eq!(AttributedChar::invisible(), layer.get_char((1000, 1000)));
+        assert_eq!(AttributedChar::default(), layer.get_char((-1, -1)));
+        assert_eq!(AttributedChar::default(), layer.get_char((1000, 1000)));
         assert_eq!('a', layer.get_char((10, 0)).ch);
-        assert_eq!(AttributedChar::invisible(), layer.get_char((9, 0)));
-        assert_eq!(AttributedChar::invisible(), layer.get_char((11, 0)));
+        assert_eq!(AttributedChar::default(), layer.get_char((9, 0)));
+        assert_eq!(AttributedChar::default(), layer.get_char((11, 0)));
     }
 
     #[test]
     fn test_get_char_intransparent() {
-        let mut layer = Layer::new("Background", (80, 25));
+        let mut layer = Layer::new("Background", (0, 0));
+        layer.has_alpha_channel = true;
+
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
@@ -250,7 +253,7 @@ mod tests {
 
     #[test]
     fn test_insert_line() {
-        let mut layer = Layer::new("Background", (80, 25));
+        let mut layer = Layer::new("Background", (80, 0));
         let mut line = Line::new();
         line.chars
             .push(AttributedChar::new('a', TextAttribute::default()));
