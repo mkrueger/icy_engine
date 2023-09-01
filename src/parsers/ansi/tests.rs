@@ -1400,7 +1400,6 @@ fn test_margins_bug() {
     caret.up(&mut buf, 0, 1);
     caret.up(&mut buf, 0, 1);
     caret.up(&mut buf, 0, 1);
-    println!("{buf}");
 }
 
 #[test]

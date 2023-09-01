@@ -1423,7 +1423,7 @@ impl Parser {
     }
 
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {
-        println!("TODO execute APS command: {}", self.parse_string);
+        log::warn!("TODO execute APS command: {}", self.parse_string);
     }
 }
 

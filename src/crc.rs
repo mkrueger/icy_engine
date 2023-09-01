@@ -111,7 +111,6 @@ mod tests {
             data[0]  = crc as u8;
         }
         let d = SystemTime::now().duration_since(now).unwrap();
-        println!("{}", d.as_millis());
     }*/
 
     #[test]

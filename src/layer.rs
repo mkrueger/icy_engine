@@ -203,6 +203,10 @@ impl Layer {
 
     pub fn get_width(&self) -> usize {
         self.size.width
+    } 
+    
+    pub fn get_height(&self) -> usize {
+        self.size.height
     }
 
     pub fn get_line_count(&self) -> usize {

@@ -58,7 +58,7 @@ impl FontGlyph {
                     }
                 };
                 if cur.x < layer.get_width()
-                    && cur.y < layer.get_line_count()
+                    && cur.y < layer.get_height()
                     && !attributed_char.is_transparent()
                 {
                     layer.set_char(cur, attributed_char);
