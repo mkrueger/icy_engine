@@ -94,6 +94,8 @@ pub struct SauceData {
 
     pub font_opt: Option<String>,
     pub use_ice: bool,
+    pub use_letter_spacing: bool,
+    pub use_aspect_ratio: bool,
     pub sauce_header_len: usize,
 
     pub sauce_file_type: SauceFileType,
@@ -130,6 +132,9 @@ impl SauceData {
         let mut buffer_size = Size::new(80, 25);
         let mut font_opt = None;
         let mut use_ice = false;
+        let mut use_letter_spacing = false;
+        let mut use_aspect_ratio = false;
+        
 
         o += 2;
         o += title.read(&data[o..]);
@@ -188,6 +193,21 @@ impl SauceData {
                         buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
                         sauce_file_type = SauceFileType::Ascii;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+
+                        match t_flags & ANSI_MASK_LETTER_SPACING {
+                            ANSI_LETTER_SPACING_LEGACY |
+                            ANSI_LETTER_SPACING_8PX => use_letter_spacing = false,
+                            ANSI_LETTER_SPACING_9PX => use_letter_spacing = true,
+                            _ => {}
+                        }
+
+                        match t_flags & ANSI_MASK_ASPECT_RATIO {
+                            ANSI_ASPECT_RATIO_SQUARE| 
+                            ANSI_ASPECT_RATIO_LEGACY => use_aspect_ratio = false,
+                            ANSI_ASPECT_RATIO_STRETCH => use_aspect_ratio = true,
+                            _ => {}
+                        }
+
                         font_opt = Some(t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSI => {
@@ -261,6 +281,8 @@ impl SauceData {
             buffer_size,
             font_opt,
             use_ice,
+            use_letter_spacing,
+            use_aspect_ratio,
             sauce_header_len: data.len() - offset,
             sauce_file_type,
         })
@@ -398,7 +420,17 @@ impl<const LEN: usize, const EMPTY: u8> SauceString<LEN, EMPTY> {
 const SAUCE_COMMENT_ID: [u8; 5] = *b"COMNT";
 const SAUCE_ID: [u8; 5] = *b"SAUCE";
 const SAUCE_LEN: usize = 128;
-const ANSI_FLAG_NON_BLINK_MODE: u8 = 1;
+const ANSI_FLAG_NON_BLINK_MODE: u8 = 0b0000_0001;
+const ANSI_MASK_LETTER_SPACING: u8 = 0b0000_0110;
+const ANSI_LETTER_SPACING_LEGACY: u8 = 0b0000_0000;
+const ANSI_LETTER_SPACING_8PX: u8 = 0b0000_0010;
+const ANSI_LETTER_SPACING_9PX: u8 = 0b0000_0100;
+
+const ANSI_MASK_ASPECT_RATIO: u8   = 0b0001_1000;
+const ANSI_ASPECT_RATIO_LEGACY: u8  = 0b0000_0000;
+const ANSI_ASPECT_RATIO_STRETCH: u8 = 0b0000_1000;
+const ANSI_ASPECT_RATIO_SQUARE: u8 = 0b0001_0000;
+
 static EMPTY_TINFO: SauceString<22, 0> = SauceString(Vec::new());
 
 impl Buffer {
@@ -472,6 +504,8 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
+                if self.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_LEGACY; }
+                if self.use_letter_spacing { t_flags |= ANSI_LETTER_SPACING_9PX; }
             },
             SauceFileType::ANSiMation => {
                 data_type = SauceDataType::Character;

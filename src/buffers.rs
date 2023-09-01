@@ -80,6 +80,12 @@ pub struct Buffer {
     pub buffer_type: BufferType,
     pub is_terminal_buffer: bool,
 
+    /// Letter-spacing (a.k.a. 8/9 pixel font selection)
+    pub use_letter_spacing : bool,
+
+    /// Define if the image should be stretched to emulate legacy aspects
+    pub use_aspect_ratio: bool,
+
     pub palette: Palette,
     pub overlay_layer: Option<Layer>,
 
@@ -243,6 +249,8 @@ impl Buffer {
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
                                             // undo_stack: Vec::new(),
                                             // redo_stack: Vec::new()
+            use_letter_spacing: false,
+            use_aspect_ratio: false,
         }
     }
 
@@ -607,6 +615,8 @@ impl Buffer {
             result.comments = sauce.comments.clone();
             result.set_buffer_size(sauce.buffer_size);
             result.layers[0].size = sauce.buffer_size;
+            result.use_aspect_ratio = sauce.use_letter_spacing;
+            result.use_letter_spacing = sauce.use_letter_spacing;
             sauce_type = sauce.sauce_file_type;
             use_ice = sauce.use_ice;
             file_size -= sauce.sauce_header_len;
