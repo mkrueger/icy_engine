@@ -81,7 +81,7 @@ pub struct Buffer {
     pub is_terminal_buffer: bool,
 
     /// Letter-spacing (a.k.a. 8/9 pixel font selection)
-    pub use_letter_spacing : bool,
+    pub use_letter_spacing: bool,
 
     /// Define if the image should be stretched to emulate legacy aspects
     pub use_aspect_ratio: bool,
@@ -247,8 +247,8 @@ impl Buffer {
             overlay_layer: None,
             layers: vec![Layer::new("Background", size)],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
-                                            // undo_stack: Vec::new(),
-                                            // redo_stack: Vec::new()
+            // undo_stack: Vec::new(),
+            // redo_stack: Vec::new()
             use_letter_spacing: false,
             use_aspect_ratio: false,
         }

@@ -578,8 +578,8 @@ fn test_xterm_256_colors() {
     );
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
-    assert_eq!(XTERM_256_PALETTE[232], buf.palette.colors[fg as usize]);
-    assert_eq!(XTERM_256_PALETTE[42], buf.palette.colors[bg as usize]);
+    assert_eq!(XTERM_256_PALETTE[232].1, buf.palette.colors[fg as usize]);
+    assert_eq!(XTERM_256_PALETTE[42].1, buf.palette.colors[bg as usize]);
 }
 
 #[test]
@@ -1165,11 +1165,11 @@ fn test_extended_background_color() {
     let ch = buf.get_char((0, 0));
     assert_eq!('#', ch.ch);
     assert_eq!(
-        XTERM_256_PALETTE[88],
+        XTERM_256_PALETTE[88].1,
         buf.palette.colors[ch.attribute.get_foreground() as usize]
     );
     assert_eq!(
-        XTERM_256_PALETTE[107],
+        XTERM_256_PALETTE[107].1,
         buf.palette.colors[ch.attribute.get_background() as usize]
     );
     assert!(!ch.attribute.is_blinking());

@@ -701,1543 +701,2055 @@ pub const EGA_PALETTE: [Color; 64] = [
     },
 ];
 
-pub const XTERM_256_PALETTE: [Color; 256] = [
-    // 0: Black (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 1: Maroon (SYSTEM)
-    Color {
-        r: 0x80,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 2: Green (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0x80,
-        b: 0x00,
-    },
-    // 3: Olive (SYSTEM)
-    Color {
-        r: 0x80,
-        g: 0x80,
-        b: 0x00,
-    },
-    // 4: Navy (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x80,
-    },
-    // 5: Purple (SYSTEM)
-    Color {
-        r: 0x80,
-        g: 0x00,
-        b: 0x80,
-    },
-    // 6: Teal (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0x80,
-        b: 0x80,
-    },
-    // 7: Silver (SYSTEM)
-    Color {
-        r: 0xc0,
-        g: 0xc0,
-        b: 0xc0,
-    },
-    // 8: Grey (SYSTEM)
-    Color {
-        r: 0x80,
-        g: 0x80,
-        b: 0x80,
-    },
-    // 9: Red (SYSTEM)
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 10: Lime (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 11: Yellow (SYSTEM)
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 12: Blue (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 13: Fuchsia (SYSTEM)
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 14: Aqua (SYSTEM)
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 15: White (SYSTEM)
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 16: Grey0
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 17: NavyBlue
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x5f,
-    },
-    // 18: DarkBlue
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0x87,
-    },
-    // 19: Blue3
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0xaf,
-    },
-    // 20: Blue3
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0xd7,
-    },
-    // 21: Blue1
-    Color {
-        r: 0x00,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 22: DarkGreen
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0x00,
-    },
-    // 23: DeepSkyBlue4
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0x5f,
-    },
-    // 24: DeepSkyBlue4
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0x87,
-    },
-    // 25: DeepSkyBlue4
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0xaf,
-    },
-    // 26: DodgerBlue3
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0xd7,
-    },
-    // 27: DodgerBlue2
-    Color {
-        r: 0x00,
-        g: 0x5f,
-        b: 0xff,
-    },
-    // 28: Green4
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0x00,
-    },
-    // 29: SpringGreen4
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0x5f,
-    },
-    // 30: Turquoise4
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0x87,
-    },
-    // 31: DeepSkyBlue3
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0xaf,
-    },
-    // 32: DeepSkyBlue3
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0xd7,
-    },
-    // 33: DodgerBlue1
-    Color {
-        r: 0x00,
-        g: 0x87,
-        b: 0xff,
-    },
-    // 34: Green3
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0x00,
-    },
-    // 35: SpringGreen3
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0x5f,
-    },
-    // 36: DarkCyan
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0x87,
-    },
-    // 37: LightSeaGreen
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    // 38: DeepSkyBlue2
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0xd7,
-    },
-    // 39: DeepSkyBlue1
-    Color {
-        r: 0x00,
-        g: 0xaf,
-        b: 0xff,
-    },
-    // 40: Green3
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0x00,
-    },
-    // 41: SpringGreen3
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0x5f,
-    },
-    // 42: SpringGreen2
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0x87,
-    },
-    // 43: Cyan3
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0xaf,
-    },
-    // 44: DarkTurquoise
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    // 45: Turquoise2
-    Color {
-        r: 0x00,
-        g: 0xd7,
-        b: 0xff,
-    },
-    // 46: Green1
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 47: SpringGreen2
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0x5f,
-    },
-    // 48: SpringGreen1
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0x87,
-    },
-    // 49: MediumSpringGreen
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xaf,
-    },
-    // 50: Cyan2
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xd7,
-    },
-    // 51: Cyan1
-    Color {
-        r: 0x00,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 52: DarkRed
-    Color {
-        r: 0x5f,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 53: DeepPink4
-    Color {
-        r: 0x5f,
-        g: 0x00,
-        b: 0x5f,
-    },
-    // 54: Purple4
-    Color {
-        r: 0x5f,
-        g: 0x00,
-        b: 0x87,
-    },
-    // 55: Purple4
-    Color {
-        r: 0x5f,
-        g: 0x00,
-        b: 0xaf,
-    },
-    // 56: Purple3
-    Color {
-        r: 0x5f,
-        g: 0x00,
-        b: 0xd7,
-    },
-    // 57: BlueViolet
-    Color {
-        r: 0x5f,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 58: Orange4
-    Color {
-        r: 0x5f,
-        g: 0x5f,
-        b: 0x00,
-    },
-    // 59: Grey37
-    Color {
-        r: 0x5f,
-        g: 0x5f,
-        b: 0x5f,
-    },
-    // 60: MediumPurple4
-    Color {
-        r: 0x5f,
-        g: 0x5f,
-        b: 0x87,
-    },
-    // 61: SlateBlue3
-    Color {
-        r: 0x5f,
-        g: 0x5f,
-        b: 0xaf,
-    },
-    // 62: SlateBlue3
-    Color {
-        r: 0x5f,
-        g: 0x5f,
-        b: 0xd7,
-    },
-    // 63: RoyalBlue1
-    Color {
-        r: 0x5f,
-        g: 0x5f,
-        b: 0xff,
-    },
-    // 64: Chartreuse4
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x00,
-    },
-    // 65: DarkSeaGreen4
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x5f,
-    },
-    // 66: PaleTurquoise4
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0x87,
-    },
-    // 67: SteelBlue
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0xaf,
-    },
-    // 68: SteelBlue3
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0xd7,
-    },
-    // 69: CornflowerBlue
-    Color {
-        r: 0x5f,
-        g: 0x87,
-        b: 0xff,
-    },
-    // 70: Chartreuse3
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0x00,
-    },
-    // 71: DarkSeaGreen4
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0x5f,
-    },
-    // 72: CadetBlue
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0x87,
-    },
-    // 73: CadetBlue
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    // 74: SkyBlue3
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0xd7,
-    },
-    // 75: SteelBlue1
-    Color {
-        r: 0x5f,
-        g: 0xaf,
-        b: 0xff,
-    },
-    // 76: Chartreuse3
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0x00,
-    },
-    // 77: PaleGreen3
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0x5f,
-    },
-    // 78: SeaGreen3
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0x87,
-    },
-    // 79: Aquamarine3
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xaf,
-    },
-    // 80: MediumTurquoise
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    // 81: SteelBlue1
-    Color {
-        r: 0x5f,
-        g: 0xd7,
-        b: 0xff,
-    },
-    // 82: Chartreuse2
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 83: SeaGreen2
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0x5f,
-    },
-    // 84: SeaGreen1
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0x87,
-    },
-    // 85: SeaGreen1
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xaf,
-    },
-    // 86: Aquamarine1
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xd7,
-    },
-    // 87: DarkSlateGray2
-    Color {
-        r: 0x5f,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 88: DarkRed
-    Color {
-        r: 0x87,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 89: DeepPink4
-    Color {
-        r: 0x87,
-        g: 0x00,
-        b: 0x5f,
-    },
-    // 90: DarkMagenta
-    Color {
-        r: 0x87,
-        g: 0x00,
-        b: 0x87,
-    },
-    // 91: DarkMagenta
-    Color {
-        r: 0x87,
-        g: 0x00,
-        b: 0xaf,
-    },
-    // 92: DarkViolet
-    Color {
-        r: 0x87,
-        g: 0x00,
-        b: 0xd7,
-    },
-    // 93: Purple
-    Color {
-        r: 0x87,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 94: Orange4
-    Color {
-        r: 0x87,
-        g: 0x5f,
-        b: 0x00,
-    },
-    // 95: LightPink4
-    Color {
-        r: 0x87,
-        g: 0x5f,
-        b: 0x5f,
-    },
-    // 96: Plum4
-    Color {
-        r: 0x87,
-        g: 0x5f,
-        b: 0x87,
-    },
-    // 97: MediumPurple3
-    Color {
-        r: 0x87,
-        g: 0x5f,
-        b: 0xaf,
-    },
-    // 98: MediumPurple3
-    Color {
-        r: 0x87,
-        g: 0x5f,
-        b: 0xd7,
-    },
-    // 99: SlateBlue1
-    Color {
-        r: 0x87,
-        g: 0x5f,
-        b: 0xff,
-    },
-    // 100: Yellow4
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x00,
-    },
-    // 101: Wheat4
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x5f,
-    },
-    // 102: Grey53
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0x87,
-    },
-    // 103: LightSlateGrey
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0xaf,
-    },
-    // 104: MediumPurple
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0xd7,
-    },
-    // 105: LightSlateBlue
-    Color {
-        r: 0x87,
-        g: 0x87,
-        b: 0xff,
-    },
-    // 106: Yellow4
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0x00,
-    },
-    // 107: DarkOliveGreen3
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0x5f,
-    },
-    // 108: DarkSeaGreen
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0x87,
-    },
-    // 109: LightSkyBlue3
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    // 110: LightSkyBlue3
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0xd7,
-    },
-    // 111: SkyBlue2
-    Color {
-        r: 0x87,
-        g: 0xaf,
-        b: 0xff,
-    },
-    // 112: Chartreuse2
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0x00,
-    },
-    // 113: DarkOliveGreen3
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0x5f,
-    },
-    // 114: PaleGreen3
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0x87,
-    },
-    // 115: DarkSeaGreen3
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xaf,
-    },
-    // 116: DarkSlateGray3
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    // 117: SkyBlue1
-    Color {
-        r: 0x87,
-        g: 0xd7,
-        b: 0xff,
-    },
-    // 118: Chartreuse1
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 119: LightGreen
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0x5f,
-    },
-    // 120: LightGreen
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0x87,
-    },
-    // 121: PaleGreen1
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xaf,
-    },
-    // 122: Aquamarine1
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xd7,
-    },
-    // 123: DarkSlateGray1
-    Color {
-        r: 0x87,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 124: Red3
-    Color {
-        r: 0xaf,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 125: DeepPink4
-    Color {
-        r: 0xaf,
-        g: 0x00,
-        b: 0x5f,
-    },
-    // 126: MediumVioletRed
-    Color {
-        r: 0xaf,
-        g: 0x00,
-        b: 0x87,
-    },
-    // 127: Magenta3
-    Color {
-        r: 0xaf,
-        g: 0x00,
-        b: 0xaf,
-    },
-    // 128: DarkViolet
-    Color {
-        r: 0xaf,
-        g: 0x00,
-        b: 0xd7,
-    },
-    // 129: Purple
-    Color {
-        r: 0xaf,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 130: DarkOrange3
-    Color {
-        r: 0xaf,
-        g: 0x5f,
-        b: 0x00,
-    },
-    // 131: IndianRed
-    Color {
-        r: 0xaf,
-        g: 0x5f,
-        b: 0x5f,
-    },
-    // 132: HotPink3
-    Color {
-        r: 0xaf,
-        g: 0x5f,
-        b: 0x87,
-    },
-    // 133: MediumOrchid3
-    Color {
-        r: 0xaf,
-        g: 0x5f,
-        b: 0xaf,
-    },
-    // 134: MediumOrchid
-    Color {
-        r: 0xaf,
-        g: 0x5f,
-        b: 0xd7,
-    },
-    // 135: MediumPurple2
-    Color {
-        r: 0xaf,
-        g: 0x5f,
-        b: 0xff,
-    },
-    // 136: DarkGoldenrod
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x00,
-    },
-    // 137: LightSalmon3
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x5f,
-    },
-    // 138: RosyBrown
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0x87,
-    },
-    // 139: Grey63
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0xaf,
-    },
-    // 140: MediumPurple2
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0xd7,
-    },
-    // 141: MediumPurple1
-    Color {
-        r: 0xaf,
-        g: 0x87,
-        b: 0xff,
-    },
-    // 142: Gold3
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0x00,
-    },
-    // 143: DarkKhaki
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0x5f,
-    },
-    // 144: NavajoWhite3
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0x87,
-    },
-    // 145: Grey69
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    // 146: LightSteelBlue3
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0xd7,
-    },
-    // 147: LightSteelBlue
-    Color {
-        r: 0xaf,
-        g: 0xaf,
-        b: 0xff,
-    },
-    // 148: Yellow3
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0x00,
-    },
-    // 149: DarkOliveGreen3
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0x5f,
-    },
-    // 150: DarkSeaGreen3
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0x87,
-    },
-    // 151: DarkSeaGreen2
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xaf,
-    },
-    // 152: LightCyan3
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    // 153: LightSkyBlue1
-    Color {
-        r: 0xaf,
-        g: 0xd7,
-        b: 0xff,
-    },
-    // 154: GreenYellow
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 155: DarkOliveGreen2
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0x5f,
-    },
-    // 156: PaleGreen1
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0x87,
-    },
-    // 157: DarkSeaGreen2
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xaf,
-    },
-    // 158: DarkSeaGreen1
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xd7,
-    },
-    // 159: PaleTurquoise1
-    Color {
-        r: 0xaf,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 160: Red3
-    Color {
-        r: 0xd7,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 161: DeepPink3
-    Color {
-        r: 0xd7,
-        g: 0x00,
-        b: 0x5f,
-    },
-    // 162: DeepPink3
-    Color {
-        r: 0xd7,
-        g: 0x00,
-        b: 0x87,
-    },
-    // 163: Magenta3
-    Color {
-        r: 0xd7,
-        g: 0x00,
-        b: 0xaf,
-    },
-    // 164: Magenta3
-    Color {
-        r: 0xd7,
-        g: 0x00,
-        b: 0xd7,
-    },
-    // 165: Magenta2
-    Color {
-        r: 0xd7,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 166: DarkOrange3
-    Color {
-        r: 0xd7,
-        g: 0x5f,
-        b: 0x00,
-    },
-    // 167: IndianRed
-    Color {
-        r: 0xd7,
-        g: 0x5f,
-        b: 0x5f,
-    },
-    // 168: HotPink3
-    Color {
-        r: 0xd7,
-        g: 0x5f,
-        b: 0x87,
-    },
-    // 169: HotPink2
-    Color {
-        r: 0xd7,
-        g: 0x5f,
-        b: 0xaf,
-    },
-    // 170: Orchid
-    Color {
-        r: 0xd7,
-        g: 0x5f,
-        b: 0xd7,
-    },
-    // 171: MediumOrchid1
-    Color {
-        r: 0xd7,
-        g: 0x5f,
-        b: 0xff,
-    },
-    // 172: Orange3
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x00,
-    },
-    // 173: LightSalmon3
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x5f,
-    },
-    // 174: LightPink3
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0x87,
-    },
-    // 175: Pink3
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0xaf,
-    },
-    // 176: Plum3
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0xd7,
-    },
-    // 177: Violet
-    Color {
-        r: 0xd7,
-        g: 0x87,
-        b: 0xff,
-    },
-    // 178: Gold3
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0x00,
-    },
-    // 179: LightGoldenrod3
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0x5f,
-    },
-    // 180: Tan
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0x87,
-    },
-    // 181: MistyRose3
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    // 182: Thistle3
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0xd7,
-    },
-    // 183: Plum2
-    Color {
-        r: 0xd7,
-        g: 0xaf,
-        b: 0xff,
-    },
-    // 184: Yellow3
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0x00,
-    },
-    // 185: Khaki3
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0x5f,
-    },
-    // 186: LightGoldenrod2
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0x87,
-    },
-    // 187: LightYellow3
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xaf,
-    },
-    // 188: Grey84
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    // 189: LightSteelBlue1
-    Color {
-        r: 0xd7,
-        g: 0xd7,
-        b: 0xff,
-    },
-    // 190: Yellow2
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 191: DarkOliveGreen1
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0x5f,
-    },
-    // 192: DarkOliveGreen1
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0x87,
-    },
-    // 193: DarkSeaGreen1
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xaf,
-    },
-    // 194: Honeydew2
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xd7,
-    },
-    // 195: LightCyan1
-    Color {
-        r: 0xd7,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 196: Red1
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0x00,
-    },
-    // 197: DeepPink2
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0x5f,
-    },
-    // 198: DeepPink1
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0x87,
-    },
-    // 199: DeepPink1
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0xaf,
-    },
-    // 200: Magenta2
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0xd7,
-    },
-    // 201: Magenta1
-    Color {
-        r: 0xff,
-        g: 0x00,
-        b: 0xff,
-    },
-    // 202: OrangeRed1
-    Color {
-        r: 0xff,
-        g: 0x5f,
-        b: 0x00,
-    },
-    // 203: IndianRed1
-    Color {
-        r: 0xff,
-        g: 0x5f,
-        b: 0x5f,
-    },
-    // 204: IndianRed1
-    Color {
-        r: 0xff,
-        g: 0x5f,
-        b: 0x87,
-    },
-    // 205: HotPink
-    Color {
-        r: 0xff,
-        g: 0x5f,
-        b: 0xaf,
-    },
-    // 206: HotPink
-    Color {
-        r: 0xff,
-        g: 0x5f,
-        b: 0xd7,
-    },
-    // 207: MediumOrchid1
-    Color {
-        r: 0xff,
-        g: 0x5f,
-        b: 0xff,
-    },
-    // 208: DarkOrange
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x00,
-    },
-    // 209: Salmon1
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x5f,
-    },
-    // 210: LightCoral
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0x87,
-    },
-    // 211: PaleVioletRed1
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0xaf,
-    },
-    // 212: Orchid2
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0xd7,
-    },
-    // 213: Orchid1
-    Color {
-        r: 0xff,
-        g: 0x87,
-        b: 0xff,
-    },
-    // 214: Orange1
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0x00,
-    },
-    // 215: SandyBrown
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0x5f,
-    },
-    // 216: LightSalmon1
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0x87,
-    },
-    // 217: LightPink1
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0xaf,
-    },
-    // 218: Pink1
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0xd7,
-    },
-    // 219: Plum1
-    Color {
-        r: 0xff,
-        g: 0xaf,
-        b: 0xff,
-    },
-    // 220: Gold1
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0x00,
-    },
-    // 221: LightGoldenrod2
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0x5f,
-    },
-    // 222: LightGoldenrod2
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0x87,
-    },
-    // 223: NavajoWhite1
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xaf,
-    },
-    // 224: MistyRose1
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xd7,
-    },
-    // 225: Thistle1
-    Color {
-        r: 0xff,
-        g: 0xd7,
-        b: 0xff,
-    },
-    // 226: Yellow1
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0x00,
-    },
-    // 227: LightGoldenrod1
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0x5f,
-    },
-    // 228: Khaki1
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0x87,
-    },
-    // 229: Wheat1
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xaf,
-    },
-    // 230: Cornsilk1
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xd7,
-    },
-    // 231: Grey100
-    Color {
-        r: 0xff,
-        g: 0xff,
-        b: 0xff,
-    },
-    // 232: Grey3
-    Color {
-        r: 0x08,
-        g: 0x08,
-        b: 0x08,
-    },
-    // 233: Grey7
-    Color {
-        r: 0x12,
-        g: 0x12,
-        b: 0x12,
-    },
-    // 234: Grey11
-    Color {
-        r: 0x1c,
-        g: 0x1c,
-        b: 0x1c,
-    },
-    // 235: Grey15
-    Color {
-        r: 0x26,
-        g: 0x26,
-        b: 0x26,
-    },
-    // 236: Grey19
-    Color {
-        r: 0x30,
-        g: 0x30,
-        b: 0x30,
-    },
-    // 237: Grey23
-    Color {
-        r: 0x3a,
-        g: 0x3a,
-        b: 0x3a,
-    },
-    // 238: Grey27
-    Color {
-        r: 0x44,
-        g: 0x44,
-        b: 0x44,
-    },
-    // 239: Grey30
-    Color {
-        r: 0x4e,
-        g: 0x4e,
-        b: 0x4e,
-    },
-    // 240: Grey35
-    Color {
-        r: 0x58,
-        g: 0x58,
-        b: 0x58,
-    },
-    // 241: Grey39
-    Color {
-        r: 0x62,
-        g: 0x62,
-        b: 0x62,
-    },
-    // 242: Grey42
-    Color {
-        r: 0x6c,
-        g: 0x6c,
-        b: 0x6c,
-    },
-    // 243: Grey46
-    Color {
-        r: 0x76,
-        g: 0x76,
-        b: 0x76,
-    },
-    // 244: Grey50
-    Color {
-        r: 0x80,
-        g: 0x80,
-        b: 0x80,
-    },
-    // 245: Grey54
-    Color {
-        r: 0x8a,
-        g: 0x8a,
-        b: 0x8a,
-    },
-    // 246: Grey58
-    Color {
-        r: 0x94,
-        g: 0x94,
-        b: 0x94,
-    },
-    // 247: Grey62
-    Color {
-        r: 0x9e,
-        g: 0x9e,
-        b: 0x9e,
-    },
-    // 248: Grey66
-    Color {
-        r: 0xa8,
-        g: 0xa8,
-        b: 0xa8,
-    },
-    // 249: Grey70
-    Color {
-        r: 0xb2,
-        g: 0xb2,
-        b: 0xb2,
-    },
-    // 250: Grey74
-    Color {
-        r: 0xbc,
-        g: 0xbc,
-        b: 0xbc,
-    },
-    // 251: Grey78
-    Color {
-        r: 0xc6,
-        g: 0xc6,
-        b: 0xc6,
-    },
-    // 252: Grey82
-    Color {
-        r: 0xd0,
-        g: 0xd0,
-        b: 0xd0,
-    },
-    // 253: Grey85
-    Color {
-        r: 0xda,
-        g: 0xda,
-        b: 0xda,
-    },
-    // 254: Grey89
-    Color {
-        r: 0xe4,
-        g: 0xe4,
-        b: 0xe4,
-    },
-    // 255: Grey93
-    Color {
-        r: 0xee,
-        g: 0xee,
-        b: 0xee,
-    },
+pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
+    (
+        "Black (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "Maroon (SYSTEM)",
+        Color {
+            r: 0x80,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "Green (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0x80,
+            b: 0x00,
+        },
+    ),
+    (
+        "Olive (SYSTEM)",
+        Color {
+            r: 0x80,
+            g: 0x80,
+            b: 0x00,
+        },
+    ),
+    (
+        "Navy (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0x80,
+        },
+    ),
+    (
+        "Purple (SYSTEM)",
+        Color {
+            r: 0x80,
+            g: 0x00,
+            b: 0x80,
+        },
+    ),
+    (
+        "Teal (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0x80,
+            b: 0x80,
+        },
+    ),
+    (
+        "Silver (SYSTEM)",
+        Color {
+            r: 0xc0,
+            g: 0xc0,
+            b: 0xc0,
+        },
+    ),
+    (
+        "Grey (SYSTEM)",
+        Color {
+            r: 0x80,
+            g: 0x80,
+            b: 0x80,
+        },
+    ),
+    (
+        "Red (SYSTEM)",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "Lime (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "Yellow (SYSTEM)",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "Blue (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "Fuchsia (SYSTEM)",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "Aqua (SYSTEM)",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "White (SYSTEM)",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "Grey0",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "NavyBlue",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DarkBlue",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0x87,
+        },
+    ),
+    (
+        "Blue3",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Blue3",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Blue1",
+        Color {
+            r: 0x00,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkGreen",
+        Color {
+            r: 0x00,
+            g: 0x5f,
+            b: 0x00,
+        },
+    ),
+    (
+        "DeepSkyBlue4",
+        Color {
+            r: 0x00,
+            g: 0x5f,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DeepSkyBlue4",
+        Color {
+            r: 0x00,
+            g: 0x5f,
+            b: 0x87,
+        },
+    ),
+    (
+        "DeepSkyBlue4",
+        Color {
+            r: 0x00,
+            g: 0x5f,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DodgerBlue3",
+        Color {
+            r: 0x00,
+            g: 0x5f,
+            b: 0xd7,
+        },
+    ),
+    (
+        "DodgerBlue2",
+        Color {
+            r: 0x00,
+            g: 0x5f,
+            b: 0xff,
+        },
+    ),
+    (
+        "Green4",
+        Color {
+            r: 0x00,
+            g: 0x87,
+            b: 0x00,
+        },
+    ),
+    (
+        "SpringGreen4",
+        Color {
+            r: 0x00,
+            g: 0x87,
+            b: 0x5f,
+        },
+    ),
+    (
+        "Turquoise4",
+        Color {
+            r: 0x00,
+            g: 0x87,
+            b: 0x87,
+        },
+    ),
+    (
+        "DeepSkyBlue3",
+        Color {
+            r: 0x00,
+            g: 0x87,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DeepSkyBlue3",
+        Color {
+            r: 0x00,
+            g: 0x87,
+            b: 0xd7,
+        },
+    ),
+    (
+        "DodgerBlue1",
+        Color {
+            r: 0x00,
+            g: 0x87,
+            b: 0xff,
+        },
+    ),
+    (
+        "Green3",
+        Color {
+            r: 0x00,
+            g: 0xaf,
+            b: 0x00,
+        },
+    ),
+    (
+        "SpringGreen3",
+        Color {
+            r: 0x00,
+            g: 0xaf,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DarkCyan",
+        Color {
+            r: 0x00,
+            g: 0xaf,
+            b: 0x87,
+        },
+    ),
+    (
+        "LightSeaGreen",
+        Color {
+            r: 0x00,
+            g: 0xaf,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DeepSkyBlue2",
+        Color {
+            r: 0x00,
+            g: 0xaf,
+            b: 0xd7,
+        },
+    ),
+    (
+        "DeepSkyBlue1",
+        Color {
+            r: 0x00,
+            g: 0xaf,
+            b: 0xff,
+        },
+    ),
+    (
+        "Green3",
+        Color {
+            r: 0x00,
+            g: 0xd7,
+            b: 0x00,
+        },
+    ),
+    (
+        "SpringGreen3",
+        Color {
+            r: 0x00,
+            g: 0xd7,
+            b: 0x5f,
+        },
+    ),
+    (
+        "SpringGreen2",
+        Color {
+            r: 0x00,
+            g: 0xd7,
+            b: 0x87,
+        },
+    ),
+    (
+        "Cyan3",
+        Color {
+            r: 0x00,
+            g: 0xd7,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DarkTurquoise",
+        Color {
+            r: 0x00,
+            g: 0xd7,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Turquoise2",
+        Color {
+            r: 0x00,
+            g: 0xd7,
+            b: 0xff,
+        },
+    ),
+    (
+        "Green1",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "SpringGreen2",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0x5f,
+        },
+    ),
+    (
+        "SpringGreen1",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0x87,
+        },
+    ),
+    (
+        "MediumSpringGreen",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Cyan2",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Cyan1",
+        Color {
+            r: 0x00,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkRed",
+        Color {
+            r: 0x5f,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "DeepPink4",
+        Color {
+            r: 0x5f,
+            g: 0x00,
+            b: 0x5f,
+        },
+    ),
+    (
+        "Purple4",
+        Color {
+            r: 0x5f,
+            g: 0x00,
+            b: 0x87,
+        },
+    ),
+    (
+        "Purple4",
+        Color {
+            r: 0x5f,
+            g: 0x00,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Purple3",
+        Color {
+            r: 0x5f,
+            g: 0x00,
+            b: 0xd7,
+        },
+    ),
+    (
+        "BlueViolet",
+        Color {
+            r: 0x5f,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "Orange4",
+        Color {
+            r: 0x5f,
+            g: 0x5f,
+            b: 0x00,
+        },
+    ),
+    (
+        "Grey37",
+        Color {
+            r: 0x5f,
+            g: 0x5f,
+            b: 0x5f,
+        },
+    ),
+    (
+        "MediumPurple4",
+        Color {
+            r: 0x5f,
+            g: 0x5f,
+            b: 0x87,
+        },
+    ),
+    (
+        "SlateBlue3",
+        Color {
+            r: 0x5f,
+            g: 0x5f,
+            b: 0xaf,
+        },
+    ),
+    (
+        "SlateBlue3",
+        Color {
+            r: 0x5f,
+            g: 0x5f,
+            b: 0xd7,
+        },
+    ),
+    (
+        "RoyalBlue1",
+        Color {
+            r: 0x5f,
+            g: 0x5f,
+            b: 0xff,
+        },
+    ),
+    (
+        "Chartreuse4",
+        Color {
+            r: 0x5f,
+            g: 0x87,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkSeaGreen4",
+        Color {
+            r: 0x5f,
+            g: 0x87,
+            b: 0x5f,
+        },
+    ),
+    (
+        "PaleTurquoise4",
+        Color {
+            r: 0x5f,
+            g: 0x87,
+            b: 0x87,
+        },
+    ),
+    (
+        "SteelBlue",
+        Color {
+            r: 0x5f,
+            g: 0x87,
+            b: 0xaf,
+        },
+    ),
+    (
+        "SteelBlue3",
+        Color {
+            r: 0x5f,
+            g: 0x87,
+            b: 0xd7,
+        },
+    ),
+    (
+        "CornflowerBlue",
+        Color {
+            r: 0x5f,
+            g: 0x87,
+            b: 0xff,
+        },
+    ),
+    (
+        "Chartreuse3",
+        Color {
+            r: 0x5f,
+            g: 0xaf,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkSeaGreen4",
+        Color {
+            r: 0x5f,
+            g: 0xaf,
+            b: 0x5f,
+        },
+    ),
+    (
+        "CadetBlue",
+        Color {
+            r: 0x5f,
+            g: 0xaf,
+            b: 0x87,
+        },
+    ),
+    (
+        "CadetBlue",
+        Color {
+            r: 0x5f,
+            g: 0xaf,
+            b: 0xaf,
+        },
+    ),
+    (
+        "SkyBlue3",
+        Color {
+            r: 0x5f,
+            g: 0xaf,
+            b: 0xd7,
+        },
+    ),
+    (
+        "SteelBlue1",
+        Color {
+            r: 0x5f,
+            g: 0xaf,
+            b: 0xff,
+        },
+    ),
+    (
+        "Chartreuse3",
+        Color {
+            r: 0x5f,
+            g: 0xd7,
+            b: 0x00,
+        },
+    ),
+    (
+        "PaleGreen3",
+        Color {
+            r: 0x5f,
+            g: 0xd7,
+            b: 0x5f,
+        },
+    ),
+    (
+        "SeaGreen3",
+        Color {
+            r: 0x5f,
+            g: 0xd7,
+            b: 0x87,
+        },
+    ),
+    (
+        "Aquamarine3",
+        Color {
+            r: 0x5f,
+            g: 0xd7,
+            b: 0xaf,
+        },
+    ),
+    (
+        "MediumTurquoise",
+        Color {
+            r: 0x5f,
+            g: 0xd7,
+            b: 0xd7,
+        },
+    ),
+    (
+        "SteelBlue1",
+        Color {
+            r: 0x5f,
+            g: 0xd7,
+            b: 0xff,
+        },
+    ),
+    (
+        "Chartreuse2",
+        Color {
+            r: 0x5f,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "SeaGreen2",
+        Color {
+            r: 0x5f,
+            g: 0xff,
+            b: 0x5f,
+        },
+    ),
+    (
+        "SeaGreen1",
+        Color {
+            r: 0x5f,
+            g: 0xff,
+            b: 0x87,
+        },
+    ),
+    (
+        "SeaGreen1",
+        Color {
+            r: 0x5f,
+            g: 0xff,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Aquamarine1",
+        Color {
+            r: 0x5f,
+            g: 0xff,
+            b: 0xd7,
+        },
+    ),
+    (
+        "DarkSlateGray2",
+        Color {
+            r: 0x5f,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkRed",
+        Color {
+            r: 0x87,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "DeepPink4",
+        Color {
+            r: 0x87,
+            g: 0x00,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DarkMagenta",
+        Color {
+            r: 0x87,
+            g: 0x00,
+            b: 0x87,
+        },
+    ),
+    (
+        "DarkMagenta",
+        Color {
+            r: 0x87,
+            g: 0x00,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DarkViolet",
+        Color {
+            r: 0x87,
+            g: 0x00,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Purple",
+        Color {
+            r: 0x87,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "Orange4",
+        Color {
+            r: 0x87,
+            g: 0x5f,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightPink4",
+        Color {
+            r: 0x87,
+            g: 0x5f,
+            b: 0x5f,
+        },
+    ),
+    (
+        "Plum4",
+        Color {
+            r: 0x87,
+            g: 0x5f,
+            b: 0x87,
+        },
+    ),
+    (
+        "MediumPurple3",
+        Color {
+            r: 0x87,
+            g: 0x5f,
+            b: 0xaf,
+        },
+    ),
+    (
+        "MediumPurple3",
+        Color {
+            r: 0x87,
+            g: 0x5f,
+            b: 0xd7,
+        },
+    ),
+    (
+        "SlateBlue1",
+        Color {
+            r: 0x87,
+            g: 0x5f,
+            b: 0xff,
+        },
+    ),
+    (
+        "Yellow4",
+        Color {
+            r: 0x87,
+            g: 0x87,
+            b: 0x00,
+        },
+    ),
+    (
+        "Wheat4",
+        Color {
+            r: 0x87,
+            g: 0x87,
+            b: 0x5f,
+        },
+    ),
+    (
+        "Grey53",
+        Color {
+            r: 0x87,
+            g: 0x87,
+            b: 0x87,
+        },
+    ),
+    (
+        "LightSlateGrey",
+        Color {
+            r: 0x87,
+            g: 0x87,
+            b: 0xaf,
+        },
+    ),
+    (
+        "MediumPurple",
+        Color {
+            r: 0x87,
+            g: 0x87,
+            b: 0xd7,
+        },
+    ),
+    (
+        "LightSlateBlue",
+        Color {
+            r: 0x87,
+            g: 0x87,
+            b: 0xff,
+        },
+    ),
+    (
+        "Yellow4",
+        Color {
+            r: 0x87,
+            g: 0xaf,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkOliveGreen3",
+        Color {
+            r: 0x87,
+            g: 0xaf,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DarkSeaGreen",
+        Color {
+            r: 0x87,
+            g: 0xaf,
+            b: 0x87,
+        },
+    ),
+    (
+        "LightSkyBlue3",
+        Color {
+            r: 0x87,
+            g: 0xaf,
+            b: 0xaf,
+        },
+    ),
+    (
+        "LightSkyBlue3",
+        Color {
+            r: 0x87,
+            g: 0xaf,
+            b: 0xd7,
+        },
+    ),
+    (
+        "SkyBlue2",
+        Color {
+            r: 0x87,
+            g: 0xaf,
+            b: 0xff,
+        },
+    ),
+    (
+        "Chartreuse2",
+        Color {
+            r: 0x87,
+            g: 0xd7,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkOliveGreen3",
+        Color {
+            r: 0x87,
+            g: 0xd7,
+            b: 0x5f,
+        },
+    ),
+    (
+        "PaleGreen3",
+        Color {
+            r: 0x87,
+            g: 0xd7,
+            b: 0x87,
+        },
+    ),
+    (
+        "DarkSeaGreen3",
+        Color {
+            r: 0x87,
+            g: 0xd7,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DarkSlateGray3",
+        Color {
+            r: 0x87,
+            g: 0xd7,
+            b: 0xd7,
+        },
+    ),
+    (
+        "SkyBlue1",
+        Color {
+            r: 0x87,
+            g: 0xd7,
+            b: 0xff,
+        },
+    ),
+    (
+        "Chartreuse1",
+        Color {
+            r: 0x87,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightGreen",
+        Color {
+            r: 0x87,
+            g: 0xff,
+            b: 0x5f,
+        },
+    ),
+    (
+        "LightGreen",
+        Color {
+            r: 0x87,
+            g: 0xff,
+            b: 0x87,
+        },
+    ),
+    (
+        "PaleGreen1",
+        Color {
+            r: 0x87,
+            g: 0xff,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Aquamarine1",
+        Color {
+            r: 0x87,
+            g: 0xff,
+            b: 0xd7,
+        },
+    ),
+    (
+        "DarkSlateGray1",
+        Color {
+            r: 0x87,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "Red3",
+        Color {
+            r: 0xaf,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "DeepPink4",
+        Color {
+            r: 0xaf,
+            g: 0x00,
+            b: 0x5f,
+        },
+    ),
+    (
+        "MediumVioletRed",
+        Color {
+            r: 0xaf,
+            g: 0x00,
+            b: 0x87,
+        },
+    ),
+    (
+        "Magenta3",
+        Color {
+            r: 0xaf,
+            g: 0x00,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DarkViolet",
+        Color {
+            r: 0xaf,
+            g: 0x00,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Purple",
+        Color {
+            r: 0xaf,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkOrange3",
+        Color {
+            r: 0xaf,
+            g: 0x5f,
+            b: 0x00,
+        },
+    ),
+    (
+        "IndianRed",
+        Color {
+            r: 0xaf,
+            g: 0x5f,
+            b: 0x5f,
+        },
+    ),
+    (
+        "HotPink3",
+        Color {
+            r: 0xaf,
+            g: 0x5f,
+            b: 0x87,
+        },
+    ),
+    (
+        "MediumOrchid3",
+        Color {
+            r: 0xaf,
+            g: 0x5f,
+            b: 0xaf,
+        },
+    ),
+    (
+        "MediumOrchid",
+        Color {
+            r: 0xaf,
+            g: 0x5f,
+            b: 0xd7,
+        },
+    ),
+    (
+        "MediumPurple2",
+        Color {
+            r: 0xaf,
+            g: 0x5f,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkGoldenrod",
+        Color {
+            r: 0xaf,
+            g: 0x87,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightSalmon3",
+        Color {
+            r: 0xaf,
+            g: 0x87,
+            b: 0x5f,
+        },
+    ),
+    (
+        "RosyBrown",
+        Color {
+            r: 0xaf,
+            g: 0x87,
+            b: 0x87,
+        },
+    ),
+    (
+        "Grey63",
+        Color {
+            r: 0xaf,
+            g: 0x87,
+            b: 0xaf,
+        },
+    ),
+    (
+        "MediumPurple2",
+        Color {
+            r: 0xaf,
+            g: 0x87,
+            b: 0xd7,
+        },
+    ),
+    (
+        "MediumPurple1",
+        Color {
+            r: 0xaf,
+            g: 0x87,
+            b: 0xff,
+        },
+    ),
+    (
+        "Gold3",
+        Color {
+            r: 0xaf,
+            g: 0xaf,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkKhaki",
+        Color {
+            r: 0xaf,
+            g: 0xaf,
+            b: 0x5f,
+        },
+    ),
+    (
+        "NavajoWhite3",
+        Color {
+            r: 0xaf,
+            g: 0xaf,
+            b: 0x87,
+        },
+    ),
+    (
+        "Grey69",
+        Color {
+            r: 0xaf,
+            g: 0xaf,
+            b: 0xaf,
+        },
+    ),
+    (
+        "LightSteelBlue3",
+        Color {
+            r: 0xaf,
+            g: 0xaf,
+            b: 0xd7,
+        },
+    ),
+    (
+        "LightSteelBlue",
+        Color {
+            r: 0xaf,
+            g: 0xaf,
+            b: 0xff,
+        },
+    ),
+    (
+        "Yellow3",
+        Color {
+            r: 0xaf,
+            g: 0xd7,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkOliveGreen3",
+        Color {
+            r: 0xaf,
+            g: 0xd7,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DarkSeaGreen3",
+        Color {
+            r: 0xaf,
+            g: 0xd7,
+            b: 0x87,
+        },
+    ),
+    (
+        "DarkSeaGreen2",
+        Color {
+            r: 0xaf,
+            g: 0xd7,
+            b: 0xaf,
+        },
+    ),
+    (
+        "LightCyan3",
+        Color {
+            r: 0xaf,
+            g: 0xd7,
+            b: 0xd7,
+        },
+    ),
+    (
+        "LightSkyBlue1",
+        Color {
+            r: 0xaf,
+            g: 0xd7,
+            b: 0xff,
+        },
+    ),
+    (
+        "GreenYellow",
+        Color {
+            r: 0xaf,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkOliveGreen2",
+        Color {
+            r: 0xaf,
+            g: 0xff,
+            b: 0x5f,
+        },
+    ),
+    (
+        "PaleGreen1",
+        Color {
+            r: 0xaf,
+            g: 0xff,
+            b: 0x87,
+        },
+    ),
+    (
+        "DarkSeaGreen2",
+        Color {
+            r: 0xaf,
+            g: 0xff,
+            b: 0xaf,
+        },
+    ),
+    (
+        "DarkSeaGreen1",
+        Color {
+            r: 0xaf,
+            g: 0xff,
+            b: 0xd7,
+        },
+    ),
+    (
+        "PaleTurquoise1",
+        Color {
+            r: 0xaf,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "Red3",
+        Color {
+            r: 0xd7,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "DeepPink3",
+        Color {
+            r: 0xd7,
+            g: 0x00,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DeepPink3",
+        Color {
+            r: 0xd7,
+            g: 0x00,
+            b: 0x87,
+        },
+    ),
+    (
+        "Magenta3",
+        Color {
+            r: 0xd7,
+            g: 0x00,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Magenta3",
+        Color {
+            r: 0xd7,
+            g: 0x00,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Magenta2",
+        Color {
+            r: 0xd7,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkOrange3",
+        Color {
+            r: 0xd7,
+            g: 0x5f,
+            b: 0x00,
+        },
+    ),
+    (
+        "IndianRed",
+        Color {
+            r: 0xd7,
+            g: 0x5f,
+            b: 0x5f,
+        },
+    ),
+    (
+        "HotPink3",
+        Color {
+            r: 0xd7,
+            g: 0x5f,
+            b: 0x87,
+        },
+    ),
+    (
+        "HotPink2",
+        Color {
+            r: 0xd7,
+            g: 0x5f,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Orchid",
+        Color {
+            r: 0xd7,
+            g: 0x5f,
+            b: 0xd7,
+        },
+    ),
+    (
+        "MediumOrchid1",
+        Color {
+            r: 0xd7,
+            g: 0x5f,
+            b: 0xff,
+        },
+    ),
+    (
+        "Orange3",
+        Color {
+            r: 0xd7,
+            g: 0x87,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightSalmon3",
+        Color {
+            r: 0xd7,
+            g: 0x87,
+            b: 0x5f,
+        },
+    ),
+    (
+        "LightPink3",
+        Color {
+            r: 0xd7,
+            g: 0x87,
+            b: 0x87,
+        },
+    ),
+    (
+        "Pink3",
+        Color {
+            r: 0xd7,
+            g: 0x87,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Plum3",
+        Color {
+            r: 0xd7,
+            g: 0x87,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Violet",
+        Color {
+            r: 0xd7,
+            g: 0x87,
+            b: 0xff,
+        },
+    ),
+    (
+        "Gold3",
+        Color {
+            r: 0xd7,
+            g: 0xaf,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightGoldenrod3",
+        Color {
+            r: 0xd7,
+            g: 0xaf,
+            b: 0x5f,
+        },
+    ),
+    (
+        "Tan",
+        Color {
+            r: 0xd7,
+            g: 0xaf,
+            b: 0x87,
+        },
+    ),
+    (
+        "MistyRose3",
+        Color {
+            r: 0xd7,
+            g: 0xaf,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Thistle3",
+        Color {
+            r: 0xd7,
+            g: 0xaf,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Plum2",
+        Color {
+            r: 0xd7,
+            g: 0xaf,
+            b: 0xff,
+        },
+    ),
+    (
+        "Yellow3",
+        Color {
+            r: 0xd7,
+            g: 0xd7,
+            b: 0x00,
+        },
+    ),
+    (
+        "Khaki3",
+        Color {
+            r: 0xd7,
+            g: 0xd7,
+            b: 0x5f,
+        },
+    ),
+    (
+        "LightGoldenrod2",
+        Color {
+            r: 0xd7,
+            g: 0xd7,
+            b: 0x87,
+        },
+    ),
+    (
+        "LightYellow3",
+        Color {
+            r: 0xd7,
+            g: 0xd7,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Grey84",
+        Color {
+            r: 0xd7,
+            g: 0xd7,
+            b: 0xd7,
+        },
+    ),
+    (
+        "LightSteelBlue1",
+        Color {
+            r: 0xd7,
+            g: 0xd7,
+            b: 0xff,
+        },
+    ),
+    (
+        "Yellow2",
+        Color {
+            r: 0xd7,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "DarkOliveGreen1",
+        Color {
+            r: 0xd7,
+            g: 0xff,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DarkOliveGreen1",
+        Color {
+            r: 0xd7,
+            g: 0xff,
+            b: 0x87,
+        },
+    ),
+    (
+        "DarkSeaGreen1",
+        Color {
+            r: 0xd7,
+            g: 0xff,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Honeydew2",
+        Color {
+            r: 0xd7,
+            g: 0xff,
+            b: 0xd7,
+        },
+    ),
+    (
+        "LightCyan1",
+        Color {
+            r: 0xd7,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "Red1",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0x00,
+        },
+    ),
+    (
+        "DeepPink2",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0x5f,
+        },
+    ),
+    (
+        "DeepPink1",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0x87,
+        },
+    ),
+    (
+        "DeepPink1",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Magenta2",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Magenta1",
+        Color {
+            r: 0xff,
+            g: 0x00,
+            b: 0xff,
+        },
+    ),
+    (
+        "OrangeRed1",
+        Color {
+            r: 0xff,
+            g: 0x5f,
+            b: 0x00,
+        },
+    ),
+    (
+        "IndianRed1",
+        Color {
+            r: 0xff,
+            g: 0x5f,
+            b: 0x5f,
+        },
+    ),
+    (
+        "IndianRed1",
+        Color {
+            r: 0xff,
+            g: 0x5f,
+            b: 0x87,
+        },
+    ),
+    (
+        "HotPink",
+        Color {
+            r: 0xff,
+            g: 0x5f,
+            b: 0xaf,
+        },
+    ),
+    (
+        "HotPink",
+        Color {
+            r: 0xff,
+            g: 0x5f,
+            b: 0xd7,
+        },
+    ),
+    (
+        "MediumOrchid1",
+        Color {
+            r: 0xff,
+            g: 0x5f,
+            b: 0xff,
+        },
+    ),
+    (
+        "DarkOrange",
+        Color {
+            r: 0xff,
+            g: 0x87,
+            b: 0x00,
+        },
+    ),
+    (
+        "Salmon1",
+        Color {
+            r: 0xff,
+            g: 0x87,
+            b: 0x5f,
+        },
+    ),
+    (
+        "LightCoral",
+        Color {
+            r: 0xff,
+            g: 0x87,
+            b: 0x87,
+        },
+    ),
+    (
+        "PaleVioletRed1",
+        Color {
+            r: 0xff,
+            g: 0x87,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Orchid2",
+        Color {
+            r: 0xff,
+            g: 0x87,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Orchid1",
+        Color {
+            r: 0xff,
+            g: 0x87,
+            b: 0xff,
+        },
+    ),
+    (
+        "Orange1",
+        Color {
+            r: 0xff,
+            g: 0xaf,
+            b: 0x00,
+        },
+    ),
+    (
+        "SandyBrown",
+        Color {
+            r: 0xff,
+            g: 0xaf,
+            b: 0x5f,
+        },
+    ),
+    (
+        "LightSalmon1",
+        Color {
+            r: 0xff,
+            g: 0xaf,
+            b: 0x87,
+        },
+    ),
+    (
+        "LightPink1",
+        Color {
+            r: 0xff,
+            g: 0xaf,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Pink1",
+        Color {
+            r: 0xff,
+            g: 0xaf,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Plum1",
+        Color {
+            r: 0xff,
+            g: 0xaf,
+            b: 0xff,
+        },
+    ),
+    (
+        "Gold1",
+        Color {
+            r: 0xff,
+            g: 0xd7,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightGoldenrod2",
+        Color {
+            r: 0xff,
+            g: 0xd7,
+            b: 0x5f,
+        },
+    ),
+    (
+        "LightGoldenrod2",
+        Color {
+            r: 0xff,
+            g: 0xd7,
+            b: 0x87,
+        },
+    ),
+    (
+        "NavajoWhite1",
+        Color {
+            r: 0xff,
+            g: 0xd7,
+            b: 0xaf,
+        },
+    ),
+    (
+        "MistyRose1",
+        Color {
+            r: 0xff,
+            g: 0xd7,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Thistle1",
+        Color {
+            r: 0xff,
+            g: 0xd7,
+            b: 0xff,
+        },
+    ),
+    (
+        "Yellow1",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0x00,
+        },
+    ),
+    (
+        "LightGoldenrod1",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0x5f,
+        },
+    ),
+    (
+        "Khaki1",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0x87,
+        },
+    ),
+    (
+        "Wheat1",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0xaf,
+        },
+    ),
+    (
+        "Cornsilk1",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0xd7,
+        },
+    ),
+    (
+        "Grey100",
+        Color {
+            r: 0xff,
+            g: 0xff,
+            b: 0xff,
+        },
+    ),
+    (
+        "Grey3",
+        Color {
+            r: 0x08,
+            g: 0x08,
+            b: 0x08,
+        },
+    ),
+    (
+        "Grey7",
+        Color {
+            r: 0x12,
+            g: 0x12,
+            b: 0x12,
+        },
+    ),
+    (
+        "Grey11",
+        Color {
+            r: 0x1c,
+            g: 0x1c,
+            b: 0x1c,
+        },
+    ),
+    (
+        "Grey15",
+        Color {
+            r: 0x26,
+            g: 0x26,
+            b: 0x26,
+        },
+    ),
+    (
+        "Grey19",
+        Color {
+            r: 0x30,
+            g: 0x30,
+            b: 0x30,
+        },
+    ),
+    (
+        "Grey23",
+        Color {
+            r: 0x3a,
+            g: 0x3a,
+            b: 0x3a,
+        },
+    ),
+    (
+        "Grey27",
+        Color {
+            r: 0x44,
+            g: 0x44,
+            b: 0x44,
+        },
+    ),
+    (
+        "Grey30",
+        Color {
+            r: 0x4e,
+            g: 0x4e,
+            b: 0x4e,
+        },
+    ),
+    (
+        "Grey35",
+        Color {
+            r: 0x58,
+            g: 0x58,
+            b: 0x58,
+        },
+    ),
+    (
+        "Grey39",
+        Color {
+            r: 0x62,
+            g: 0x62,
+            b: 0x62,
+        },
+    ),
+    (
+        "Grey42",
+        Color {
+            r: 0x6c,
+            g: 0x6c,
+            b: 0x6c,
+        },
+    ),
+    (
+        "Grey46",
+        Color {
+            r: 0x76,
+            g: 0x76,
+            b: 0x76,
+        },
+    ),
+    (
+        "Grey50",
+        Color {
+            r: 0x80,
+            g: 0x80,
+            b: 0x80,
+        },
+    ),
+    (
+        "Grey54",
+        Color {
+            r: 0x8a,
+            g: 0x8a,
+            b: 0x8a,
+        },
+    ),
+    (
+        "Grey58",
+        Color {
+            r: 0x94,
+            g: 0x94,
+            b: 0x94,
+        },
+    ),
+    (
+        "Grey62",
+        Color {
+            r: 0x9e,
+            g: 0x9e,
+            b: 0x9e,
+        },
+    ),
+    (
+        "Grey66",
+        Color {
+            r: 0xa8,
+            g: 0xa8,
+            b: 0xa8,
+        },
+    ),
+    (
+        "Grey70",
+        Color {
+            r: 0xb2,
+            g: 0xb2,
+            b: 0xb2,
+        },
+    ),
+    (
+        "Grey74",
+        Color {
+            r: 0xbc,
+            g: 0xbc,
+            b: 0xbc,
+        },
+    ),
+    (
+        "Grey78",
+        Color {
+            r: 0xc6,
+            g: 0xc6,
+            b: 0xc6,
+        },
+    ),
+    (
+        "Grey82",
+        Color {
+            r: 0xd0,
+            g: 0xd0,
+            b: 0xd0,
+        },
+    ),
+    (
+        "Grey85",
+        Color {
+            r: 0xda,
+            g: 0xda,
+            b: 0xda,
+        },
+    ),
+    (
+        "Grey89",
+        Color {
+            r: 0xe4,
+            g: 0xe4,
+            b: 0xe4,
+        },
+    ),
+    (
+        "Grey93",
+        Color {
+            r: 0xee,
+            g: 0xee,
+            b: 0xee,
+        },
+    ),
 ];
 
 pub const VIEWDATA_PALETTE: [Color; 16] = [

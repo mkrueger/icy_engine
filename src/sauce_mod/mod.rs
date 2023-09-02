@@ -134,7 +134,6 @@ impl SauceData {
         let mut use_ice = false;
         let mut use_letter_spacing = false;
         let mut use_aspect_ratio = false;
-        
 
         o += 2;
         o += title.read(&data[o..]);
@@ -195,15 +194,17 @@ impl SauceData {
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
 
                         match t_flags & ANSI_MASK_LETTER_SPACING {
-                            ANSI_LETTER_SPACING_LEGACY |
-                            ANSI_LETTER_SPACING_8PX => use_letter_spacing = false,
+                            ANSI_LETTER_SPACING_LEGACY | ANSI_LETTER_SPACING_8PX => {
+                                use_letter_spacing = false
+                            }
                             ANSI_LETTER_SPACING_9PX => use_letter_spacing = true,
                             _ => {}
                         }
 
                         match t_flags & ANSI_MASK_ASPECT_RATIO {
-                            ANSI_ASPECT_RATIO_SQUARE| 
-                            ANSI_ASPECT_RATIO_LEGACY => use_aspect_ratio = false,
+                            ANSI_ASPECT_RATIO_SQUARE | ANSI_ASPECT_RATIO_LEGACY => {
+                                use_aspect_ratio = false
+                            }
                             ANSI_ASPECT_RATIO_STRETCH => use_aspect_ratio = true,
                             _ => {}
                         }
@@ -426,8 +427,8 @@ const ANSI_LETTER_SPACING_LEGACY: u8 = 0b0000_0000;
 const ANSI_LETTER_SPACING_8PX: u8 = 0b0000_0010;
 const ANSI_LETTER_SPACING_9PX: u8 = 0b0000_0100;
 
-const ANSI_MASK_ASPECT_RATIO: u8   = 0b0001_1000;
-const ANSI_ASPECT_RATIO_LEGACY: u8  = 0b0000_0000;
+const ANSI_MASK_ASPECT_RATIO: u8 = 0b0001_1000;
+const ANSI_ASPECT_RATIO_LEGACY: u8 = 0b0000_0000;
 const ANSI_ASPECT_RATIO_STRETCH: u8 = 0b0000_1000;
 const ANSI_ASPECT_RATIO_SQUARE: u8 = 0b0001_0000;
 

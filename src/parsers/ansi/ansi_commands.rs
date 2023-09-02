@@ -305,7 +305,9 @@ impl Parser {
                 let color = self.parsed_numbers[*i + 2];
                 *i += 3;
                 if (0..=255).contains(&color) {
-                    let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize]);
+                    let color = buf
+                        .palette
+                        .insert_color(XTERM_256_PALETTE[color as usize].1);
                     Ok(color)
                 } else {
                     Err(Box::new(ParserError::UnsupportedEscapeSequence(

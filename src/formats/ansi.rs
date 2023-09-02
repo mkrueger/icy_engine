@@ -248,7 +248,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
 
 fn get_extended_color(buf: &Buffer, color: usize) -> Option<usize> {
     let color = buf.palette.colors[color];
-    (0..crate::XTERM_256_PALETTE.len()).find(|&i| color == crate::XTERM_256_PALETTE[i])
+    (0..crate::XTERM_256_PALETTE.len()).find(|&i| color == crate::XTERM_256_PALETTE[i].1)
 }
 
 fn push_int(result: &mut Vec<u8>, number: usize) {
