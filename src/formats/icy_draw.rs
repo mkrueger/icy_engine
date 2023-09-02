@@ -284,6 +284,7 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
     let mut encoder = png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_compression(png::Compression::Best);
 
     {
         let mut result: Vec<u8> = Vec::new();
