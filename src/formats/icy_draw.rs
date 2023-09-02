@@ -29,6 +29,10 @@ mod constants {
     }
 }
 
+const FLAG_SAUCE_USE_ICE: u32=  0b0001;
+const FLAG_SAUCE_LETTER_SPACING: u32 = 0b0010;
+const FLAG_SAUCE_ASPECT_RATIO: u32 = 0b0100;
+
 /// .
 ///
 /// # Panics
@@ -76,6 +80,14 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
                 o += result.title.read(&bytes[o..]);
                 o += result.author.read(&bytes[o..]);
                 o += result.group.read(&bytes[o..]);
+                let flags = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                o += 4;
+                // ice needed here?
+ //               result.use_ice = flags & FLAG_SAUCE_USE_ICE == FLAG_SAUCE_USE_ICE;
+                result.use_letter_spacing = flags & FLAG_SAUCE_LETTER_SPACING == FLAG_SAUCE_LETTER_SPACING;
+                result.use_aspect_ratio = flags & FLAG_SAUCE_ASPECT_RATIO == FLAG_SAUCE_ASPECT_RATIO;
+
+
                 let mut comments = bytes[o];
                 o += 1;
                 while comments > 0 {
@@ -259,6 +271,21 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         buf.title.append_to(&mut result);
         buf.author.append_to(&mut result);
         buf.group.append_to(&mut result);
+
+        let mut flags = 0;
+        /* TODO ? 
+        if self.use_ice  {
+            flags |= FLAG_SAUCE_USE_ICE;
+        }
+        */
+        if buf.use_letter_spacing  {
+            flags |= FLAG_SAUCE_LETTER_SPACING;
+        }
+        if buf.use_aspect_ratio  {
+            flags |= FLAG_SAUCE_ASPECT_RATIO;
+        }
+        result.extend(u32::to_be_bytes(flags));
+
         if buf.comments.len() > 255 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
