@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, str::FromStr};
 
 use base64::{engine::general_purpose, Engine};
 
@@ -34,7 +34,8 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     let mut decoder = png::StreamingDecoder::new();
     let mut len = 0;
     let mut last_info = 0;
-    loop {
+    let mut is_running = true;
+    while is_running {
         match decoder.update(&bytes[len..], &mut Vec::new()) {
             Ok((b,_)) =>  {
                 len += b;
@@ -56,8 +57,11 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                 continue;
                             }
                         };
-                        println!("read chunk {}", chunk.keyword);
                         match chunk.keyword.as_str() {
+                            "END" => {
+                                is_running = false;
+                                break;
+                            }
                             "ICED" => {
                                 let mut o: usize = 0;
 
@@ -100,27 +104,27 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                     colors -= 1;
                                 }
                             }
-                            "FONT" => {
-                                let mut o: usize = 0;
-                                let mut font_name: SauceString<22, 0> = SauceString::new();
+                            text => {
+                                if let Some(font_slot) = text.strip_prefix("FONT_") {
+                                    let font_slot: usize = font_slot.parse()?;
 
-                                o += font_name.read(&bytes[o..]);
-
-                                let font_slot =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as usize;
-                                o += 4;
-                                let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
-                                o += size;
-                                let data_length = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
-                                o += 4;
-                                let font =
-                                    BitFont::from_bytes(font_name, &bytes[o..(o + data_length as usize)])
-                                        .unwrap();
-                                result.set_font(font_slot, font);
-                            }
-                            layer => {
-                                if !layer.starts_with("LAYER") {
-                                    log::warn!("unsupported chunk {layer}");
+                                    let mut o: usize = 0;
+                                    let mut font_name: SauceString<22, 0> = SauceString::new();
+    
+                                    o += font_name.read(&bytes[o..]);
+    
+                                    let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
+                                    o += size;
+                                    let data_length = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                                    o += 4;
+                                    let font =
+                                        BitFont::from_bytes(font_name, &bytes[o..(o + data_length as usize)])
+                                            .unwrap();
+                                    result.set_font(font_slot, font);
+                                    continue;
+                                }
+                                if !text.starts_with("LAYER_") {
+                                    log::warn!("unsupported chunk {text}");
                                     continue;
                                 }
                                 let mut o: usize = 0;
@@ -220,7 +224,6 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                     }
                     last_info = info.compressed_latin1_text.len();
                 }
-            
             }
             Err(err) => {
                 return Err(Box::new(io::Error::new(
@@ -332,7 +335,7 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
             font_data.extend(v.to_psf2_bytes().unwrap());
 
             encoder.add_ztxt_chunk(
-                "FONT".to_string(),
+                format!("FONT_{k}"),
                 general_purpose::STANDARD.encode(&font_data),
             )?;
         }
@@ -389,6 +392,8 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         let layer_data = general_purpose::STANDARD.encode(&result);
         encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data)?;
     }
+
+    encoder.add_ztxt_chunk("END".to_string(), String::new())?;
 
     if last_line > first_line {
         let mut writer = encoder.write_header().unwrap();
