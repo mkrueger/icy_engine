@@ -780,10 +780,8 @@ impl Buffer {
 
         for y in 0..rect.get_height() {
             for x in 0..rect.get_width() {
-                let x = x + rect.start.x as usize;
-                let y = y + rect.start.y as usize;
 
-                let ch = self.get_char((x, y));
+                let ch = self.get_char((x + rect.start.x as usize, y + rect.start.y as usize));
                 let font = self.get_font(ch.get_font_page()).unwrap();
 
                 let fg = if ch.attribute.is_bold() && ch.attribute.get_foreground() < 8 {

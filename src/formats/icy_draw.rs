@@ -3,24 +3,12 @@ use std::io;
 use base64::{engine::general_purpose, Engine};
 
 use crate::{
-    convert_to_ansi_data, crc, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
+    convert_to_ansi_data, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
     Layer, Position, SauceData, SauceFileType, SauceString, Size,
 };
 
 mod constants {
-    pub const ICD_HEADER: &[u8] = b"iced";
     pub const ICD_VERSION: u16 = 0;
-    pub const ID_SIZE: usize = ICD_HEADER.len() + 1;
-    pub const HEADER_SIZE: usize = 11;
-    pub const CRC32_SIZE: usize = 4;
-
-    pub mod block {
-        pub const END: u8 = 0;
-        pub const SAUCE: u8 = 1;
-        pub const PALETTE: u8 = 2;
-        pub const FONT: u8 = 3;
-        pub const LAYER: u8 = 4;
-    }
 
     pub mod layer {
         pub const IS_VISIBLE: u32 = 0b0000_0001;
@@ -30,10 +18,6 @@ mod constants {
         pub const ALPHA_LOCKED: u32 = 0b0001_0000;
     }
 }
-
-const FLAG_SAUCE_USE_ICE: u32 = 0b0001;
-const FLAG_SAUCE_LETTER_SPACING: u32 = 0b0010;
-const FLAG_SAUCE_ASPECT_RATIO: u32 = 0b0100;
 
 /// .
 ///
@@ -265,6 +249,19 @@ fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
 
 
 const MAX_LINES: usize = 80;
+
+impl Buffer {
+    pub fn is_line_empty(&self, line: usize) -> bool {
+
+        for i in 0..self.get_width() {
+            if !self.get_char((i, line)).is_transparent() {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 /// .
 ///
 /// # Panics
@@ -279,9 +276,19 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
 
     let font_dims = buf.get_font_dimensions();
     let width = buf.get_width() * font_dims.width;
-    let height = buf.get_height().min(MAX_LINES) * font_dims.height;
 
-    let mut encoder = png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
+    let mut first_line = 0;
+    while first_line < buf.get_height() {
+        if !buf.is_line_empty(first_line) {
+            break;
+        }
+        first_line += 1;
+    }
+
+    let last_line = (first_line + MAX_LINES).min(buf.get_line_count().max(buf.get_height()));
+    let height = (last_line - first_line) * font_dims.height;
+
+    let mut encoder: png::Encoder<'_, &mut Vec<u8>> = png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
     encoder.set_compression(png::Compression::Best);
@@ -383,13 +390,15 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data)?;
     }
 
-    let mut writer = encoder.write_header().unwrap();
-    let (_, data) = buf.render_to_rgba(crate::Rectangle {
-        start: Position::new(0, 0),
-        size: Size::new(buf.get_width(), buf.get_height().min(MAX_LINES)),
-    });
-    writer.write_image_data(&data).unwrap();
-    writer.finish().unwrap();
+    if last_line > first_line {
+        let mut writer = encoder.write_header().unwrap();
+        let (_, data) = buf.render_to_rgba(crate::Rectangle {
+            start: Position::new(0, first_line as i32),
+            size: Size::new(buf.get_width(), last_line - first_line),
+        });
+        writer.write_image_data(&data).unwrap();
+        writer.finish().unwrap();
+    }
 
     Ok(result)
 }
