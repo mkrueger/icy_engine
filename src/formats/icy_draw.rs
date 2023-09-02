@@ -1,8 +1,10 @@
 use std::io;
 
+use base64::{engine::general_purpose, Engine};
+
 use crate::{
-    convert_to_ansi_data, crc, parsers, BitFont, Buffer, BufferParser, Caret, Color, Layer,
-    Position, SauceString,
+    convert_to_ansi_data, crc, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
+    Layer, Position, SauceData, SauceFileType, SauceString, Size,
 };
 
 mod constants {
@@ -29,7 +31,7 @@ mod constants {
     }
 }
 
-const FLAG_SAUCE_USE_ICE: u32=  0b0001;
+const FLAG_SAUCE_USE_ICE: u32 = 0b0001;
 const FLAG_SAUCE_LETTER_SPACING: u32 = 0b0010;
 const FLAG_SAUCE_ASPECT_RATIO: u32 = 0b0100;
 
@@ -42,195 +44,214 @@ const FLAG_SAUCE_ASPECT_RATIO: u32 = 0b0100;
 /// # Errors
 ///
 /// This function will return an error if .
-pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> io::Result<bool> {
-    if bytes.len() < constants::ID_SIZE + constants::CRC32_SIZE + constants::HEADER_SIZE {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "File too short"));
-    }
-    if &bytes[0..constants::ICD_HEADER.len()] != constants::ICD_HEADER {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid header"));
-    }
-    let crc32 = u32::from_be_bytes(
-        bytes[constants::ID_SIZE..(constants::ID_SIZE + constants::CRC32_SIZE)]
-            .try_into()
-            .unwrap(),
-    );
-    let mut o = constants::ID_SIZE + constants::CRC32_SIZE;
-    if crc32 != crc::get_crc32(&bytes[o..]) {
-        return Err(io::Error::new(io::ErrorKind::InvalidData, "CRC32 mismatch"));
-    }
+pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     result.layers.clear();
-    o += 2; // skip version
 
-    o += 1; // skip type
-
-    let width: i32 = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
-    o += 4;
-    let height: i32 = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
-    o += 4;
-    result.set_buffer_size((width, height));
-
-    while o < bytes.len() {
-        let block_type = bytes[o];
-        o += 1;
-        match block_type {
-            constants::block::END => {
-                break;
-            }
-            constants::block::SAUCE => {
-                o += result.title.read(&bytes[o..]);
-                o += result.author.read(&bytes[o..]);
-                o += result.group.read(&bytes[o..]);
-                let flags = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
-                o += 4;
-                // ice needed here?
- //               result.use_ice = flags & FLAG_SAUCE_USE_ICE == FLAG_SAUCE_USE_ICE;
-                result.use_letter_spacing = flags & FLAG_SAUCE_LETTER_SPACING == FLAG_SAUCE_LETTER_SPACING;
-                result.use_aspect_ratio = flags & FLAG_SAUCE_ASPECT_RATIO == FLAG_SAUCE_ASPECT_RATIO;
-
-
-                let mut comments = bytes[o];
-                o += 1;
-                while comments > 0 {
-                    let mut comment: SauceString<64, 0> = SauceString::new();
-                    o += comment.read(&bytes[o..]);
-                    result.comments.push(comment);
-                    comments -= 1;
+    let mut decoder = png::StreamingDecoder::new();
+    let mut len = 0;
+    let mut last_info = 0;
+    loop {
+        match decoder.update(&bytes[len..], &mut Vec::new()) {
+            Ok((b,_)) =>  {
+                len += b;
+                if bytes.len() <= len {
+                    break;
                 }
-            }
-            constants::block::PALETTE => {
-                let mut colors = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
-                result.palette.colors.clear();
-                o += 4;
-                while colors > 0 {
-                    let r = bytes[o];
-                    o += 1;
-                    let g = bytes[o];
-                    o += 1;
-                    let b = bytes[o];
-                    o += 2; // skip alpha
+                if let Some(info) = decoder.info() {
+                    for i in last_info..info.compressed_latin1_text.len() {
+                        let chunk = &info.compressed_latin1_text[i];
+                        let Ok(text) = chunk.get_text() else {
+                            log::error!("error decoding iced chunk: {}", chunk.keyword);
+                            continue;
+                        };
 
-                    result.palette.colors.push(Color::new(r, g, b));
-                    colors -= 1;
-                }
-            }
-            constants::block::FONT => {
-                let mut font_name: SauceString<22, 0> = SauceString::new();
-                o += font_name.read(&bytes[o..]);
+                        let bytes = match general_purpose::STANDARD.decode(text) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                log::warn!("error decoding iced chunk: {e}");
+                                continue;
+                            }
+                        };
+                        println!("read chunk {}", chunk.keyword);
+                        match chunk.keyword.as_str() {
+                            "ICED" => {
+                                let mut o: usize = 0;
 
-                let font_slot = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as usize;
-                o += 4;
-                let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
-                o += size;
-                let data_length = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
-                o += 4;
-                let font =
-                    BitFont::from_bytes(font_name, &bytes[o..(o + data_length as usize)]).unwrap();
-                result.set_font(font_slot, font);
-            }
-            constants::block::LAYER => {
-                let (title, size) = read_utf8_encoded_string(&bytes[o..]);
-                o += size;
+                                o += 2; // skip version
 
-                let mut layer = Layer::new(title, (0, 0));
+                                o += 1; // skip type
 
-                let mode = bytes[o];
+                                let width: i32 =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                o += 4;
+                                let height: i32 =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                result.set_buffer_size((width, height));
+                            }
+                            "SAUCE" => {
+                                let sauce = SauceData::extract(&bytes).unwrap();
+                                result.title = sauce.title;
+                                result.author = sauce.author;
+                                result.group = sauce.group;
 
-                layer.mode = match mode {
-                    0 => crate::Mode::Normal,
-                    1 => crate::Mode::Chars,
-                    2 => crate::Mode::Attributes,
-                    _ => {
-                        return Err(io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!("Unsupported layer mode {mode}"),
-                        ));
+                                result.use_letter_spacing = sauce.use_letter_spacing;
+                                result.use_aspect_ratio = sauce.use_aspect_ratio;
+                                for comment in sauce.comments {
+                                    result.comments.push(comment);
+                                }
+                            }
+                            "PALETTE" => {
+                                result.palette.colors.clear();
+                                let mut colors = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+                                let mut o: usize = 4;
+                                while colors > 0 {
+                                    let r = bytes[o];
+                                    o += 1;
+                                    let g = bytes[o];
+                                    o += 1;
+                                    let b = bytes[o];
+                                    o += 2; // skip alpha
+
+                                    result.palette.colors.push(Color::new(r, g, b));
+                                    colors -= 1;
+                                }
+                            }
+                            "FONT" => {
+                                let mut o: usize = 0;
+                                let mut font_name: SauceString<22, 0> = SauceString::new();
+
+                                o += font_name.read(&bytes[o..]);
+
+                                let font_slot =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as usize;
+                                o += 4;
+                                let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
+                                o += size;
+                                let data_length = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                                o += 4;
+                                let font =
+                                    BitFont::from_bytes(font_name, &bytes[o..(o + data_length as usize)])
+                                        .unwrap();
+                                result.set_font(font_slot, font);
+                            }
+                            layer => {
+                                if !layer.starts_with("LAYER") {
+                                    log::warn!("unsupported chunk {layer}");
+                                    continue;
+                                }
+                                let mut o: usize = 0;
+
+                                let (title, size) = read_utf8_encoded_string(&bytes[o..]);
+                                o += size;
+
+                                let mut layer = Layer::new(title, (0, 0));
+
+                                let mode = bytes[o];
+
+                                layer.mode = match mode {
+                                    0 => crate::Mode::Normal,
+                                    1 => crate::Mode::Chars,
+                                    2 => crate::Mode::Attributes,
+                                    _ => {
+                                        return Err(Box::new(io::Error::new(
+                                            io::ErrorKind::InvalidData,
+                                            format!("Unsupported layer mode {mode}"),
+                                        )));
+                                    }
+                                };
+                                o += 1;
+
+                                // read layer color
+                                let red = bytes[o];
+                                o += 1;
+                                let green = bytes[o];
+                                o += 1;
+                                let blue = bytes[o];
+                                o += 1;
+                                let alpha = bytes[o];
+                                o += 1;
+                                if alpha != 0 {
+                                    layer.color = Some(Color::new(red, green, blue));
+                                }
+
+                                let flags = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                                o += 4;
+                                layer.is_visible =
+                                    (flags & constants::layer::IS_VISIBLE) == constants::layer::IS_VISIBLE;
+                                layer.is_locked =
+                                    (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
+                                layer.is_position_locked =
+                                    (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
+
+                                layer.has_alpha_channel =
+                                    (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
+
+                                layer.is_alpha_channel_locked = (flags & constants::layer::ALPHA_LOCKED)
+                                    == constants::layer::ALPHA_LOCKED;
+
+                                let x_offset: i32 =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                o += 4;
+                                let y_offset: i32 =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                o += 4;
+                                layer.offset = Position::new(x_offset, y_offset);
+
+                                let width: i32 =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                o += 4;
+                                let height: i32 =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                o += 4;
+
+                                layer.size = (width, height).into();
+
+                                let length =
+                                    u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap()) as usize;
+                                o += 8;
+                                let mut p = parsers::ansi::Parser::default();
+                                let mut caret = Caret::default();
+                                result.layers.push(layer);
+                                if bytes.len() < o + length {
+                                    return Err(Box::new(io::Error::new(
+                                        io::ErrorKind::InvalidData,
+                                        format!(
+                                            "data length out ouf bounds {} data lenth: {}",
+                                            o + length,
+                                            bytes.len()
+                                        ),
+                                    )));
+                                }
+                                (o..(o + length)).for_each(|i| {
+                                    let b = bytes[i];
+                                    let _ = p.print_char(
+                                        result,
+                                        result.layers.len().saturating_sub(1),
+                                        &mut caret,
+                                        char::from_u32(b as u32).unwrap(),
+                                    );
+                                });
+                            }
+                        }
                     }
-                };
-                o += 1;
-
-                // read layer color
-                let red = bytes[o];
-                o += 1;
-                let green = bytes[o];
-                o += 1;
-                let blue = bytes[o];
-                o += 1;
-                let alpha = bytes[o];
-                o += 1;
-                if alpha != 0 {
-                    layer.color = Some(Color::new(red, green, blue));
+                    last_info = info.compressed_latin1_text.len();
                 }
-
-                let flags = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap());
-                o += 4;
-                layer.is_visible =
-                    (flags & constants::layer::IS_VISIBLE) == constants::layer::IS_VISIBLE;
-                layer.is_locked =
-                    (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
-                layer.is_position_locked =
-                    (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
-
-                layer.has_alpha_channel =
-                    (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
-
-                layer.is_alpha_channel_locked =
-                    (flags & constants::layer::ALPHA_LOCKED) == constants::layer::ALPHA_LOCKED;
-
-                let x_offset: i32 =
-                    u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
-                o += 4;
-                let y_offset: i32 =
-                    u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
-                o += 4;
-                layer.offset = Position::new(x_offset, y_offset);
-
-                let width: i32 = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
-                o += 4;
-                let height: i32 = u32::from_be_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
-                o += 4;
-
-                layer.size = (width, height).into();
-
-                let length = u64::from_be_bytes(bytes[o..(o + 8)].try_into().unwrap()) as usize;
-                o += 8;
-                let mut p = parsers::ansi::Parser::default();
-                let mut caret = Caret::default();
-                result.layers.push(layer);
-                if bytes.len() < o + length {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!(
-                            "data length out ouf bounds {} data lenth: {}",
-                            o + length,
-                            bytes.len()
-                        ),
-                    ));
-                }
-                (o..(o + length)).for_each(|i| {
-                    let b = bytes[i];
-                    let _ = p.print_char(
-                        result,
-                        result.layers.len().saturating_sub(1),
-                        &mut caret,
-                        char::from_u32(b as u32).unwrap(),
-                    );
-                });
-
-                o += length;
+            
             }
-            _ => {
-                return Err(io::Error::new(
+            Err(err) => {
+                return Err(Box::new(io::Error::new(
                     io::ErrorKind::InvalidData,
-                    format!("Unsupported block type {block_type}"),
-                ));
+                    format!("error while decoding png: {err}"),
+                )));
             }
         }
     }
+
     Ok(true)
 }
 
 fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
-    let size = u32::from_be_bytes(data[0..4].try_into().unwrap()) as usize;
+    let size = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
     (
         unsafe { String::from_utf8_unchecked(data[4..(4 + size)].to_vec()) },
         size + 4,
@@ -238,10 +259,12 @@ fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
 }
 
 fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
-    data.extend(u32::to_be_bytes(s.len() as u32));
+    data.extend(u32::to_le_bytes(s.len() as u32));
     data.extend(s.as_bytes());
 }
 
+
+const MAX_LINES: usize = 80;
 /// .
 ///
 /// # Panics
@@ -252,75 +275,64 @@ fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
 ///
 /// This function will return an error if .
 pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
-    let mut result = constants::ICD_HEADER.to_vec();
-    result.push(0x1A); // CP/M EOF char (^Z) - used by DOS as well
+    let mut result = Vec::new();
 
-    result.push(0); // CRC32 will be calculated at the end
-    result.push(0);
-    result.push(0);
-    result.push(0);
+    let font_dims = buf.get_font_dimensions();
+    let width = buf.get_width() * font_dims.width;
+    let height = buf.get_height().min(MAX_LINES) * font_dims.height;
 
-    result.push(constants::ICD_VERSION as u8);
-    result.push((constants::ICD_VERSION >> 8) as u8);
-    result.push(0);
-    result.extend(u32::to_be_bytes(buf.get_width() as u32));
-    result.extend(u32::to_be_bytes(buf.get_line_count() as u32));
+    let mut encoder = png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+
+    {
+        let mut result: Vec<u8> = Vec::new();
+        result.push(constants::ICD_VERSION as u8);
+        result.push((constants::ICD_VERSION >> 8) as u8);
+        result.push(0);
+        result.extend(u32::to_le_bytes(buf.get_width() as u32));
+        result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
+        let sauce_data = general_purpose::STANDARD.encode(&result);
+        encoder.add_ztxt_chunk("ICED".to_string(), sauce_data)?;
+    }
 
     if buf.has_sauce_relevant_data() {
-        result.push(constants::block::SAUCE);
-        buf.title.append_to(&mut result);
-        buf.author.append_to(&mut result);
-        buf.group.append_to(&mut result);
-
-        let mut flags = 0;
-        /* TODO ? 
-        if self.use_ice  {
-            flags |= FLAG_SAUCE_USE_ICE;
-        }
-        */
-        if buf.use_letter_spacing  {
-            flags |= FLAG_SAUCE_LETTER_SPACING;
-        }
-        if buf.use_aspect_ratio  {
-            flags |= FLAG_SAUCE_ASPECT_RATIO;
-        }
-        result.extend(u32::to_be_bytes(flags));
-
-        if buf.comments.len() > 255 {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "too many comments. Maximum of 255 are supported",
-            ));
-        }
-        result.push(buf.comments.len() as u8);
-        for cmt in &buf.comments {
-            cmt.append_to(&mut result);
-        }
+        let mut sauce_vec: Vec<u8> = Vec::new();
+        buf.write_sauce_info(SauceFileType::Ansi, &mut sauce_vec)?;
+        let sauce_data = general_purpose::STANDARD.encode(&sauce_vec);
+        encoder.add_ztxt_chunk("SAUCE".to_string(), sauce_data)?;
     }
 
     if !buf.palette.is_default() {
-        result.push(constants::block::PALETTE);
-        result.extend(u32::to_be_bytes(buf.palette.len()));
+        let mut pal_data: Vec<u8> = Vec::new();
+        pal_data.extend(u32::to_le_bytes(buf.palette.colors.len() as u32));
         for col in &buf.palette.colors {
             let rgb = col.get_rgb();
-            result.push(rgb.0);
-            result.push(rgb.1);
-            result.push(rgb.2);
-            result.push(0xFF); // so far only solid colors are supported
+            pal_data.push(rgb.0);
+            pal_data.push(rgb.1);
+            pal_data.push(rgb.2);
+            pal_data.push(0xFF); // so far only solid colors are supported
         }
+        let sauce_data = general_purpose::STANDARD.encode(&pal_data);
+        encoder.add_ztxt_chunk("PALETTE".to_string(), sauce_data)?;
     }
 
     for (k, v) in buf.font_iter() {
         if k >= &100 {
-            result.push(constants::block::FONT);
-            v.name.append_to(&mut result);
-            result.extend(v.to_psf2_bytes().unwrap());
+            let mut font_data: Vec<u8> = Vec::new();
+            v.name.append_to(&mut font_data);
+            font_data.extend(v.to_psf2_bytes().unwrap());
+
+            encoder.add_ztxt_chunk(
+                "FONT".to_string(),
+                general_purpose::STANDARD.encode(&font_data),
+            )?;
         }
     }
-    for (i, layer) in buf.layers.iter().enumerate() {
-        result.push(constants::block::LAYER);
-        write_utf8_encoded_string(&mut result, &layer.title);
 
+    for (i, layer) in buf.layers.iter().enumerate() {
+        let mut result: Vec<u8> = Vec::new();
+        write_utf8_encoded_string(&mut result, &layer.title);
         let mode = match layer.mode {
             crate::Mode::Normal => 0,
             crate::Mode::Chars => 1,
@@ -354,24 +366,29 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         if layer.is_alpha_channel_locked {
             flags |= constants::layer::ALPHA_LOCKED;
         }
-        result.extend(u32::to_be_bytes(flags));
+        result.extend(u32::to_le_bytes(flags));
 
-        result.extend(i32::to_be_bytes(layer.get_offset().x));
-        result.extend(i32::to_be_bytes(layer.get_offset().y));
+        result.extend(i32::to_le_bytes(layer.get_offset().x));
+        result.extend(i32::to_le_bytes(layer.get_offset().y));
 
-        result.extend(i32::to_be_bytes(layer.size.width as i32));
-        result.extend(i32::to_be_bytes(layer.size.height as i32));
+        result.extend(i32::to_le_bytes(layer.size.width as i32));
+        result.extend(i32::to_le_bytes(layer.size.height as i32));
 
         let data = convert_to_ansi_data(buf, i, false);
-        result.extend(u64::to_be_bytes(data.len() as u64));
+        result.extend(u64::to_le_bytes(data.len() as u64));
         result.extend(data);
+
+        let layer_data = general_purpose::STANDARD.encode(&result);
+        encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data)?;
     }
 
-    result.push(constants::block::END);
+    let mut writer = encoder.write_header().unwrap();
+    let (_, data) = buf.render_to_rgba(crate::Rectangle {
+        start: Position::new(0, 0),
+        size: Size::new(buf.get_width(), buf.get_height().min(MAX_LINES)),
+    });
+    writer.write_image_data(&data).unwrap();
+    writer.finish().unwrap();
 
-    let crc = u32::to_be_bytes(crc::get_crc32(
-        &result[(constants::ID_SIZE + constants::CRC32_SIZE)..],
-    ));
-    result[constants::ID_SIZE..(constants::ID_SIZE + crc.len())].clone_from_slice(&crc[..]);
     Ok(result)
 }

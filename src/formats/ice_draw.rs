@@ -168,7 +168,7 @@ pub fn convert_to_idf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     // palette
     result.extend(buf.palette.to_16color_vec());
     if options.save_sauce {
-        buf.write_sauce_info(&crate::SauceFileType::Bin, &mut result)?;
+        buf.write_sauce_info(crate::SauceFileType::Bin, &mut result)?;
     }
     Ok(result)
 }

@@ -102,7 +102,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         pos.y += 1;
     }
     if options.save_sauce {
-        buf.write_sauce_info(&crate::SauceFileType::Avatar, &mut result)?;
+        buf.write_sauce_info(crate::SauceFileType::Avatar, &mut result)?;
     }
     Ok(result)
 }

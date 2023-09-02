@@ -8,8 +8,8 @@ use std::{
 };
 
 use crate::{
-    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, SauceData, Sixel, TerminalState,
-    UPosition,
+    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, Rectangle, SauceData, Sixel,
+    TerminalState, UPosition,
 };
 
 use super::{
@@ -768,6 +768,56 @@ impl Buffer {
     pub fn set_height_for_pos(&mut self, pos: impl Into<UPosition>) {
         let pos = pos.into();
         self.set_buffer_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
+    }
+
+    pub fn render_to_rgba(&self, rect: Rectangle) -> (Size, Vec<u8>) {
+        let font_size = self.get_font(0).unwrap().size;
+
+        let px_width = rect.get_width() * font_size.width;
+        let px_height = rect.get_height() * font_size.height;
+        let line_bytes = px_width * 4;
+        let mut pixels = vec![0; line_bytes * px_height];
+
+        for y in 0..rect.get_height() {
+            for x in 0..rect.get_width() {
+                let x = x + rect.start.x as usize;
+                let y = y + rect.start.y as usize;
+
+                let ch = self.get_char((x, y));
+                let font = self.get_font(ch.get_font_page()).unwrap();
+
+                let fg = if ch.attribute.is_bold() && ch.attribute.get_foreground() < 8 {
+                    ch.attribute.get_foreground() + 8
+                } else {
+                    ch.attribute.get_foreground()
+                };
+
+                let (f_r, f_g, f_b) = self.palette.colors[fg as usize].get_rgb();
+                let (b_r, b_g, b_b) =
+                    self.palette.colors[ch.attribute.get_background() as usize].get_rgb();
+
+                if let Some(glyph) = font.get_glyph(ch.ch) {
+                    for cy in 0..font_size.height {
+                        for cx in 0..font_size.width {
+                            let offset = (x * font_size.width + cx) * 4
+                                + (y * font_size.height + cy) * line_bytes;
+                            if glyph.data[cy] & (128 >> cx) == 0 {
+                                pixels[offset] = b_r;
+                                pixels[offset + 1] = b_g;
+                                pixels[offset + 2] = b_b;
+                            } else {
+                                pixels[offset] = f_r;
+                                pixels[offset + 1] = f_g;
+                                pixels[offset + 2] = f_b;
+                            }
+                            pixels[offset + 3] = 0xFF;
+                        }
+                    }
+                }
+            }
+        }
+
+        (Size::new(px_width, px_height), pixels)
     }
 }
 

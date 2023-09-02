@@ -241,7 +241,7 @@ pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Ve
     result.extend(convert_to_ansi_data(buf, 0, options.modern_terminal_output));
 
     if options.save_sauce {
-        buf.write_sauce_info(&crate::SauceFileType::Ansi, &mut result)?;
+        buf.write_sauce_info(crate::SauceFileType::Ansi, &mut result)?;
     }
     Ok(result)
 }

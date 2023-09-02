@@ -60,7 +60,7 @@ pub fn convert_to_binary(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<
         }
     }
     if options.save_sauce {
-        buf.write_sauce_info(&crate::SauceFileType::Bin, &mut result)?;
+        buf.write_sauce_info(crate::SauceFileType::Bin, &mut result)?;
     }
     Ok(result)
 }

@@ -205,4 +205,12 @@ impl Rectangle {
     pub fn contains_rect(&self, other: &Rectangle) -> bool {
         self.contains_pt(other.start) && self.contains_pt(other.lower_right())
     }
+
+    fn get_width(&self) -> usize {
+        self.size.width
+    }
+
+    fn get_height(&self) -> usize {
+        self.size.height
+    }
 }

@@ -446,7 +446,7 @@ impl Buffer {
     /// This function will return an error if .
     pub fn write_sauce_info(
         &self,
-        sauce_file_type: &SauceFileType,
+        sauce_file_type: SauceFileType,
         vec: &mut Vec<u8>,
     ) -> io::Result<bool> {
         vec.push(0x1A); // EOF Char.

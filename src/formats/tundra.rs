@@ -225,7 +225,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     }
 
     if options.save_sauce {
-        buf.write_sauce_info(&crate::SauceFileType::TundraDraw, &mut result)?;
+        buf.write_sauce_info(crate::SauceFileType::TundraDraw, &mut result)?;
     }
     Ok(result)
 }
