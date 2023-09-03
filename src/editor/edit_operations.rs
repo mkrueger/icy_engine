@@ -1,11 +1,18 @@
 #![allow(clippy::missing_errors_doc)]
 
-use crate::{ EngineResult,   AttributedChar, UPosition};
+use crate::{AttributedChar, EngineResult, UPosition};
 
-use super::{EditState, undo_operations::{UndoSetChar, UndoSwapChar}};
+use super::{
+    undo_operations::{UndoSetChar, UndoSwapChar},
+    EditState,
+};
 
 impl EditState {
-    pub fn set_char(&mut self, pos: impl Into<UPosition>, attributed_char: AttributedChar) -> EngineResult<()> {
+    pub fn set_char(
+        &mut self,
+        pos: impl Into<UPosition>,
+        attributed_char: AttributedChar,
+    ) -> EngineResult<()> {
         let pos = pos.into();
         self.redo_stack.clear();
         let old = self.buffer.layers[self.current_layer].get_char(pos);
@@ -19,16 +26,16 @@ impl EditState {
         Ok(())
     }
 
-    pub fn swap_char(&mut self, pos1: impl Into<UPosition>, pos2: impl Into<UPosition>) -> EngineResult<()> {
+    pub fn swap_char(
+        &mut self,
+        pos1: impl Into<UPosition>,
+        pos2: impl Into<UPosition>,
+    ) -> EngineResult<()> {
         let pos1 = pos1.into();
         let pos2 = pos2.into();
-        let layer =self.current_layer;
+        let layer = self.current_layer;
         self.get_buffer_mut().layers[layer].swap_char(pos1, pos2);
-        self.push_undo(Box::new(UndoSwapChar {
-            layer,
-            pos1,
-            pos2,
-        }));
+        self.push_undo(Box::new(UndoSwapChar { layer, pos1, pos2 }));
         Ok(())
     }
 }

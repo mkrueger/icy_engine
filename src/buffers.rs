@@ -247,7 +247,10 @@ impl Buffer {
             font_table,
             is_font_table_dirty: false,
             overlay_layer: None,
-            layers: vec![Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), size)],
+            layers: vec![Layer::new(
+                fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
+                size,
+            )],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
             // undo_stack: Vec::new(),
             // redo_stack: Vec::new()

@@ -1,9 +1,9 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{ EngineResult, Layer, Position};
+use crate::{EngineResult, Layer, Position};
 
-use super::{EditState, undo_operations, UndoOperation};
+use super::{undo_operations, EditState, UndoOperation};
 
 impl EditState {
     pub fn add_new_layer(&mut self, layer: usize) -> EngineResult<()> {
@@ -45,13 +45,17 @@ impl EditState {
         let mut op = undo_operations::LowerLayer::new(layer);
         op.redo(self)?;
         self.push_undo(Box::new(op));
-        self.current_layer =  layer - 1;
+        self.current_layer = layer - 1;
         Ok(())
     }
 
     pub fn duplicate_layer(&mut self, layer: usize) -> EngineResult<()> {
         let mut new_layer = self.buffer.layers[layer].clone();
-        new_layer.title = fl!(crate::LANGUAGE_LOADER, "layer-duplicate-name", name = new_layer.title);
+        new_layer.title = fl!(
+            crate::LANGUAGE_LOADER,
+            "layer-duplicate-name",
+            name = new_layer.title
+        );
         let mut op = undo_operations::AddLayer::new(layer, new_layer);
         op.redo(self)?;
         self.push_undo(Box::new(op));
@@ -65,7 +69,7 @@ impl EditState {
 
         let mut merge_layer = self.buffer.layers[layer - 1].clone();
         let cur_layer = &self.buffer.layers[layer];
-        
+
         let position_delta = cur_layer.get_offset() - merge_layer.get_offset();
 
         for y in 0..cur_layer.get_height() {
@@ -73,14 +77,17 @@ impl EditState {
                 let ch = cur_layer.get_char((x, y));
                 if ch.is_visible() {
                     let pos = Position::new(x as i32, y as i32) - position_delta;
-                    if 0 <= pos.x && pos.x < merge_layer.get_width() as i32 && 
-                       0 <= pos.y && pos.y < merge_layer.get_height() as i32 {
-                        merge_layer.set_char(pos , ch);
+                    if 0 <= pos.x
+                        && pos.x < merge_layer.get_width() as i32
+                        && 0 <= pos.y
+                        && pos.y < merge_layer.get_height() as i32
+                    {
+                        merge_layer.set_char(pos, ch);
                     }
                 }
             }
         }
-        
+
         let mut op = undo_operations::MergeLayerDown::new(layer, merge_layer);
         op.redo(self)?;
         self.push_undo(Box::new(op));
@@ -93,7 +100,6 @@ impl EditState {
         self.push_undo(Box::new(op));
         Ok(())
     }
-
 }
 
 #[cfg(test)]

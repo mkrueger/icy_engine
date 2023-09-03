@@ -38,6 +38,23 @@ impl Display for Glyph {
     }
 }
 
+impl Glyph {
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    pub fn from_clipbard_data(data: &[u8]) -> (Size, Self) {
+        let width = u16::from_le_bytes(data[0..2].try_into().unwrap());
+        let height = u16::from_le_bytes(data[2..4].try_into().unwrap());
+        let mut glyph = Glyph {
+            data: vec![0; height as usize],
+        };
+        glyph.data.copy_from_slice(&data[4..]);
+        ((width, height).into(), glyph)
+    }
+}
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct BitFont {
@@ -96,6 +113,23 @@ impl BitFont {
             }
             &ALL_FONTS
         }
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    pub fn get_clipboard_data(&self, ch: char) -> Option<Vec<u8>> {
+        let Some(glyph) = self.get_glyph(ch) else {
+            return None;
+        };
+
+        let mut data = Vec::new();
+        data.extend_from_slice(&u16::to_le_bytes(self.size.width as u16));
+        data.extend_from_slice(&u16::to_le_bytes(self.size.height as u16));
+        data.extend_from_slice(&glyph.data);
+        Some(data)
     }
 
     pub fn font_type(&self) -> BitFontType {

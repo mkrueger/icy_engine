@@ -2,7 +2,7 @@ use std::mem;
 
 use i18n_embed_fl::fl;
 
-use crate::{Layer, EngineResult, UPosition, AttributedChar};
+use crate::{AttributedChar, EngineResult, Layer, UPosition};
 
 use super::{EditState, UndoOperation};
 
@@ -36,7 +36,6 @@ impl UndoOperation for AtomicUndo {
         Ok(())
     }
 }
-
 
 pub struct UndoSetChar {
     pub pos: UPosition,
@@ -100,30 +99,35 @@ impl UndoOperation for ClearLayerOperation {
     fn get_description(&self) -> String {
         fl!(crate::LANGUAGE_LOADER, "undo-clear-layer")
     }
- 
+
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        mem::swap(&mut self.lines, &mut edit_state.buffer.layers[self.layer_num].lines);
+        mem::swap(
+            &mut self.lines,
+            &mut edit_state.buffer.layers[self.layer_num].lines,
+        );
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        mem::swap(&mut self.lines, &mut edit_state.buffer.layers[self.layer_num].lines);
+        mem::swap(
+            &mut self.lines,
+            &mut edit_state.buffer.layers[self.layer_num].lines,
+        );
         Ok(())
     }
 }
 
-
 #[derive(Default)]
 pub struct AddLayer {
     index: usize,
-    layer: Option<Layer>
+    layer: Option<Layer>,
 }
 
 impl AddLayer {
     pub(crate) fn new(index: usize, new_layer: Layer) -> Self {
         Self {
             index,
-            layer: Some(new_layer)
+            layer: Some(new_layer),
         }
     }
 }
@@ -149,14 +153,14 @@ impl UndoOperation for AddLayer {
 #[derive(Default)]
 pub struct RemoveLayer {
     layer_index: usize,
-    layer: Option<Layer>
+    layer: Option<Layer>,
 }
 
 impl RemoveLayer {
     pub fn new(layer_index: usize) -> Self {
         Self {
             layer_index,
-            layer: None
+            layer: None,
         }
     }
 }
@@ -187,9 +191,7 @@ pub struct RaiseLayer {
 
 impl RaiseLayer {
     pub fn new(layer_index: usize) -> Self {
-        Self {
-            layer_index,
-        }
+        Self { layer_index }
     }
 }
 
@@ -199,12 +201,18 @@ impl UndoOperation for RaiseLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers.swap(self.layer_index, self.layer_index + 1);
+        edit_state
+            .buffer
+            .layers
+            .swap(self.layer_index, self.layer_index + 1);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers.swap(self.layer_index, self.layer_index + 1);
+        edit_state
+            .buffer
+            .layers
+            .swap(self.layer_index, self.layer_index + 1);
         Ok(())
     }
 }
@@ -216,9 +224,7 @@ pub struct LowerLayer {
 
 impl LowerLayer {
     pub fn new(layer_index: usize) -> Self {
-        Self {
-            layer_index,
-        }
+        Self { layer_index }
     }
 }
 
@@ -228,12 +234,18 @@ impl UndoOperation for LowerLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers.swap(self.layer_index, self.layer_index - 1);
+        edit_state
+            .buffer
+            .layers
+            .swap(self.layer_index, self.layer_index - 1);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers.swap(self.layer_index, self.layer_index - 1);
+        edit_state
+            .buffer
+            .layers
+            .swap(self.layer_index, self.layer_index - 1);
         Ok(())
     }
 }
@@ -242,7 +254,7 @@ impl UndoOperation for LowerLayer {
 pub struct MergeLayerDown {
     index: usize,
     merged_layer: Option<Layer>,
-    orig_layers: Option<Vec<Layer>>
+    orig_layers: Option<Vec<Layer>>,
 }
 
 impl MergeLayerDown {
@@ -250,7 +262,7 @@ impl MergeLayerDown {
         Self {
             index,
             merged_layer: Some(merged_layer),
-            orig_layers: None
+            orig_layers: None,
         }
     }
 }
@@ -263,7 +275,7 @@ impl UndoOperation for MergeLayerDown {
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(mut orig_layers) = self.orig_layers.take() {
             while let Some(layer) = orig_layers.pop() {
-                edit_state.buffer.layers.insert(self.index - 1 , layer);
+                edit_state.buffer.layers.insert(self.index - 1, layer);
             }
             self.merged_layer = Some(edit_state.buffer.layers.remove(self.index + 1));
         }
@@ -272,8 +284,14 @@ impl UndoOperation for MergeLayerDown {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = self.merged_layer.take() {
-            self.orig_layers = Some(edit_state.buffer.layers.drain((self.index - 1)..=self.index).collect());
-            edit_state.buffer.layers.insert(self.index - 1 ,layer);
+            self.orig_layers = Some(
+                edit_state
+                    .buffer
+                    .layers
+                    .drain((self.index - 1)..=self.index)
+                    .collect(),
+            );
+            edit_state.buffer.layers.insert(self.index - 1, layer);
         }
         Ok(())
     }
@@ -286,9 +304,7 @@ pub struct ToggleLayerVisibility {
 
 impl ToggleLayerVisibility {
     pub(crate) fn new(index: usize) -> Self {
-        Self {
-            index
-        }
+        Self { index }
     }
 }
 
@@ -298,14 +314,14 @@ impl UndoOperation for ToggleLayerVisibility {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].is_visible = !edit_state.buffer.layers[self.index].is_visible;
+        edit_state.buffer.layers[self.index].is_visible =
+            !edit_state.buffer.layers[self.index].is_visible;
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].is_visible = !edit_state.buffer.layers[self.index].is_visible;
+        edit_state.buffer.layers[self.index].is_visible =
+            !edit_state.buffer.layers[self.index].is_visible;
         Ok(())
     }
 }
-
-

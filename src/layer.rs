@@ -259,7 +259,10 @@ mod tests {
 
     #[test]
     fn test_insert_line() {
-        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (80, 0));
+        let mut layer = Layer::new(
+            fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
+            (80, 0),
+        );
         let mut line = Line::new();
         line.chars
             .push(AttributedChar::new('a', TextAttribute::default()));

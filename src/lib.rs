@@ -68,7 +68,9 @@ pub use url_scanner::*;
 
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
-pub mod editor; 
+pub mod editor;
+
+pub mod util;
 
 use i18n_embed::{
     fluent::{fluent_language_loader, FluentLanguageLoader},
