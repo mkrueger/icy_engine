@@ -13,6 +13,6 @@ pub trait UndoState {
 pub trait UndoOperation: Send {
     fn get_description(&self) -> String;
 
-    fn undo(&self, edit_state: &mut EditState);
-    fn redo(&self, edit_state: &mut EditState);
+    fn undo(&mut self, edit_state: &mut EditState);
+    fn redo(&mut self, edit_state: &mut EditState);
 }

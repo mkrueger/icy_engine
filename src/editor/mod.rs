@@ -183,7 +183,7 @@ impl UndoState for EditState {
     }
 
     fn undo(&mut self) {
-        if let Some(op) = self.undo_stack.pop() {
+        if let Some(mut op) = self.undo_stack.pop() {
             op.undo(self);
             self.redo_stack.push(op);
         }
@@ -198,7 +198,7 @@ impl UndoState for EditState {
     }
 
     fn redo(&mut self) {
-        if let Some(op) = self.redo_stack.pop() {
+        if let Some(mut op) = self.redo_stack.pop() {
             op.redo(self);
             self.undo_stack.push(op);
         }
