@@ -33,7 +33,7 @@ pub enum CallbackAction {
     ResizeTerminal(usize, usize),
 }
 
-pub trait BufferParser {
+pub trait BufferParser: Send {
     fn convert_from_unicode(&self, ch: char, font_page: usize) -> char;
     fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char;
 

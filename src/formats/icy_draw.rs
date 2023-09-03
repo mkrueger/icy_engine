@@ -1,4 +1,4 @@
-use std::{io, str::FromStr};
+use std::io;
 
 use base64::{engine::general_purpose, Engine};
 
@@ -37,7 +37,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     let mut is_running = true;
     while is_running {
         match decoder.update(&bytes[len..], &mut Vec::new()) {
-            Ok((b,_)) =>  {
+            Ok((b, _)) => {
                 len += b;
                 if bytes.len() <= len {
                     break;
@@ -70,10 +70,12 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                 o += 1; // skip type
 
                                 let width: i32 =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                        as i32;
                                 o += 4;
                                 let height: i32 =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                        as i32;
                                 result.set_buffer_size((width, height));
                             }
                             "SAUCE" => {
@@ -90,7 +92,8 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                             }
                             "PALETTE" => {
                                 result.palette.colors.clear();
-                                let mut colors = u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+                                let mut colors =
+                                    u32::from_le_bytes(bytes[0..4].try_into().unwrap());
                                 let mut o: usize = 4;
                                 while colors > 0 {
                                     let r = bytes[o];
@@ -110,16 +113,19 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
 
                                     let mut o: usize = 0;
                                     let mut font_name: SauceString<22, 0> = SauceString::new();
-    
+
                                     o += font_name.read(&bytes[o..]);
-    
+
                                     let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
                                     o += size;
-                                    let data_length = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                                    let data_length =
+                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
                                     o += 4;
-                                    let font =
-                                        BitFont::from_bytes(font_name, &bytes[o..(o + data_length as usize)])
-                                            .unwrap();
+                                    let font = BitFont::from_bytes(
+                                        font_name,
+                                        &bytes[o..(o + data_length as usize)],
+                                    )
+                                    .unwrap();
                                     result.set_font(font_slot, font);
                                     continue;
                                 }
@@ -162,40 +168,47 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                     layer.color = Some(Color::new(red, green, blue));
                                 }
 
-                                let flags = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                                let flags =
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
                                 o += 4;
-                                layer.is_visible =
-                                    (flags & constants::layer::IS_VISIBLE) == constants::layer::IS_VISIBLE;
-                                layer.is_locked =
-                                    (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
-                                layer.is_position_locked =
-                                    (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
+                                layer.is_visible = (flags & constants::layer::IS_VISIBLE)
+                                    == constants::layer::IS_VISIBLE;
+                                layer.is_locked = (flags & constants::layer::EDIT_LOCK)
+                                    == constants::layer::EDIT_LOCK;
+                                layer.is_position_locked = (flags & constants::layer::POS_LOCK)
+                                    == constants::layer::POS_LOCK;
 
-                                layer.has_alpha_channel =
-                                    (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
+                                layer.has_alpha_channel = (flags & constants::layer::HAS_ALPHA)
+                                    == constants::layer::HAS_ALPHA;
 
-                                layer.is_alpha_channel_locked = (flags & constants::layer::ALPHA_LOCKED)
+                                layer.is_alpha_channel_locked = (flags
+                                    & constants::layer::ALPHA_LOCKED)
                                     == constants::layer::ALPHA_LOCKED;
 
                                 let x_offset: i32 =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                        as i32;
                                 o += 4;
                                 let y_offset: i32 =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                        as i32;
                                 o += 4;
                                 layer.offset = Position::new(x_offset, y_offset);
 
                                 let width: i32 =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                        as i32;
                                 o += 4;
                                 let height: i32 =
-                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
+                                    u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                        as i32;
                                 o += 4;
 
                                 layer.size = (width, height).into();
 
                                 let length =
-                                    u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap()) as usize;
+                                    u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap())
+                                        as usize;
                                 o += 8;
                                 let mut p = parsers::ansi::Parser::default();
                                 let mut caret = Caret::default();
@@ -250,12 +263,10 @@ fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
     data.extend(s.as_bytes());
 }
 
-
 const MAX_LINES: usize = 80;
 
 impl Buffer {
     pub fn is_line_empty(&self, line: usize) -> bool {
-
         for i in 0..self.get_width() {
             if !self.get_char((i, line)).is_transparent() {
                 return false;
@@ -291,7 +302,8 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
     let last_line = (first_line + MAX_LINES).min(buf.get_line_count().max(buf.get_height()));
     let height = (last_line - first_line) * font_dims.height;
 
-    let mut encoder: png::Encoder<'_, &mut Vec<u8>> = png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
+    let mut encoder: png::Encoder<'_, &mut Vec<u8>> =
+        png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
     encoder.set_compression(png::Compression::Best);

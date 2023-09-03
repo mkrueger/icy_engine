@@ -770,6 +770,11 @@ impl Buffer {
         self.set_buffer_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn render_to_rgba(&self, rect: Rectangle) -> (Size, Vec<u8>) {
         let font_size = self.get_font(0).unwrap().size;
 
@@ -780,7 +785,6 @@ impl Buffer {
 
         for y in 0..rect.get_height() {
             for x in 0..rect.get_width() {
-
                 let ch = self.get_char((x + rect.start.x as usize, y + rect.start.y as usize));
                 let font = self.get_font(ch.get_font_page()).unwrap();
 

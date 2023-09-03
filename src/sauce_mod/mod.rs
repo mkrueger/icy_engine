@@ -195,7 +195,7 @@ impl SauceData {
 
                         match t_flags & ANSI_MASK_LETTER_SPACING {
                             ANSI_LETTER_SPACING_LEGACY | ANSI_LETTER_SPACING_8PX => {
-                                use_letter_spacing = false
+                                use_letter_spacing = false;
                             }
                             ANSI_LETTER_SPACING_9PX => use_letter_spacing = true,
                             _ => {}
@@ -203,7 +203,7 @@ impl SauceData {
 
                         match t_flags & ANSI_MASK_ASPECT_RATIO {
                             ANSI_ASPECT_RATIO_SQUARE | ANSI_ASPECT_RATIO_LEGACY => {
-                                use_aspect_ratio = false
+                                use_aspect_ratio = false;
                             }
                             ANSI_ASPECT_RATIO_STRETCH => use_aspect_ratio = true,
                             _ => {}

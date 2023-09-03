@@ -1,6 +1,6 @@
 use crate::{Position, Size, UPosition};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Coordinates {
     pub x: f32,
     pub y: f32,
@@ -16,13 +16,13 @@ impl Coordinates {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Shape {
     Rectangle,
     Lines,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Selection {
     pub anchor: Coordinates,
     pub lead: Coordinates,

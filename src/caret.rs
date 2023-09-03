@@ -87,7 +87,7 @@ impl Caret {
         self.attribute.set_font_page(page);
     }
 
-    pub(crate) fn reset_color_attribute(&mut self) {
+    pub fn reset_color_attribute(&mut self) {
         let font_page = self.attribute.get_font_page();
         self.attribute = TextAttribute::default();
         self.attribute.set_font_page(font_page);

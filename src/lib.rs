@@ -68,6 +68,8 @@ pub use url_scanner::*;
 
 pub type EngineResult<T> = Result<T, Box<dyn Error>>;
 
+pub mod editor;
+
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Size {
     pub width: usize,
