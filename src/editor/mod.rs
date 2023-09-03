@@ -1,12 +1,16 @@
 pub mod undo_stack;
+use std::sync::{Arc, Mutex};
+
 pub use undo_stack::*;
 
 mod undo_operations;
 
 mod layer_operations;
 pub use layer_operations::*;
+mod edit_operations;
+pub use edit_operations::*;
 
-use crate::{ansi, Buffer, BufferParser, Caret, Position, Selection, Shape};
+use crate::{ansi, Buffer, BufferParser, Caret, Position, Selection, Shape, EngineResult};
 
 pub struct EditState {
     buffer: Buffer,
@@ -16,10 +20,46 @@ pub struct EditState {
 
     current_layer: usize,
 
-    atomic_undo_stack: Vec<(usize, String)>,
-    undo_stack: Vec<Box<dyn UndoOperation>>,
+    undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
     redo_stack: Vec<Box<dyn UndoOperation>>,
 }
+
+pub struct AtomicUndoGuard {
+    base_count: usize,
+    description: String,
+
+    undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
+}
+
+impl AtomicUndoGuard {
+    fn new(description: String, undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>) -> Self {
+        let base_count = undo_stack.lock().unwrap().len();
+        Self {
+            base_count,
+            description,
+            undo_stack
+        }
+    }
+}
+
+impl Drop for AtomicUndoGuard {
+    fn drop(&mut self) {
+        println!("drop {}!", self.description);
+        let count = self.undo_stack.lock().unwrap().len();
+        if self.base_count >= count {
+            return;
+        }
+
+        let stack = self.undo_stack.lock().unwrap().drain(self.base_count..).collect();
+
+        self.undo_stack.lock().unwrap()
+            .push(Box::new(undo_operations::AtomicUndo::new(
+                self.description.clone(),
+                stack,
+            )));
+    }
+}
+
 
 impl Default for EditState {
     fn default() -> Self {
@@ -28,8 +68,7 @@ impl Default for EditState {
             buffer: Buffer::default(),
             caret: Caret::default(),
             selection_opt: None,
-            atomic_undo_stack: Vec::new(),
-            undo_stack: Vec::new(),
+            undo_stack: Arc::new(Mutex::new(Vec::new())),
             redo_stack: Vec::new(),
             current_layer: 0,
         }
@@ -148,50 +187,40 @@ impl EditState {
         self.current_layer = layer;
     }
 
-    fn begin_atomic_undo(&mut self, description: String) {
-        self.atomic_undo_stack
-            .push((self.undo_stack.len(), description));
-    }
-
-    fn end_atomic_undo(&mut self) {
-        let (base_count, description) = self.atomic_undo_stack.pop().unwrap();
-        let count = self.undo_stack.len();
-        if base_count == count {
-            return;
-        }
-
-        let mut stack = Vec::new();
-        while base_count < self.undo_stack.len() {
-            let op = self.undo_stack.pop().unwrap();
-            stack.push(op);
-        }
-        self.undo_stack
-            .push(Box::new(undo_operations::AtomicUndo::new(
-                description,
-                stack,
-            )));
+    #[must_use]
+    pub fn begin_atomic_undo(&mut self, description: String) -> AtomicUndoGuard {
+        self.redo_stack.clear();
+        AtomicUndoGuard::new(description, self.undo_stack.clone())
     }
 
     fn clamp_current_layer(&mut self)  {
         self.current_layer = self.current_layer.clamp(0, self.buffer.layers.len().saturating_sub(1));
     }
 
+    fn push_undo(&mut self, op: Box<dyn UndoOperation>) {
+        self.undo_stack.lock().unwrap().push(op);
+        self.redo_stack.clear();
+    }
+
 }
 
 impl UndoState for EditState {
     fn undo_description(&self) -> Option<String> {
-        self.undo_stack.last().map(|op| op.get_description())
+        self.undo_stack.lock().unwrap().last().map(|op| op.get_description())
     }
 
     fn can_undo(&self) -> bool {
-        !self.undo_stack.is_empty()
+        !self.undo_stack.lock().unwrap().is_empty()
     }
 
-    fn undo(&mut self) {
-        if let Some(mut op) = self.undo_stack.pop() {
-            op.undo(self);
-            self.redo_stack.push(op);
-        }
+    fn undo(&mut self) -> EngineResult<()> {
+        let Some(mut op) = self.undo_stack.lock().unwrap().pop() else {
+            return Ok(())
+        };
+
+        let res = op.undo(self);
+        self.redo_stack.push(op);
+        res
     }
 
     fn redo_description(&self) -> Option<String> {
@@ -202,10 +231,12 @@ impl UndoState for EditState {
         !self.redo_stack.is_empty()
     }
 
-    fn redo(&mut self) {
+    fn redo(&mut self) -> EngineResult<()> {
         if let Some(mut op) = self.redo_stack.pop() {
-            op.redo(self);
-            self.undo_stack.push(op);
+            let res = op.redo(self);
+            self.undo_stack.lock().unwrap().push(op);
+            return res;
         }
+        Ok(())
     }
 }

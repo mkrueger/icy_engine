@@ -16,14 +16,14 @@ impl EditState {
 
         let mut op = undo_operations::AddLayer::new(layer + 1, new_layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         Ok(())
     }
 
     pub fn remove_layer(&mut self, layer: usize) -> EngineResult<()> {
         let mut op = undo_operations::RemoveLayer::new(layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         Ok(())
     }
 
@@ -33,7 +33,7 @@ impl EditState {
         }
         let mut op = undo_operations::RaiseLayer::new(layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         self.current_layer = layer + 1;
         Ok(())
     }
@@ -44,7 +44,7 @@ impl EditState {
         }
         let mut op = undo_operations::LowerLayer::new(layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         self.current_layer =  layer - 1;
         Ok(())
     }
@@ -54,7 +54,7 @@ impl EditState {
         new_layer.title = fl!(crate::LANGUAGE_LOADER, "layer-duplicate-name", name = new_layer.title);
         let mut op = undo_operations::AddLayer::new(layer, new_layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         Ok(())
     }
 
@@ -83,14 +83,14 @@ impl EditState {
         
         let mut op = undo_operations::MergeLayerDown::new(layer, merge_layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         Ok(())
     }
 
     pub fn toggle_layer_visibility(&mut self, layer: usize) -> EngineResult<()> {
         let mut op = undo_operations::ToggleLayerVisibility::new(layer);
         op.redo(self)?;
-        self.undo_stack.push(Box::new(op));
+        self.push_undo(Box::new(op));
         Ok(())
     }
 

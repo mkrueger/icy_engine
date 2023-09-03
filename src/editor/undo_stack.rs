@@ -5,11 +5,11 @@ use super::EditState;
 pub trait UndoState {
     fn undo_description(&self) -> Option<String>;
     fn can_undo(&self) -> bool;
-    fn undo(&mut self);
+    fn undo(&mut self) -> EngineResult<()>;
 
     fn redo_description(&self) -> Option<String>;
     fn can_redo(&self) -> bool;
-    fn redo(&mut self);
+    fn redo(&mut self) -> EngineResult<()>;
 }
 
 pub trait UndoOperation: Send {

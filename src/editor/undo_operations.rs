@@ -1,6 +1,8 @@
+use std::mem;
+
 use i18n_embed_fl::fl;
 
-use crate::{Layer, EngineResult};
+use crate::{Layer, EngineResult, UPosition, AttributedChar};
 
 use super::{EditState, UndoOperation};
 
@@ -20,20 +22,96 @@ impl UndoOperation for AtomicUndo {
         self.description.clone()
     }
 
-    fn undo(&mut self, buffer: &mut EditState) -> EngineResult<()> {
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         for op in &mut self.stack {
-            op.undo(buffer)?;
+            op.undo(edit_state)?;
         }
         Ok(())
     }
 
-    fn redo(&mut self, buffer: &mut EditState) -> EngineResult<()> {
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         for op in self.stack.iter_mut().rev() {
-            op.redo(buffer)?;
+            op.redo(edit_state)?;
         }
         Ok(())
     }
 }
+
+
+pub struct UndoSetChar {
+    pub pos: UPosition,
+    pub layer: usize,
+    pub old: AttributedChar,
+    pub new: AttributedChar,
+}
+
+impl UndoOperation for UndoSetChar {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-set_char")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.layer].set_char(self.pos, self.old);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.layer].set_char(self.pos, self.new);
+        Ok(())
+    }
+}
+
+pub struct UndoSwapChar {
+    pub layer: usize,
+    pub pos1: UPosition,
+    pub pos2: UPosition,
+}
+impl UndoOperation for UndoSwapChar {
+    fn get_description(&self) -> String {
+        String::new() // No stand alone operation.
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.layer].swap_char(self.pos1, self.pos2);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.layer].swap_char(self.pos1, self.pos2);
+        Ok(())
+    }
+}
+
+pub struct ClearLayerOperation {
+    layer_num: usize,
+    lines: Vec<crate::Line>,
+}
+
+impl ClearLayerOperation {
+    pub fn new(layer_num: usize) -> Self {
+        Self {
+            layer_num,
+            lines: Vec::new(),
+        }
+    }
+}
+
+impl UndoOperation for ClearLayerOperation {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-clear-layer")
+    }
+ 
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        mem::swap(&mut self.lines, &mut edit_state.buffer.layers[self.layer_num].lines);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        mem::swap(&mut self.lines, &mut edit_state.buffer.layers[self.layer_num].lines);
+        Ok(())
+    }
+}
+
 
 #[derive(Default)]
 pub struct AddLayer {
@@ -201,7 +279,6 @@ impl UndoOperation for MergeLayerDown {
     }
 }
 
-
 #[derive(Default)]
 pub struct ToggleLayerVisibility {
     index: usize,
@@ -230,3 +307,5 @@ impl UndoOperation for ToggleLayerVisibility {
         Ok(())
     }
 }
+
+
