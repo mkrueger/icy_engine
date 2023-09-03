@@ -3,8 +3,8 @@ pub use undo_stack::*;
 
 mod undo_operations;
 
-mod editor_operations;
-pub use editor_operations::*;
+mod layer_operations;
+pub use layer_operations::*;
 
 use crate::{ansi, Buffer, BufferParser, Caret, Position, Selection, Shape};
 
@@ -170,6 +170,10 @@ impl EditState {
                 description,
                 stack,
             )));
+    }
+
+    fn clamp_current_layer(&mut self)  {
+        self.current_layer = self.current_layer.clamp(0, self.buffer.layers.len().saturating_sub(1));
     }
 
 }

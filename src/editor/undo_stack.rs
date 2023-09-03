@@ -1,3 +1,5 @@
+use crate::EngineResult;
+
 use super::EditState;
 
 pub trait UndoState {
@@ -13,6 +15,16 @@ pub trait UndoState {
 pub trait UndoOperation: Send {
     fn get_description(&self) -> String;
 
-    fn undo(&mut self, edit_state: &mut EditState);
-    fn redo(&mut self, edit_state: &mut EditState);
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()>;
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()>;
 }

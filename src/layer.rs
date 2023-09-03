@@ -220,11 +220,13 @@ impl Layer {
 
 #[cfg(test)]
 mod tests {
+    use i18n_embed_fl::fl;
+
     use crate::{AttributedChar, Layer, Line, TextAttribute};
 
     #[test]
     fn test_get_char() {
-        let mut layer = Layer::new("Background", (0, 0));
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (0, 0));
         layer.has_alpha_channel = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
@@ -240,7 +242,7 @@ mod tests {
 
     #[test]
     fn test_get_char_intransparent() {
-        let mut layer = Layer::new("Background", (0, 0));
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (0, 0));
         layer.has_alpha_channel = true;
 
         let mut line = Line::new();
@@ -257,7 +259,7 @@ mod tests {
 
     #[test]
     fn test_insert_line() {
-        let mut layer = Layer::new("Background", (80, 0));
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (80, 0));
         let mut line = Line::new();
         line.chars
             .push(AttributedChar::new('a', TextAttribute::default()));
