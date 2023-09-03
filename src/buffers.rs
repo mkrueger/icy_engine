@@ -153,7 +153,7 @@ impl Buffer {
         let mut ch_opt = None;
         let mut attr_opt = None;
 
-        for i in 0..self.layers.len() {
+        for i in (0..self.layers.len()).rev() {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
                 continue;

@@ -171,6 +171,7 @@ impl EditState {
                 stack,
             )));
     }
+
 }
 
 impl UndoState for EditState {
