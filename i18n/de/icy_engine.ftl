@@ -11,8 +11,10 @@ undo-move_layer=Ebene verschieben
 undo-char_font_glyph=Zeichen
 undo-set_layer_size=Ebenengröße ändern
 undo-paste=Einfügen
+undo-add_floating_layer=Schwebende Auswahl hinzufügen
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene
 layer-background-name=Hintergrund
 layer-pasted-name=Schwebende Auswahl
+layer-anchor=Ebene verankern

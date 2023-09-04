@@ -419,3 +419,28 @@ impl UndoOperation for Paste {
         Ok(())
     }
 }
+
+#[derive(Default)]
+pub struct AddFloatingLayer {}
+
+impl UndoOperation for AddFloatingLayer {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-add_floating_layer")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.buffer.layers.last_mut() {
+            layer.role = crate::Role::PastePreview;
+            layer.title = fl!(crate::LANGUAGE_LOADER, "layer-pasted-name");
+        }
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.buffer.layers.last_mut() {
+            layer.role = crate::Role::Normal;
+            layer.title = fl!(crate::LANGUAGE_LOADER, "layer-new-name");
+        }
+        Ok(())
+    }
+}

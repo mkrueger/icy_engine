@@ -13,11 +13,16 @@ impl EditState {
         if self.buffer.layers.is_empty() {
             new_layer.has_alpha_channel = false;
         }
+        let idx = if self.buffer.layers.is_empty() {
+            0
+        } else {
+            layer + 1
+        };
 
-        let mut op = undo_operations::AddLayer::new(layer + 1, new_layer);
+        let mut op = undo_operations::AddLayer::new(idx, new_layer);
         op.redo(self)?;
         self.push_undo(Box::new(op));
-        self.current_layer = layer + 1;
+        self.current_layer = idx;
         Ok(())
     }
 
@@ -61,6 +66,18 @@ impl EditState {
         op.redo(self)?;
         self.push_undo(Box::new(op));
         self.current_layer = layer + 1;
+        Ok(())
+    }
+
+    pub fn anchor_layer(&mut self) -> EngineResult<()> {
+        let _op = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "layer-anchor"));
+        self.merge_layer_down(self.buffer.layers.len() - 1)
+    }
+
+    pub fn add_floating_layer(&mut self) -> EngineResult<()> {
+        let mut op = undo_operations::AddFloatingLayer::default();
+        op.redo(self)?;
+        self.push_undo(Box::new(op));
         Ok(())
     }
 

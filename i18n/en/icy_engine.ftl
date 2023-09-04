@@ -11,8 +11,10 @@ undo-move_layer=Move layer
 undo-char_font_glyph=Font
 undo-set_layer_size=Change layer size
 undo-paste=Paste
+undo-add_floating_layer=Add floating layer
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer
 layer-background-name=Background
 layer-pasted-name=Floating selection
+layer-anchor=Anchor layer
