@@ -87,7 +87,7 @@ pub struct ClearLayerOperation {
 }
 
 impl ClearLayerOperation {
-    pub fn new(layer_num: usize) -> Self {
+    pub fn _new(layer_num: usize) -> Self {
         Self {
             layer_num,
             lines: Vec::new(),
@@ -322,6 +322,35 @@ impl UndoOperation for ToggleLayerVisibility {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers[self.index].is_visible =
             !edit_state.buffer.layers[self.index].is_visible;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct MoveLayer {
+    index: usize,
+    from: Position,
+    to: Position,
+}
+
+impl MoveLayer {
+    pub(crate) fn new(index: usize, from: Position, to: Position) -> Self {
+        Self { index, from, to }
+    }
+}
+
+impl UndoOperation for MoveLayer {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-move_layer")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.index].offset = self.from;
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.index].offset = self.to;
         Ok(())
     }
 }

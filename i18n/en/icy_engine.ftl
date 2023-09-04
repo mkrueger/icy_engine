@@ -8,6 +8,7 @@ undo-set_char=Character
 undo-clear-layer=Clear layer
 undo-paste=Paste
 undo-delete-selection=Delete selection
+undo-move_layer=Move layer
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

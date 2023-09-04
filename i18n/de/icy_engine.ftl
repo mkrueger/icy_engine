@@ -8,6 +8,7 @@ undo-set_char=Zeichen
 undo-clear-layer=Ebene löschen
 undo-paste=Einfügen
 undo-delete-selection=Auswahl löschen
+undo-move_layer=Ebene verschieben
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

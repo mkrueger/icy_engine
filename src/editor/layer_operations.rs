@@ -127,6 +127,13 @@ impl EditState {
         self.push_undo(Box::new(op));
         Ok(())
     }
+
+    pub fn move_layer(&mut self, from: Position, to: Position) -> EngineResult<()> {
+        let mut op = undo_operations::MoveLayer::new(self.current_layer, from, to);
+        op.redo(self)?;
+        self.push_undo(Box::new(op));
+        Ok(())
+    }
 }
 
 #[cfg(test)]
