@@ -257,6 +257,10 @@ impl Layer {
         self.lines[line as usize].get_line_length()
     }
 
+    pub fn get_preview_offset(&self) -> Option<Position> {
+        self.preview_offset
+    }
+
     pub fn set_preview_offset(&mut self, pos: Option<Position>) {
         self.preview_offset = pos;
     }
