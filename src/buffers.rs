@@ -847,9 +847,9 @@ mod tests {
         let mut buf = Buffer::default();
         buf.set_buffer_width(10);
         for x in 0..buf.get_width() {
-            buf.layers[0].set_char_xy(x, 0, AttributedChar::new('1', TextAttribute::default()));
-            buf.layers[0].set_char_xy(x, 1, AttributedChar::new('2', TextAttribute::default()));
-            buf.layers[0].set_char_xy(x, 2, AttributedChar::new('3', TextAttribute::default()));
+            buf.layers[0].set_char((x, 0), AttributedChar::new('1', TextAttribute::default()));
+            buf.layers[0].set_char((x, 1), AttributedChar::new('2', TextAttribute::default()));
+            buf.layers[0].set_char((x, 2), AttributedChar::new('3', TextAttribute::default()));
         }
 
         let mut opt = SaveOptions::new();

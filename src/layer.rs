@@ -1,3 +1,5 @@
+use std::backtrace::Backtrace;
+
 use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size};
 
 use super::AttributedChar;
@@ -132,11 +134,7 @@ impl Layer {
         let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
     }
-
-    pub(crate) fn set_char_xy(&mut self, x: i32, y: i32, attributed_char: AttributedChar) {
-        self.set_char((x, y), attributed_char);
-    }
-
+    
     pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if pos.x < 0

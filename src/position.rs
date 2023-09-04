@@ -1,7 +1,7 @@
 use std::{
     cmp::Ordering,
     hash::Hash,
-    ops::{Add, Sub},
+    ops::{Add, Sub, AddAssign, SubAssign},
 };
 
 use super::Buffer;
@@ -44,6 +44,13 @@ impl Position {
     pub fn with_x(self, x: i32) -> Position {
         Position { x, y: self.y }
     }
+
+    pub fn signum(&self) -> Position {
+        Position {
+            x: self.x.signum(),
+            y: self.y.signum(),
+        }
+    }
 }
 
 impl Default for Position {
@@ -63,6 +70,13 @@ impl Add<Position> for Position {
     }
 }
 
+impl AddAssign<Position> for Position {
+    fn add_assign(&mut self, rhs: Position) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+    }
+}
+
 impl Sub<Position> for Position {
     type Output = Position;
 
@@ -71,6 +85,13 @@ impl Sub<Position> for Position {
             x: self.x - rhs.x,
             y: self.y - rhs.y,
         }
+    }
+}
+
+impl SubAssign<Position> for Position {
+    fn sub_assign(&mut self, rhs: Position) {
+        self.x -= rhs.x;
+        self.y -= rhs.y;
     }
 }
 

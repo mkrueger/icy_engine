@@ -1105,7 +1105,7 @@ impl Parser {
         let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 1);
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                buf.layers[0].set_char_xy(x, y, AttributedChar::new(ch, caret.attribute));
+                buf.layers[0].set_char((x, y), AttributedChar::new(ch, caret.attribute));
             }
         }
 
@@ -1161,7 +1161,7 @@ impl Parser {
 
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
-                buf.layers[0].set_char_xy(x, y, AttributedChar::default());
+                buf.layers[0].set_char((x, y), AttributedChar::default());
             }
         }
 
@@ -1206,7 +1206,7 @@ impl Parser {
         for y in top_line..=bottom_line {
             for x in left_column..=right_column {
                 let ch = buf.get_char((x, y));
-                buf.layers[0].set_char_xy(x, y, AttributedChar::new(' ', ch.attribute));
+                buf.layers[0].set_char((x, y), AttributedChar::new(' ', ch.attribute));
             }
         }
 

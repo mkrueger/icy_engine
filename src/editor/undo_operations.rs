@@ -23,14 +23,14 @@ impl UndoOperation for AtomicUndo {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        for op in &mut self.stack {
+        for op in self.stack.iter_mut().rev() {
             op.undo(edit_state)?;
         }
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        for op in self.stack.iter_mut().rev() {
+        for op in &mut self.stack {
             op.redo(edit_state)?;
         }
         Ok(())

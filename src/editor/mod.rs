@@ -52,7 +52,6 @@ impl Drop for AtomicUndoGuard {
         if self.base_count >= count {
             return;
         }
-
         let stack = self
             .undo_stack
             .lock()
@@ -326,6 +325,7 @@ impl UndoState for EditState {
 
         let res = op.undo(self);
         self.redo_stack.push(op);
+
         res
     }
 
