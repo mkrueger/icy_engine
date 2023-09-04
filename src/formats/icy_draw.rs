@@ -204,7 +204,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                         as i32;
                                 o += 4;
 
-                                layer.size = (width, height).into();
+                                layer.set_size((width, height));
 
                                 let length =
                                     u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap())
@@ -394,8 +394,8 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         result.extend(i32::to_le_bytes(layer.get_offset().x));
         result.extend(i32::to_le_bytes(layer.get_offset().y));
 
-        result.extend(i32::to_le_bytes(layer.size.width));
-        result.extend(i32::to_le_bytes(layer.size.height));
+        result.extend(i32::to_le_bytes(layer.get_width()));
+        result.extend(i32::to_le_bytes(layer.get_height()));
 
         let data = convert_to_ansi_data(buf, i, false);
         result.extend(u64::to_le_bytes(data.len() as u64));

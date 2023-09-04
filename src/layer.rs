@@ -1,4 +1,6 @@
-use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size};
+use i18n_embed_fl::fl;
+
+use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size, TextAttribute};
 
 use super::AttributedChar;
 
@@ -10,9 +12,17 @@ pub enum Mode {
     Attributes,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Role {
+    #[default]
+    Normal,
+    PastePreview,
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct Layer {
     pub title: String,
+    pub role: Role,
     pub is_visible: bool,
     pub is_locked: bool,
     pub is_position_locked: bool,
@@ -25,7 +35,7 @@ pub struct Layer {
 
     pub preview_offset: Option<Position>,
     pub offset: Position,
-    pub size: Size,
+    size: Size,
     pub lines: Vec<Line>,
 
     pub sixels: Vec<Sixel>,
@@ -69,6 +79,7 @@ impl HyperLink {
 impl Layer {
     pub fn new(title: impl Into<String>, size: impl Into<Size>) -> Self {
         let size = size.into();
+
         let mut lines = Vec::new();
         lines.resize(size.height as usize, Line::create(size.width));
 
@@ -85,11 +96,11 @@ impl Layer {
         self.offset
     }
 
-    pub fn set_offset(&mut self, pos: Position) {
+    pub fn set_offset(&mut self, pos: impl Into<Position>) {
         if self.is_position_locked {
             return;
         }
-        self.offset = pos;
+        self.offset = pos.into();
     }
 
     pub fn join(&mut self, layer: &Layer) {
@@ -245,13 +256,65 @@ impl Layer {
     pub fn set_preview_offset(&mut self, pos: Option<Position>) {
         self.preview_offset = pos;
     }
+
+    pub fn get_size(&self) -> Size {
+        self.size
+    }
+
+    pub fn set_size(&mut self, size: impl Into<Size>) {
+        self.size = size.into();
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    pub fn from_clipboard_data(data: &[u8]) -> Option<Layer> {
+        if data[0] != 0 {
+            return None;
+        }
+        let x = i32::from_le_bytes(data[1..5].try_into().unwrap());
+        let y = i32::from_le_bytes(data[5..9].try_into().unwrap());
+        let width = u32::from_le_bytes(data[9..13].try_into().unwrap()) as usize;
+        let height = u32::from_le_bytes(data[13..17].try_into().unwrap()) as usize;
+        let mut data = &data[17..];
+
+        let mut layer = Layer::new(
+            fl!(crate::LANGUAGE_LOADER, "layer-pasted-name"),
+            (width, height),
+        );
+        layer.has_alpha_channel = true;
+        layer.role = Role::PastePreview;
+        layer.set_offset((x, y));
+        for y in 0..height {
+            for x in 0..width {
+                let ch = AttributedChar {
+                    ch: unsafe {
+                        char::from_u32_unchecked(u16::from_le_bytes([data[0], data[1]]) as u32)
+                    },
+                    attribute: TextAttribute {
+                        attr: u16::from_le_bytes([data[2], data[3]]),
+                        font_page: u16::from_le_bytes([data[4], data[5]]) as usize,
+                        background_color: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
+                        foreground_color: u32::from_le_bytes([
+                            data[10], data[11], data[12], data[13],
+                        ]),
+                    },
+                };
+                layer.set_char((x as i32, y as i32), ch);
+                data = &data[14..];
+            }
+        }
+        Some(layer)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use i18n_embed_fl::fl;
 
-    use crate::{AttributedChar, Layer, Line, TextAttribute};
+    use crate::{editor::EditState, AttributedChar, Layer, Line, Selection, TextAttribute};
 
     #[test]
     fn test_get_char() {
@@ -308,5 +371,36 @@ mod tests {
 
         layer.insert_line(11, Line::new());
         assert_eq!(12, layer.lines.len());
+    }
+
+    #[test]
+    fn test_clipboard() {
+        let mut state = EditState::default();
+
+        for i in 0..25 {
+            for x in 0..80 {
+                state
+                    .set_char(
+                        (x, i),
+                        AttributedChar {
+                            ch: unsafe { char::from_u32_unchecked((b'0' + (x % 10)) as u32) },
+                            attribute: TextAttribute::default(),
+                        },
+                    )
+                    .unwrap();
+            }
+        }
+        state.set_selection(Selection::from_rectangle(5., 6., 7., 8.));
+        let data = state.get_clipboard_data().unwrap();
+
+        let layer = Layer::from_clipboard_data(&data).unwrap();
+
+        assert_eq!(layer.get_width(), 7);
+        assert_eq!(layer.get_height(), 8);
+
+        assert_eq!(layer.offset.x, 5);
+        assert_eq!(layer.offset.y, 6);
+
+        assert!(layer.get_char((0, 0)).ch == '5');
     }
 }

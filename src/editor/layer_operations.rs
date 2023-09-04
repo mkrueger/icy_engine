@@ -82,16 +82,16 @@ impl EditState {
 
         merge_layer.offset = start;
 
-        let width = (base_layer.offset.x + base_layer.size.width)
-            .max(cur_layer.offset.x + cur_layer.size.width)
+        let width = (base_layer.offset.x + base_layer.get_width())
+            .max(cur_layer.offset.x + cur_layer.get_width())
             - start.x;
-        let height = (base_layer.offset.y + base_layer.size.height)
-            .max(cur_layer.offset.y + cur_layer.size.height)
+        let height = (base_layer.offset.y + base_layer.get_height())
+            .max(cur_layer.offset.y + cur_layer.get_height())
             - start.y;
         if width < 0 || height < 0 {
             return Ok(());
         }
-        merge_layer.size = Size::new(width, height);
+        merge_layer.set_size((width, height));
 
         for y in 0..base_layer.get_height() {
             for x in 0..base_layer.get_width() {
@@ -130,9 +130,18 @@ impl EditState {
 
     pub fn move_layer(&mut self, to: Position) -> EngineResult<()> {
         let i = self.current_layer;
-        let Some(cur_layer) = self.get_cur_layer_mut() else { return Ok(()); };
+        let Some(cur_layer) = self.get_cur_layer_mut() else {
+            return Ok(());
+        };
         cur_layer.set_preview_offset(None);
         let mut op = undo_operations::MoveLayer::new(i, cur_layer.offset, to);
+        op.redo(self)?;
+        self.push_undo(Box::new(op));
+        Ok(())
+    }
+
+    pub fn set_layer_size(&mut self, layer: usize, size: impl Into<Size>) -> EngineResult<()> {
+        let mut op = undo_operations::SetLayerSize::new(layer, size.into());
         op.redo(self)?;
         self.push_undo(Box::new(op));
         Ok(())
@@ -152,6 +161,15 @@ mod tests {
         assert_eq!(1, state.buffer.layers.len());
         state.add_new_layer(0).unwrap();
         assert_eq!(2, state.buffer.layers.len());
+    }
+
+    #[test]
+    fn test_add_layer_size() {
+        let mut state = EditState::default();
+        let size = Size::new(160, 1000);
+        state.buffer.set_buffer_size(size);
+        state.add_new_layer(0).unwrap();
+        assert_eq!(size, state.buffer.layers[1].get_size());
     }
 
     #[test]
@@ -241,7 +259,7 @@ mod tests {
         assert_eq!('a', state.buffer.get_char((5, 5)).ch);
         assert_eq!('b', state.buffer.get_char((6, 6)).ch);
         assert_eq!(Position::new(0, 0), state.buffer.layers[1].offset);
-        assert_eq!(Size::new(10, 10), state.buffer.layers[1].size);
+        assert_eq!(Size::new(10, 10), state.buffer.layers[1].get_size());
         state.undo().unwrap();
         assert_eq!(3, state.buffer.layers.len());
     }
@@ -266,7 +284,7 @@ mod tests {
         assert_eq!('a', state.buffer.get_char((7, 7)).ch);
         assert_eq!('b', state.buffer.get_char((6, 6)).ch);
         assert_eq!(Position::new(0, 0), state.buffer.layers[1].offset);
-        assert_eq!(Size::new(12, 12), state.buffer.layers[1].size);
+        assert_eq!(Size::new(12, 12), state.buffer.layers[1].get_size());
     }
 
     #[test]
@@ -288,7 +306,7 @@ mod tests {
         assert_eq!(2, state.buffer.layers.len());
 
         assert_eq!(Position::new(-1, -1), state.buffer.layers[1].offset);
-        assert_eq!(Size::new(11, 11), state.buffer.layers[1].size);
+        assert_eq!(Size::new(11, 11), state.buffer.layers[1].get_size());
 
         assert_eq!('a', state.buffer.layers[1].get_char((5, 5)).ch);
         assert_eq!('b', state.buffer.layers[1].get_char((7, 7)).ch);

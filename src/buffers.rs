@@ -159,7 +159,12 @@ impl Buffer {
             if !cur_layer.is_visible {
                 continue;
             }
-            let pos = pos - if let Some(po) = cur_layer.preview_offset { po } else { cur_layer.offset };
+            let pos = pos
+                - if let Some(po) = cur_layer.preview_offset {
+                    po
+                } else {
+                    cur_layer.offset
+                };
             if pos.x < 0 || pos.y < 0 {
                 continue;
             }
@@ -622,7 +627,7 @@ impl Buffer {
             result.group = sauce.group.clone();
             result.comments = sauce.comments.clone();
             result.set_buffer_size(sauce.buffer_size);
-            result.layers[0].size = sauce.buffer_size;
+            result.layers[0].set_size(sauce.buffer_size);
             result.use_aspect_ratio = sauce.use_letter_spacing;
             result.use_letter_spacing = sauce.use_letter_spacing;
             sauce_type = sauce.sauce_file_type;

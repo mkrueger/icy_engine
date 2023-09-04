@@ -2,7 +2,7 @@ use std::mem;
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position};
+use crate::{AttributedChar, EngineResult, Layer, Position, Size};
 
 use super::{EditState, UndoOperation};
 
@@ -351,6 +351,40 @@ impl UndoOperation for MoveLayer {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers[self.index].offset = self.to;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SetLayerSize {
+    index: usize,
+    from: Size,
+    to: Size,
+}
+
+impl SetLayerSize {
+    pub(crate) fn new(index: usize, to: Size) -> Self {
+        Self {
+            index,
+            from: to,
+            to,
+        }
+    }
+}
+
+impl UndoOperation for SetLayerSize {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-set_layer_size")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.index].set_size(self.from);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.from = edit_state.buffer.layers[self.index].get_size();
+        edit_state.buffer.layers[self.index].set_size(self.to);
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::{backtrace::Backtrace, cmp::max};
 
 use crate::{ansi::BaudEmulation, Buffer, Caret, Size};
 

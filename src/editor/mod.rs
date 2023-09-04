@@ -12,8 +12,8 @@ mod edit_operations;
 pub use edit_operations::*;
 
 use crate::{
-    ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Position, Selection, Shape,
-    TextAttribute, Layer,
+    ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,
+    Shape, TextAttribute,
 };
 
 pub struct EditState {
@@ -116,7 +116,7 @@ impl EditState {
     pub fn get_cur_layer(&self) -> Option<&Layer> {
         self.buffer.layers.get(self.current_layer)
     }
-    
+
     pub fn get_cur_layer_mut(&mut self) -> Option<&mut Layer> {
         self.buffer.layers.get_mut(self.current_layer)
     }
@@ -205,6 +205,9 @@ impl EditState {
         let mut data = Vec::new();
         if matches!(selection.shape, Shape::Rectangle) {
             data.push(0);
+            data.extend(i32::to_le_bytes(selection.min().x));
+            data.extend(i32::to_le_bytes(selection.min().y));
+
             data.extend(u32::to_le_bytes(selection.size().width as u32));
             data.extend(u32::to_le_bytes(selection.size().height as u32));
 
@@ -227,41 +230,10 @@ impl EditState {
         Some(data)
     }
 
-    /// .
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if .
     pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
-        if data[0] != 0 {
-            return Ok(());
-        }
-
-        let width = u32::from_le_bytes([data[1], data[2], data[3], data[4]]) as usize;
-        let height = u32::from_le_bytes([data[5], data[6], data[7], data[8]]) as usize;
-        let _paste = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-paste"));
-        let mut data = &data[9..];
-
-        let pos = self.caret.get_position();
-
-        for y in 0..height {
-            for x in 0..width {
-                let ch = AttributedChar {
-                    ch: unsafe {
-                        char::from_u32_unchecked(u16::from_le_bytes([data[0], data[1]]) as u32)
-                    },
-                    attribute: TextAttribute {
-                        attr: u16::from_le_bytes([data[2], data[3]]),
-                        font_page: u16::from_le_bytes([data[4], data[5]]) as usize,
-                        background_color: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
-                        foreground_color: u32::from_le_bytes([
-                            data[10], data[11], data[12], data[13],
-                        ]),
-                    },
-                };
-                self.set_char(Position::new(x as i32, y as i32) + pos, ch)?;
-                data = &data[14..];
-            }
+        if let Some(layer) = Layer::from_clipboard_data(data) {
+            self.current_layer = self.buffer.layers.len();
+            self.buffer.layers.push(layer);
         }
         self.selection_opt = None;
         Ok(())
