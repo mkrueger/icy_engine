@@ -1,5 +1,3 @@
-use std::{backtrace::Backtrace, cmp::max};
-
 use crate::{ansi::BaudEmulation, Buffer, Caret, Size};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -193,14 +191,14 @@ impl TerminalState {
 
                     caret.pos.y = n;
                 }
-                caret.pos.x = caret.pos.x.clamp(0, max(0, self.get_width() - 1));
+                caret.pos.x = caret.pos.x.clamp(0, (self.get_width() - 1).max(0));
             }
             crate::OriginMode::WithinMargins => {
                 let first = buf.get_first_editable_line();
                 let height = buf.get_last_editable_line() - first;
-                let n = caret.pos.y.clamp(first, max(first, first + height - 1));
+                let n = caret.pos.y.clamp(first, (first + height - 1).max(first));
                 caret.pos.y = n;
-                caret.pos.x = caret.pos.x.clamp(0, max(0, self.get_width() - 1));
+                caret.pos.x = caret.pos.x.clamp(0, (self.get_width() - 1).max(0));
             }
         }
     }

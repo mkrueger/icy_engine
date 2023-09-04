@@ -33,8 +33,8 @@ pub struct Layer {
 
     pub mode: Mode,
 
-    pub preview_offset: Option<Position>,
-    pub offset: Position,
+    preview_offset: Option<Position>,
+    offset: Position,
     size: Size,
     pub lines: Vec<Line>,
 
@@ -93,6 +93,9 @@ impl Layer {
     }
 
     pub fn get_offset(&self) -> Position {
+        if let Some(offset) = self.preview_offset {
+            return offset;
+        }
         self.offset
     }
 
@@ -100,6 +103,7 @@ impl Layer {
         if self.is_position_locked {
             return;
         }
+        self.preview_offset = None;
         self.offset = pos.into();
     }
 

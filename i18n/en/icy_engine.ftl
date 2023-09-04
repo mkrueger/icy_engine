@@ -6,11 +6,12 @@ undo-merge_down_layer=Merge down
 undo-toggle_layer_visibility=Layer visibility
 undo-set_char=Character
 undo-clear-layer=Clear layer
-undo-paste=Paste
 undo-delete-selection=Delete selection
 undo-move_layer=Move layer
 undo-char_font_glyph=Font
+undo-set_layer_size=Change layer size
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer
 layer-background-name=Background
+layer-pasted-name=Floating selection

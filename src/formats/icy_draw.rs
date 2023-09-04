@@ -193,7 +193,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                     u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
                                         as i32;
                                 o += 4;
-                                layer.offset = Position::new(x_offset, y_offset);
+                                layer.set_offset((x_offset, y_offset));
 
                                 let width: i32 =
                                     u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())

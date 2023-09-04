@@ -73,20 +73,20 @@ impl EditState {
         let cur_layer = &self.buffer.layers[layer];
 
         let start = Position::new(
-            base_layer.offset.x.min(cur_layer.offset.x),
-            base_layer.offset.y.min(cur_layer.offset.y),
+            base_layer.get_offset().x.min(cur_layer.get_offset().x),
+            base_layer.get_offset().y.min(cur_layer.get_offset().y),
         );
 
         let mut merge_layer = base_layer.clone();
         merge_layer.clear();
 
-        merge_layer.offset = start;
+        merge_layer.set_offset(start);
 
-        let width = (base_layer.offset.x + base_layer.get_width())
-            .max(cur_layer.offset.x + cur_layer.get_width())
+        let width = (base_layer.get_offset().x + base_layer.get_width())
+            .max(cur_layer.get_offset().x + cur_layer.get_width())
             - start.x;
-        let height = (base_layer.offset.y + base_layer.get_height())
-            .max(cur_layer.offset.y + cur_layer.get_height())
+        let height = (base_layer.get_offset().y + base_layer.get_height())
+            .max(cur_layer.get_offset().y + cur_layer.get_height())
             - start.y;
         if width < 0 || height < 0 {
             return Ok(());
@@ -97,7 +97,7 @@ impl EditState {
             for x in 0..base_layer.get_width() {
                 let pos = Position::new(x, y);
                 let ch = base_layer.get_char(pos);
-                let pos = pos - merge_layer.offset + base_layer.offset;
+                let pos = pos - merge_layer.get_offset() + base_layer.get_offset();
                 merge_layer.set_char(pos, ch);
             }
         }
@@ -110,7 +110,7 @@ impl EditState {
                     continue;
                 }
 
-                let pos = pos - merge_layer.offset + cur_layer.offset;
+                let pos = pos - merge_layer.get_offset() + cur_layer.get_offset();
                 merge_layer.set_char(pos, ch);
             }
         }
@@ -118,6 +118,7 @@ impl EditState {
         let mut op = undo_operations::MergeLayerDown::new(layer, merge_layer);
         op.redo(self)?;
         self.push_undo(Box::new(op));
+        self.clamp_current_layer();
         Ok(())
     }
 
@@ -134,7 +135,7 @@ impl EditState {
             return Ok(());
         };
         cur_layer.set_preview_offset(None);
-        let mut op = undo_operations::MoveLayer::new(i, cur_layer.offset, to);
+        let mut op = undo_operations::MoveLayer::new(i, cur_layer.get_offset(), to);
         op.redo(self)?;
         self.push_undo(Box::new(op));
         Ok(())
@@ -258,7 +259,7 @@ mod tests {
 
         assert_eq!('a', state.buffer.get_char((5, 5)).ch);
         assert_eq!('b', state.buffer.get_char((6, 6)).ch);
-        assert_eq!(Position::new(0, 0), state.buffer.layers[1].offset);
+        assert_eq!(Position::new(0, 0), state.buffer.layers[1].get_offset());
         assert_eq!(Size::new(10, 10), state.buffer.layers[1].get_size());
         state.undo().unwrap();
         assert_eq!(3, state.buffer.layers.len());
@@ -269,7 +270,7 @@ mod tests {
         let mut state = EditState::default();
         let mut new_layer = Layer::new("1", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
-        new_layer.offset = Position::new(2, 2);
+        new_layer.set_offset((2, 2));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
@@ -283,7 +284,7 @@ mod tests {
 
         assert_eq!('a', state.buffer.get_char((7, 7)).ch);
         assert_eq!('b', state.buffer.get_char((6, 6)).ch);
-        assert_eq!(Position::new(0, 0), state.buffer.layers[1].offset);
+        assert_eq!(Position::new(0, 0), state.buffer.layers[1].get_offset());
         assert_eq!(Size::new(12, 12), state.buffer.layers[1].get_size());
     }
 
@@ -292,7 +293,7 @@ mod tests {
         let mut state = EditState::default();
         let mut new_layer = Layer::new("1", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
-        new_layer.offset = Position::new(-1, -1);
+        new_layer.set_offset((-1, -1));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
@@ -305,7 +306,7 @@ mod tests {
 
         assert_eq!(2, state.buffer.layers.len());
 
-        assert_eq!(Position::new(-1, -1), state.buffer.layers[1].offset);
+        assert_eq!(Position::new(-1, -1), state.buffer.layers[1].get_offset());
         assert_eq!(Size::new(11, 11), state.buffer.layers[1].get_size());
 
         assert_eq!('a', state.buffer.layers[1].get_char((5, 5)).ch);

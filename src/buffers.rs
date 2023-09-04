@@ -159,12 +159,7 @@ impl Buffer {
             if !cur_layer.is_visible {
                 continue;
             }
-            let pos = pos
-                - if let Some(po) = cur_layer.preview_offset {
-                    po
-                } else {
-                    cur_layer.offset
-                };
+            let pos = pos - cur_layer.get_offset();
             if pos.x < 0 || pos.y < 0 {
                 continue;
             }
@@ -845,7 +840,7 @@ impl Default for Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AttributedChar, Buffer, Layer, Position, SaveOptions, Size, TextAttribute};
+    use crate::{AttributedChar, Buffer, Layer, SaveOptions, Size, TextAttribute};
 
     #[test]
     fn test_respect_sauce_width() {
@@ -873,7 +868,7 @@ mod tests {
 
         let mut new_layer = Layer::new("1", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
-        new_layer.offset = Position::new(2, 2);
+        new_layer.set_offset((2, 2));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         buf.layers.push(new_layer);
 
@@ -886,13 +881,13 @@ mod tests {
 
         let mut new_layer = Layer::new("1", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
-        new_layer.offset = Position::new(-2, -2);
+        new_layer.set_offset((-2, -2));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         buf.layers.push(new_layer);
 
         let mut new_layer = Layer::new("2", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
-        new_layer.offset = Position::new(2, 2);
+        new_layer.set_offset((2, 2));
         new_layer.set_char((5, 5), AttributedChar::new('b', TextAttribute::default()));
         buf.layers.push(new_layer);
 

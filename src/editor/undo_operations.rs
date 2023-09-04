@@ -345,12 +345,12 @@ impl UndoOperation for MoveLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].offset = self.from;
+        edit_state.buffer.layers[self.index].set_offset(self.from);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].offset = self.to;
+        edit_state.buffer.layers[self.index].set_offset(self.to);
         Ok(())
     }
 }

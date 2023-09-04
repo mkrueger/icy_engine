@@ -13,7 +13,7 @@ pub use edit_operations::*;
 
 use crate::{
     ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,
-    Shape, TextAttribute,
+    Shape,
 };
 
 pub struct EditState {
@@ -230,6 +230,11 @@ impl EditState {
         Some(data)
     }
 
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
         if let Some(layer) = Layer::from_clipboard_data(data) {
             self.current_layer = self.buffer.layers.len();
@@ -272,6 +277,11 @@ impl EditState {
         self.redo_stack.clear();
     }
 
+    /// Returns the delete selection of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn delete_selection(&mut self) {
         if let Some(selection) = &self.get_selection() {
             let _paste =
