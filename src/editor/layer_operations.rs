@@ -129,8 +129,10 @@ impl EditState {
     }
 
     pub fn move_layer(&mut self, to: Position) -> EngineResult<()> {
-        self.get_cur_layer_mut().set_preview_offset(None);
-        let mut op = undo_operations::MoveLayer::new(self.current_layer, self.get_cur_layer().offset, to);
+        let i = self.current_layer;
+        let Some(cur_layer) = self.get_cur_layer_mut() else { return Ok(()); };
+        cur_layer.set_preview_offset(None);
+        let mut op = undo_operations::MoveLayer::new(i, cur_layer.offset, to);
         op.redo(self)?;
         self.push_undo(Box::new(op));
         Ok(())

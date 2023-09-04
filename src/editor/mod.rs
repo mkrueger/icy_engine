@@ -113,12 +113,12 @@ impl EditState {
         &mut self.buffer
     }
 
-    pub fn get_cur_layer(&self) -> &Layer {
-        &self.buffer.layers[self.current_layer]
+    pub fn get_cur_layer(&self) -> Option<&Layer> {
+        self.buffer.layers.get(self.current_layer)
     }
     
-    pub fn get_cur_layer_mut(&mut self) -> &mut Layer {
-        &mut self.buffer.layers[self.current_layer]
+    pub fn get_cur_layer_mut(&mut self) -> Option<&mut Layer> {
+        self.buffer.layers.get_mut(self.current_layer)
     }
 
     pub fn get_caret(&self) -> &Caret {
