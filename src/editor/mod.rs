@@ -13,7 +13,7 @@ pub use edit_operations::*;
 
 use crate::{
     ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Position, Selection, Shape,
-    TextAttribute, UPosition,
+    TextAttribute,
 };
 
 pub struct EditState {
@@ -166,13 +166,13 @@ impl EditState {
                     res.push(self.parser.convert_to_unicode(ch));
                 }
             } else {
-                for x in start.x..(self.buffer.get_line_length(start.y as usize) as i32) {
+                for x in start.x..(self.buffer.get_line_length(start.y)) {
                     let ch = self.buffer.get_char(Position::new(x, start.y));
                     res.push(self.parser.convert_to_unicode(ch));
                 }
                 res.push('\n');
                 for y in start.y + 1..end.y {
-                    for x in 0..(self.buffer.get_line_length(y as usize) as i32) {
+                    for x in 0..(self.buffer.get_line_length(y)) {
                         let ch = self.buffer.get_char(Position::new(x, y));
                         res.push(self.parser.convert_to_unicode(ch));
                     }
@@ -201,7 +201,6 @@ impl EditState {
 
             let start = selection.min();
             let end = selection.max();
-            println!("{}, {} - {}", selection.size(), start, end);
 
             for y in start.y..end.y {
                 for x in start.x..end.x {
@@ -234,7 +233,7 @@ impl EditState {
         let _paste = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-paste"));
         let mut data = &data[9..];
 
-        let pos = self.caret.get_position().as_uposition();
+        let pos = self.caret.get_position();
 
         for y in 0..height {
             for x in 0..width {
@@ -251,7 +250,7 @@ impl EditState {
                         ]),
                     },
                 };
-                self.set_char(UPosition::new(x, y) + pos, ch)?;
+                self.set_char(Position::new(x as i32, y as i32) + pos, ch)?;
                 data = &data[14..];
             }
         }
@@ -299,7 +298,7 @@ impl EditState {
                     if x < 0 {
                         continue;
                     }
-                    self.set_char((x, y), AttributedChar::invisible());
+                    self.set_char((x, y), AttributedChar::invisible()).unwrap();
                 }
             }
             self.clear_selection();

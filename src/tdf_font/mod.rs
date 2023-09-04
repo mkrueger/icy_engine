@@ -1,7 +1,7 @@
 use std::{error::Error, fs::File, io::Read, path::Path};
 
 use crate::{
-    AttributedChar, Buffer, BufferType, EngineResult, Layer, Size, TextAttribute, UPosition,
+    AttributedChar, Buffer, BufferType, EngineResult, Layer, Position, Size, TextAttribute,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -19,12 +19,12 @@ impl FontGlyph {
     fn render(
         &self,
         layer: &mut Layer,
-        pos: UPosition,
+        pos: Position,
         font_type: FontType,
         outline_style: usize,
         color: TextAttribute,
-    ) -> UPosition {
-        let mut cur: UPosition = pos;
+    ) -> Position {
+        let mut cur: Position = pos;
         let mut char_offset = 0;
         while char_offset < self.data.len() {
             let ch = self.data[char_offset];
@@ -236,7 +236,7 @@ impl TheDrawFont {
                     }
                 }
                 char_table.push(Some(FontGlyph {
-                    size: Size::new(width, height),
+                    size: (width, height).into(),
                     data: char_data,
                 }));
             }
@@ -336,7 +336,7 @@ impl TheDrawFont {
         }
     }
 
-    pub fn get_font_height(&self) -> usize {
+    pub fn get_font_height(&self) -> i32 {
         let f = self.char_table.iter().flatten().next();
         if let Some(glyph) = f {
             glyph.size.height
@@ -357,7 +357,7 @@ impl TheDrawFont {
         &self,
         buffer: &mut Buffer,
         layer: usize,
-        pos: UPosition,
+        pos: Position,
         color: TextAttribute,
         outline_style: usize,
         char_code: u8,

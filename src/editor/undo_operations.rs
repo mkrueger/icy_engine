@@ -2,7 +2,7 @@ use std::mem;
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, UPosition};
+use crate::{AttributedChar, EngineResult, Layer, Position};
 
 use super::{EditState, UndoOperation};
 
@@ -38,7 +38,7 @@ impl UndoOperation for AtomicUndo {
 }
 
 pub struct UndoSetChar {
-    pub pos: UPosition,
+    pub pos: Position,
     pub layer: usize,
     pub old: AttributedChar,
     pub new: AttributedChar,
@@ -62,8 +62,8 @@ impl UndoOperation for UndoSetChar {
 
 pub struct UndoSwapChar {
     pub layer: usize,
-    pub pos1: UPosition,
-    pub pos2: UPosition,
+    pub pos1: Position,
+    pub pos2: Position,
 }
 impl UndoOperation for UndoSwapChar {
     fn get_description(&self) -> String {

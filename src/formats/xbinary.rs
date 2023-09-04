@@ -1,6 +1,6 @@
 use std::{cmp::min, io};
 
-use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, SauceString, UPosition};
+use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Position, SauceString};
 
 use super::{CompressionLevel, SaveOptions, TextAttribute};
 
@@ -44,9 +44,9 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
 
     // let eof_char = bytes[o];
     o += 1;
-    result.set_buffer_width((bytes[o] as i32 + ((bytes[o + 1] as i32) << 8)) as usize);
+    result.set_buffer_width(bytes[o] as i32 + ((bytes[o + 1] as i32) << 8));
     o += 2;
-    result.set_buffer_height((bytes[o] as i32 + ((bytes[o + 1] as i32) << 8)) as usize);
+    result.set_buffer_height(bytes[o] as i32 + ((bytes[o + 1] as i32) << 8));
     o += 2;
 
     let font_size = bytes[o];
@@ -112,7 +112,7 @@ pub fn read_xb(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resul
     }
 }
 
-fn advance_pos(result: &Buffer, pos: &mut UPosition) -> bool {
+fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     pos.x += 1;
     if pos.x >= result.get_width() {
         pos.x = 0;
@@ -122,7 +122,7 @@ fn advance_pos(result: &Buffer, pos: &mut UPosition) -> bool {
 }
 
 fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
-    let mut pos = UPosition::default();
+    let mut pos = Position::default();
     let mut o = 0;
     while o < file_size {
         let xbin_compression = bytes[o];
@@ -246,7 +246,7 @@ fn encode_attr(char_code: u16, attr: TextAttribute, buffer_type: BufferType) -> 
 }
 
 fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
-    let mut pos = UPosition::default();
+    let mut pos = Position::default();
     let mut o = 0;
     while o < file_size {
         if o + 1 > file_size {
@@ -356,10 +356,10 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
     let mut run_ch = AttributedChar::default();
     let len = buffer.get_line_count() * buffer.get_width();
     for x in 0..len {
-        let cur = buffer.get_char(UPosition::from_index(buffer, x));
+        let cur = buffer.get_char(Position::from_index(buffer, x));
 
         let next = if x + 1 < len {
-            buffer.get_char(UPosition::from_index(buffer, x + 1))
+            buffer.get_char(Position::from_index(buffer, x + 1))
         } else {
             AttributedChar::default()
         };
@@ -374,7 +374,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
                         if x + 2 < len && cur == next {
                             end_run = true;
                         } else if x + 2 < len {
-                            let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
+                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
                             end_run = cur.ch == next.ch && cur.ch == next2.ch
                                 || cur.attribute == next.attribute
                                     && cur.attribute == next2.attribute;
@@ -384,8 +384,8 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
                         if cur.ch != run_ch.ch {
                             end_run = true;
                         } else if x + 3 < len {
-                            let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
-                            let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
+                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
+                            let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
                             end_run = cur == next && cur == next2 && cur == next3;
                         }
                     }
@@ -393,8 +393,8 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Buffe
                         if cur.attribute != run_ch.attribute {
                             end_run = true;
                         } else if x + 3 < len {
-                            let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
-                            let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
+                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
+                            let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
                             end_run = cur == next && cur == next2 && cur == next3;
                         }
                     }
@@ -468,13 +468,13 @@ fn count_length(
     mut end_run: Option<bool>,
     mut run_count: u8,
     buffer: &Buffer,
-    mut x: usize,
+    mut x: i32,
 ) -> usize {
     let len = min(x + 256, (buffer.get_line_count() * buffer.get_width()) - 1);
     let mut count = 0;
     while x < len {
-        let cur = buffer.get_char(UPosition::from_index(buffer, x));
-        let next = buffer.get_char(UPosition::from_index(buffer, x + 1));
+        let cur = buffer.get_char(Position::from_index(buffer, x));
+        let next = buffer.get_char(Position::from_index(buffer, x + 1));
 
         if run_count > 0 {
             if end_run.is_none() {
@@ -486,7 +486,7 @@ fn count_length(
                             if x + 2 < len && cur == next {
                                 end_run = Some(true);
                             } else if x + 2 < len {
-                                let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
+                                let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
                                 end_run = Some(
                                     cur.ch == next.ch && cur.ch == next2.ch
                                         || cur.attribute == next.attribute
@@ -498,8 +498,8 @@ fn count_length(
                             if cur.ch != run_ch.ch {
                                 end_run = Some(true);
                             } else if x + 3 < len {
-                                let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
-                                let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
+                                let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
+                                let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
                                 end_run = Some(cur == next && cur == next2 && cur == next3);
                             }
                         }
@@ -507,8 +507,8 @@ fn count_length(
                             if cur.attribute != run_ch.attribute {
                                 end_run = Some(true);
                             } else if x + 3 < len {
-                                let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
-                                let next3 = buffer.get_char(UPosition::from_index(buffer, x + 3));
+                                let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
+                                let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
                                 end_run = Some(cur == next && cur == next2 && cur == next3);
                             }
                         }
@@ -569,10 +569,10 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
     let mut run_ch = AttributedChar::default();
     let len = buffer.get_line_count() * buffer.get_width();
     for x in 0..len {
-        let cur = buffer.get_char(UPosition::from_index(buffer, x));
+        let cur = buffer.get_char(Position::from_index(buffer, x));
 
         let next = if x + 1 < len {
-            buffer.get_char(UPosition::from_index(buffer, x + 1))
+            buffer.get_char(Position::from_index(buffer, x + 1))
         } else {
             AttributedChar::default()
         };
@@ -596,7 +596,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
                         if cur.ch != run_ch.ch {
                             end_run = true;
                         } else if x + 4 < len {
-                            let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
+                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
                             if cur.attribute == next.attribute && cur.attribute == next2.attribute {
                                 let l1 = count_length(
                                     run_mode,
@@ -622,7 +622,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
                         if cur.attribute != run_ch.attribute {
                             end_run = true;
                         } else if x + 3 < len {
-                            let next2 = buffer.get_char(UPosition::from_index(buffer, x + 2));
+                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
                             if cur.ch == next.ch && cur.ch == next2.ch {
                                 let l1 = count_length(
                                     run_mode,

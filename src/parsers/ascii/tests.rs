@@ -1,7 +1,7 @@
 use crate::{
     convert_to_asc,
     parsers::{ascii::Parser, create_buffer, update_buffer},
-    Position, SaveOptions, UPosition,
+    Position, SaveOptions,
 };
 
 fn test_ascii(data: &[u8]) {
@@ -105,7 +105,7 @@ fn test_url_scanner_simple() {
 
     assert_eq!(1, hyperlinks.len());
     assert_eq!("http://www.example.com", hyperlinks[0].get_url(&buf));
-    assert_eq!(UPosition::new(1, 1), hyperlinks[0].position);
+    assert_eq!(Position::new(1, 1), hyperlinks[0].position);
 }
 
 #[test]
@@ -119,14 +119,14 @@ fn test_url_scanner_multiple() {
 
     assert_eq!(3, hyperlinks.len());
     assert_eq!("http://www.example.com", hyperlinks[2].get_url(&buf));
-    assert_eq!(UPosition::new(1, 1), hyperlinks[2].position);
+    assert_eq!(Position::new(1, 1), hyperlinks[2].position);
 
     assert_eq!("https://www.google.com", hyperlinks[1].get_url(&buf));
-    assert_eq!(UPosition::new(24, 1), hyperlinks[1].position);
+    assert_eq!(Position::new(24, 1), hyperlinks[1].position);
 
     assert_eq!(
         "https://github.com/mkrueger/icy_engine",
         hyperlinks[0].get_url(&buf)
     );
-    assert_eq!(UPosition::new(0, 2), hyperlinks[0].position);
+    assert_eq!(Position::new(0, 2), hyperlinks[0].position);
 }

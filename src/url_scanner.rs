@@ -1,7 +1,7 @@
-use crate::{Buffer, HyperLink, UPosition};
+use crate::{Buffer, HyperLink, Position};
 
 impl Buffer {
-    pub fn get_string(&self, pos: impl Into<UPosition>, size: usize) -> String {
+    pub fn get_string(&self, pos: impl Into<Position>, size: usize) -> String {
         let pos = pos.into();
         let mut result = String::new();
         let mut pos = pos;
@@ -19,7 +19,7 @@ impl Buffer {
     pub fn parse_hyperlinks(&self) -> Vec<HyperLink> {
         let mut result = Vec::new();
 
-        let mut pos = UPosition::new(self.get_width() - 1, self.get_height() - 1);
+        let mut pos = Position::new(self.get_width() - 1, self.get_height() - 1);
         let mut parser = rfind_url::Parser::new();
 
         loop {
@@ -28,7 +28,7 @@ impl Buffer {
                 let p = crate::HyperLink {
                     url: None,
                     position: pos,
-                    length: size,
+                    length: size as i32,
                 };
                 result.push(p);
             }
@@ -46,7 +46,7 @@ impl Buffer {
         result
     }
 
-    fn underline(&mut self, pos: impl Into<UPosition>, size: usize) {
+    fn underline(&mut self, pos: impl Into<Position>, size: i32) {
         let mut pos = pos.into();
         for _ in 0..size {
             let mut ch = self.get_char(pos);
@@ -62,9 +62,9 @@ impl Buffer {
 
     pub fn is_position_in_range(
         &self,
-        pos: impl Into<UPosition>,
-        from: impl Into<UPosition>,
-        size: usize,
+        pos: impl Into<Position>,
+        from: impl Into<Position>,
+        size: i32,
     ) -> bool {
         let pos = pos.into();
         let from = from.into();

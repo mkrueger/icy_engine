@@ -18,8 +18,8 @@ pub struct Sixel {
     pub horizontal_scale: i32,
     pub picture_data: Vec<u8>,
 
-    pub(crate) width: usize,
-    pub(crate) height: usize,
+    pub(crate) width: i32,
+    pub(crate) height: i32,
 }
 
 struct SixelParser {
@@ -61,7 +61,7 @@ impl SixelParser {
         self.parse_char('#')?;
         let mut picture_data = Vec::new();
         for y in 0..self.height() {
-            let line = &self.picture_data[y];
+            let line = &self.picture_data[y as usize];
             picture_data.extend(line);
         }
         Ok(Sixel {
@@ -74,16 +74,16 @@ impl SixelParser {
         })
     }
 
-    pub fn width(&self) -> usize {
+    pub fn width(&self) -> i32 {
         if let Some(first_line) = self.picture_data.get(0) {
-            first_line.len() / 4
+            (first_line.len() as i32) / 4
         } else {
             0
         }
     }
 
-    pub fn height(&self) -> usize {
-        self.picture_data.len()
+    pub fn height(&self) -> i32 {
+        self.picture_data.len() as i32
     }
 
     fn parse_char(&mut self, ch: char) -> EngineResult<bool> {
@@ -200,17 +200,17 @@ impl SixelParser {
 
         let fg_color = self.current_sixel_palette.colors
             [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()];
-        let x_pos = self.sixel_cursor.x as usize;
-        let y_pos = self.sixel_cursor.y as usize * 6;
+        let x_pos = self.sixel_cursor.x;
+        let y_pos = self.sixel_cursor.y * 6;
 
         let mut last_line = y_pos + 6;
         if self.height_set && last_line > self.height() {
             last_line = self.height();
         }
 
-        if self.picture_data.len() < last_line {
+        if (self.picture_data.len() as i32) < last_line {
             self.picture_data
-                .resize(last_line, vec![0; self.width() * 4]);
+                .resize(last_line as usize, vec![0; (self.width() as usize) * 4]);
         }
 
         for i in 0..6 {
@@ -220,11 +220,11 @@ impl SixelParser {
                     break;
                 }
 
-                let cur_line = &mut self.picture_data[translated_line];
+                let cur_line = &mut self.picture_data[translated_line as usize];
 
-                let offset = x_pos * 4;
+                let offset = x_pos as usize * 4;
                 if cur_line.len() <= offset {
-                    cur_line.resize((x_pos + 1) * 4, 0);
+                    cur_line.resize((x_pos as usize + 1) * 4, 0);
                 }
 
                 let (r, g, b) = fg_color.get_rgb();
@@ -282,11 +282,11 @@ impl Sixel {
         }
     }
 
-    pub fn width(&self) -> usize {
+    pub fn width(&self) -> i32 {
         self.width
     }
 
-    pub fn height(&self) -> usize {
+    pub fn height(&self) -> i32 {
         self.height
     }
 

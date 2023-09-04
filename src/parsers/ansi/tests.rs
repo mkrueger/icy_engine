@@ -785,7 +785,7 @@ fn test_scroll_left() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (x % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -810,7 +810,7 @@ fn test_scroll_left_with_margins() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (x % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -836,7 +836,7 @@ fn test_scroll_right() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (x % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -861,7 +861,7 @@ fn test_scroll_right_with_margins() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (x % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -887,7 +887,7 @@ fn test_scroll_up() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (y % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -912,7 +912,7 @@ fn test_scroll_up_with_margins() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (x % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -938,7 +938,7 @@ fn test_scroll_down() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (y % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );
@@ -963,7 +963,7 @@ fn test_scroll_down_with_margins() {
             buf.layers[0].set_char(
                 (x, y),
                 AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as usize + (x % 10)) as u32) },
+                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
                     TextAttribute::default(),
                 ),
             );

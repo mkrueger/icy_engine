@@ -19,7 +19,7 @@ fn test_bs() {
     assert_eq!(Position::new(1, 0), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x08");
-    assert_eq!(Position::new(buf.get_width() as i32 - 1, 23), caret.pos);
+    assert_eq!(Position::new(buf.get_width() - 1, 23), caret.pos);
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_vt() {
     assert_eq!(Position::new(0, 1), caret.pos);
 
     let (buf, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x0B");
-    assert_eq!(Position::new(0, buf.get_height() as i32 - 1), caret.pos);
+    assert_eq!(Position::new(0, buf.get_height() - 1), caret.pos);
 }
 
 #[test]

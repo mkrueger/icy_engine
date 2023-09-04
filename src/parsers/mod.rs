@@ -30,7 +30,7 @@ pub enum CallbackAction {
     SendString(String),
     PlayMusic(AnsiMusic),
     ChangeBaudEmulation(ansi::BaudEmulation),
-    ResizeTerminal(usize, usize),
+    ResizeTerminal(i32, i32),
 }
 
 pub trait BufferParser: Send {
@@ -54,7 +54,7 @@ pub trait BufferParser: Send {
 impl Caret {
     /// (line feed, LF, \n, ^J), moves the print head down one line, or to the left edge and down. Used as the end of line marker in most UNIX systems and variants.
     pub fn lf(&mut self, buf: &mut Buffer, current_layer: usize) {
-        let was_ooe = self.pos.y > buf.get_last_editable_line() as i32;
+        let was_ooe = self.pos.y > buf.get_last_editable_line();
 
         self.pos.x = 0;
         self.pos.y += 1;
@@ -91,7 +91,7 @@ impl Caret {
     }
 
     pub fn eol(&mut self, buf: &Buffer) {
-        self.pos.x = buf.get_width() as i32 - 1;
+        self.pos.x = buf.get_width() - 1;
     }
 
     pub fn home(&mut self, buf: &Buffer) {
@@ -124,8 +124,8 @@ impl Caret {
     }
 
     pub fn erase_charcter(&mut self, buf: &mut Buffer, current_layer: usize, number: i32) {
-        let mut i = self.pos.x as usize;
-        let number = min(buf.get_width() as i32 - i as i32, number);
+        let mut i = self.pos.x;
+        let number = min(buf.get_width() - i, number);
         if number <= 0 {
             return;
         }
@@ -168,7 +168,7 @@ impl Caret {
 
     /// Moves the cursor up one line in the same column. If the cursor is at the top margin, the page scrolls down.
     pub fn reverse_index(&mut self, buf: &mut Buffer, current_layer: usize) {
-        self.pos.y = self.pos.y.saturating_sub(1);
+        self.pos.y -= 1;
         self.check_scrolling_on_caret_up(buf, current_layer, true);
         buf.terminal_state.limit_caret_pos(buf, self);
     }
@@ -182,7 +182,7 @@ impl Caret {
 
     fn check_scrolling_on_caret_up(&mut self, buf: &mut Buffer, current_layer: usize, force: bool) {
         if buf.needs_scrolling() || force {
-            let last = buf.get_first_editable_line() as i32;
+            let last = buf.get_first_editable_line();
             while self.pos.y < last {
                 buf.scroll_down(current_layer);
                 self.pos.y += 1;
@@ -196,7 +196,7 @@ impl Caret {
         current_layer: usize,
         force: bool,
     ) {
-        if (buf.needs_scrolling() || force) && self.pos.y > buf.get_last_editable_line() as i32 {
+        if (buf.needs_scrolling() || force) && self.pos.y > buf.get_last_editable_line() {
             buf.scroll_up(current_layer);
             self.pos.y -= 1;
         }
@@ -219,14 +219,15 @@ impl Buffer {
                     .lines
                     .resize(caret.pos.y as usize + 1, Line::with_capacity(buffer_width));
             }
-            layer.lines[caret.pos.y as usize]
-                .insert_char(caret.pos.x as usize, AttributedChar::default());
+            layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, AttributedChar::default());
         }
-        self.layers[layer].set_height(caret.pos.y as usize + 1);
+        if caret.pos.y + 1 > self.layers[layer].get_height() {
+            self.layers[layer].set_height(caret.pos.y + 1);
+        }
 
         self.layers[layer].set_char(caret.pos, ch);
         caret.pos.x += 1;
-        if caret.pos.x >= buffer_width as i32 {
+        if caret.pos.x >= buffer_width {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self, layer);
             } else {
@@ -236,11 +237,11 @@ impl Buffer {
     }
 
     fn scroll_up(&mut self, layer: usize) {
-        let start_line: i32 = self.get_first_editable_line() as i32;
-        let end_line = self.get_last_editable_line() as i32;
+        let start_line: i32 = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
 
         let start_column = self.get_first_editable_column();
-        let end_column = self.get_last_editable_column() as i32;
+        let end_column = self.get_last_editable_column();
 
         let layer = &mut self.layers[layer];
         for x in start_column..=end_column {
@@ -253,11 +254,11 @@ impl Buffer {
     }
 
     fn scroll_down(&mut self, layer: usize) {
-        let start_line: i32 = self.get_first_editable_line() as i32;
-        let end_line = self.get_last_editable_line() as i32;
+        let start_line: i32 = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
 
         let start_column = self.get_first_editable_column();
-        let end_column = self.get_last_editable_column() as i32;
+        let end_column = self.get_last_editable_column();
 
         let layer = &mut self.layers[layer];
         for x in start_column..=end_column {
@@ -270,8 +271,8 @@ impl Buffer {
     }
 
     fn scroll_left(&mut self, layer: usize) {
-        let start_line: i32 = self.get_first_editable_line() as i32;
-        let end_line = self.get_last_editable_line() as i32;
+        let start_line: i32 = self.get_first_editable_line();
+        let end_line = self.get_last_editable_line();
 
         let start_column = self.get_first_editable_column() as usize;
         let end_column = self.get_last_editable_column() + 1;
@@ -280,7 +281,8 @@ impl Buffer {
         for i in start_line..=end_line {
             let line = &mut layer.lines[i as usize];
             if line.chars.len() > start_column {
-                line.chars.insert(end_column, AttributedChar::default());
+                line.chars
+                    .insert(end_column as usize, AttributedChar::default());
                 line.chars.remove(start_column);
             }
         }
@@ -291,11 +293,11 @@ impl Buffer {
         let end_line = self.get_last_editable_line();
 
         let start_column = self.get_first_editable_column() as usize;
-        let end_column = self.get_last_editable_column();
+        let end_column = self.get_last_editable_column() as usize;
 
         let layer = &mut self.layers[layer];
         for i in start_line..=end_line {
-            let line = &mut layer.lines[i];
+            let line = &mut layer.lines[i as usize];
             if line.chars.len() > start_column {
                 line.chars.insert(start_column, AttributedChar::default());
                 line.chars.remove(end_column + 1);
@@ -311,7 +313,7 @@ impl Buffer {
     }
 
     fn clear_buffer_down(&mut self, layer: usize, caret: &Caret) {
-        let pos = caret.get_position().as_uposition();
+        let pos = caret.get_position();
         let ch: AttributedChar = AttributedChar {
             attribute: caret.attribute,
             ..Default::default()
@@ -325,7 +327,7 @@ impl Buffer {
     }
 
     fn clear_buffer_up(&mut self, layer: usize, caret: &Caret) {
-        let pos = caret.get_position().as_uposition();
+        let pos = caret.get_position();
         let ch: AttributedChar = AttributedChar {
             attribute: caret.attribute,
             ..Default::default()
@@ -339,7 +341,7 @@ impl Buffer {
     }
 
     fn clear_line(&mut self, layer: usize, caret: &Caret) {
-        let mut pos = caret.get_position().as_uposition();
+        let mut pos = caret.get_position();
         let ch: AttributedChar = AttributedChar {
             attribute: caret.attribute,
             ..Default::default()
@@ -351,7 +353,7 @@ impl Buffer {
     }
 
     fn clear_line_end(&mut self, layer: usize, caret: &Caret) {
-        let mut pos = caret.get_position().as_uposition();
+        let mut pos = caret.get_position();
         let ch: AttributedChar = AttributedChar {
             attribute: caret.attribute,
             ..Default::default()
@@ -375,7 +377,7 @@ impl Buffer {
     }
 
     fn remove_terminal_line(&mut self, layer: usize, line: i32) {
-        if line >= self.layers[layer].get_line_count() as i32 {
+        if line >= self.layers[layer].get_line_count() {
             return;
         }
         self.layers[layer].remove_line(line);
@@ -387,7 +389,7 @@ impl Buffer {
 
     fn insert_terminal_line(&mut self, layer: usize, line: i32) {
         if let Some((_, end)) = self.terminal_state.get_margins_top_bottom() {
-            if end < self.layers[layer].get_line_count() as i32 {
+            if end < self.layers[layer].get_line_count() {
                 self.layers[layer].lines.remove(end as usize);
             }
         }

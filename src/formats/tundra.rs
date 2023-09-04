@@ -1,7 +1,7 @@
 use std::io;
 
 use super::{SaveOptions, TextAttribute};
-use crate::{AttributedChar, Buffer, BufferType, UPosition};
+use crate::{AttributedChar, Buffer, BufferType, Position};
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
 // ANSI code for 24 bit: ESC[(0|1);R;G;Bt
@@ -47,19 +47,19 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     result.palette.insert_color_rgb(0, 0, 0);
     result.buffer_type = BufferType::NoLimits;
 
-    let mut pos = UPosition::default();
+    let mut pos = Position::default();
     let mut attr = TextAttribute::from_u8(0, result.buffer_type);
 
     while o < file_size {
         let mut cmd = bytes[o];
         o += 1;
         if cmd == TUNDRA_POSITION {
-            pos.y = to_u32(&bytes[o..]) as usize;
-            if pos.y >= (u16::MAX) as usize {
+            pos.y = to_u32(&bytes[o..]);
+            if pos.y >= (u16::MAX) as i32 {
                 return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_line_count())));
             }
             o += 4;
-            pos.x = to_u32(&bytes[o..]) as usize;
+            pos.x = to_u32(&bytes[o..]);
             if pos.x >= result.get_width() {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -114,7 +114,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
     Ok(true)
 }
 
-fn advance_pos(result: &Buffer, pos: &mut UPosition) -> bool {
+fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     pos.x += 1;
     if pos.x >= result.get_width() {
         pos.x = 0;
@@ -127,7 +127,7 @@ fn to_u32(bytes: &[u8]) -> i32 {
     bytes[3] as i32 | (bytes[2] as i32) << 8 | (bytes[1] as i32) << 16 | (bytes[0] as i32) << 24
 }
 
-const TND_GOTO_BLOCK_LEN: usize = 1 + 2 * 4;
+const TND_GOTO_BLOCK_LEN: i32 = 1 + 2 * 4;
 
 /// .
 ///
@@ -145,7 +145,7 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
     let mut skip_pos = None;
     for y in 0..buf.get_line_count() {
         for x in 0..buf.get_width() {
-            let pos = UPosition::new(x, y);
+            let pos = Position::new(x, y);
             let ch = buf.get_char(pos);
             if !ch.is_visible() {
                 if skip_pos.is_none() {
@@ -164,11 +164,11 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
                 let skip_len =
                     (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width());
                 if skip_len <= TND_GOTO_BLOCK_LEN {
-                    result.resize(result.len() + skip_len, 0);
+                    result.resize(result.len() + skip_len as usize, 0);
                 } else {
                     result.push(1);
-                    result.extend(i32::to_be_bytes(pos.y as i32));
-                    result.extend(i32::to_be_bytes(pos.x as i32));
+                    result.extend(i32::to_be_bytes(pos.y));
+                    result.extend(i32::to_be_bytes(pos.x));
                 }
                 skip_pos = None;
             }
@@ -216,13 +216,13 @@ pub fn convert_to_tnd(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
         }
     }
     if let Some(pos2) = skip_pos {
-        let pos = UPosition::new(
+        let pos = Position::new(
             buf.get_width().saturating_sub(1),
             buf.get_line_count().saturating_sub(1),
         );
 
         let skip_len = (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width()) + 1;
-        result.resize(result.len() + skip_len, 0);
+        result.resize(result.len() + skip_len as usize, 0);
     }
 
     if options.save_sauce {

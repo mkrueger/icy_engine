@@ -1,6 +1,6 @@
 #![allow(clippy::match_same_arms)]
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position, UPosition};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position};
 
 mod constants;
 
@@ -53,13 +53,13 @@ impl Parser {
         if caret.get_position().x <= 0 {
             return;
         }
-        let sx = caret.get_position().x as usize;
-        let sy = caret.get_position().y as usize;
+        let sx = caret.get_position().x;
+        let sy = caret.get_position().y;
 
         let attr = buf.get_char((sx, sy)).attribute;
 
         for x in sx..buf.get_width() {
-            let p = UPosition::new(x, sy);
+            let p = Position::new(x, sy);
             let mut ch = buf.get_char(p);
             if ch.attribute != attr {
                 break;
@@ -81,7 +81,7 @@ impl Parser {
 
     fn caret_down(&mut self, buf: &Buffer, caret: &mut Caret) {
         caret.pos.y += 1;
-        if caret.pos.y >= buf.get_height() as i32 {
+        if caret.pos.y >= buf.get_height() {
             caret.pos.y = 0;
         }
         self.reset_on_row_change(caret);
@@ -91,13 +91,13 @@ impl Parser {
         if caret.pos.y > 0 {
             caret.pos.y = caret.pos.y.saturating_sub(1);
         } else {
-            caret.pos.y = buf.get_height() as i32 - 1;
+            caret.pos.y = buf.get_height() - 1;
         }
     }
 
     fn caret_right(&mut self, buf: &Buffer, caret: &mut Caret) {
         caret.pos.x += 1;
-        if caret.pos.x >= buf.get_width() as i32 {
+        if caret.pos.x >= buf.get_width() {
             caret.pos.x = 0;
             self.caret_down(buf, caret);
         }
@@ -108,7 +108,7 @@ impl Parser {
         if caret.pos.x > 0 {
             caret.pos.x = caret.pos.x.saturating_sub(1);
         } else {
-            caret.pos.x = buf.get_width() as i32 - 1;
+            caret.pos.x = buf.get_width() - 1;
             Parser::caret_up(buf, caret);
         }
     }

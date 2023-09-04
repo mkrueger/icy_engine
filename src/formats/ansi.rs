@@ -1,6 +1,6 @@
 use crate::ascii::CP437_TO_UNICODE;
 use crate::Buffer;
-use crate::{TextAttribute, UPosition};
+use crate::{Position, TextAttribute};
 
 use super::SaveOptions;
 
@@ -14,7 +14,7 @@ pub fn convert_to_ansi_data(
 ) -> Vec<u8> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
-    let mut pos = UPosition::default();
+    let mut pos = Position::default();
     let layer = &buf.layers[current_layer];
     let height = layer.get_line_count();
     let mut first_char = true;

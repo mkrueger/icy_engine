@@ -9,39 +9,41 @@ impl Line {
         Line::with_capacity(80)
     }
 
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(capacity: i32) -> Self {
         Line {
-            chars: Vec::with_capacity(capacity),
+            chars: Vec::with_capacity(capacity as usize),
         }
     }
 
-    pub fn create(width: usize) -> Self {
+    pub fn create(width: i32) -> Self {
         let mut chars = Vec::new();
-        chars.resize(width, AttributedChar::invisible());
+        chars.resize(width as usize, AttributedChar::invisible());
         Line { chars }
     }
 
-    pub fn get_line_length(&self) -> usize {
+    pub fn get_line_length(&self) -> i32 {
         for idx in (0..self.chars.len()).rev() {
             if !self.chars[idx].is_transparent() {
-                return idx + 1;
+                return idx as i32 + 1;
             }
         }
         0
     }
 
-    pub fn insert_char(&mut self, index: usize, char_opt: AttributedChar) {
-        if index > self.chars.len() {
-            self.chars.resize(index, AttributedChar::invisible());
+    pub fn insert_char(&mut self, index: i32, char_opt: AttributedChar) {
+        if index > self.chars.len() as i32 {
+            self.chars
+                .resize(index as usize, AttributedChar::invisible());
         }
-        self.chars.insert(index, char_opt);
+        self.chars.insert(index as usize, char_opt);
     }
 
-    pub fn set_char(&mut self, index: usize, char: AttributedChar) {
-        if index >= self.chars.len() {
-            self.chars.resize(index + 1, AttributedChar::invisible());
+    pub fn set_char(&mut self, index: i32, char: AttributedChar) {
+        if index >= self.chars.len() as i32 {
+            self.chars
+                .resize(index as usize + 1, AttributedChar::invisible());
         }
-        self.chars[index] = char;
+        self.chars[index as usize] = char;
     }
 }
 

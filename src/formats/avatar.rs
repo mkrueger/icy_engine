@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{Buffer, TextAttribute, UPosition};
+use crate::{Buffer, Position, TextAttribute};
 
 use super::SaveOptions;
 
@@ -30,7 +30,7 @@ pub enum AvtReadState {
 pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
-    let mut pos = UPosition::default();
+    let mut pos = Position::default();
     let height = buf.get_line_count();
     let mut first_char = true;
 
@@ -55,7 +55,7 @@ pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
             let mut repeat_count = 1;
             let mut ch = buf.get_char(pos);
 
-            while pos.x + 3 < buf.get_width() && ch == buf.get_char(pos + UPosition::new(1, 0)) {
+            while pos.x + 3 < buf.get_width() && ch == buf.get_char(pos + Position::new(1, 0)) {
                 repeat_count += 1;
                 pos.x += 1;
                 ch = buf.get_char(pos);

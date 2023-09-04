@@ -758,7 +758,7 @@ impl BufferParser for Parser {
                         } else {
                             if self.parsed_numbers[0] >= 0 {
                                 // always be in terminal mode for gotoxy
-                                caret.pos.y = buf.get_first_visible_line() as i32
+                                caret.pos.y = buf.get_first_visible_line()
                                     + max(0, self.parsed_numbers[0] - 1);
                             }
                             if self.parsed_numbers.len() > 1 {
@@ -826,7 +826,7 @@ impl BufferParser for Parser {
                             Some(n) => n - 1,
                             _ => 0,
                         };
-                        caret.pos.y = buf.get_first_visible_line()as i32 + num;
+                        caret.pos.y = buf.get_first_visible_line() + num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
                     'e' => {
@@ -837,7 +837,7 @@ impl BufferParser for Parser {
                             Some(n) => *n,
                             _ => 1,
                         };
-                        caret.pos.y = buf.get_first_visible_line() as i32 + caret.pos.y + num;
+                        caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
                     '\'' => {
@@ -849,7 +849,7 @@ impl BufferParser for Parser {
                         };
                         if let Some(layer) = &buf.layers.get(0) {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
-                                caret.pos.x = num.clamp(0, line.get_line_length() as i32);
+                                caret.pos.x = num.clamp(0, line.get_line_length());
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
@@ -867,7 +867,7 @@ impl BufferParser for Parser {
                         if let Some(layer) = &buf.layers.get(0) {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
                                 caret.pos.x =
-                                    min(line.get_line_length() as i32, caret.pos.x + num);
+                                    min(line.get_line_length(), caret.pos.x + num);
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
@@ -892,7 +892,7 @@ impl BufferParser for Parser {
                             Some(n) => *n,
                             _ => 1,
                         };
-                        caret.pos.y = buf.get_first_visible_line()as i32 + caret.pos.y + num;
+                        caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                         caret.pos.x = 0;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
@@ -903,7 +903,7 @@ impl BufferParser for Parser {
                             Some(n) => *n,
                             _ => 1,
                         };
-                        caret.pos.y = buf.get_first_visible_line()as i32 + caret.pos.y - num;
+                        caret.pos.y = buf.get_first_visible_line() + caret.pos.y - num;
                         caret.pos.x = 0;
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
@@ -931,8 +931,8 @@ impl BufferParser for Parser {
                                 // Get cursor position
                                 let s = format!(
                                     "\x1b[{};{}R",
-                                    min(buf.get_height(), caret.pos.y as usize + 1),
-                                    min(buf.get_width(), caret.pos.x as usize + 1)
+                                    min(buf.get_height(), caret.pos.y + 1),
+                                    min(buf.get_width(), caret.pos.x + 1)
                                 );
                                 return Ok(CallbackAction::SendString(s));
                             }

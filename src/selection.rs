@@ -1,4 +1,4 @@
-use crate::{Position, Size, UPosition};
+use crate::{Position, Size};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Coordinates {
@@ -63,13 +63,12 @@ impl Selection {
         anchor_pos == lead_pos
     }
 
-    pub fn is_inside(&self, pos: impl Into<UPosition>) -> bool {
+    pub fn is_inside(&self, pos: impl Into<Position>) -> bool {
         let pos = pos.into();
         let anchor_pos = self.anchor.as_position();
         let lead_pos = self.lead.as_position();
 
-        anchor_pos.as_uposition() <= pos && lead_pos.as_uposition() < pos
-            || lead_pos.as_uposition() <= pos && anchor_pos.as_uposition() < pos
+        anchor_pos <= pos && lead_pos < pos || lead_pos <= pos && anchor_pos < pos
     }
 
     pub fn min(&self) -> Position {
@@ -91,8 +90,8 @@ impl Selection {
         let lead_pos = Position::new(self.lead.x as i32, self.lead.y as i32);
 
         Size::new(
-            (anchor_pos.x - lead_pos.x).unsigned_abs() as usize,
-            (anchor_pos.y - lead_pos.y).unsigned_abs() as usize,
+            (anchor_pos.x - lead_pos.x).abs(),
+            (anchor_pos.y - lead_pos.y).abs(),
         )
     }
 }

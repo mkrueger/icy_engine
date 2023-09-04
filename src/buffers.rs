@@ -10,13 +10,12 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, Rectangle, SauceData, Sixel,
-    TerminalState, UPosition,
+    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, Position, Rectangle, SauceData,
+    Sixel, TerminalState,
 };
 
 use super::{
-    read_binary, read_xb, AttributedChar, BitFont, Palette, Position, SauceString, SaveOptions,
-    Size,
+    read_binary, read_xb, AttributedChar, BitFont, Palette, SauceString, SaveOptions, Size,
 };
 
 #[repr(u8)]
@@ -131,19 +130,19 @@ impl std::fmt::Display for Buffer {
 }
 
 impl Buffer {
-    pub fn get_width(&self) -> usize {
+    pub fn get_width(&self) -> i32 {
         self.terminal_state.get_width()
     }
 
-    pub fn get_line_count(&self) -> usize {
+    pub fn get_line_count(&self) -> i32 {
         if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
-            len
+            len as i32
         } else {
             self.terminal_state.get_height()
         }
     }
 
-    pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
+    pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if let Some(overlay) = &self.overlay_layer {
             let ch = overlay.get_char(pos);
@@ -160,7 +159,7 @@ impl Buffer {
             if !cur_layer.is_visible {
                 continue;
             }
-            let pos = pos.as_position() - cur_layer.offset;
+            let pos = pos - cur_layer.offset;
             if pos.x < 0 || pos.y < 0 {
                 continue;
             }
@@ -194,9 +193,9 @@ impl Buffer {
         }
     }
 
-    pub fn get_line_length(&self, line: usize) -> usize {
+    pub fn get_line_length(&self, line: i32) -> i32 {
         let mut length = 0;
-        let mut pos = UPosition::new(0, line);
+        let mut pos = Position::new(0, line);
         for x in 0..self.get_width() {
             pos.x = x;
             let ch = self.get_char(pos);
@@ -353,11 +352,11 @@ impl Buffer {
         i
     }
 
-    pub fn get_height(&self) -> usize {
+    pub fn get_height(&self) -> i32 {
         self.terminal_state.get_height()
     }
 
-    pub fn get_real_buffer_width(&self) -> usize {
+    pub fn get_real_buffer_width(&self) -> i32 {
         let mut w = 0;
         for layer in &self.layers {
             for line in &layer.lines {
@@ -385,7 +384,7 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn set_buffer_width(&mut self, width: usize) {
+    pub fn set_buffer_width(&mut self, width: i32) {
         self.terminal_state.set_width(width);
     }
     pub fn get_buffer_size(&self) -> Size {
@@ -396,7 +395,7 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn set_buffer_height(&mut self, height: usize) {
+    pub fn set_buffer_height(&mut self, height: i32) {
         self.terminal_state.set_height(height);
     }
 
@@ -412,25 +411,25 @@ impl Buffer {
     /// terminal buffers have a viewport on the bottom of the buffer
     /// this function gives back the first visible line.
     #[must_use]
-    pub fn get_first_visible_line(&self) -> usize {
+    pub fn get_first_visible_line(&self) -> i32 {
         if self.is_terminal_buffer {
             max(
                 0,
-                self.layers[0].lines.len().saturating_sub(self.get_height()),
+                (self.layers[0].lines.len() as i32).saturating_sub(self.get_height()),
             )
         } else {
             0
         }
     }
 
-    pub fn get_last_visible_line(&self) -> usize {
+    pub fn get_last_visible_line(&self) -> i32 {
         self.get_first_visible_line() + self.get_height()
     }
 
-    pub fn get_first_editable_line(&self) -> usize {
+    pub fn get_first_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
             if let Some((start, _)) = self.terminal_state.get_margins_top_bottom() {
-                return self.get_first_visible_line() + start as usize;
+                return self.get_first_visible_line() + start;
             }
         }
         self.get_first_visible_line()
@@ -445,10 +444,10 @@ impl Buffer {
         0
     }
 
-    pub fn get_last_editable_column(&self) -> usize {
+    pub fn get_last_editable_column(&self) -> i32 {
         if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.get_margins_left_right() {
-                return end as usize;
+                return end;
             }
         }
         self.get_width().saturating_sub(1)
@@ -460,16 +459,16 @@ impl Buffer {
     }
 
     #[must_use]
-    pub fn get_last_editable_line(&self) -> usize {
+    pub fn get_last_editable_line(&self) -> i32 {
         if self.is_terminal_buffer {
             if let Some((_, end)) = self.terminal_state.get_margins_top_bottom() {
-                self.get_first_visible_line() + end as usize
+                self.get_first_visible_line() + end
             } else {
                 (self.get_first_visible_line() + self.get_height()).saturating_sub(1)
             }
         } else {
             max(
-                self.layers[0].lines.len(),
+                self.layers[0].lines.len() as i32,
                 self.get_height().saturating_sub(1),
             )
         }
@@ -480,11 +479,11 @@ impl Buffer {
         match self.terminal_state.origin_mode {
             crate::OriginMode::UpperLeftCorner => Position {
                 x: 0,
-                y: self.get_first_visible_line() as i32,
+                y: self.get_first_visible_line(),
             },
             crate::OriginMode::WithinMargins => Position {
                 x: 0,
-                y: self.get_first_editable_line() as i32,
+                y: self.get_first_editable_line(),
             },
         }
     }
@@ -495,7 +494,7 @@ impl Buffer {
         let mut res = Buffer::new(size);
         res.layers[0]
             .lines
-            .resize(size.height, crate::Line::create(size.width));
+            .resize(size.height as usize, crate::Line::create(size.width));
 
         res
     }
@@ -774,7 +773,7 @@ impl Buffer {
         y as f64 * font_dimensions.height as f64
     }
 
-    pub fn set_height_for_pos(&mut self, pos: impl Into<UPosition>) {
+    pub fn set_height_for_pos(&mut self, pos: impl Into<Position>) {
         let pos = pos.into();
         self.set_buffer_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
     }
@@ -790,11 +789,11 @@ impl Buffer {
         let px_width = rect.get_width() * font_size.width;
         let px_height = rect.get_height() * font_size.height;
         let line_bytes = px_width * 4;
-        let mut pixels = vec![0; line_bytes * px_height];
+        let mut pixels = vec![0; (line_bytes * px_height) as usize];
 
         for y in 0..rect.get_height() {
             for x in 0..rect.get_width() {
-                let ch = self.get_char((x + rect.start.x as usize, y + rect.start.y as usize));
+                let ch = self.get_char((x + rect.start.x, y + rect.start.y));
                 let font = self.get_font(ch.get_font_page()).unwrap();
 
                 let fg = if ch.attribute.is_bold() && ch.attribute.get_foreground() < 8 {
@@ -810,9 +809,10 @@ impl Buffer {
                 if let Some(glyph) = font.get_glyph(ch.ch) {
                     for cy in 0..font_size.height {
                         for cx in 0..font_size.width {
-                            let offset = (x * font_size.width + cx) * 4
-                                + (y * font_size.height + cy) * line_bytes;
-                            if glyph.data[cy] & (128 >> cx) == 0 {
+                            let offset = ((x * font_size.width + cx) * 4
+                                + (y * font_size.height + cy) * line_bytes)
+                                as usize;
+                            if glyph.data[cy as usize] & (128 >> cx) == 0 {
                                 pixels[offset] = b_r;
                                 pixels[offset + 1] = b_g;
                                 pixels[offset + 2] = b_b;
@@ -840,28 +840,16 @@ impl Default for Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AttributedChar, Buffer, SaveOptions, TextAttribute, Layer, Position, Size};
+    use crate::{AttributedChar, Buffer, Layer, Position, SaveOptions, Size, TextAttribute};
 
     #[test]
     fn test_respect_sauce_width() {
         let mut buf = Buffer::default();
         buf.set_buffer_width(10);
         for x in 0..buf.get_width() {
-            buf.layers[0].set_char_xy(
-                x as i32,
-                0,
-                AttributedChar::new('1', TextAttribute::default()),
-            );
-            buf.layers[0].set_char_xy(
-                x as i32,
-                1,
-                AttributedChar::new('2', TextAttribute::default()),
-            );
-            buf.layers[0].set_char_xy(
-                x as i32,
-                2,
-                AttributedChar::new('3', TextAttribute::default()),
-            );
+            buf.layers[0].set_char_xy(x, 0, AttributedChar::new('1', TextAttribute::default()));
+            buf.layers[0].set_char_xy(x, 1, AttributedChar::new('2', TextAttribute::default()));
+            buf.layers[0].set_char_xy(x, 2, AttributedChar::new('3', TextAttribute::default()));
         }
 
         let mut opt = SaveOptions::new();
@@ -877,7 +865,7 @@ mod tests {
     #[test]
     fn test_layer_offset() {
         let mut buf: Buffer = Buffer::default();
-        
+
         let mut new_layer = Layer::new("1", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
         new_layer.offset = Position::new(2, 2);
@@ -890,7 +878,7 @@ mod tests {
     #[test]
     fn test_layer_negative_offset() {
         let mut buf: Buffer = Buffer::default();
-        
+
         let mut new_layer = Layer::new("1", Size::new(10, 10));
         new_layer.has_alpha_channel = true;
         new_layer.offset = Position::new(-2, -2);

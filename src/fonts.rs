@@ -60,7 +60,7 @@ impl Glyph {
 pub struct BitFont {
     pub name: SauceString<22, 0>,
     pub size: Size,
-    pub length: usize,
+    pub length: i32,
     font_type: BitFontType,
     glyphs: HashMap<char, Glyph>,
 }
@@ -142,9 +142,9 @@ impl BitFont {
 
     pub fn set_glyphs_from_u8_data(&mut self, data: &[u8]) {
         for ch in 0..self.length {
-            let o = ch * self.size.height;
+            let o = (ch * self.size.height) as usize;
             let glyph = Glyph {
-                data: data[o..(o + self.size.height)].into(),
+                data: data[o..(o + self.size.height as usize)].into(),
             };
             self.glyphs
                 .insert(unsafe { char::from_u32_unchecked(ch as u32) }, glyph);
@@ -170,7 +170,7 @@ impl BitFont {
     pub fn create_8(name: SauceString<22, 0>, width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
             name,
-            size: Size::new(width as usize, height as usize),
+            size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
             glyphs: HashMap::new(),
@@ -183,7 +183,7 @@ impl BitFont {
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
             name: SauceString::EMPTY,
-            size: Size::new(width as usize, height as usize),
+            size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
             glyphs: HashMap::new(),
@@ -209,7 +209,7 @@ impl BitFont {
 
         let mut r = BitFont {
             name: SauceString::from(font_name),
-            size: Size::new(8, charsize as usize),
+            size: (8, charsize).into(),
             length,
             font_type: BitFontType::BuiltIn,
             glyphs: HashMap::new(),
@@ -256,12 +256,12 @@ impl BitFont {
         }
         let headersize = u32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
         // let flags = u32::from_le_bytes(data[12..16].try_into().unwrap());
-        let length = u32::from_le_bytes(data[16..20].try_into().unwrap()) as usize;
-        let charsize = u32::from_le_bytes(data[20..24].try_into().unwrap()) as usize;
-        if length * charsize + headersize != data.len() {
+        let length = u32::from_le_bytes(data[16..20].try_into().unwrap()) as i32;
+        let charsize = u32::from_le_bytes(data[20..24].try_into().unwrap()) as i32;
+        if length * charsize + headersize as i32 != data.len() as i32 {
             return Err(Box::new(FontError::LengthMismatch(
                 data.len(),
-                length * charsize + headersize,
+                (length * charsize) as usize + headersize,
             )));
         }
         let height = u32::from_le_bytes(data[24..28].try_into().unwrap()) as usize;
@@ -269,7 +269,7 @@ impl BitFont {
 
         let mut r = BitFont {
             name: SauceString::from(font_name),
-            size: Size::new(width, height),
+            size: (width, height).into(),
             length,
             font_type: BitFontType::BuiltIn,
             glyphs: HashMap::new(),

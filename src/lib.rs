@@ -92,8 +92,8 @@ static LANGUAGE_LOADER: Lazy<FluentLanguageLoader> = Lazy::new(|| {
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Size {
-    pub width: usize,
-    pub height: usize,
+    pub width: i32,
+    pub height: i32,
 }
 
 impl std::fmt::Display for Size {
@@ -109,7 +109,7 @@ impl PartialEq for Size {
 }
 
 impl Size {
-    pub fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: i32, height: i32) -> Self {
         Size { width, height }
     }
 }
@@ -117,24 +117,24 @@ impl Size {
 impl From<(usize, usize)> for Size {
     fn from(value: (usize, usize)) -> Self {
         Size {
-            width: value.0,
-            height: value.1,
+            width: value.0 as i32,
+            height: value.1 as i32,
         }
     }
 }
 impl From<(i32, i32)> for Size {
     fn from(value: (i32, i32)) -> Self {
         Size {
-            width: value.0 as usize,
-            height: value.1 as usize,
+            width: value.0,
+            height: value.1,
         }
     }
 }
 impl From<(u32, u32)> for Size {
     fn from(value: (u32, u32)) -> Self {
         Size {
-            width: value.0 as usize,
-            height: value.1 as usize,
+            width: value.0 as i32,
+            height: value.1 as i32,
         }
     }
 }
@@ -142,8 +142,8 @@ impl From<(u32, u32)> for Size {
 impl From<(u16, u16)> for Size {
     fn from(value: (u16, u16)) -> Self {
         Size {
-            width: value.0 as usize,
-            height: value.1 as usize,
+            width: value.0 as i32,
+            height: value.1 as i32,
         }
     }
 }
@@ -151,8 +151,8 @@ impl From<(u16, u16)> for Size {
 impl From<(u8, u8)> for Size {
     fn from(value: (u8, u8)) -> Self {
         Size {
-            width: value.0 as usize,
-            height: value.1 as usize,
+            width: value.0 as i32,
+            height: value.1 as i32,
         }
     }
 }
@@ -177,7 +177,7 @@ impl Rectangle {
         Self { start, size }
     }
 
-    pub fn from(x: i32, y: i32, width: usize, height: usize) -> Self {
+    pub fn from(x: i32, y: i32, width: i32, height: i32) -> Self {
         Self {
             start: Position::new(x, y),
             size: Size::new(width, height),
@@ -194,7 +194,7 @@ impl Rectangle {
         assert!(y1 <= y2);
         Rectangle {
             start: Position::new(x1, y1),
-            size: Size::new((x2 - x1) as usize + 1, (y2 - y1) as usize + 1),
+            size: Size::new((x2 - x1) + 1, (y2 - y1) + 1),
         }
     }
 
@@ -203,36 +203,33 @@ impl Rectangle {
 
         Rectangle {
             start,
-            size: Size::new(
-                (p1.x - p2.x).unsigned_abs() as usize,
-                (p1.y - p2.y).unsigned_abs() as usize,
-            ),
+            size: Size::new((p1.x - p2.x).abs(), (p1.y - p2.y).abs()),
         }
     }
 
     pub fn lower_right(&self) -> Position {
         Position {
-            x: self.start.x + self.size.width as i32,
-            y: self.start.y + self.size.height as i32,
+            x: self.start.x + self.size.width,
+            y: self.start.y + self.size.height,
         }
     }
 
     pub fn contains_pt(&self, point: Position) -> bool {
         self.start.x <= point.x
-            && point.x <= self.start.x + self.size.width as i32
+            && point.x <= self.start.x + self.size.width
             && self.start.y <= point.y
-            && point.y <= self.start.y + self.size.height as i32
+            && point.y <= self.start.y + self.size.height
     }
 
     pub fn contains_rect(&self, other: &Rectangle) -> bool {
         self.contains_pt(other.start) && self.contains_pt(other.lower_right())
     }
 
-    fn get_width(&self) -> usize {
+    fn get_width(&self) -> i32 {
         self.size.width
     }
 
-    fn get_height(&self) -> usize {
+    fn get_height(&self) -> i32 {
         self.size.height
     }
 }

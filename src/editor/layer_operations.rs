@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{EngineResult, Layer, Position, Size, UPosition};
+use crate::{EngineResult, Layer, Position, Size};
 
 use super::{undo_operations, EditState, UndoOperation};
 
@@ -82,35 +82,35 @@ impl EditState {
 
         merge_layer.offset = start;
 
-        let width = (base_layer.offset.x + base_layer.size.width as i32)
-            .max(cur_layer.offset.x + cur_layer.size.width as i32)
+        let width = (base_layer.offset.x + base_layer.size.width)
+            .max(cur_layer.offset.x + cur_layer.size.width)
             - start.x;
-        let height = (base_layer.offset.y + base_layer.size.height as i32)
-            .max(cur_layer.offset.y + cur_layer.size.height as i32)
+        let height = (base_layer.offset.y + base_layer.size.height)
+            .max(cur_layer.offset.y + cur_layer.size.height)
             - start.y;
         if width < 0 || height < 0 {
             return Ok(());
         }
-        merge_layer.size = Size::new(width as usize, height as usize);
+        merge_layer.size = Size::new(width, height);
 
         for y in 0..base_layer.get_height() {
             for x in 0..base_layer.get_width() {
-                let mut pos = UPosition::new(x, y);
+                let pos = Position::new(x, y);
                 let ch = base_layer.get_char(pos);
-                let pos = pos.as_position() - merge_layer.offset + base_layer.offset;
+                let pos = pos - merge_layer.offset + base_layer.offset;
                 merge_layer.set_char(pos, ch);
             }
         }
 
         for y in 0..cur_layer.get_height() {
             for x in 0..cur_layer.get_width() {
-                let mut pos = UPosition::new(x, y);
+                let pos = Position::new(x, y);
                 let ch = cur_layer.get_char(pos);
                 if !ch.is_visible() {
                     continue;
                 }
 
-                let pos = pos.as_position() - merge_layer.offset + cur_layer.offset;
+                let pos = pos - merge_layer.offset + cur_layer.offset;
                 merge_layer.set_char(pos, ch);
             }
         }

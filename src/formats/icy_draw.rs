@@ -263,10 +263,10 @@ fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
     data.extend(s.as_bytes());
 }
 
-const MAX_LINES: usize = 80;
+const MAX_LINES: i32 = 80;
 
 impl Buffer {
-    pub fn is_line_empty(&self, line: usize) -> bool {
+    pub fn is_line_empty(&self, line: i32) -> bool {
         for i in 0..self.get_width() {
             if !self.get_char((i, line)).is_transparent() {
                 return false;
@@ -394,8 +394,8 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         result.extend(i32::to_le_bytes(layer.get_offset().x));
         result.extend(i32::to_le_bytes(layer.get_offset().y));
 
-        result.extend(i32::to_le_bytes(layer.size.width as i32));
-        result.extend(i32::to_le_bytes(layer.size.height as i32));
+        result.extend(i32::to_le_bytes(layer.size.width));
+        result.extend(i32::to_le_bytes(layer.size.height));
 
         let data = convert_to_ansi_data(buf, i, false);
         result.extend(u64::to_le_bytes(data.len() as u64));
@@ -410,7 +410,7 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
     if last_line > first_line {
         let mut writer = encoder.write_header().unwrap();
         let (_, data) = buf.render_to_rgba(crate::Rectangle {
-            start: Position::new(0, first_line as i32),
+            start: Position::new(0, first_line),
             size: Size::new(buf.get_width(), last_line - first_line),
         });
         writer.write_image_data(&data).unwrap();

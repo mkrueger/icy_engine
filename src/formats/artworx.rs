@@ -59,7 +59,7 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
                 result.set_height_for_pos(pos);
                 return Ok(true);
             }
-            result.layers[0].set_height(pos.y as usize + 1);
+            result.layers[0].set_height(pos.y + 1);
             result.layers[0].set_char(
                 pos,
                 AttributedChar::new(
@@ -99,7 +99,7 @@ pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>
 
     for y in 0..buf.get_line_count() {
         for x in 0..buf.get_width() {
-            let ch = buf.get_char((x as i32, y as i32));
+            let ch = buf.get_char((x, y));
             result.push(ch.ch as u8);
             result.push(ch.attribute.as_u8(BufferType::LegacyIce));
         }

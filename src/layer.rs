@@ -1,6 +1,6 @@
-use crate::{Buffer, Color, Line, Sixel, Size, UPosition, BufferParser};
+use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size};
 
-use super::{AttributedChar, Position};
+use super::AttributedChar;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
@@ -51,8 +51,8 @@ impl std::fmt::Display for Layer {
 #[derive(Debug, Default, Clone)]
 pub struct HyperLink {
     pub url: Option<String>,
-    pub position: UPosition,
-    pub length: usize,
+    pub position: Position,
+    pub length: i32,
 }
 
 impl HyperLink {
@@ -60,7 +60,7 @@ impl HyperLink {
         if let Some(ref url) = self.url {
             url.clone()
         } else {
-            buf.get_string(self.position, self.length)
+            buf.get_string(self.position, self.length as usize)
         }
     }
 }
@@ -69,7 +69,7 @@ impl Layer {
     pub fn new(title: impl Into<String>, size: impl Into<Size>) -> Self {
         let size = size.into();
         let mut lines = Vec::new();
-        lines.resize(size.height, Line::create(size.width));
+        lines.resize(size.height as usize, Line::create(size.width));
 
         Layer {
             title: title.into(),
@@ -109,16 +109,17 @@ impl Layer {
         self.sixels.clear();
     }
 
-    pub fn set_char(&mut self, pos: impl Into<UPosition>, attributed_char: AttributedChar) {
+    pub fn set_char(&mut self, pos: impl Into<Position>, attributed_char: AttributedChar) {
         let pos = pos.into();
-        if pos.x  >= self.get_width() || pos.y >= self.get_height() {
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
             return;
         }
         if self.is_locked || !self.is_visible {
             return;
         }
-        if pos.y >= self.lines.len() {
-            self.lines.resize(pos.y + 1, Line::create(self.size.width));
+        if pos.y >= self.lines.len() as i32 {
+            self.lines
+                .resize(pos.y as usize + 1, Line::create(self.size.width));
         }
 
         if self.has_alpha_channel && self.is_alpha_channel_locked {
@@ -128,7 +129,7 @@ impl Layer {
             }
         }
 
-        let cur_line = &mut self.lines[pos.y];
+        let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
     }
 
@@ -136,9 +137,13 @@ impl Layer {
         self.set_char((x, y), attributed_char);
     }
 
-    pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
+    pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
-        if pos.x  >= self.get_width() || pos.y >= self.get_height() && pos.y >= self.lines.len() {
+        if pos.x < 0
+            || pos.y < 0
+            || pos.x >= self.get_width()
+            || pos.y >= self.get_height() && pos.y >= self.lines.len() as i32
+        {
             return if self.has_alpha_channel {
                 AttributedChar::invisible()
             } else {
@@ -147,11 +152,11 @@ impl Layer {
         }
 
         let y = pos.y;
-        if y < self.lines.len() {
-            let cur_line = &self.lines[y];
+        if y < self.lines.len() as i32 {
+            let cur_line = &self.lines[y as usize];
 
-            if pos.x < cur_line.chars.len() {
-                let ch = cur_line.chars[pos.x];
+            if pos.x < cur_line.chars.len() as i32 {
+                let ch = cur_line.chars[pos.x as usize];
                 if !self.has_alpha_channel && !ch.is_visible() {
                     return AttributedChar::default();
                 }
@@ -200,7 +205,7 @@ impl Layer {
         self.lines.insert(index as usize, line);
     }
 
-    pub fn swap_char(&mut self, pos1: impl Into<UPosition>, pos2: impl Into<UPosition>) {
+    pub fn swap_char(&mut self, pos1: impl Into<Position>, pos2: impl Into<Position>) {
         let pos1 = pos1.into();
         let pos2 = pos2.into();
         let tmp = self.get_char(pos1);
@@ -216,30 +221,29 @@ impl Layer {
         &self.hyperlinks
     }
 
-    pub fn set_width(&mut self, width: usize) {
+    pub fn set_width(&mut self, width: i32) {
         self.size.width = width;
     }
 
-    pub fn get_width(&self) -> usize {
+    pub fn get_width(&self) -> i32 {
         self.size.width
     }
 
-    pub fn set_height(&mut self, height: usize) {
+    pub fn set_height(&mut self, height: i32) {
         self.size.height = height;
     }
-    
-    pub fn get_height(&self) -> usize {
+
+    pub fn get_height(&self) -> i32 {
         self.size.height
     }
 
-    pub fn get_line_count(&self) -> usize {
-        self.lines.len()
+    pub fn get_line_count(&self) -> i32 {
+        self.lines.len() as i32
     }
 
-    pub fn get_line_length(&self, line: usize) -> usize {
-        self.lines[line].get_line_length()
+    pub fn get_line_length(&self, line: i32) -> i32 {
+        self.lines[line as usize].get_line_length()
     }
-
 }
 
 #[cfg(test)]
@@ -250,7 +254,10 @@ mod tests {
 
     #[test]
     fn test_get_char() {
-        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (0, 0));
+        let mut layer = Layer::new(
+            fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
+            (20, 20),
+        );
         layer.has_alpha_channel = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
@@ -266,7 +273,10 @@ mod tests {
 
     #[test]
     fn test_get_char_intransparent() {
-        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (0, 0));
+        let mut layer = Layer::new(
+            fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
+            (20, 20),
+        );
         layer.has_alpha_channel = true;
 
         let mut line = Line::new();

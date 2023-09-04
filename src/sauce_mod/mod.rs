@@ -176,20 +176,20 @@ impl SauceData {
 
         match data_type {
             SauceDataType::BinaryText => {
-                buffer_size.width = ((file_type as u16) << 1) as usize;
+                buffer_size.width = ((file_type as u16) << 1) as i32;
                 sauce_file_type = SauceFileType::Bin;
                 use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                 font_opt = Some(t_info_str.to_string());
             }
             SauceDataType::XBin => {
-                buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                buffer_size = Size::new(t_info1, t_info2);
                 sauce_file_type = SauceFileType::XBin;
                 // no flags according to spec
             }
             SauceDataType::Character => {
                 match file_type {
                     SAUCE_FILE_TYPE_ASCII => {
-                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                        buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::Ascii;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
 
@@ -212,30 +212,30 @@ impl SauceData {
                         font_opt = Some(t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSI => {
-                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                        buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::Ansi;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         font_opt = Some(t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
-                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                        buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::ANSiMation;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
                         font_opt = Some(t_info_str.to_string());
                     }
 
                     SAUCE_FILE_TYPE_PCBOARD => {
-                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                        buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::PCBoard;
                         // no flags according to spec
                     }
                     SAUCE_FILE_TYPE_AVATAR => {
-                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                        buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::Avatar;
                         // no flags according to spec
                     }
                     SAUCE_FILE_TYPE_TUNDRA_DRAW => {
-                        buffer_size = Size::new(t_info1 as usize, t_info2 as usize);
+                        buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::TundraDraw;
                         // no flags according to spec
                     }
@@ -541,7 +541,7 @@ impl Buffer {
             SauceFileType::Bin => {
                 data_type = SauceDataType::BinaryText;
                 let w = self.get_width() / 2;
-                if w > u8::MAX as usize {
+                if w > u8::MAX as i32 {
                     return Err(io::Error::new(io::ErrorKind::InvalidData, "BIN files can only be saved up to 510 width."));
                 }
                 file_type = w as u8;
