@@ -21,8 +21,8 @@ fn test_simple_sixel() {
     assert_eq!(2, buf.layers[0].sixels[0].vertical_scale);
     assert_eq!(1, buf.layers[0].sixels[0].horizontal_scale);
     assert_eq!(Position::new(0, 0), buf.layers[0].sixels[0].position);
-    assert_eq!(14, buf.layers[0].sixels[0].width());
-    assert_eq!(12, buf.layers[0].sixels[0].height());
+    assert_eq!(14, buf.layers[0].sixels[0].get_width());
+    assert_eq!(12, buf.layers[0].sixels[0].get_height());
 }
 
 #[test]
@@ -33,8 +33,8 @@ fn test_simple_position_sixel() {
 
     assert_eq!(1, sixels.len());
     assert_eq!(Position::new(12, 3), sixels[0].position);
-    assert_eq!(14, sixels[0].width());
-    assert_eq!(12, sixels[0].height());
+    assert_eq!(14, sixels[0].get_width());
+    assert_eq!(12, sixels[0].get_height());
 }
 
 #[test]
@@ -50,8 +50,8 @@ fn test_overwrite_sixel() {
     let sixels = &buf.layers[0].sixels;
     assert_eq!(1, sixels.len());
     assert_eq!(Position::new(12, 3), sixels[0].position);
-    assert_eq!(14, sixels[0].width());
-    assert_eq!(12, sixels[0].height());
+    assert_eq!(14, sixels[0].get_width());
+    assert_eq!(12, sixels[0].get_height());
 }
 
 #[test]
@@ -73,8 +73,8 @@ fn test_overwrite_multiple_sixels() {
     assert_eq!(Position::new(9, 9), sixels[2].position);
 
     (0..sixels.len()).for_each(|i| {
-        assert_eq!(14, sixels[i].width());
-        assert_eq!(12, sixels[i].height());
+        assert_eq!(14, sixels[i].get_width());
+        assert_eq!(12, sixels[i].get_height());
     });
 }
 
@@ -95,8 +95,8 @@ fn test_chess_update() {
 
         assert_eq!(49, sixels.len());
         (0..sixels.len()).for_each(|i| {
-            assert_eq!(31, sixels[i].height());
-            assert_eq!(46, sixels[i].width());
+            assert_eq!(31, sixels[i].get_height());
+            assert_eq!(46, sixels[i].get_width());
         });
     }
 
@@ -108,8 +108,8 @@ fn test_chess_update() {
     let sixels = &buf.layers[0].sixels;
     assert_eq!(49, sixels.len());
     (0..sixels.len()).for_each(|i| {
-        assert_eq!(31, sixels[i].height());
-        assert_eq!(46, sixels[i].width());
+        assert_eq!(31, sixels[i].get_height());
+        assert_eq!(46, sixels[i].get_width());
     });
 }
 
@@ -160,9 +160,9 @@ fn test_sixel_raster_attributes() {
 
     assert_eq!(1, buf.layers[0].sixels.len());
     assert_eq!(3, buf.layers[0].sixels[0].horizontal_scale);
-    assert_eq!(8, buf.layers[0].sixels[0].height());
-    assert_eq!(6, buf.layers[0].sixels[0].width());
+    assert_eq!(8, buf.layers[0].sixels[0].get_height());
+    assert_eq!(6, buf.layers[0].sixels[0].get_width());
 
-    assert_eq!(6, buf.layers[0].sixels[0].width());
-    assert_eq!(8, buf.layers[0].sixels[0].height());
+    assert_eq!(6, buf.layers[0].sixels[0].get_width());
+    assert_eq!(8, buf.layers[0].sixels[0].get_height());
 }

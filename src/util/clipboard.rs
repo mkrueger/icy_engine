@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::EngineResult;
+use crate::{EngineResult, Position, Sixel};
 use arboard::{Clipboard, ImageData};
 
 pub const BUFFER_DATA: u16 = 0x0000;
@@ -44,6 +44,24 @@ pub fn pop_data(data_type: u16) -> Option<Vec<u8>> {
                     result.extend(&data[6..]);
                     return Some(result);
                 }
+            }
+        }
+        Err(err) => {
+            log::error!("Error creating clipboard: {err}");
+        }
+    }
+    None
+}
+
+pub fn pop_sixel_image() -> Option<Sixel> {
+    match Clipboard::new() {
+        Ok(mut clipboard) => {
+            if let Ok(img) = clipboard.get_image() {
+                let mut sixel = Sixel::new(Position::default());
+                sixel.picture_data = img.bytes.to_vec();
+                sixel.set_width(img.width as i32);
+                sixel.set_height(img.height as i32);
+                return Some(sixel);
             }
         }
         Err(err) => {

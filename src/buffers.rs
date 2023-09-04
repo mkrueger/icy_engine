@@ -412,7 +412,7 @@ impl Buffer {
     /// this function gives back the first visible line.
     #[must_use]
     pub fn get_first_visible_line(&self) -> i32 {
-        if self.is_terminal_buffer {
+        if self.is_terminal_buffer && !self.layers.is_empty() {
             max(
                 0,
                 (self.layers[0].lines.len() as i32).saturating_sub(self.get_height()),
@@ -828,6 +828,31 @@ impl Buffer {
             }
         }
 
+        for layer in &self.layers {
+            for sixel in &layer.sixels {
+                let sx = layer.get_offset().x + sixel.position.x - rect.start.x;
+                let sx_px = sx * font_size.width;
+                let sy = layer.get_offset().y + sixel.position.y - rect.start.y;
+                let sy_pix = sy * font_size.height;
+                let sixel_line_bytes = (sixel.get_width() * 4) as usize;
+
+                let mut sixel_line = 0;
+                for y in sy_pix..(sy_pix + sixel.get_height()) {
+                    if y < 0 {
+                        continue;
+                    }
+                    let y = y as usize;
+                    let offset = y * line_bytes as usize + sx_px as usize * 4;
+                    let o = sixel_line * sixel_line_bytes;
+                    if offset + sixel_line_bytes > pixels.len() {
+                        break;
+                    }
+                    pixels[offset..(offset + sixel_line_bytes)]
+                        .copy_from_slice(&sixel.picture_data[o..(o + sixel_line_bytes)]);
+                    sixel_line += 1;
+                }
+            }
+        }
         (Size::new(px_width, px_height), pixels)
     }
 }

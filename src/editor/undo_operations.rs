@@ -430,7 +430,11 @@ impl UndoOperation for AddFloatingLayer {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.buffer.layers.last_mut() {
-            layer.role = crate::Role::PastePreview;
+            if matches!(layer.role, crate::Role::Image) {
+                layer.role = crate::Role::PasteImage;
+            } else {
+                layer.role = crate::Role::PastePreview;
+            }
             layer.title = fl!(crate::LANGUAGE_LOADER, "layer-pasted-name");
         }
         Ok(())
@@ -438,7 +442,11 @@ impl UndoOperation for AddFloatingLayer {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.buffer.layers.last_mut() {
-            layer.role = crate::Role::Normal;
+            if matches!(layer.role, crate::Role::PasteImage) {
+                layer.role = crate::Role::Image;
+            } else {
+                layer.role = crate::Role::Normal;
+            }
             layer.title = fl!(crate::LANGUAGE_LOADER, "layer-new-name");
         }
         Ok(())

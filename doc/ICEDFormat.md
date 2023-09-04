@@ -66,6 +66,8 @@ Keyword: 'LAYER_{SLOT}'
 Field      Bytes  Meaning
 [Title_Len]4      LE_U32 length of the utf8 title
 [Title]    *      U8 - UTF8 encoded chars - Note: May only be 16 chars depending on language.
+[Role]     1      0 - normal, 1 - image (data contains rgba image data)
+[Extra]    4      unused 
 [Mode]     1      0 - normal, 1 - chars, 2 - attributes
 [Color]    4      RGBA_U8 A=00 means, no color
 [Flags]    4      LE_U32
@@ -79,5 +81,13 @@ Field      Bytes  Meaning
 [Width]    4      LE_U32
 [Height]   4      LE_U32
 [DataLen]  8      LE_U64 Length of Data
-[Data]     *      Ansi encoded data
+[Data]     *      Ansi encoded data/Sixel data
 ```
+
+Sixel data:
+
+[Width]      4      LE_U32 Width
+[Height]     4      LE_U32 Height
+[X-Scale]    4      LE_U32 vertical scale
+[Y-Scale]    4      LE_U32 horizontal scale 
+[RGBA-Data]  *      U8 RGBA encoded data width * height * 4

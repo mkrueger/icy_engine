@@ -4,7 +4,7 @@ use base64::{engine::general_purpose, Engine};
 
 use crate::{
     convert_to_ansi_data, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
-    Layer, Position, SauceData, SauceFileType, SauceString, Size,
+    Layer, Position, SauceData, SauceFileType, SauceString, Sixel, Size,
 };
 
 mod constants {
@@ -136,9 +136,18 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                 let mut o: usize = 0;
 
                                 let (title, size) = read_utf8_encoded_string(&bytes[o..]);
-                                o += size;
-
                                 let mut layer = Layer::new(title, (0, 0));
+
+                                o += size;
+                                let role = bytes[o];
+                                o += 1;
+                                if role == 1 {
+                                    layer.role = crate::Role::Image;
+                                } else {
+                                    layer.role = crate::Role::Normal;
+                                }
+
+                                o += 4; // skip unused
 
                                 let mode = bytes[o];
 
@@ -210,28 +219,56 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                     u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap())
                                         as usize;
                                 o += 8;
-                                let mut p = parsers::ansi::Parser::default();
-                                let mut caret = Caret::default();
-                                result.layers.push(layer);
-                                if bytes.len() < o + length {
-                                    return Err(Box::new(io::Error::new(
-                                        io::ErrorKind::InvalidData,
-                                        format!(
-                                            "data length out ouf bounds {} data lenth: {}",
-                                            o + length,
-                                            bytes.len()
-                                        ),
-                                    )));
+
+                                if role == 1 {
+                                    let width: i32 =
+                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                            as i32;
+                                    o += 4;
+                                    let height: i32 =
+                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                            as i32;
+                                    o += 4;
+
+                                    let vert_scale: i32 =
+                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                            as i32;
+                                    o += 4;
+                                    let horiz_scale: i32 =
+                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
+                                            as i32;
+                                    o += 4;
+                                    layer.sixels.push(Sixel::from_data(
+                                        (width, height),
+                                        vert_scale as i32,
+                                        horiz_scale as i32,
+                                        bytes[o..].to_vec(),
+                                    ));
+                                    result.layers.push(layer);
+                                } else {
+                                    let mut p = parsers::ansi::Parser::default();
+                                    let mut caret = Caret::default();
+                                    result.layers.push(layer);
+                                    if bytes.len() < o + length {
+                                        return Err(Box::new(io::Error::new(
+                                            io::ErrorKind::InvalidData,
+                                            format!(
+                                                "data length out ouf bounds {} data lenth: {}",
+                                                o + length,
+                                                bytes.len()
+                                            ),
+                                        )));
+                                    }
+                                    (o..(o + length)).for_each(|i| {
+                                        let b = bytes[i];
+                                        let _ = p.print_char(
+                                            result,
+                                            result.layers.len().saturating_sub(1),
+                                            &mut caret,
+                                            char::from_u32(b as u32).unwrap(),
+                                        );
+                                    });
                                 }
-                                (o..(o + length)).for_each(|i| {
-                                    let b = bytes[i];
-                                    let _ = p.print_char(
-                                        result,
-                                        result.layers.len().saturating_sub(1),
-                                        &mut caret,
-                                        char::from_u32(b as u32).unwrap(),
-                                    );
-                                });
                             }
                         }
                     }
@@ -247,6 +284,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
         }
     }
 
+    println!("layers: {} ", result.layers.len());
     Ok(true)
 }
 
@@ -356,6 +394,15 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
     for (i, layer) in buf.layers.iter().enumerate() {
         let mut result: Vec<u8> = Vec::new();
         write_utf8_encoded_string(&mut result, &layer.title);
+
+        match layer.role {
+            crate::Role::Image => result.push(1),
+            _ => result.push(0),
+        }
+
+        // Some extra bytes not yet used
+        result.extend([0, 0, 0, 0]);
+
         let mode = match layer.mode {
             crate::Mode::Normal => 0,
             crate::Mode::Chars => 1,
@@ -397,10 +444,20 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         result.extend(i32::to_le_bytes(layer.get_width()));
         result.extend(i32::to_le_bytes(layer.get_height()));
 
-        let data = convert_to_ansi_data(buf, i, false);
-        result.extend(u64::to_le_bytes(data.len() as u64));
-        result.extend(data);
+        if matches!(layer.role, crate::Role::Image) {
+            let sixel = &layer.sixels[0];
+            result.extend(u64::to_le_bytes(16 + sixel.picture_data.len() as u64));
 
+            result.extend(i32::to_le_bytes(sixel.get_width()));
+            result.extend(i32::to_le_bytes(sixel.get_height()));
+            result.extend(i32::to_le_bytes(sixel.vertical_scale));
+            result.extend(i32::to_le_bytes(sixel.horizontal_scale));
+            result.extend(&sixel.picture_data);
+        } else {
+            let data = convert_to_ansi_data(buf, i, false);
+            result.extend(u64::to_le_bytes(data.len() as u64));
+            result.extend(data);
+        }
         let layer_data = general_purpose::STANDARD.encode(&result);
         encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data)?;
     }

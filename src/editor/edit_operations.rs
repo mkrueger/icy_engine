@@ -1,6 +1,8 @@
 #![allow(clippy::missing_errors_doc)]
 
-use crate::{AttributedChar, EngineResult, Layer, Position};
+use i18n_embed_fl::fl;
+
+use crate::{AttributedChar, EngineResult, Layer, Position, Sixel};
 
 use super::{
     undo_operations::{Paste, UndoSetChar, UndoSwapChar},
@@ -50,6 +52,27 @@ impl EditState {
             op.redo(self)?;
             self.push_undo(Box::new(op));
         }
+        self.selection_opt = None;
+        Ok(())
+    }
+
+    pub fn paste_sixel(&mut self, sixel: Sixel) -> EngineResult<()> {
+        let dims = self.get_buffer().get_font_dimensions();
+
+        let mut layer = Layer::new(
+            fl!(crate::LANGUAGE_LOADER, "layer-pasted-name"),
+            (
+                (sixel.get_width() as f32 / dims.width as f32).ceil() as i32,
+                (sixel.get_height() as f32 / dims.height as f32).ceil() as i32,
+            ),
+        );
+        layer.role = crate::Role::PasteImage;
+        layer.has_alpha_channel = true;
+        layer.sixels.push(sixel);
+
+        let mut op = Paste::new(layer);
+        op.redo(self)?;
+        self.push_undo(Box::new(op));
         self.selection_opt = None;
         Ok(())
     }

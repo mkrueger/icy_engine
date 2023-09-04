@@ -18,8 +18,7 @@ pub struct Sixel {
     pub horizontal_scale: i32,
     pub picture_data: Vec<u8>,
 
-    pub(crate) width: i32,
-    pub(crate) height: i32,
+    size: Size,
 }
 
 struct SixelParser {
@@ -69,8 +68,7 @@ impl SixelParser {
             vertical_scale: self.vertical_scale,
             horizontal_scale: self.horizontal_scale,
             picture_data,
-            width: self.width(),
-            height: self.height(),
+            size: (self.width(), self.height()).into(),
         })
     }
 
@@ -277,17 +275,23 @@ impl Sixel {
             vertical_scale: 1,
             horizontal_scale: 1,
             picture_data: Vec::new(),
-            width: 0,
-            height: 0,
+            size: Size::default(),
         }
     }
 
-    pub fn width(&self) -> i32 {
-        self.width
-    }
-
-    pub fn height(&self) -> i32 {
-        self.height
+    pub fn from_data(
+        size: impl Into<Size>,
+        vertical_scale: i32,
+        horizontal_scale: i32,
+        data: Vec<u8>,
+    ) -> Self {
+        Self {
+            position: Position::default(),
+            vertical_scale,
+            horizontal_scale,
+            picture_data: data,
+            size: size.into(),
+        }
     }
 
     pub fn get_screen_rect(&self) -> Rectangle {
@@ -295,7 +299,7 @@ impl Sixel {
         let y = self.position.y * 16;
         Rectangle {
             start: Position::new(x, y),
-            size: Size::new(self.width, self.height),
+            size: self.size,
         }
     }
 
@@ -318,5 +322,29 @@ impl Sixel {
             ..SixelParser::default()
         };
         parser.parse_from(default_bg_color, data)
+    }
+
+    pub fn get_width(&self) -> i32 {
+        self.size.width
+    }
+
+    pub fn get_height(&self) -> i32 {
+        self.size.height
+    }
+
+    pub fn get_size(&self) -> Size {
+        self.size
+    }
+
+    pub fn set_width(&mut self, width: i32) {
+        self.size.width = width;
+    }
+
+    pub fn set_height(&mut self, height: i32) {
+        self.size.height = height;
+    }
+
+    pub fn set_size(&mut self, size: Size) {
+        self.size = size;
     }
 }
