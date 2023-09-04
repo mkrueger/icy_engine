@@ -29,6 +29,7 @@ pub fn read_binary(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::R
                 ));
             }
 
+            result.layers[0].set_height(pos.y as usize + 1);
             result.layers[0].set_char(
                 pos,
                 AttributedChar::new(

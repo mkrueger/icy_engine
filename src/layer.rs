@@ -1,4 +1,4 @@
-use crate::{Buffer, Color, Line, Sixel, Size, UPosition};
+use crate::{Buffer, Color, Line, Sixel, Size, UPosition, BufferParser};
 
 use super::{AttributedChar, Position};
 
@@ -29,6 +29,23 @@ pub struct Layer {
 
     pub sixels: Vec<Sixel>,
     pub(crate) hyperlinks: Vec<HyperLink>,
+}
+
+impl std::fmt::Display for Layer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut str = String::new();
+        let p = crate::parsers::ansi::Parser::default();
+
+        for y in 0..self.get_line_count() {
+            str.extend(format!("{y:3}: ").chars());
+            for x in 0..self.get_width() {
+                let ch = self.get_char((x, y));
+                str.push(p.convert_to_unicode(ch));
+            }
+            str.push('\n');
+        }
+        write!(f, "{str}")
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -94,10 +111,9 @@ impl Layer {
 
     pub fn set_char(&mut self, pos: impl Into<UPosition>, attributed_char: AttributedChar) {
         let pos = pos.into();
-        if (pos.x as i32) < self.offset.x || (pos.y as i32) < self.offset.y {
+        if pos.x  >= self.get_width() || pos.y >= self.get_height() {
             return;
         }
-        let pos = pos - self.offset.as_uposition();
         if self.is_locked || !self.is_visible {
             return;
         }
@@ -122,7 +138,7 @@ impl Layer {
 
     pub fn get_char(&self, pos: impl Into<UPosition>) -> AttributedChar {
         let pos = pos.into();
-        if (pos.x as i32) < self.offset.x || (pos.y as i32) < self.offset.y {
+        if pos.x  >= self.get_width() || pos.y >= self.get_height() && pos.y >= self.lines.len() {
             return if self.has_alpha_channel {
                 AttributedChar::invisible()
             } else {
@@ -130,7 +146,6 @@ impl Layer {
             };
         }
 
-        let pos = pos - self.offset;
         let y = pos.y;
         if y < self.lines.len() {
             let cur_line = &self.lines[y];
@@ -201,10 +216,18 @@ impl Layer {
         &self.hyperlinks
     }
 
+    pub fn set_width(&mut self, width: usize) {
+        self.size.width = width;
+    }
+
     pub fn get_width(&self) -> usize {
         self.size.width
     }
 
+    pub fn set_height(&mut self, height: usize) {
+        self.size.height = height;
+    }
+    
     pub fn get_height(&self) -> usize {
         self.size.height
     }
@@ -216,6 +239,7 @@ impl Layer {
     pub fn get_line_length(&self, line: usize) -> usize {
         self.lines[line].get_line_length()
     }
+
 }
 
 #[cfg(test)]

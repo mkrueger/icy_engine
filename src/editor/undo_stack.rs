@@ -5,10 +5,20 @@ use super::EditState;
 pub trait UndoState {
     fn undo_description(&self) -> Option<String>;
     fn can_undo(&self) -> bool;
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     fn undo(&mut self) -> EngineResult<()>;
 
     fn redo_description(&self) -> Option<String>;
     fn can_redo(&self) -> bool;
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     fn redo(&mut self) -> EngineResult<()>;
 }
 

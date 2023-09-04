@@ -59,6 +59,7 @@ pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
                 result.set_height_for_pos(pos);
                 return Ok(true);
             }
+            result.layers[0].set_height(pos.y as usize + 1);
             result.layers[0].set_char(
                 pos,
                 AttributedChar::new(

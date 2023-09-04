@@ -3,8 +3,14 @@ use std::error::Error;
 use crate::EngineResult;
 use arboard::{Clipboard, ImageData};
 
+pub const BUFFER_DATA: u16 = 0x0000;
 pub const BITFONT_GLYPH: u16 = 0x0100;
 
+/// .
+///
+/// # Errors
+///
+/// This function will return an error if .
 pub fn push_data(data_type: u16, data: &[u8]) -> EngineResult<()> {
     match Clipboard::new() {
         Ok(mut clipboard) => {

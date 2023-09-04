@@ -80,6 +80,7 @@ pub fn read_idf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             o += 1;
         }
         while rle_count > 0 {
+            result.layers[0].set_height(pos.y as usize + 1);
             result.layers[0].set_char(
                 pos,
                 AttributedChar::new(

@@ -174,6 +174,13 @@ impl UPosition {
         UPosition { x, y }
     }
 
+    pub fn as_position(&self) -> Position {
+        Position {
+            x: self.x as i32,
+            y: self.y as i32,
+        }
+    }
+
     pub fn from_index(buf: &Buffer, i: usize) -> Self {
         UPosition {
             x: i % buf.get_width(),

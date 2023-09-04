@@ -160,6 +160,10 @@ impl Buffer {
             if !cur_layer.is_visible {
                 continue;
             }
+            let pos = pos.as_position() - cur_layer.offset;
+            if pos.x < 0 || pos.y < 0 {
+                continue;
+            }
             let ch = cur_layer.get_char(pos);
             match cur_layer.mode {
                 crate::Mode::Normal => {
@@ -836,7 +840,7 @@ impl Default for Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{AttributedChar, Buffer, SaveOptions, TextAttribute};
+    use crate::{AttributedChar, Buffer, SaveOptions, TextAttribute, Layer, Position, Size};
 
     #[test]
     fn test_respect_sauce_width() {
@@ -868,5 +872,38 @@ mod tests {
             Buffer::from_bytes(&std::path::PathBuf::from("test.ans"), false, &ansi_bytes).unwrap();
         assert_eq!(10, loaded_buf.get_width());
         assert_eq!(10, loaded_buf.layers[0].get_width());
+    }
+
+    #[test]
+    fn test_layer_offset() {
+        let mut buf: Buffer = Buffer::default();
+        
+        let mut new_layer = Layer::new("1", Size::new(10, 10));
+        new_layer.has_alpha_channel = true;
+        new_layer.offset = Position::new(2, 2);
+        new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
+        buf.layers.push(new_layer);
+
+        assert_eq!('a', buf.get_char((7, 7)).ch);
+    }
+
+    #[test]
+    fn test_layer_negative_offset() {
+        let mut buf: Buffer = Buffer::default();
+        
+        let mut new_layer = Layer::new("1", Size::new(10, 10));
+        new_layer.has_alpha_channel = true;
+        new_layer.offset = Position::new(-2, -2);
+        new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
+        buf.layers.push(new_layer);
+
+        let mut new_layer = Layer::new("2", Size::new(10, 10));
+        new_layer.has_alpha_channel = true;
+        new_layer.offset = Position::new(2, 2);
+        new_layer.set_char((5, 5), AttributedChar::new('b', TextAttribute::default()));
+        buf.layers.push(new_layer);
+
+        assert_eq!('a', buf.get_char((3, 3)).ch);
+        assert_eq!('b', buf.get_char((7, 7)).ch);
     }
 }

@@ -1,6 +1,7 @@
 pub mod undo_stack;
 use std::sync::{Arc, Mutex};
 
+use i18n_embed_fl::fl;
 pub use undo_stack::*;
 
 mod undo_operations;
@@ -10,7 +11,10 @@ pub use layer_operations::*;
 mod edit_operations;
 pub use edit_operations::*;
 
-use crate::{ansi, Buffer, BufferParser, Caret, EngineResult, Position, Selection, Shape};
+use crate::{
+    ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Position, Selection, Shape,
+    TextAttribute, UPosition,
+};
 
 pub struct EditState {
     buffer: Buffer,
@@ -44,7 +48,6 @@ impl AtomicUndoGuard {
 
 impl Drop for AtomicUndoGuard {
     fn drop(&mut self) {
-        println!("drop {}!", self.description);
         let count = self.undo_stack.lock().unwrap().len();
         if self.base_count >= count {
             return;
@@ -185,6 +188,77 @@ impl EditState {
         Some(res)
     }
 
+    pub fn get_clipboard_data(&self) -> Option<Vec<u8>> {
+        let Some(selection) = &self.selection_opt else {
+            return None;
+        };
+
+        let mut data = Vec::new();
+        if matches!(selection.shape, Shape::Rectangle) {
+            data.push(0);
+            data.extend(u32::to_le_bytes(selection.size().width as u32));
+            data.extend(u32::to_le_bytes(selection.size().height as u32));
+
+            let start = selection.min();
+            let end = selection.max();
+            println!("{}, {} - {}", selection.size(), start, end);
+
+            for y in start.y..end.y {
+                for x in start.x..end.x {
+                    let ch = self.buffer.get_char((x, y));
+                    data.extend(u16::to_le_bytes(ch.ch as u16));
+                    data.extend(u16::to_le_bytes(ch.attribute.attr));
+                    data.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+                    data.extend(u32::to_le_bytes(ch.attribute.background_color));
+                    data.extend(u32::to_le_bytes(ch.attribute.foreground_color));
+                }
+            }
+        } else {
+            // TODO
+        }
+        Some(data)
+    }
+
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
+        if data[0] != 0 {
+            return Ok(());
+        }
+
+        let width = u32::from_le_bytes([data[1], data[2], data[3], data[4]]) as usize;
+        let height = u32::from_le_bytes([data[5], data[6], data[7], data[8]]) as usize;
+        let _paste = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-paste"));
+        let mut data = &data[9..];
+
+        let pos = self.caret.get_position().as_uposition();
+
+        for y in 0..height {
+            for x in 0..width {
+                let ch = AttributedChar {
+                    ch: unsafe {
+                        char::from_u32_unchecked(u16::from_le_bytes([data[0], data[1]]) as u32)
+                    },
+                    attribute: TextAttribute {
+                        attr: u16::from_le_bytes([data[2], data[3]]),
+                        font_page: u16::from_le_bytes([data[4], data[5]]) as usize,
+                        background_color: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
+                        foreground_color: u32::from_le_bytes([
+                            data[10], data[11], data[12], data[13],
+                        ]),
+                    },
+                };
+                self.set_char(UPosition::new(x, y) + pos, ch)?;
+                data = &data[14..];
+            }
+        }
+        self.selection_opt = None;
+        Ok(())
+    }
+
     pub fn get_current_layer(&self) -> usize {
         self.current_layer
     }
@@ -208,6 +282,28 @@ impl EditState {
     fn push_undo(&mut self, op: Box<dyn UndoOperation>) {
         self.undo_stack.lock().unwrap().push(op);
         self.redo_stack.clear();
+    }
+
+    pub fn delete_selection(&mut self) {
+        if let Some(selection) = &self.get_selection() {
+            let _paste =
+                self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+            let min = selection.min();
+            let max = selection.max();
+
+            for y in min.y..max.y {
+                if y < 0 {
+                    continue;
+                }
+                for x in min.x..max.x {
+                    if x < 0 {
+                        continue;
+                    }
+                    self.set_char((x, y), AttributedChar::invisible());
+                }
+            }
+            self.clear_selection();
+        }
     }
 }
 

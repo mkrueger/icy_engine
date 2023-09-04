@@ -101,6 +101,7 @@ pub fn read_tnd(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Resu
             }
             cmd = ch;
         }
+        result.layers[0].set_height(pos.y + 1);
         result.layers[0].set_char(
             pos,
             AttributedChar::new(char::from_u32(cmd as u32).unwrap(), attr),
