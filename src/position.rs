@@ -1,7 +1,7 @@
 use std::{
     cmp::Ordering,
     hash::Hash,
-    ops::{Add, Sub, AddAssign, SubAssign},
+    ops::{Add, AddAssign, Sub, SubAssign},
 };
 
 use super::Buffer;

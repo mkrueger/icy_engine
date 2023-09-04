@@ -134,7 +134,7 @@ impl Layer {
         let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
     }
-    
+
     pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if pos.x < 0

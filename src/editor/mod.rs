@@ -23,6 +23,7 @@ pub struct EditState {
     parser: Box<dyn BufferParser>,
 
     current_layer: usize,
+    outline_style: usize,
 
     undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
     redo_stack: Vec<Box<dyn UndoOperation>>,
@@ -79,6 +80,7 @@ impl Default for EditState {
             undo_stack: Arc::new(Mutex::new(Vec::new())),
             redo_stack: Vec::new(),
             current_layer: 0,
+            outline_style: 0,
         }
     }
 }
@@ -263,6 +265,14 @@ impl EditState {
 
     pub fn set_current_layer(&mut self, layer: usize) {
         self.current_layer = layer;
+    }
+
+    pub fn get_outline_style(&self) -> usize {
+        self.outline_style
+    }
+
+    pub fn set_outline_style(&mut self, outline_style: usize) {
+        self.outline_style = outline_style;
     }
 
     #[must_use]

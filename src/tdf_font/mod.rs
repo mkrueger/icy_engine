@@ -1,7 +1,9 @@
 use std::{error::Error, fs::File, io::Read, path::Path};
 
+use i18n_embed_fl::fl;
+
 use crate::{
-    AttributedChar, Buffer, BufferType, EngineResult, Layer, Position, Size, TextAttribute,
+    editor::EditState, AttributedChar, BufferType, EngineResult, Position, Size, TextAttribute,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -16,15 +18,14 @@ struct FontGlyph {
     pub data: Vec<u8>,
 }
 impl FontGlyph {
-    fn render(
-        &self,
-        layer: &mut Layer,
-        pos: Position,
-        font_type: FontType,
-        outline_style: usize,
-        color: TextAttribute,
-    ) -> Position {
-        let mut cur: Position = pos;
+    fn render(&self, editor: &mut EditState, font_type: FontType) -> Position {
+        let pos = editor.get_caret().get_position();
+        let outline_style = editor.get_outline_style();
+        let color = editor.get_caret().attribute;
+        let layer = editor.get_current_layer();
+        let _undo = editor.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-char_font_glyph"));
+
+        let mut cur = pos;
         let mut char_offset = 0;
         while char_offset < self.data.len() {
             let ch = self.data[char_offset];
@@ -55,11 +56,8 @@ impl FontGlyph {
                         AttributedChar::new(ch, ch_attr)
                     }
                 };
-                if cur.x < layer.get_width()
-                    && cur.y < layer.get_height()
-                    && !attributed_char.is_transparent()
-                {
-                    layer.set_char(cur, attributed_char);
+                if !attributed_char.is_transparent() {
+                    editor.set_char(cur, attributed_char);
                 }
                 cur.x += 1;
             }
@@ -353,15 +351,7 @@ impl TheDrawFont {
         self.char_table[char_offset as usize].is_some()
     }
 
-    pub fn render(
-        &self,
-        buffer: &mut Buffer,
-        layer: usize,
-        pos: Position,
-        color: TextAttribute,
-        outline_style: usize,
-        char_code: u8,
-    ) -> Option<Size> {
+    pub fn render(&self, editor: &mut EditState, char_code: u8) -> Option<Size> {
         let char_index = (char_code as i32) - b' ' as i32 - 1;
         if char_index < 0 || char_index > self.char_table.len() as i32 {
             return None;
@@ -370,13 +360,8 @@ impl TheDrawFont {
         let Some(glyph) = table_entry else {
             return None;
         };
-        let end_pos = glyph.render(
-            &mut buffer.layers[layer],
-            pos,
-            self.font_type,
-            outline_style,
-            color,
-        );
+        let pos = editor.get_caret().get_position();
+        let end_pos = glyph.render(editor, self.font_type);
         Some(Size::new(glyph.size.width, end_pos.y - pos.y + 1))
     }
 
