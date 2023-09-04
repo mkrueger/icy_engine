@@ -159,7 +159,7 @@ impl Buffer {
             if !cur_layer.is_visible {
                 continue;
             }
-            let pos = pos - cur_layer.offset;
+            let pos = pos - if let Some(po) = cur_layer.preview_offset { po } else { cur_layer.offset };
             if pos.x < 0 || pos.y < 0 {
                 continue;
             }

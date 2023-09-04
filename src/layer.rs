@@ -1,5 +1,3 @@
-use std::backtrace::Backtrace;
-
 use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size};
 
 use super::AttributedChar;
@@ -25,6 +23,7 @@ pub struct Layer {
 
     pub mode: Mode,
 
+    pub preview_offset: Option<Position>,
     pub offset: Position,
     pub size: Size,
     pub lines: Vec<Line>,
@@ -241,6 +240,10 @@ impl Layer {
 
     pub fn get_line_length(&self, line: i32) -> i32 {
         self.lines[line as usize].get_line_length()
+    }
+
+    pub fn set_preview_offset(&mut self, pos: Option<Position>) {
+        self.preview_offset = pos;
     }
 }
 

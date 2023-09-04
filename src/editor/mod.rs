@@ -13,7 +13,7 @@ pub use edit_operations::*;
 
 use crate::{
     ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Position, Selection, Shape,
-    TextAttribute,
+    TextAttribute, Layer,
 };
 
 pub struct EditState {
@@ -111,6 +111,14 @@ impl EditState {
 
     pub fn get_buffer_mut(&mut self) -> &mut Buffer {
         &mut self.buffer
+    }
+
+    pub fn get_cur_layer(&self) -> &Layer {
+        &self.buffer.layers[self.current_layer]
+    }
+    
+    pub fn get_cur_layer_mut(&mut self) -> &mut Layer {
+        &mut self.buffer.layers[self.current_layer]
     }
 
     pub fn get_caret(&self) -> &Caret {

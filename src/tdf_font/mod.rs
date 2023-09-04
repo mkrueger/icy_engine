@@ -22,7 +22,6 @@ impl FontGlyph {
         let pos = editor.get_caret().get_position();
         let outline_style = editor.get_outline_style();
         let color = editor.get_caret().attribute;
-        let layer = editor.get_current_layer();
         let _undo = editor.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-char_font_glyph"));
 
         let mut cur = pos;
@@ -57,7 +56,7 @@ impl FontGlyph {
                     }
                 };
                 if !attributed_char.is_transparent() {
-                    editor.set_char(cur, attributed_char);
+                    editor.set_char(cur, attributed_char).unwrap();
                 }
                 cur.x += 1;
             }
