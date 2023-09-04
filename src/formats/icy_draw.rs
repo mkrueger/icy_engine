@@ -283,8 +283,6 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
             }
         }
     }
-
-    println!("layers: {} ", result.layers.len());
     Ok(true)
 }
 

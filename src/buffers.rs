@@ -117,7 +117,7 @@ impl std::fmt::Display for Buffer {
         let mut str = String::new();
         let p = parsers::ansi::Parser::default();
 
-        for y in 0..self.get_line_count() {
+        for y in 0..self.get_height() {
             str.extend(format!("{y:3}: ").chars());
             for x in 0..self.get_width() {
                 let ch = self.get_char((x, y));
@@ -376,6 +376,7 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_size(&mut self, size: impl Into<Size>) {
+        let size = size.into();
         self.terminal_state.set_size(size);
     }
 
@@ -396,6 +397,7 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_height(&mut self, height: i32) {
+
         self.terminal_state.set_height(height);
     }
 
