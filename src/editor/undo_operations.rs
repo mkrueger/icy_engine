@@ -388,3 +388,34 @@ impl UndoOperation for SetLayerSize {
         Ok(())
     }
 }
+
+#[derive(Default)]
+pub struct Paste {
+    layer: Option<Layer>,
+}
+
+impl Paste {
+    pub(crate) fn new(paste_layer: Layer) -> Self {
+        Self {
+            layer: Some(paste_layer),
+        }
+    }
+}
+
+impl UndoOperation for Paste {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-paste")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.layer = Some(edit_state.buffer.layers.pop().unwrap());
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = self.layer.take() {
+            edit_state.buffer.layers.push(layer);
+        }
+        Ok(())
+    }
+}

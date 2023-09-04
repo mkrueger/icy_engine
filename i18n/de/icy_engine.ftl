@@ -10,6 +10,7 @@ undo-delete-selection=Auswahl löschen
 undo-move_layer=Ebene verschieben
 undo-char_font_glyph=Zeichen
 undo-set_layer_size=Ebenengröße ändern
+undo-paste=Einfügen
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

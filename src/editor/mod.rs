@@ -230,20 +230,6 @@ impl EditState {
         Some(data)
     }
 
-    /// .
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if .
-    pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
-        if let Some(layer) = Layer::from_clipboard_data(data) {
-            self.current_layer = self.buffer.layers.len();
-            self.buffer.layers.push(layer);
-        }
-        self.selection_opt = None;
-        Ok(())
-    }
-
     pub fn get_current_layer(&self) -> usize {
         self.current_layer
     }

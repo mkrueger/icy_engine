@@ -10,6 +10,7 @@ undo-delete-selection=Delete selection
 undo-move_layer=Move layer
 undo-char_font_glyph=Font
 undo-set_layer_size=Change layer size
+undo-paste=Paste
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer
