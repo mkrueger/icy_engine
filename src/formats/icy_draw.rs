@@ -3,9 +3,9 @@ use std::{io, path::Path};
 use base64::{engine::general_purpose, Engine};
 
 use crate::{
-    convert_to_ansi_data, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
+    parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
     Layer, OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size,
-    TextPane,
+    TextPane, AnsiGenerator,
 };
 
 mod constants {
@@ -149,9 +149,10 @@ impl OutputFormat for IcyDraw {
                 result.extend(i32::to_le_bytes(sixel.horizontal_scale));
                 result.extend(&sixel.picture_data);
             } else {
-                let data = convert_to_ansi_data(buf, layer, &SaveOptions::default());
-                result.extend(u64::to_le_bytes(data.len() as u64));
-                result.extend(data);
+                let mut gen = AnsiGenerator::new(SaveOptions::default());
+                gen.generate(buf, layer);
+                result.extend(u64::to_le_bytes(gen.get_data().len() as u64));
+                result.extend(gen.get_data());
             }
             let layer_data = general_purpose::STANDARD.encode(&result);
             encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data)?;
