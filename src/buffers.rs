@@ -10,13 +10,11 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, Position, Rectangle, SauceData,
-    Sixel, TerminalState,
+    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, OutputFormat, Position, Rectangle,
+    SauceData, Sixel, TerminalState, FORMATS,
 };
 
-use super::{
-    read_binary, AttributedChar, BitFont, Palette, SaveOptions, Size,
-};
+use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -152,7 +150,11 @@ impl Buffer {
                 continue;
             }
             let pos = pos - cur_layer.get_offset();
-            if pos.x < 0 || pos.y < 0 || pos.x >= cur_layer.get_width() || pos.y >= cur_layer.get_height() {
+            if pos.x < 0
+                || pos.y < 0
+                || pos.x >= cur_layer.get_width()
+                || pos.y >= cur_layer.get_height()
+            {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
@@ -219,19 +221,18 @@ impl Buffer {
                 for x in 0..layer.get_width() {
                     let ch = layer.get_char((x, y));
 
-                    if ch.attribute.get_foreground() != 7 || ch.attribute.get_background() != 0  {
+                    if ch.attribute.get_foreground() != 7 || ch.attribute.get_background() != 0 {
                         result.use_colors = true;
                     }
 
                     result.use_blink |= ch.attribute.is_blinking();
-                    result.use_extended_attributes |= 
-                        ch.attribute.is_crossed_out() || 
-                        ch.attribute.is_underlined() ||
-                        ch.attribute.is_concealed() || 
-                        ch.attribute.is_crossed_out() ||
-                        ch.attribute.is_double_height() ||
-                        ch.attribute.is_double_underlined() ||
-                        ch.attribute.is_overlined();
+                    result.use_extended_attributes |= ch.attribute.is_crossed_out()
+                        || ch.attribute.is_underlined()
+                        || ch.attribute.is_concealed()
+                        || ch.attribute.is_crossed_out()
+                        || ch.attribute.is_double_height()
+                        || ch.attribute.is_double_underlined()
+                        || ch.attribute.is_overlined();
                 }
             }
         }
@@ -255,7 +256,7 @@ pub struct BufferFeatures {
     pub font_count: usize,
     pub use_extended_colors: bool,
     pub use_colors: bool,
-    pub use_blink : bool,
+    pub use_blink: bool,
     pub use_extended_attributes: bool,
 }
 
@@ -573,7 +574,7 @@ impl Buffer {
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes)?;
 
-        Buffer::from_bytes(file_name, skip_errors, &bytes)
+        Ok(Buffer::from_bytes(file_name, skip_errors, &bytes).unwrap())
     }
 
     /// .
@@ -581,19 +582,16 @@ impl Buffer {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> io::Result<Vec<u8>> {
-        match extension {
-            "icd" => super::convert_to_icd(self),
-            "bin" => super::convert_to_binary(self, options),
-          //  "xb" => super::convert_to_xb(self, options),
-            "ice" | "ans" => super::convert_to_ans(self, options),
-            "avt" => super::convert_to_avt(self, options),
-            "pcb" => super::convert_to_pcb(self, options),
-            "adf" => super::convert_to_adf(self, options),
-            "idf" => super::convert_to_idf(self, options),
-            "tnd" => super::convert_to_tnd(self, options),
-            _ => super::convert_to_asc(self, options),
+    pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        for fmt in &*crate::FORMATS {
+            if fmt.get_file_extension() == extension {
+                return fmt.to_bytes(self, options);
+            }
         }
+        Err(Box::new(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Unknown format.",
+        )))
     }
     /// .
     ///
@@ -605,21 +603,7 @@ impl Buffer {
     ///
     /// This function will return an error if .
     pub fn from_bytes(file_name: &Path, skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
-        let mut result = Buffer {
-            is_terminal_buffer: true,
-            file_name: Some(file_name.to_path_buf()),
-            ..Default::default()
-        };
-
-        let ext = file_name.extension();
-        if let Some(ext) = ext {
-            // mdf doesn't need sauce info.
-            let ext = OsStr::to_str(ext).unwrap().to_lowercase();
-            if ext.as_str() == "icd" {
-                super::read_icd(&mut result, bytes)?;
-                return Ok(result);
-            }
-        }
+        let ext = file_name.extension().unwrap().to_str().unwrap();
         let sauce_data = match SauceData::extract(bytes) {
             Ok(sauce) => Some(sauce),
             Err(err) => {
@@ -627,144 +611,14 @@ impl Buffer {
                 None
             }
         };
-        let sauce_type = super::SauceFileType::Undefined;
-        let file_size = bytes.len();
-        let use_ice = false;
-        if let Some(sauce) = sauce_data {
-            result.set_sauce(sauce);
-        }
 
-        let mut check_extension = false;
-        let mut interpreter = CharInterpreter::Ascii;
-
-        match sauce_type {
-            super::SauceFileType::Ascii => {
-                interpreter = CharInterpreter::Ansi; /* There are files that are marked as Ascii but contain ansi codes. */
-            }
-            super::SauceFileType::Ansi => {
-                interpreter = CharInterpreter::Ansi;
-                check_extension = true;
-            }
-            super::SauceFileType::ANSiMation => {
-                interpreter = CharInterpreter::Ansi;
-                log::warn!("WARNING: ANSiMations are not fully supported.");
-            }
-            super::SauceFileType::PCBoard => {
-                interpreter = CharInterpreter::Pcb;
-            }
-            super::SauceFileType::Avatar => {
-                interpreter = CharInterpreter::Avatar;
-            }
-            super::SauceFileType::TundraDraw => {
-                if result.get_width() == 0 {
-                    result.set_buffer_width(80);
-                }
-                super::read_tnd(&mut result, bytes, file_size)?;
-                return Ok(result);
-            }
-            super::SauceFileType::Bin => {
-                if result.get_width() == 0 {
-                    result.set_buffer_width(160);
-                }
-                read_binary(&mut result, bytes, file_size)?;
-                return Ok(result);
-            }
-            super::SauceFileType::XBin => {
-             //   read_xb(&mut result, bytes, file_size)?;
-                return Ok(result);
-            }
-            super::SauceFileType::Undefined => {
-                check_extension = true;
+        for format in FORMATS.iter() {
+            if format.get_file_extension() == ext {
+                return Ok(format.load_buffer(file_name, bytes, sauce_data)?);
             }
         }
 
-        if check_extension {
-            if let Some(ext) = ext {
-                let ext = OsStr::to_str(ext).unwrap().to_lowercase();
-                match ext.as_str() {
-                    "bin" => {
-                        if result.get_width() == 0 {
-                            result.set_buffer_width(160);
-                        }
-                        read_binary(&mut result, bytes, file_size)?;
-                        return Ok(result);
-                    }
-                    "xb" => {
-                      //  read_xb(&mut result, bytes, file_size)?;
-                        return Ok(result);
-                    }
-                    "adf" => {
-                        if result.get_width() == 0 {
-                            result.set_buffer_width(80);
-                        }
-                        super::read_adf(&mut result, bytes, file_size)?;
-                        return Ok(result);
-                    }
-                    "idf" => {
-                        super::read_idf(&mut result, bytes, file_size)?;
-                        return Ok(result);
-                    }
-                    "tnd" => {
-                        if result.get_width() == 0 {
-                            result.set_buffer_width(80);
-                        }
-                        super::read_tnd(&mut result, bytes, file_size)?;
-                        return Ok(result);
-                    }
-                    "ans" => {
-                        interpreter = CharInterpreter::Ansi;
-                    }
-                    "ice" => {
-                        interpreter = CharInterpreter::Ansi;
-                        result.buffer_type = BufferType::LegacyIce;
-                    }
-                    "avt" => {
-                        interpreter = CharInterpreter::Avatar;
-                    }
-                    "pcb" => {
-                        interpreter = CharInterpreter::Pcb;
-                    }
-                    "seq" => {
-                        interpreter = CharInterpreter::Petscii;
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        if result.get_width() == 0 {
-            result.set_buffer_width(80);
-        }
-        result.set_buffer_height(25);
-        result.layers[0].lines.clear();
-
-        let mut interpreter: Box<dyn BufferParser> = match interpreter {
-            CharInterpreter::Ascii => Box::<parsers::ascii::Parser>::default(),
-            CharInterpreter::Ansi => {
-                let mut parser = Box::<parsers::ansi::Parser>::default();
-                parser.bs_is_ctrl_char = false;
-                parser
-            }
-            CharInterpreter::Avatar => Box::<parsers::avatar::Parser>::default(),
-            CharInterpreter::Pcb => Box::<parsers::pcboard::Parser>::default(),
-            CharInterpreter::Petscii => Box::<parsers::petscii::Parser>::default(),
-        };
-
-        let mut caret = Caret::default();
-        caret.set_ice_mode(use_ice);
-
-        for b in bytes.iter().take(file_size) {
-            let res = interpreter.as_mut().print_char(
-                &mut result,
-                0,
-                &mut caret,
-                char::from_u32(*b as u32).unwrap(),
-            );
-            if !skip_errors && res.is_err() {
-                res?;
-            }
-        }
-        Ok(result)
+        Ok(crate::Ansi::default().load_buffer(file_name, bytes, sauce_data)?)
     }
 
     pub fn to_screenx(&self, x: i32) -> f64 {
@@ -858,6 +712,20 @@ impl Buffer {
             }
         }
         (Size::new(px_width, px_height), pixels)
+    }
+
+    pub fn use_letter_spacing(&self) -> bool {
+        if let Some(data) = &self.sauce_data {
+            return data.use_letter_spacing;
+        }
+        false
+    }
+
+    pub fn use_aspect_ratio(&self) -> bool {
+        if let Some(data) = &self.sauce_data {
+            return data.use_aspect_ratio;
+        }
+        false
     }
 }
 

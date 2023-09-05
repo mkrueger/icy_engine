@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use crate::ascii::CP437_TO_UNICODE;
-use crate::Buffer;
+use crate::{parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat};
 use crate::{Position, TextAttribute};
 
 use super::SaveOptions;
@@ -7,15 +9,72 @@ use super::SaveOptions;
 const FG_TABLE: [&[u8; 2]; 8] = [b"30", b"34", b"32", b"36", b"31", b"35", b"33", b"37"];
 const BG_TABLE: [&[u8; 2]; 8] = [b"40", b"44", b"42", b"46", b"41", b"45", b"43", b"47"];
 
+#[derive(Default)]
+pub(crate) struct Ansi {}
+
+impl OutputFormat for Ansi {
+    fn get_file_extension(&self) -> &str {
+        "ans"
+    }
+
+    fn get_name(&self) -> &str {
+        "Ansi"
+    }
+
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
+        String::new()
+    }
+
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        let mut result = Vec::new();
+
+        match options.screen_preparation {
+            super::ScreenPreperation::None => {}
+            super::ScreenPreperation::ClearScreen => {
+                result.extend_from_slice(b"\x1b[2J");
+            }
+            super::ScreenPreperation::Home => {
+                result.extend_from_slice(b"\x1b[1;1H");
+            }
+        }
+
+        result.extend(convert_to_ansi_data(buf, 0, options.modern_terminal_output));
+
+        if options.save_sauce {
+            buf.write_sauce_info(crate::SauceFileType::Ansi, &mut result)?;
+        }
+        Ok(result)
+    }
+
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer> {
+        let mut result = Buffer::new((80, 25));
+        result.is_terminal_buffer = true;
+        result.file_name = Some(file_name.into());
+        if let Some(sauce) = sauce_opt {
+            result.set_sauce(sauce);
+        }
+        let mut parser = parsers::ansi::Parser::default();
+        parser.bs_is_ctrl_char = false;
+
+        parse_with_parser(&mut result, &mut parser, data, true)?;
+        Ok(result)
+    }
+}
+
 pub fn convert_to_ansi_data(
     buf: &Buffer,
-    current_layer: usize,
+    current_layer: i32,
     modern_terminal_output: bool,
 ) -> Vec<u8> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let layer = &buf.layers[current_layer];
+    let layer = &buf.layers[current_layer as usize];
     let height = layer.get_line_count();
     let mut first_char = true;
     while pos.y < height {
@@ -218,32 +277,6 @@ pub fn convert_to_ansi_data(
     }
 
     result
-}
-
-/// .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn convert_to_ans(buf: &Buffer, options: &SaveOptions) -> std::io::Result<Vec<u8>> {
-    let mut result = Vec::new();
-
-    match options.screen_preparation {
-        super::ScreenPreperation::None => {}
-        super::ScreenPreperation::ClearScreen => {
-            result.extend_from_slice(b"\x1b[2J");
-        }
-        super::ScreenPreperation::Home => {
-            result.extend_from_slice(b"\x1b[1;1H");
-        }
-    }
-
-    result.extend(convert_to_ansi_data(buf, 0, options.modern_terminal_output));
-
-    if options.save_sauce {
-        buf.write_sauce_info(crate::SauceFileType::Ansi, &mut result)?;
-    }
-    Ok(result)
 }
 
 fn get_extended_color(buf: &Buffer, color: usize) -> Option<usize> {

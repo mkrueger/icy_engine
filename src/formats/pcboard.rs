@@ -1,61 +1,107 @@
-use std::io;
+use std::path::Path;
 
-use crate::{Buffer, Position, TextAttribute};
+use crate::{
+    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
+    TextAttribute,
+};
 
 use super::SaveOptions;
 
 pub(crate) const HEX_TABLE: &[u8; 16] = b"0123456789ABCDEF";
 
-/// .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn convert_to_pcb(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
-    let mut result = Vec::new();
-    let mut last_attr = TextAttribute::default();
-    let mut pos = Position::default();
-    let height = buf.get_line_count();
-    let mut first_char = true;
+#[derive(Default)]
+pub(super) struct PCBoard {}
 
-    match options.screen_preparation {
-        super::ScreenPreperation::None | super::ScreenPreperation::Home => {} // home not supported
-        super::ScreenPreperation::ClearScreen => {
-            result.extend(b"@CLS@");
-        }
+impl OutputFormat for PCBoard {
+    fn get_file_extension(&self) -> &str {
+        "pcb"
     }
 
-    while pos.y < height {
-        let line_length = buf.get_line_length(pos.y);
+    fn get_name(&self) -> &str {
+        "PCBoard"
+    }
 
-        while pos.x < line_length {
-            let ch = buf.get_char(pos);
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
+        String::new()
+    }
 
-            if first_char || ch.attribute != last_attr {
-                result.extend_from_slice(b"@X");
-                result.push(HEX_TABLE[ch.attribute.get_background() as usize]);
-                result.push(HEX_TABLE[ch.attribute.get_foreground() as usize]);
-                last_attr = ch.attribute;
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        let mut result = Vec::new();
+        let mut last_attr = TextAttribute::default();
+        let mut pos = Position::default();
+        let height = buf.get_line_count();
+        let mut first_char = true;
+
+        match options.screen_preparation {
+            super::ScreenPreperation::None | super::ScreenPreperation::Home => {} // home not supported
+            super::ScreenPreperation::ClearScreen => {
+                result.extend(b"@CLS@");
+            }
+        }
+
+        while pos.y < height {
+            let line_length = buf.get_line_length(pos.y);
+
+            while pos.x < line_length {
+                let ch = buf.get_char(pos);
+
+                if first_char || ch.attribute != last_attr {
+                    result.extend_from_slice(b"@X");
+                    result.push(HEX_TABLE[ch.attribute.get_background() as usize]);
+                    result.push(HEX_TABLE[ch.attribute.get_foreground() as usize]);
+                    last_attr = ch.attribute;
+                }
+
+                result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
+                first_char = false;
+                pos.x += 1;
             }
 
-            result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
-            first_char = false;
-            pos.x += 1;
+            // do not end with eol
+            if pos.x < buf.get_width() && pos.y + 1 < height {
+                result.push(13);
+                result.push(10);
+            }
+
+            pos.x = 0;
+            pos.y += 1;
+        }
+        if options.save_sauce {
+            buf.write_sauce_info(crate::SauceFileType::PCBoard, &mut result)?;
+        }
+        Ok(result)
+    }
+
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer> {
+        let mut result = Buffer::new((80, 25));
+        result.is_terminal_buffer = true;
+        result.file_name = Some(file_name.into());
+        if let Some(sauce) = sauce_opt {
+            result.set_sauce(sauce);
         }
 
-        // do not end with eol
-        if pos.x < buf.get_width() && pos.y + 1 < height {
-            result.push(13);
-            result.push(10);
-        }
-
-        pos.x = 0;
-        pos.y += 1;
+        /*
+                let mut interpreter: Box<dyn BufferParser> = match interpreter {
+            CharInterpreter::Ansi => {
+                let mut parser = Box::<parsers::ansi::Parser>::default();
+                parser.bs_is_ctrl_char = false;
+                parser
+            }
+        };
+         */
+        parse_with_parser(
+            &mut result,
+            &mut parsers::pcboard::Parser::default(),
+            data,
+            true,
+        )?;
+        Ok(result)
     }
-    if options.save_sauce {
-        buf.write_sauce_info(crate::SauceFileType::PCBoard, &mut result)?;
-    }
-    Ok(result)
 }
 
 pub fn get_save_sauce_default_pcb(buf: &Buffer) -> (bool, String) {

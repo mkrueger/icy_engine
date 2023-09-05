@@ -1,6 +1,9 @@
-use std::io;
+use std::path::Path;
 
-use crate::{Buffer, Position, TextAttribute};
+use crate::{
+    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
+    TextAttribute,
+};
 
 use super::SaveOptions;
 
@@ -22,89 +25,122 @@ pub enum AvtReadState {
     ReadColor,
 }
 
-/// .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn convert_to_avt(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
-    let mut result = Vec::new();
-    let mut last_attr = TextAttribute::default();
-    let mut pos = Position::default();
-    let height = buf.get_line_count();
-    let mut first_char = true;
+#[derive(Default)]
+pub(super) struct Avatar {}
 
-    match options.screen_preparation {
-        super::ScreenPreperation::None => {}
-        super::ScreenPreperation::ClearScreen => {
-            result.push(AVT_CLR);
-        }
-        super::ScreenPreperation::Home => {
-            result.push(AVT_CMD);
-            result.push(8); // move caret
-            result.push(1); // x
-            result.push(1); // y
-        }
+impl OutputFormat for Avatar {
+    fn get_file_extension(&self) -> &str {
+        "avt"
     }
 
-    // TODO: implement repeat pattern compression (however even TheDraw never bothered to implement this cool RLE from fsc0037)
-    while pos.y < height {
-        let line_length = buf.get_line_length(pos.y);
+    fn get_name(&self) -> &str {
+        "Avatar"
+    }
 
-        while pos.x < line_length {
-            let mut repeat_count = 1;
-            let mut ch = buf.get_char(pos);
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
+        String::new()
+    }
 
-            while pos.x + 3 < buf.get_width() && ch == buf.get_char(pos + Position::new(1, 0)) {
-                repeat_count += 1;
-                pos.x += 1;
-                ch = buf.get_char(pos);
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        let mut result = Vec::new();
+        let mut last_attr = TextAttribute::default();
+        let mut pos = Position::default();
+        let height = buf.get_line_count();
+        let mut first_char = true;
+
+        match options.screen_preparation {
+            super::ScreenPreperation::None => {}
+            super::ScreenPreperation::ClearScreen => {
+                result.push(AVT_CLR);
             }
-
-            if first_char || ch.attribute != last_attr {
-                result.push(22);
-                result.push(1);
-                result.push(ch.attribute.as_u8(buf.buffer_type));
-                last_attr = ch.attribute;
+            super::ScreenPreperation::Home => {
+                result.push(AVT_CMD);
+                result.push(8); // move caret
+                result.push(1); // x
+                result.push(1); // y
             }
-            first_char = false;
+        }
 
-            if repeat_count > 1 {
-                if repeat_count < 4 && (ch.ch != '\x16' && ch.ch != '\x0C' && ch.ch != '\x19') {
-                    result.resize(result.len() + repeat_count, ch.ch as u8);
-                } else {
+        // TODO: implement repeat pattern compression (however even TheDraw never bothered to implement this cool RLE from fsc0037)
+        while pos.y < height {
+            let line_length = buf.get_line_length(pos.y);
+
+            while pos.x < line_length {
+                let mut repeat_count = 1;
+                let mut ch = buf.get_char(pos);
+
+                while pos.x + 3 < buf.get_width() && ch == buf.get_char(pos + Position::new(1, 0)) {
+                    repeat_count += 1;
+                    pos.x += 1;
+                    ch = buf.get_char(pos);
+                }
+
+                if first_char || ch.attribute != last_attr {
+                    result.push(22);
+                    result.push(1);
+                    result.push(ch.attribute.as_u8(buf.buffer_type));
+                    last_attr = ch.attribute;
+                }
+                first_char = false;
+
+                if repeat_count > 1 {
+                    if repeat_count < 4 && (ch.ch != '\x16' && ch.ch != '\x0C' && ch.ch != '\x19') {
+                        result.resize(result.len() + repeat_count, ch.ch as u8);
+                    } else {
+                        result.push(25);
+                        result.push(ch.ch as u8);
+                        result.push(repeat_count as u8);
+                    }
+                    pos.x += 1;
+
+                    continue;
+                }
+
+                // avt control codes need to be represented as repeat once.
+                if ch.ch == '\x16' || ch.ch == '\x0C' || ch.ch == '\x19' {
                     result.push(25);
                     result.push(ch.ch as u8);
-                    result.push(repeat_count as u8);
+                    result.push(1);
+                } else {
+                    result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
                 }
                 pos.x += 1;
-
-                continue;
+            }
+            // do not end with eol
+            if pos.x < buf.get_width() && pos.y + 1 < height {
+                result.push(13);
+                result.push(10);
             }
 
-            // avt control codes need to be represented as repeat once.
-            if ch.ch == '\x16' || ch.ch == '\x0C' || ch.ch == '\x19' {
-                result.push(25);
-                result.push(ch.ch as u8);
-                result.push(1);
-            } else {
-                result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
-            }
-            pos.x += 1;
+            pos.x = 0;
+            pos.y += 1;
         }
-        // do not end with eol
-        if pos.x < buf.get_width() && pos.y + 1 < height {
-            result.push(13);
-            result.push(10);
+        if options.save_sauce {
+            buf.write_sauce_info(crate::SauceFileType::Avatar, &mut result)?;
         }
+        Ok(result)
+    }
 
-        pos.x = 0;
-        pos.y += 1;
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer> {
+        let mut result = Buffer::new((80, 25));
+        result.is_terminal_buffer = true;
+        result.file_name = Some(file_name.into());
+        if let Some(sauce) = sauce_opt {
+            result.set_sauce(sauce);
+        }
+        parse_with_parser(
+            &mut result,
+            &mut parsers::avatar::Parser::default(),
+            data,
+            true,
+        )?;
+        Ok(result)
     }
-    if options.save_sauce {
-        buf.write_sauce_info(crate::SauceFileType::Avatar, &mut result)?;
-    }
-    Ok(result)
 }
 
 pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
@@ -112,7 +148,7 @@ pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
         return (true, "width != 80".to_string());
     }
 
-    if buf.sauce_data.is_some()  {
+    if buf.sauce_data.is_some() {
         return (true, String::new());
     }
 
@@ -121,7 +157,7 @@ pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Buffer, SaveOptions};
+    use crate::{Buffer, OutputFormat, SaveOptions};
 
     #[test]
     fn test_clear() {
@@ -212,7 +248,9 @@ mod tests {
 
     fn test_avt(data: &[u8]) {
         let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, data).unwrap();
-        let converted = super::convert_to_avt(&buf, &SaveOptions::new()).unwrap();
+        let converted = super::Avatar::default()
+            .to_bytes(&buf, &SaveOptions::new())
+            .unwrap();
 
         // more gentle output.
         let b: Vec<u8> = output_avt(&converted);

@@ -1,5 +1,8 @@
 mod ansi;
 
+use std::path::Path;
+
+pub use ansi::*;
 pub use ansi::*;
 
 mod pcboard;
@@ -27,9 +30,8 @@ mod tundra;
 pub use tundra::*;
 
 mod icy_draw;
-pub use icy_draw::*;
 
-use crate::{EngineResult, BufferFeatures};
+use crate::{Buffer, BufferFeatures, BufferParser, Caret, EngineResult};
 
 use super::{Position, TextAttribute};
 
@@ -72,11 +74,13 @@ impl Default for SaveOptions {
     }
 }
 
-pub trait OutputFormat {
+pub trait OutputFormat: Send + Sync {
     fn get_file_extension(&self) -> &str;
     fn get_name(&self) -> &str;
 
-    fn analyze_features(&self, features: &BufferFeatures) -> String;
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
+        String::new()
+    }
 
     /// .
     ///
@@ -90,17 +94,69 @@ pub trait OutputFormat {
     /// # Errors
     ///
     /// This function will return an error if .
-    fn from_bytes(data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer>;
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer>;
+}
+
+lazy_static::lazy_static! {
+    pub static ref FORMATS: [Box<dyn OutputFormat>; 10] = [
+        Box::<ansi::Ansi>::default(),
+        Box::<icy_draw::IcyDraw>::default(),
+        Box::<IceDraw>::default(),
+        Box::<Bin>::default(),
+        Box::<XBin>::default(),
+        Box::<TundraDraw>::default(),
+        Box::<PCBoard>::default(),
+        Box::<Avatar>::default(),
+        Box::<ascii::Ascii>::default(),
+        Box::<artworx::Artworx>::default(),
+    ];
+}
+
+/// .
+///
+/// # Panics
+///
+/// Panics if .
+///
+/// # Errors
+///
+/// This function will return an error if .
+pub fn parse_with_parser(
+    result: &mut Buffer,
+    interpreter: &mut dyn BufferParser,
+    bytes: &[u8],
+    skip_errors: bool,
+) -> EngineResult<()> {
+    result.layers[0].lines.clear();
+    let mut caret = Caret::default();
+    if let Some(sauce) = &result.sauce_data {
+        caret.set_ice_mode(sauce.use_ice);
+    }
+
+    for b in bytes {
+        let res = interpreter.print_char(result, 0, &mut caret, char::from_u32(*b as u32).unwrap());
+        if !skip_errors && res.is_err() {
+            res?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Buffer, SaveOptions};
+    use crate::{Buffer, OutputFormat, SaveOptions};
     use std::path::PathBuf;
 
     fn test_ansi(data: &[u8]) {
         let buf = Buffer::from_bytes(&PathBuf::from("test.ans"), false, data).unwrap();
-        let converted = super::convert_to_ans(&buf, &SaveOptions::new()).unwrap();
+        let converted = super::Ansi::default()
+            .to_bytes(&buf, &SaveOptions::new())
+            .unwrap();
 
         // more gentle output.
         let b: Vec<u8> = converted

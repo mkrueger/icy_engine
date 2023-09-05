@@ -1,41 +1,76 @@
-use std::io;
+use std::path::Path;
 
-use crate::{Buffer, Position};
+use crate::{
+    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
+};
 
 use super::SaveOptions;
 
-/// .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn convert_to_asc(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
-    let mut result = Vec::new();
-    let mut pos = Position::default();
-    let height = buf.get_line_count();
+#[derive(Default)]
+pub(crate) struct Ascii {}
 
-    while pos.y < height {
-        let line_length = buf.get_line_length(pos.y);
-        while pos.x < line_length {
-            let ch = buf.get_char(pos);
-            result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
-            pos.x += 1;
-        }
-
-        // do not end with eol
-        if pos.x < buf.get_width() && pos.y + 1 < height {
-            result.push(13);
-            result.push(10);
-        }
-
-        pos.x = 0;
-        pos.y += 1;
+impl OutputFormat for Ascii {
+    fn get_file_extension(&self) -> &str {
+        "asc"
     }
 
-    if options.save_sauce {
-        buf.write_sauce_info(crate::SauceFileType::Ascii, &mut result)?;
+    fn get_name(&self) -> &str {
+        "Ascii"
     }
-    Ok(result)
+
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
+        String::new()
+    }
+
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        let mut result = Vec::new();
+        let mut pos = Position::default();
+        let height = buf.get_line_count();
+
+        while pos.y < height {
+            let line_length = buf.get_line_length(pos.y);
+            while pos.x < line_length {
+                let ch = buf.get_char(pos);
+                result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
+                pos.x += 1;
+            }
+
+            // do not end with eol
+            if pos.x < buf.get_width() && pos.y + 1 < height {
+                result.push(13);
+                result.push(10);
+            }
+
+            pos.x = 0;
+            pos.y += 1;
+        }
+
+        if options.save_sauce {
+            buf.write_sauce_info(crate::SauceFileType::Ascii, &mut result)?;
+        }
+        Ok(result)
+    }
+
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer> {
+        let mut result = Buffer::new((80, 25));
+        result.is_terminal_buffer = true;
+        result.file_name = Some(file_name.into());
+        if let Some(sauce) = sauce_opt {
+            result.set_sauce(sauce);
+        }
+        parse_with_parser(
+            &mut result,
+            &mut parsers::ascii::Parser::default(),
+            data,
+            true,
+        )?;
+        Ok(result)
+    }
 }
 
 pub fn get_save_sauce_default_asc(buf: &Buffer) -> (bool, String) {

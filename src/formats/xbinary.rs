@@ -1,7 +1,9 @@
-/* 
-use std::{cmp::min, io};
+use std::{cmp::min, io, path::Path};
 
-use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Position, SauceString, BufferFeatures, SauceData, EngineResult};
+use crate::{
+    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
+    Palette, Position, SauceString,
+};
 
 use super::{CompressionLevel, SaveOptions, TextAttribute};
 
@@ -22,8 +24,8 @@ enum Compression {
     Full = 0b1100_0000,
 }
 
-struct XBin {}
-
+#[derive(Default)]
+pub(super) struct XBin {}
 
 impl OutputFormat for XBin {
     fn get_file_extension(&self) -> &str {
@@ -34,54 +36,53 @@ impl OutputFormat for XBin {
         "XBin"
     }
 
-    fn analyze_features(&self, features: &BufferFeatures) -> String
-    {
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
         String::new()
     }
-   
+
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         let mut result = Vec::new();
 
         result.extend_from_slice(b"XBIN");
         result.push(0x1A); // CP/M EOF char (^Z) - used by DOS as well
-    
+
         result.push(buf.get_width() as u8);
         result.push((buf.get_width() >> 8) as u8);
         result.push(buf.get_line_count() as u8);
         result.push((buf.get_line_count() >> 8) as u8);
-    
+
         let mut flags = 0;
         let font = buf.get_font(0).unwrap();
         if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."));
+            return Err(Box::new(io::Error::new(io::ErrorKind::InvalidData, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported.")));
         }
-    
+
         result.push(font.size.height as u8);
         if !font.is_default() || buf.has_fonts() {
             flags |= FLAG_FONT;
         }
-    
+
         if !buf.palette.is_default() {
             flags |= FLAG_PALETTE;
         }
         if options.compression_level != CompressionLevel::Off {
             flags |= FLAG_COMPRESS;
         }
-    
+
         if buf.buffer_type.use_ice_colors() {
             flags |= FLAG_NON_BLINK_MODE;
         }
-    
+
         if buf.buffer_type.use_extended_font() {
             flags |= FLAG_512CHAR_MODE;
         }
-    
+
         result.push(flags);
-    
+
         if (flags & FLAG_PALETTE) == FLAG_PALETTE {
             result.extend(buf.palette.to_16color_vec());
         }
-    
+
         if flags & FLAG_FONT == FLAG_FONT {
             font.convert_to_u8_data(&mut result);
             if flags & FLAG_512CHAR_MODE == FLAG_512CHAR_MODE {
@@ -97,54 +98,67 @@ impl OutputFormat for XBin {
                 for y in 0..buf.get_line_count() {
                     for x in 0..buf.get_width() {
                         let ch = buf.get_char((x, y));
-    
+
                         result.push(ch.ch as u8);
                         result.push(encode_attr(ch.ch as u16, ch.attribute, buf.buffer_type));
                     }
                 }
             }
         }
-    
+
         if options.save_sauce {
             buf.write_sauce_info(crate::SauceFileType::XBin, &mut result)?;
         }
         Ok(result)
     }
 
-    fn from_bytes(bytes: &[u8], sauce_opt: Option<SauceData>) -> EngineResult<crate::Buffer> {
-        if bytes.len() < XBIN_HEADER_SIZE {
-            return Err(io::Error::new(
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer> {
+        let mut result = Buffer::new((80, 25));
+        result.layers.clear();
+        result.is_terminal_buffer = true;
+        result.file_name = Some(file_name.into());
+        if let Some(sauce) = sauce_opt {
+            result.set_sauce(sauce);
+        }
+
+        if data.len() < XBIN_HEADER_SIZE {
+            return Err(Box::new(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid XBin.\nFile too short.",
-            ));
+            )));
         }
-        if b"XBIN" != &bytes[0..4] {
-            return Err(io::Error::new(
+        if b"XBIN" != &data[0..4] {
+            return Err(Box::new(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "Invalid XBin.\nID doesn't match.",
-            ));
+            )));
         }
-    
+
         let mut o = 4;
-    
+
         // let eof_char = bytes[o];
         o += 1;
-        result.set_buffer_width(bytes[o] as i32 + ((bytes[o + 1] as i32) << 8));
+        result.set_buffer_width(data[o] as i32 + ((data[o + 1] as i32) << 8));
         o += 2;
-        result.set_buffer_height(bytes[o] as i32 + ((bytes[o + 1] as i32) << 8));
+        result.set_buffer_height(data[o] as i32 + ((data[o + 1] as i32) << 8));
         o += 2;
-    
-        let font_size = bytes[o];
+
+        let font_size = data[o];
         o += 1;
-        let flags = bytes[o];
+        let flags = data[o];
         o += 1;
-    
+
         let has_custom_palette = (flags & FLAG_PALETTE) == FLAG_PALETTE;
         let has_custom_font = (flags & FLAG_FONT) == FLAG_FONT;
         let is_compressed = (flags & FLAG_COMPRESS) == FLAG_COMPRESS;
         let use_ice = (flags & FLAG_NON_BLINK_MODE) == FLAG_NON_BLINK_MODE;
         let extended_char_mode = (flags & FLAG_512CHAR_MODE) == FLAG_512CHAR_MODE;
-    
+
         if extended_char_mode {
             result.buffer_type = if use_ice {
                 BufferType::ExtFontIce
@@ -158,9 +172,9 @@ impl OutputFormat for XBin {
                 BufferType::LegacyDos
             };
         }
-    
+
         if has_custom_palette {
-            result.palette = Palette::from(&bytes[o..(o + 48)]);
+            result.palette = Palette::from(&data[o..(o + 48)]);
             o += 48;
         }
         if has_custom_font {
@@ -172,7 +186,7 @@ impl OutputFormat for XBin {
                     SauceString::new(),
                     8,
                     font_size,
-                    &bytes[o..(o + font_length)],
+                    &data[o..(o + font_length)],
                 ),
             );
             o += font_length;
@@ -183,23 +197,22 @@ impl OutputFormat for XBin {
                         SauceString::new(),
                         8,
                         font_size,
-                        &bytes[o..(o + font_length)],
+                        &data[o..(o + font_length)],
                     ),
                 );
                 o += font_length;
             }
         }
-    
+
         if is_compressed {
-            read_data_compressed(result, &bytes[o..], file_size - o)
+            read_data_compressed(&mut result, &data[o..], data.len() - o)?;
         } else {
-            read_data_uncompressed(result, &bytes[o..], file_size - o)
+            read_data_uncompressed(&mut result, &data[o..], data.len() - o)?;
         }
-    
+
+        Ok(result)
     }
 }
-
-
 
 fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     pos.x += 1;
@@ -210,16 +223,16 @@ fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     true
 }
 
-fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
+fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < file_size {
         let xbin_compression = bytes[o];
         if o > file_size {
-            return Err(io::Error::new(
+            return Err(Box::new(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "Invalid XBin.\nRead block start at EOF.",
-            ));
+            )));
         }
 
         o += 1;
@@ -240,10 +253,10 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                         .set_char(pos, decode_char(char_code, attribute, result.buffer_type));
 
                     if !advance_pos(result, &mut pos) {
-                        return Err(io::Error::new(
+                        return Err(Box::new(io::Error::new(
                             io::ErrorKind::UnexpectedEof,
                             "data out of bounds",
-                        ));
+                        )));
                     }
                 }
             }
@@ -260,10 +273,10 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                         .set_char(pos, decode_char(char_code, bytes[o], result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
-                        return Err(io::Error::new(
+                        return Err(Box::new(io::Error::new(
                             io::ErrorKind::UnexpectedEof,
                             "data out of bounds",
-                        ));
+                        )));
                     }
                 }
             }
@@ -279,10 +292,10 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                         .set_char(pos, decode_char(bytes[o], attribute, result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
-                        return Err(io::Error::new(
+                        return Err(Box::new(io::Error::new(
                             io::ErrorKind::UnexpectedEof,
                             "data out of bounds",
-                        ));
+                        )));
                     }
                 }
             }
@@ -300,10 +313,10 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> 
                 for _ in 0..repeat_counter {
                     result.layers[0].set_char(pos, rep_ch);
                     if !advance_pos(result, &mut pos) {
-                        return Err(io::Error::new(
+                        return Err(Box::new(io::Error::new(
                             io::ErrorKind::UnexpectedEof,
                             "data out of bounds",
-                        ));
+                        )));
                     }
                 }
             }
@@ -334,29 +347,32 @@ fn encode_attr(char_code: u16, attr: TextAttribute, buffer_type: BufferType) -> 
     }
 }
 
-fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
+fn read_data_uncompressed(
+    result: &mut Buffer,
+    bytes: &[u8],
+    file_size: usize,
+) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < file_size {
         if o + 1 > file_size {
-            return Err(io::Error::new(
+            return Err(Box::new(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "Invalid XBin.\n Uncompressed data length needs to be % 2 == 0",
-            ));
+            )));
         }
         result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], result.buffer_type));
         o += 2;
         if !advance_pos(result, &mut pos) {
-            return Err(io::Error::new(
+            return Err(Box::new(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "data out of bounds",
-            ));
+            )));
         }
     }
 
     Ok(true)
 }
-
 
 fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: BufferType) {
     let mut run_mode = Compression::Off;
@@ -718,10 +734,5 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, buffer_type: Bu
 }
 
 pub fn get_save_sauce_default_xb(buf: &Buffer) -> (bool, String) {
-    if buf.has_sauce_relevant_data() {
-        return (true, String::new());
-    }
-
-    (false, String::new())
+    (buf.sauce_data.is_some(), String::new())
 }
-*/

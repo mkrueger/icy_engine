@@ -2,11 +2,10 @@
 
 use crate::{
     ansi::{sound::MusicAction, BaudEmulation, MusicOption},
-    convert_to_ans,
     parsers::{
         ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
     },
-    AttributedChar, BufferType, CallbackAction, Caret, Color, Position, SaveOptions,
+    AttributedChar, BufferType, CallbackAction, Caret, Color, OutputFormat, Position, SaveOptions,
     TerminalScrolling, TextAttribute, XTERM_256_PALETTE,
 };
 
@@ -137,7 +136,9 @@ fn test_char0_bug() {
 
 fn test_ansi(data: &[u8]) {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), data);
-    let converted = convert_to_ans(&buf, &crate::SaveOptions::new()).unwrap();
+    let converted = crate::Ansi::default()
+        .to_bytes(&buf, &crate::SaveOptions::new())
+        .unwrap();
 
     // more gentle output.
     let b: Vec<u8> = converted
@@ -516,7 +517,9 @@ fn test_insert_mode() {
         &mut ansi::Parser::default(),
         b"test\x1B[H\x1B[4lhelp\x1B[H\x1B[4hnewtest",
     );
-    let converted = crate::convert_to_asc(&buf, &SaveOptions::new()).unwrap();
+    let converted = crate::Ascii::default()
+        .to_bytes(&buf, &SaveOptions::new())
+        .unwrap();
 
     // more gentle output.
     let b: Vec<u8> = converted

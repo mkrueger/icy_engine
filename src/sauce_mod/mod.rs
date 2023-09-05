@@ -475,7 +475,7 @@ impl Buffer {
         vec.extend(SAUCE_ID);
         vec.push(b'0');
         vec.push(b'0');
-        
+
         if let Some(data) = &self.sauce_data {
             data.title.append_to(vec);
             data.author.append_to(vec);

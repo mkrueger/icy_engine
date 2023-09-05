@@ -260,7 +260,7 @@ impl EditState {
             .clamp(0, self.buffer.layers.len().saturating_sub(1));
     }
 
-    fn push_undo(&mut self, mut op: Box<dyn UndoOperation>) ->EngineResult<()> {
+    fn push_undo(&mut self, mut op: Box<dyn UndoOperation>) -> EngineResult<()> {
         op.redo(self)?;
         self.undo_stack.lock().unwrap().push(op);
         self.redo_stack.clear();

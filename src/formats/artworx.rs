@@ -1,7 +1,10 @@
-use std::io;
+use std::{io, path::Path};
 
 use super::{Position, SaveOptions, TextAttribute};
-use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Size};
+use crate::{
+    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
+    Palette, Size,
+};
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
 
@@ -13,101 +16,113 @@ use crate::{AttributedChar, BitFont, Buffer, BufferType, Palette, Size};
 // A very simple format with a weird palette storage. Only 16 colors got used but a full 64 color palette is stored.
 // Maybe useful for DOS demos running in text mode.
 
-/// .
-///
-/// # Panics
-///
-/// Panics if .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn read_adf(result: &mut Buffer, bytes: &[u8], file_size: usize) -> io::Result<bool> {
-    result.set_buffer_width(80);
-    result.buffer_type = BufferType::LegacyIce;
-    let mut o = 0;
-    let mut pos = Position::default();
-    if file_size < 1 + 3 * 64 + 4096 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Invalid ADF - file too short",
-        ));
+#[derive(Default)]
+pub(crate) struct Artworx {}
+
+impl OutputFormat for Artworx {
+    fn get_file_extension(&self) -> &str {
+        "adf"
     }
 
-    let version = bytes[o];
-    if version != 1 {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            format!("Unsupported ADF version {version}"),
-        ));
+    fn get_name(&self) -> &str {
+        "Artworx"
     }
-    o += 1;
 
-    // convert EGA -> VGA colors.
-    let palette_size = 3 * 64;
-    result.palette = Palette::from(&bytes[o..(o + palette_size)]).cycle_ega_colors();
-    o += palette_size;
+    fn analyze_features(&self, _features: &BufferFeatures) -> String {
+        String::new()
+    }
 
-    let font_size = 4096;
-    result.clear_font_table();
-    result.set_font(0, BitFont::from_basic(8, 16, &bytes[o..(o + font_size)]));
-    o += font_size;
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        let mut result = vec![1]; // version
 
-    loop {
-        for _ in 0..result.get_width() {
-            if o + 2 > file_size {
-                result.set_height_for_pos(pos);
-                return Ok(true);
+        result.extend(buf.palette.to_ega_palette());
+        if buf.get_font_dimensions() != Size::new(8, 16) {
+            return Err(Box::new(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Only 8x16 fonts are supported by adf.",
+            )));
+        }
+
+        buf.get_font(0).unwrap().convert_to_u8_data(&mut result);
+
+        for y in 0..buf.get_line_count() {
+            for x in 0..buf.get_width() {
+                let ch = buf.get_char((x, y));
+                result.push(ch.ch as u8);
+                result.push(ch.attribute.as_u8(BufferType::LegacyIce));
             }
-            result.layers[0].set_height(pos.y + 1);
-            result.layers[0].set_char(
-                pos,
-                AttributedChar::new(
-                    char::from_u32(bytes[o] as u32).unwrap(),
-                    TextAttribute::from_u8(bytes[o + 1], result.buffer_type),
-                ),
-            );
-            pos.x += 1;
-            o += 2;
         }
-        pos.x = 0;
-        pos.y += 1;
-    }
-}
-
-/// .
-///
-/// # Panics
-///
-/// Panics if .
-///
-/// # Errors
-///
-/// This function will return an error if .
-pub fn convert_to_adf(buf: &Buffer, options: &SaveOptions) -> io::Result<Vec<u8>> {
-    let mut result = vec![1]; // version
-
-    result.extend(buf.palette.to_ega_palette());
-    if buf.get_font_dimensions() != Size::new(8, 16) {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Only 8x16 fonts are supported by adf.",
-        ));
+        if options.save_sauce {
+            buf.write_sauce_info(crate::SauceFileType::Ansi, &mut result)?;
+        }
+        Ok(result)
     }
 
-    buf.get_font(0).unwrap().convert_to_u8_data(&mut result);
+    fn load_buffer(
+        &self,
+        file_name: &Path,
+        data: &[u8],
+        sauce_opt: Option<crate::SauceData>,
+    ) -> EngineResult<crate::Buffer> {
+        let mut result = Buffer::new((80, 25));
+        result.layers.clear();
+        result.is_terminal_buffer = true;
+        result.file_name = Some(file_name.into());
+        if let Some(sauce) = sauce_opt {
+            result.set_sauce(sauce);
+        }
+        result.set_buffer_width(80);
+        result.buffer_type = BufferType::LegacyIce;
+        let file_size = data.len();
+        let mut o = 0;
+        let mut pos = Position::default();
+        if file_size < 1 + 3 * 64 + 4096 {
+            return Err(Box::new(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Invalid ADF - file too short",
+            )));
+        }
 
-    for y in 0..buf.get_line_count() {
-        for x in 0..buf.get_width() {
-            let ch = buf.get_char((x, y));
-            result.push(ch.ch as u8);
-            result.push(ch.attribute.as_u8(BufferType::LegacyIce));
+        let version = data[o];
+        if version != 1 {
+            return Err(Box::new(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("Unsupported ADF version {version}"),
+            )));
+        }
+        o += 1;
+
+        // convert EGA -> VGA colors.
+        let palette_size = 3 * 64;
+        result.palette = Palette::from(&data[o..(o + palette_size)]).cycle_ega_colors();
+        o += palette_size;
+
+        let font_size = 4096;
+        result.clear_font_table();
+        result.set_font(0, BitFont::from_basic(8, 16, &data[o..(o + font_size)]));
+        o += font_size;
+
+        loop {
+            for _ in 0..result.get_width() {
+                if o + 2 > file_size {
+                    result.set_height_for_pos(pos);
+                    return Ok(result);
+                }
+                result.layers[0].set_height(pos.y + 1);
+                result.layers[0].set_char(
+                    pos,
+                    AttributedChar::new(
+                        char::from_u32(data[o] as u32).unwrap(),
+                        TextAttribute::from_u8(data[o + 1], result.buffer_type),
+                    ),
+                );
+                pos.x += 1;
+                o += 2;
+            }
+            pos.x = 0;
+            pos.y += 1;
         }
     }
-    if options.save_sauce {
-        buf.write_sauce_info(crate::SauceFileType::Ansi, &mut result)?;
-    }
-    Ok(result)
 }
 
 pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {

@@ -1,4 +1,4 @@
-use crate::{EngineResult, Line};
+use crate::{EngineResult, Line, OutputFormat};
 use std::cmp::{max, min};
 
 use self::ansi::sound::AnsiMusic;
@@ -399,7 +399,9 @@ impl Buffer {
 }
 
 fn _get_string_from_buffer(buf: &Buffer) -> String {
-    let converted = crate::convert_to_asc(buf, &crate::SaveOptions::new()).unwrap(); // test code
+    let converted = crate::Ascii::default()
+        .to_bytes(buf, &crate::SaveOptions::new())
+        .unwrap(); // test code
     let b: Vec<u8> = converted
         .iter()
         .map(|&x| if x == 27 { b'x' } else { x })

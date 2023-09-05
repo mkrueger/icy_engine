@@ -159,11 +159,7 @@ impl Layer {
 
     pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
-        if pos.x < 0
-            || pos.y < 0
-            || pos.x >= self.get_width()
-            || pos.y >= self.get_height()
-        {
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
             return AttributedChar::invisible();
         }
 

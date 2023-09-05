@@ -1,12 +1,13 @@
 use crate::{
-    convert_to_asc,
     parsers::{ascii::Parser, create_buffer, update_buffer},
-    Position, SaveOptions,
+    OutputFormat, Position, SaveOptions,
 };
 
 fn test_ascii(data: &[u8]) {
     let (buf, _) = create_buffer(&mut Parser::default(), data);
-    let converted = convert_to_asc(&buf, &SaveOptions::new()).unwrap();
+    let converted = crate::Ascii::default()
+        .to_bytes(&buf, &SaveOptions::new())
+        .unwrap();
 
     // more gentle output.
     let b: Vec<u8> = converted
