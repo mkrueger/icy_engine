@@ -90,23 +90,6 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                                     result.comments.push(comment);
                                 }
                             }
-                            "PALETTE" => {
-                                result.palette.colors.clear();
-                                let mut colors =
-                                    u32::from_le_bytes(bytes[0..4].try_into().unwrap());
-                                let mut o: usize = 4;
-                                while colors > 0 {
-                                    let r = bytes[o];
-                                    o += 1;
-                                    let g = bytes[o];
-                                    o += 1;
-                                    let b = bytes[o];
-                                    o += 2; // skip alpha
-
-                                    result.palette.colors.push(Color::new(r, g, b));
-                                    colors -= 1;
-                                }
-                            }
                             text => {
                                 if let Some(font_slot) = text.strip_prefix("FONT_") {
                                     let font_slot: usize = font_slot.parse()?;
@@ -360,20 +343,6 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         buf.write_sauce_info(SauceFileType::Ansi, &mut sauce_vec)?;
         let sauce_data = general_purpose::STANDARD.encode(&sauce_vec);
         encoder.add_ztxt_chunk("SAUCE".to_string(), sauce_data)?;
-    }
-
-    if !buf.palette.is_default() {
-        let mut pal_data: Vec<u8> = Vec::new();
-        pal_data.extend(u32::to_le_bytes(buf.palette.colors.len() as u32));
-        for col in &buf.palette.colors {
-            let rgb = col.get_rgb();
-            pal_data.push(rgb.0);
-            pal_data.push(rgb.1);
-            pal_data.push(rgb.2);
-            pal_data.push(0xFF); // so far only solid colors are supported
-        }
-        let sauce_data = general_purpose::STANDARD.encode(&pal_data);
-        encoder.add_ztxt_chunk("PALETTE".to_string(), sauce_data)?;
     }
 
     for (k, v) in buf.font_iter() {

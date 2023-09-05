@@ -37,17 +37,6 @@ Keyword: 'SAUCE'
 
 Read content as sauce bytes.
 
-#### Palette block (only 1 is valid)
-
-Keyword: 'PALETTE'
-
-```
-Field      Bytes  Meaning
-[NUM]      4      LE_U32 number of colors (atm only 0xFFFF colors are supported - but it may change)
-                  In future (maybe): -1 means no numbers and RGB values are directly stored in the Layer    
-[1]..[n]   n*4    U8 r,g,b,a values from 0..255
-```
-
 #### Bitfont Font Block
 Keyword: 'FONT_{SLOT}'
 

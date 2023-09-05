@@ -162,13 +162,9 @@ impl Layer {
         if pos.x < 0
             || pos.y < 0
             || pos.x >= self.get_width()
-            || pos.y >= self.get_height() && pos.y >= self.lines.len() as i32
+            || pos.y >= self.get_height()
         {
-            return if self.has_alpha_channel {
-                AttributedChar::invisible()
-            } else {
-                AttributedChar::default()
-            };
+            return AttributedChar::invisible();
         }
 
         let y = pos.y;

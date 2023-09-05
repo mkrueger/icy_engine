@@ -12,6 +12,7 @@ undo-char_font_glyph=Zeichen
 undo-set_layer_size=Ebenengröße ändern
 undo-paste=Einfügen
 undo-add_floating_layer=Schwebende Auswahl hinzufügen
+undo-resize_buffer=Größe ändern
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

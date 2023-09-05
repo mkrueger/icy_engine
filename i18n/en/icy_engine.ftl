@@ -12,6 +12,7 @@ undo-char_font_glyph=Font
 undo-set_layer_size=Change layer size
 undo-paste=Paste
 undo-add_floating_layer=Add floating layer
+undo-resize_buffer=Resize buffer
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

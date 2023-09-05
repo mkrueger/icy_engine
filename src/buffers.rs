@@ -161,7 +161,7 @@ impl Buffer {
                 continue;
             }
             let pos = pos - cur_layer.get_offset();
-            if pos.x < 0 || pos.y < 0 {
+            if pos.x < 0 || pos.y < 0 || pos.x >= cur_layer.get_width() || pos.y >= cur_layer.get_height() {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
