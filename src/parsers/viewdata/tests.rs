@@ -1,6 +1,6 @@
 use crate::{
     parsers::{update_buffer, viewdata::Parser},
-    Buffer, BufferParser, Caret, Position,
+    Buffer, BufferParser, Caret, Position, TextPane,
 };
 
 fn create_viewdata_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) {

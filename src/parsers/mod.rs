@@ -1,4 +1,4 @@
-use crate::{EngineResult, Line, OutputFormat};
+use crate::{EngineResult, Line, OutputFormat, TextPane};
 use std::cmp::{max, min};
 
 use self::ansi::sound::AnsiMusic;

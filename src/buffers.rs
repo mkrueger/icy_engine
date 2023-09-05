@@ -1,5 +1,4 @@
 use std::collections::{HashMap, VecDeque};
-use std::ffi::OsStr;
 use std::{
     cmp::max,
     fs::File,
@@ -10,8 +9,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    parsers, BufferParser, Caret, EngineResult, Glyph, Layer, OutputFormat, Position, Rectangle,
-    SauceData, Sixel, TerminalState, FORMATS,
+    parsers, BufferParser, EngineResult, Glyph, Layer, OutputFormat, Position, Rectangle,
+    SauceData, Sixel, TerminalState, FORMATS, TextPane,
 };
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
@@ -24,14 +23,6 @@ pub enum BufferType {
     ExtFont = 0b_0010,    // 0-7 fg, 0-7 bg, blink + extended font
     ExtFontIce = 0b_0011, // 0-7 fg, 0-15 bg + extended font
     NoLimits = 0b_0111,   // free colors, blink + extended font
-}
-
-enum CharInterpreter {
-    Ascii,
-    Ansi,
-    Avatar,
-    Pcb,
-    Petscii,
 }
 
 impl BufferType {
@@ -119,95 +110,7 @@ impl std::fmt::Display for Buffer {
 }
 
 impl Buffer {
-    pub fn get_width(&self) -> i32 {
-        self.terminal_state.get_width()
-    }
-
-    pub fn get_line_count(&self) -> i32 {
-        if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
-            len as i32
-        } else {
-            self.terminal_state.get_height()
-        }
-    }
-
-    pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
-        let pos = pos.into();
-        if let Some(overlay) = &self.overlay_layer {
-            let pos = pos - overlay.get_offset();
-            let ch = overlay.get_char(pos);
-            if ch.is_visible() {
-                return ch;
-            }
-        }
-
-        let mut ch_opt = None;
-        let mut attr_opt = None;
-
-        for i in (0..self.layers.len()).rev() {
-            let cur_layer = &self.layers[i];
-            if !cur_layer.is_visible {
-                continue;
-            }
-            let pos = pos - cur_layer.get_offset();
-            if pos.x < 0
-                || pos.y < 0
-                || pos.x >= cur_layer.get_width()
-                || pos.y >= cur_layer.get_height()
-            {
-                continue;
-            }
-            let ch = cur_layer.get_char(pos);
-            match cur_layer.mode {
-                crate::Mode::Normal => {
-                    if ch.is_visible() {
-                        return merge(ch, ch_opt, attr_opt);
-                    }
-                    if !cur_layer.has_alpha_channel {
-                        return merge(AttributedChar::default(), ch_opt, attr_opt);
-                    }
-                }
-                crate::Mode::Chars => {
-                    if !ch.is_transparent() {
-                        ch_opt = Some(ch.ch);
-                    }
-                }
-                crate::Mode::Attributes => {
-                    if ch.is_visible() {
-                        attr_opt = Some(ch.attribute);
-                    }
-                }
-            }
-        }
-
-        if self.is_terminal_buffer {
-            AttributedChar::default()
-        } else {
-            AttributedChar::invisible()
-        }
-    }
-
-    pub fn get_line_length(&self, line: i32) -> i32 {
-        let mut length = 0;
-        let mut pos = Position::new(0, line);
-        for x in 0..self.get_width() {
-            pos.x = x;
-            let ch = self.get_char(pos);
-            /*if x > 0 && ch.is_transparent() {
-                if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
-                    if prev.attribute.get_background() > 0 {
-                        length = x + 1;
-                    }
-
-                }
-            } else */
-            if !ch.is_transparent() {
-                length = x + 1;
-            }
-        }
-        length
-    }
-
+ 
     pub fn scan_buffer_features(&self) -> BufferFeatures {
         let mut result = BufferFeatures::default();
         for layer in &self.layers {
@@ -243,7 +146,7 @@ impl Buffer {
     }
 
     pub fn set_sauce(&mut self, sauce: SauceData) {
-        self.set_buffer_size(sauce.buffer_size);
+        self.set_size(sauce.buffer_size);
         self.layers[0].set_size(sauce.buffer_size);
         self.sauce_data = Some(sauce);
     }
@@ -389,10 +292,6 @@ impl Buffer {
         i
     }
 
-    pub fn get_height(&self) -> i32 {
-        self.terminal_state.get_height()
-    }
-
     pub fn get_real_buffer_width(&self) -> i32 {
         let mut w = 0;
         for layer in &self.layers {
@@ -412,28 +311,16 @@ impl Buffer {
     /// # Panics
     ///
     /// Panics if .
-    pub fn set_buffer_size(&mut self, size: impl Into<Size>) {
+    pub fn set_size(&mut self, size: impl Into<Size>) {
         let size = size.into();
         self.terminal_state.set_size(size);
     }
 
-    /// Sets the buffer width of this [`Buffer`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    pub fn set_buffer_width(&mut self, width: i32) {
+    pub fn set_width(&mut self, width: i32) {
         self.terminal_state.set_width(width);
     }
-    pub fn get_buffer_size(&self) -> Size {
-        self.terminal_state.get_size()
-    }
-    /// Sets the buffer height of this [`Buffer`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    pub fn set_buffer_height(&mut self, height: i32) {
+
+    pub fn set_height(&mut self, height: i32) {
         self.terminal_state.set_height(height);
     }
 
@@ -539,7 +426,7 @@ impl Buffer {
 
     pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
         if self.overlay_layer.is_none() {
-            let mut l = Layer::new("Overlay", self.get_buffer_size());
+            let mut l = Layer::new("Overlay", self.get_size());
             l.has_alpha_channel = true;
             self.overlay_layer = Some(l);
         }
@@ -564,7 +451,12 @@ impl Buffer {
         self.font_table[&0].size
     }
 
+ 
     /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     ///
     /// # Errors
     ///
@@ -602,7 +494,7 @@ impl Buffer {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn from_bytes(file_name: &Path, skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
+    pub fn from_bytes(file_name: &Path, _skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
         let ext = file_name.extension().unwrap().to_str().unwrap();
         let sauce_data = match SauceData::extract(bytes) {
             Ok(sauce) => Some(sauce),
@@ -612,13 +504,13 @@ impl Buffer {
             }
         };
 
-        for format in FORMATS.iter() {
+        for format in &*FORMATS {
             if format.get_file_extension() == ext {
-                return Ok(format.load_buffer(file_name, bytes, sauce_data)?);
+                return format.load_buffer(file_name, bytes, sauce_data);
             }
         }
 
-        Ok(crate::Ansi::default().load_buffer(file_name, bytes, sauce_data)?)
+        crate::Ansi::default().load_buffer(file_name, bytes, sauce_data)
     }
 
     pub fn to_screenx(&self, x: i32) -> f64 {
@@ -633,7 +525,7 @@ impl Buffer {
 
     pub fn set_height_for_pos(&mut self, pos: impl Into<Position>) {
         let pos = pos.into();
-        self.set_buffer_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
+        self.set_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
     }
 
     /// .
@@ -735,14 +627,113 @@ impl Default for Buffer {
     }
 }
 
+impl TextPane for Buffer {
+    fn get_width(&self) -> i32 {
+        self.terminal_state.get_width()
+    }
+
+    fn get_height(&self) -> i32 {
+        self.terminal_state.get_height()
+    }
+
+    fn get_line_count(&self) -> i32 {
+        if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
+            len as i32
+        } else {
+            self.terminal_state.get_height()
+        }
+    }
+
+    fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
+        let pos = pos.into();
+        if let Some(overlay) = &self.overlay_layer {
+            let pos = pos - overlay.get_offset();
+            let ch = overlay.get_char(pos);
+            if ch.is_visible() {
+                return ch;
+            }
+        }
+
+        let mut ch_opt = None;
+        let mut attr_opt = None;
+
+        for i in (0..self.layers.len()).rev() {
+            let cur_layer = &self.layers[i];
+            if !cur_layer.is_visible {
+                continue;
+            }
+            let pos = pos - cur_layer.get_offset();
+            if pos.x < 0
+                || pos.y < 0
+                || pos.x >= cur_layer.get_width()
+                || pos.y >= cur_layer.get_height()
+            {
+                continue;
+            }
+            let ch = cur_layer.get_char(pos);
+            match cur_layer.mode {
+                crate::Mode::Normal => {
+                    if ch.is_visible() {
+                        return merge(ch, ch_opt, attr_opt);
+                    }
+                    if !cur_layer.has_alpha_channel {
+                        return merge(AttributedChar::default(), ch_opt, attr_opt);
+                    }
+                }
+                crate::Mode::Chars => {
+                    if !ch.is_transparent() {
+                        ch_opt = Some(ch.ch);
+                    }
+                }
+                crate::Mode::Attributes => {
+                    if ch.is_visible() {
+                        attr_opt = Some(ch.attribute);
+                    }
+                }
+            }
+        }
+
+        if self.is_terminal_buffer {
+            AttributedChar::default()
+        } else {
+            AttributedChar::invisible()
+        }
+    }
+
+    fn get_line_length(&self, line: i32) -> i32 {
+        let mut length = 0;
+        let mut pos = Position::new(0, line);
+        for x in 0..self.get_width() {
+            pos.x = x;
+            let ch = self.get_char(pos);
+            /*if x > 0 && ch.is_transparent() {
+                if let Some(prev) = self.get_char(pos  + Position::from(-1, 0)) {
+                    if prev.attribute.get_background() > 0 {
+                        length = x + 1;
+                    }
+
+                }
+            } else */
+            if !ch.is_transparent() {
+                length = x + 1;
+            }
+        }
+        length
+    }
+
+    fn get_size(&self) -> Size {
+        self.terminal_state.get_size()
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::{AttributedChar, Buffer, Layer, SaveOptions, Size, TextAttribute};
+    use crate::{AttributedChar, Buffer, Layer, SaveOptions, Size, TextAttribute, TextPane};
 
     #[test]
     fn test_respect_sauce_width() {
         let mut buf = Buffer::default();
-        buf.set_buffer_width(10);
+        buf.set_width(10);
         for x in 0..buf.get_width() {
             buf.layers[0].set_char((x, 0), AttributedChar::new('1', TextAttribute::default()));
             buf.layers[0].set_char((x, 1), AttributedChar::new('2', TextAttribute::default()));

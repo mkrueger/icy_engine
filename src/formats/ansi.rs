@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::ascii::CP437_TO_UNICODE;
-use crate::{parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat};
+use crate::{parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane};
 use crate::{Position, TextAttribute};
 
 use super::SaveOptions;
@@ -38,7 +38,7 @@ impl OutputFormat for Ansi {
             }
         }
 
-        result.extend(convert_to_ansi_data(buf, 0, options.modern_terminal_output));
+        result.extend(convert_to_ansi_data(buf, buf, options));
 
         if options.save_sauce {
             buf.write_sauce_info(crate::SauceFileType::Ansi, &mut result)?;
@@ -66,19 +66,21 @@ impl OutputFormat for Ansi {
     }
 }
 
-pub fn convert_to_ansi_data(
+pub fn convert_to_ansi_data<T: TextPane>(
     buf: &Buffer,
-    current_layer: i32,
-    modern_terminal_output: bool,
+    layer: &T,
+    options: &SaveOptions,
 ) -> Vec<u8> {
     let mut result = Vec::new();
     let mut last_attr = TextAttribute::default();
     let mut pos = Position::default();
-    let layer = &buf.layers[current_layer as usize];
     let height = layer.get_line_count();
     let mut first_char = true;
+    let max_output_line_length = options.output_line_length.unwrap_or(usize::MAX);
+    let mut last_line_break = 0;
+
     while pos.y < height {
-        let line_length = if modern_terminal_output {
+        let line_length = if options.modern_terminal_output {
             layer.get_width()
         } else {
             layer.get_line_length(pos.y)
@@ -90,7 +92,7 @@ pub fn convert_to_ansi_data(
             let mut cur_attr = ch.attribute;
 
             // doesn't work well with unix terminal - background color needs to be painted.
-            if !modern_terminal_output {
+            if !options.modern_terminal_output {
                 while (ch.ch == ' ' || ch.ch == '\0')
                     && ch.attribute.get_background() == 0
                     && pos.x < line_length
@@ -107,7 +109,7 @@ pub fn convert_to_ansi_data(
             }
 
             if last_attr != cur_attr || first_char {
-                if modern_terminal_output {
+                if options.modern_terminal_output {
                     if last_attr.get_foreground() != cur_attr.get_foreground() || first_char {
                         result.extend_from_slice(b"\x1b[38;2;");
                         let color = buf.palette.colors[cur_attr.get_foreground() as usize];
@@ -250,7 +252,7 @@ pub fn convert_to_ansi_data(
                 }
                 continue;
             }
-            if modern_terminal_output {
+            if options.modern_terminal_output {
                 if ch.ch == '\0' {
                     result.push(b' ');
                 } else {
@@ -263,7 +265,7 @@ pub fn convert_to_ansi_data(
             pos.x += 1;
         }
         // do not end with eol except for terminal support.
-        if modern_terminal_output {
+        if options.modern_terminal_output {
             result.extend_from_slice(b"\x1b[0m");
             result.push(10);
             first_char = true;
@@ -271,6 +273,7 @@ pub fn convert_to_ansi_data(
             result.push(13);
             result.push(10);
         }
+        last_line_break = result.len();
 
         pos.x = 0;
         pos.y += 1;

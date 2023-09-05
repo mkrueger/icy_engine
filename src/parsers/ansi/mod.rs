@@ -12,7 +12,7 @@ use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
     FontSelectionState, HyperLink, MouseMode, OriginMode, ParserError, Position, TerminalScrolling,
-    BEL, CR, FF, LF,
+    BEL, CR, FF, LF, TextPane,
 };
 
 mod ansi_commands;

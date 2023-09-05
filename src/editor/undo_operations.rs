@@ -2,7 +2,7 @@ use std::mem;
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position, Size};
+use crate::{AttributedChar, EngineResult, Layer, Position, Size, TextPane};
 
 use super::{EditState, UndoOperation};
 
@@ -474,12 +474,12 @@ impl UndoOperation for ResizeBuffer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.get_buffer_mut().set_buffer_size(self.orig_size);
+        edit_state.get_buffer_mut().set_size(self.orig_size);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.get_buffer_mut().set_buffer_size(self.size);
+        edit_state.get_buffer_mut().set_size(self.size);
         Ok(())
     }
 }

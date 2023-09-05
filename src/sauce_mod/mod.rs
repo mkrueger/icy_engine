@@ -2,7 +2,7 @@
 
 use std::io;
 
-use crate::{ascii::CP437_TO_UNICODE, EngineResult, Size};
+use crate::{ascii::CP437_TO_UNICODE, EngineResult, Size, TextPane};
 
 use super::Buffer;
 

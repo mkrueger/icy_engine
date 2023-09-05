@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
-    TextAttribute,
+    TextAttribute, TextPane,
 };
 
 use super::SaveOptions;
@@ -157,7 +157,7 @@ pub fn get_save_sauce_default_avt(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Buffer, OutputFormat, SaveOptions};
+    use crate::{Buffer, OutputFormat, SaveOptions, TextPane};
 
     #[test]
     fn test_clear() {

@@ -2,7 +2,7 @@ use std::{cmp::min, io, path::Path};
 
 use crate::{
     AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
-    Palette, Position, SauceString,
+    Palette, Position, SauceString, TextPane,
 };
 
 use super::{CompressionLevel, SaveOptions, TextAttribute};
@@ -143,9 +143,9 @@ impl OutputFormat for XBin {
 
         // let eof_char = bytes[o];
         o += 1;
-        result.set_buffer_width(data[o] as i32 + ((data[o + 1] as i32) << 8));
+        result.set_width(data[o] as i32 + ((data[o + 1] as i32) << 8));
         o += 2;
-        result.set_buffer_height(data[o] as i32 + ((data[o + 1] as i32) << 8));
+        result.set_height(data[o] as i32 + ((data[o + 1] as i32) << 8));
         o += 2;
 
         let font_size = data[o];

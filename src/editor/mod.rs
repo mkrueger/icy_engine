@@ -15,7 +15,7 @@ pub use area_operations::*;
 
 use crate::{
     ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,
-    Shape,
+    Shape, TextPane,
 };
 
 pub struct EditState {

@@ -4,7 +4,7 @@ use base64::{engine::general_purpose, Engine};
 
 use crate::{
     convert_to_ansi_data, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
-    Layer, OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size,
+    Layer, OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size, TextPane,
 };
 
 mod constants {
@@ -148,7 +148,7 @@ impl OutputFormat for IcyDraw {
                 result.extend(i32::to_le_bytes(sixel.horizontal_scale));
                 result.extend(&sixel.picture_data);
             } else {
-                let data = convert_to_ansi_data(buf, i as i32, false);
+                let data = convert_to_ansi_data(buf, layer, &SaveOptions::default());
                 result.extend(u64::to_le_bytes(data.len() as u64));
                 result.extend(data);
             }
@@ -227,7 +227,7 @@ impl OutputFormat for IcyDraw {
                                     let height: i32 =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
                                             as i32;
-                                    result.set_buffer_size((width, height));
+                                    result.set_size((width, height));
                                 }
                                 "SAUCE" => {
                                     let sauce = SauceData::extract(&bytes).unwrap();

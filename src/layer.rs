@@ -1,6 +1,6 @@
 use i18n_embed_fl::fl;
 
-use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size, TextAttribute};
+use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size, TextAttribute, TextPane};
 
 use super::AttributedChar;
 
@@ -84,6 +84,55 @@ impl HyperLink {
     }
 }
 
+impl TextPane for Layer {
+    fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
+        let pos = pos.into();
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
+            return AttributedChar::invisible();
+        }
+
+        let y = pos.y;
+        if y < self.lines.len() as i32 {
+            let cur_line = &self.lines[y as usize];
+
+            if pos.x < cur_line.chars.len() as i32 {
+                let ch = cur_line.chars[pos.x as usize];
+                if !self.has_alpha_channel && !ch.is_visible() {
+                    return AttributedChar::default();
+                }
+                return ch;
+            }
+        }
+
+        if self.has_alpha_channel {
+            AttributedChar::invisible()
+        } else {
+            AttributedChar::default()
+        }
+    }
+
+    fn get_line_count(&self) -> i32 {
+        self.lines.len() as i32
+    }
+    
+    fn get_line_length(&self, line: i32) -> i32 {
+        self.lines[line as usize].get_line_length()
+    }
+
+    fn get_width(&self) -> i32 {
+        self.size.width
+    }
+
+    fn get_height(&self) -> i32 {
+        self.size.height
+    }
+
+    fn get_size(&self) -> Size {
+        self.size
+    }
+
+}
+
 impl Layer {
     pub fn new(title: impl Into<String>, size: impl Into<Size>) -> Self {
         let size = size.into();
@@ -157,32 +206,6 @@ impl Layer {
         cur_line.set_char(pos.x, attributed_char);
     }
 
-    pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
-        let pos = pos.into();
-        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
-            return AttributedChar::invisible();
-        }
-
-        let y = pos.y;
-        if y < self.lines.len() as i32 {
-            let cur_line = &self.lines[y as usize];
-
-            if pos.x < cur_line.chars.len() as i32 {
-                let ch = cur_line.chars[pos.x as usize];
-                if !self.has_alpha_channel && !ch.is_visible() {
-                    return AttributedChar::default();
-                }
-                return ch;
-            }
-        }
-
-        if self.has_alpha_channel {
-            AttributedChar::invisible()
-        } else {
-            AttributedChar::default()
-        }
-    }
-
     /// .
     ///
     /// # Panics
@@ -237,24 +260,8 @@ impl Layer {
         self.size.width = width;
     }
 
-    pub fn get_width(&self) -> i32 {
-        self.size.width
-    }
-
     pub fn set_height(&mut self, height: i32) {
         self.size.height = height;
-    }
-
-    pub fn get_height(&self) -> i32 {
-        self.size.height
-    }
-
-    pub fn get_line_count(&self) -> i32 {
-        self.lines.len() as i32
-    }
-
-    pub fn get_line_length(&self, line: i32) -> i32 {
-        self.lines[line as usize].get_line_length()
     }
 
     pub fn get_preview_offset(&self) -> Option<Position> {
@@ -263,10 +270,6 @@ impl Layer {
 
     pub fn set_preview_offset(&mut self, pos: Option<Position>) {
         self.preview_offset = pos;
-    }
-
-    pub fn get_size(&self) -> Size {
-        self.size
     }
 
     pub fn set_size(&mut self, size: impl Into<Size>) {
@@ -322,7 +325,7 @@ impl Layer {
 mod tests {
     use i18n_embed_fl::fl;
 
-    use crate::{editor::EditState, AttributedChar, Layer, Line, Selection, TextAttribute};
+    use crate::{editor::EditState, AttributedChar, Layer, Line, Selection, TextAttribute, TextPane};
 
     #[test]
     fn test_get_char() {

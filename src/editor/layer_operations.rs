@@ -1,13 +1,13 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{EngineResult, Layer, Position, Size};
+use crate::{EngineResult, Layer, Position, Size, TextPane};
 
 use super::{undo_operations, EditState};
 
 impl EditState {
     pub fn add_new_layer(&mut self, layer: usize) -> EngineResult<()> {
-        let size = self.buffer.get_buffer_size();
+        let size = self.buffer.get_size();
         let mut new_layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-new-name"), size);
         new_layer.has_alpha_channel = true;
         if self.buffer.layers.is_empty() {
@@ -155,7 +155,7 @@ impl EditState {
 mod tests {
     use crate::{
         editor::{EditState, UndoState},
-        AttributedChar, Layer, Position, Size, TextAttribute,
+        AttributedChar, Layer, Position, Size, TextAttribute, TextPane,
     };
 
     #[test]
@@ -170,7 +170,7 @@ mod tests {
     fn test_add_layer_size() {
         let mut state = EditState::default();
         let size = Size::new(160, 1000);
-        state.buffer.set_buffer_size(size);
+        state.buffer.set_size(size);
         state.add_new_layer(0).unwrap();
         assert_eq!(size, state.buffer.layers[1].get_size());
     }

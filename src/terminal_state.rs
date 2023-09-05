@@ -1,4 +1,4 @@
-use crate::{ansi::BaudEmulation, Buffer, Caret, Size};
+use crate::{ansi::BaudEmulation, Buffer, Caret, Size, TextPane};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerminalScrolling {

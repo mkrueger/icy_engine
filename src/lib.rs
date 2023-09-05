@@ -233,3 +233,12 @@ impl Rectangle {
         self.size.height
     }
 }
+
+pub trait TextPane {
+    fn get_char(&self, pos: impl Into<Position>) -> AttributedChar;
+    fn get_line_count(&self) -> i32;
+    fn get_width(&self) -> i32;
+    fn get_height(&self) -> i32;
+    fn get_size(&self) -> Size;
+    fn get_line_length(&self, line: i32) -> i32;
+}

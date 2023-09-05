@@ -1,6 +1,6 @@
 #![allow(clippy::match_same_arms)]
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position, TextPane};
 
 mod constants;
 

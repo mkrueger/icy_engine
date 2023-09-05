@@ -1,4 +1,4 @@
-use crate::{Buffer, HyperLink, Position};
+use crate::{Buffer, HyperLink, Position, TextPane};
 
 impl Buffer {
     pub fn get_string(&self, pos: impl Into<Position>, size: usize) -> String {

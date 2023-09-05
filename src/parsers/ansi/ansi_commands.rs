@@ -5,7 +5,7 @@ use super::{
 };
 use crate::{
     update_crc16, AttributedChar, BitFont, Buffer, CallbackAction, Caret, EngineResult,
-    FontSelectionState, ParserError, XTERM_256_PALETTE,
+    FontSelectionState, ParserError, XTERM_256_PALETTE, TextPane,
 };
 
 impl Parser {

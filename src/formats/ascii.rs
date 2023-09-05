@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
+    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position, TextPane,
 };
 
 use super::SaveOptions;

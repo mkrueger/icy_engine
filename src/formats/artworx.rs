@@ -3,7 +3,7 @@ use std::{io, path::Path};
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
     AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
-    Palette, Size,
+    Palette, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -71,7 +71,7 @@ impl OutputFormat for Artworx {
         if let Some(sauce) = sauce_opt {
             result.set_sauce(sauce);
         }
-        result.set_buffer_width(80);
+        result.set_width(80);
         result.buffer_type = BufferType::LegacyIce;
         let file_size = data.len();
         let mut o = 0;

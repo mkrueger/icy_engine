@@ -3,7 +3,7 @@ use std::{io, path::Path};
 use super::{SaveOptions, TextAttribute};
 use crate::{
     AttributedChar, BitFont, Buffer, BufferType, EngineResult, OutputFormat, Palette, Position,
-    Size,
+    Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -133,7 +133,7 @@ impl OutputFormat for IceDraw {
             )));
         }
 
-        result.set_buffer_width(x2 + 1);
+        result.set_width(x2 + 1);
         result.buffer_type = BufferType::LegacyIce;
         let data_size = data.len() - FONT_SIZE - PALETTE_SIZE;
         let mut pos = Position::new(x1, y1);

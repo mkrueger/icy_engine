@@ -1,7 +1,7 @@
 use std::{io, path::Path};
 
 use super::{Position, SaveOptions, TextAttribute};
-use crate::{AttributedChar, Buffer, BufferFeatures, EngineResult, OutputFormat};
+use crate::{AttributedChar, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane};
 
 #[derive(Default)]
 pub(super) struct Bin {}

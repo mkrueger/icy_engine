@@ -4,6 +4,8 @@ use std::{
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
+use crate::TextPane;
+
 use super::Buffer;
 
 #[derive(Copy, Clone, Debug, Eq)]

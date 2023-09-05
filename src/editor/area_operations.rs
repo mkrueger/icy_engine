@@ -1,6 +1,6 @@
 #![allow(clippy::missing_errors_doc)]
 
-use crate::EngineResult;
+use crate::{EngineResult, TextPane};
 
 use super::EditState;
 
@@ -11,7 +11,7 @@ impl EditState {
             let max = selection.max();
             (min.x, min.y, max.x, max.y)
         } else {
-            let size = self.buffer.get_buffer_size();
+            let size = self.buffer.get_size();
             (0, 0, size.width - 1, size.height - 1)
         }
     }

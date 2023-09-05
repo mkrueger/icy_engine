@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
-    TextAttribute,
+    TextAttribute, TextPane,
 };
 
 use super::SaveOptions;

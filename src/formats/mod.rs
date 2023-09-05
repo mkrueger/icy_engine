@@ -35,15 +35,17 @@ use crate::{Buffer, BufferFeatures, BufferParser, Caret, EngineResult};
 
 use super::{Position, TextAttribute};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum ScreenPreperation {
+    #[default]
     None,
     ClearScreen,
     Home,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub enum CompressionLevel {
+    #[default]
     Off,
     Medium,
     High,
@@ -55,6 +57,7 @@ pub struct SaveOptions {
     pub modern_terminal_output: bool,
     pub save_sauce: bool,
     pub compression_level: CompressionLevel,
+    pub output_line_length: Option<usize>,
 }
 
 impl SaveOptions {
@@ -64,6 +67,7 @@ impl SaveOptions {
             modern_terminal_output: false,
             save_sauce: false,
             compression_level: CompressionLevel::High,
+            output_line_length: None,
         }
     }
 }

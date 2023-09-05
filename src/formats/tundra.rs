@@ -2,7 +2,7 @@ use std::{io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat, Position,
+    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat, Position, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
