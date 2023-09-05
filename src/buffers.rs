@@ -15,7 +15,7 @@ use crate::{
 };
 
 use super::{
-    read_binary, read_xb, AttributedChar, BitFont, Palette, SauceString, SaveOptions, Size,
+    read_binary, AttributedChar, BitFont, Palette, SaveOptions, Size,
 };
 
 #[repr(u8)]
@@ -71,21 +71,12 @@ impl BufferType {
 
 pub struct Buffer {
     pub file_name: Option<PathBuf>,
-    //pub file_name_changed: Box<dyn Fn ()>,
-    pub title: SauceString<35, b' '>,
-    pub author: SauceString<20, b' '>,
-    pub group: SauceString<20, b' '>,
-    pub comments: Vec<SauceString<64, 0>>,
 
     pub terminal_state: TerminalState,
     pub buffer_type: BufferType,
     pub is_terminal_buffer: bool,
 
-    /// Letter-spacing (a.k.a. 8/9 pixel font selection)
-    pub use_letter_spacing: bool,
-
-    /// Define if the image should be stretched to emulate legacy aspects
-    pub use_aspect_ratio: bool,
+    pub sauce_data: Option<SauceData>,
 
     pub palette: Palette,
     pub overlay_layer: Option<Layer>,
@@ -214,6 +205,58 @@ impl Buffer {
         }
         length
     }
+
+    pub fn scan_buffer_features(&self) -> BufferFeatures {
+        let mut result = BufferFeatures::default();
+        for layer in &self.layers {
+            if !layer.sixels.is_empty() {
+                result.use_sixels = true;
+            }
+            if !layer.hyperlinks.is_empty() {
+                result.has_links = true;
+            }
+            for y in 0..layer.get_height() {
+                for x in 0..layer.get_width() {
+                    let ch = layer.get_char((x, y));
+
+                    if ch.attribute.get_foreground() != 7 || ch.attribute.get_background() != 0  {
+                        result.use_colors = true;
+                    }
+
+                    result.use_blink |= ch.attribute.is_blinking();
+                    result.use_extended_attributes |= 
+                        ch.attribute.is_crossed_out() || 
+                        ch.attribute.is_underlined() ||
+                        ch.attribute.is_concealed() || 
+                        ch.attribute.is_crossed_out() ||
+                        ch.attribute.is_double_height() ||
+                        ch.attribute.is_double_underlined() ||
+                        ch.attribute.is_overlined();
+                }
+            }
+        }
+        result.font_count = self.font_count();
+        result.use_extended_colors = self.palette.len() > 16;
+
+        result
+    }
+
+    pub fn set_sauce(&mut self, sauce: SauceData) {
+        self.set_buffer_size(sauce.buffer_size);
+        self.layers[0].set_size(sauce.buffer_size);
+        self.sauce_data = Some(sauce);
+    }
+}
+
+#[derive(Default)]
+pub struct BufferFeatures {
+    pub use_sixels: bool,
+    pub has_links: bool,
+    pub font_count: usize,
+    pub use_extended_colors: bool,
+    pub use_colors: bool,
+    pub use_blink : bool,
+    pub use_extended_attributes: bool,
 }
 
 fn merge(
@@ -238,11 +281,7 @@ impl Buffer {
         Buffer {
             file_name: None,
             terminal_state: TerminalState::from(size),
-
-            title: SauceString::new(),
-            author: SauceString::new(),
-            group: SauceString::new(),
-            comments: Vec::new(),
+            sauce_data: None,
 
             buffer_type: BufferType::LegacyDos,
             is_terminal_buffer: false,
@@ -256,10 +295,6 @@ impl Buffer {
                 size,
             )],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
-            // undo_stack: Vec::new(),
-            // redo_stack: Vec::new()
-            use_letter_spacing: false,
-            use_aspect_ratio: false,
         }
     }
 
@@ -550,7 +585,7 @@ impl Buffer {
         match extension {
             "icd" => super::convert_to_icd(self),
             "bin" => super::convert_to_binary(self, options),
-            "xb" => super::convert_to_xb(self, options),
+          //  "xb" => super::convert_to_xb(self, options),
             "ice" | "ans" => super::convert_to_ans(self, options),
             "avt" => super::convert_to_avt(self, options),
             "pcb" => super::convert_to_pcb(self, options),
@@ -560,29 +595,6 @@ impl Buffer {
             _ => super::convert_to_asc(self, options),
         }
     }
-
-    pub fn get_save_sauce_default(&self, extension: &str) -> (bool, String) {
-        match extension {
-            "bin" => super::get_save_sauce_default_binary(self),
-            "xb" => super::get_save_sauce_default_xb(self),
-            "ice" | "ans" => super::get_save_sauce_default_ans(self),
-            "avt" => super::get_save_sauce_default_avt(self),
-            "pcb" => super::get_save_sauce_default_pcb(self),
-            "adf" => super::get_save_sauce_default_adf(self),
-            "idf" => super::get_save_sauce_default_idf(self),
-            "tnd" => super::get_save_sauce_default_tnd(self),
-            _ => super::get_save_sauce_default_asc(self),
-        }
-    }
-
-    pub fn has_sauce_relevant_data(&self) -> bool {
-        !self.title.is_empty()
-            || !self.group.is_empty()
-            || !self.author.is_empty()
-            || !self.comments.is_empty()
-            || self.get_width() != 80
-    }
-
     /// .
     ///
     /// # Panics
@@ -615,21 +627,11 @@ impl Buffer {
                 None
             }
         };
-        let mut sauce_type = super::SauceFileType::Undefined;
-        let mut file_size = bytes.len();
-        let mut use_ice = false;
-        if let Some(sauce) = &sauce_data {
-            result.title = sauce.title.clone();
-            result.author = sauce.author.clone();
-            result.group = sauce.group.clone();
-            result.comments = sauce.comments.clone();
-            result.set_buffer_size(sauce.buffer_size);
-            result.layers[0].set_size(sauce.buffer_size);
-            result.use_aspect_ratio = sauce.use_letter_spacing;
-            result.use_letter_spacing = sauce.use_letter_spacing;
-            sauce_type = sauce.sauce_file_type;
-            use_ice = sauce.use_ice;
-            file_size -= sauce.sauce_header_len;
+        let sauce_type = super::SauceFileType::Undefined;
+        let file_size = bytes.len();
+        let use_ice = false;
+        if let Some(sauce) = sauce_data {
+            result.set_sauce(sauce);
         }
 
         let mut check_extension = false;
@@ -668,7 +670,7 @@ impl Buffer {
                 return Ok(result);
             }
             super::SauceFileType::XBin => {
-                read_xb(&mut result, bytes, file_size)?;
+             //   read_xb(&mut result, bytes, file_size)?;
                 return Ok(result);
             }
             super::SauceFileType::Undefined => {
@@ -688,7 +690,7 @@ impl Buffer {
                         return Ok(result);
                     }
                     "xb" => {
-                        read_xb(&mut result, bytes, file_size)?;
+                      //  read_xb(&mut result, bytes, file_size)?;
                         return Ok(result);
                     }
                     "adf" => {

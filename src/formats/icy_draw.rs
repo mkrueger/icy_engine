@@ -80,15 +80,7 @@ pub fn read_icd(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
                             }
                             "SAUCE" => {
                                 let sauce = SauceData::extract(&bytes).unwrap();
-                                result.title = sauce.title;
-                                result.author = sauce.author;
-                                result.group = sauce.group;
-
-                                result.use_letter_spacing = sauce.use_letter_spacing;
-                                result.use_aspect_ratio = sauce.use_aspect_ratio;
-                                for comment in sauce.comments {
-                                    result.comments.push(comment);
-                                }
+                                result.set_sauce(sauce);
                             }
                             text => {
                                 if let Some(font_slot) = text.strip_prefix("FONT_") {
@@ -338,7 +330,7 @@ pub fn convert_to_icd(buf: &Buffer) -> io::Result<Vec<u8>> {
         encoder.add_ztxt_chunk("ICED".to_string(), sauce_data)?;
     }
 
-    if buf.has_sauce_relevant_data() {
+    if buf.sauce_data.is_some() {
         let mut sauce_vec: Vec<u8> = Vec::new();
         buf.write_sauce_info(SauceFileType::Ansi, &mut sauce_vec)?;
         let sauce_data = general_purpose::STANDARD.encode(&sauce_vec);

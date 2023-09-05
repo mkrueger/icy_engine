@@ -179,7 +179,7 @@ pub fn get_save_sauce_default_idf(buf: &Buffer) -> (bool, String) {
         return (true, "width != 80".to_string());
     }
 
-    if buf.has_sauce_relevant_data() {
+    if buf.sauce_data.is_some() {
         return (true, String::new());
     }
 

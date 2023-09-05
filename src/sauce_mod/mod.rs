@@ -67,8 +67,9 @@ impl SauceDataType {
 
 const SAUCE_SIZE: i32 = 128;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Default, Debug, Clone, Copy)]
 pub enum SauceFileType {
+    #[default]
     Undefined,
     Ascii,
     Ansi,
@@ -80,7 +81,7 @@ pub enum SauceFileType {
     XBin,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SauceData {
     pub title: SauceString<35, b' '>,
     pub author: SauceString<20, b' '>,
@@ -451,29 +452,40 @@ impl Buffer {
     ) -> io::Result<bool> {
         vec.push(0x1A); // EOF Char.
         let file_size = vec.len() as u32;
-        if !self.comments.is_empty() {
-            if self.comments.len() > 255 {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    format!(
-                        "sauce comments exceed maximum of 255: {}.",
-                        self.comments.len()
-                    )
-                    .as_str(),
-                ));
-            }
-            vec.extend(SAUCE_COMMENT_ID);
-            for cmt in &self.comments {
-                cmt.append_to(vec);
+        let mut comment_len = 0;
+        if let Some(data) = &self.sauce_data {
+            if !data.comments.is_empty() {
+                if data.comments.len() > 255 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "sauce comments exceed maximum of 255: {}.",
+                            data.comments.len()
+                        )
+                        .as_str(),
+                    ));
+                }
+                comment_len = data.comments.len() as u8;
+                vec.extend(SAUCE_COMMENT_ID);
+                for cmt in &data.comments {
+                    cmt.append_to(vec);
+                }
             }
         }
-
         vec.extend(SAUCE_ID);
         vec.push(b'0');
         vec.push(b'0');
-        self.title.append_to(vec);
-        self.author.append_to(vec);
-        self.group.append_to(vec);
+        
+        if let Some(data) = &self.sauce_data {
+            data.title.append_to(vec);
+            data.author.append_to(vec);
+            data.group.append_to(vec);
+        } else {
+            SauceData::default().title.append_to(vec);
+            SauceData::default().author.append_to(vec);
+            SauceData::default().group.append_to(vec);
+        }
+
         let cur_time = Utc::now();
         let date_time = cur_time.format("%Y%m%d").to_string();
         assert_eq!(date_time.len(), 8);
@@ -505,8 +517,10 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
-                if self.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_LEGACY; }
-                if self.use_letter_spacing { t_flags |= ANSI_LETTER_SPACING_9PX; }
+                if let Some(sauce_data) = &self.sauce_data {
+                    if sauce_data.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_LEGACY; }
+                    if sauce_data.use_letter_spacing { t_flags |= ANSI_LETTER_SPACING_9PX; }
+                }
             },
             SauceFileType::ANSiMation => {
                 data_type = SauceDataType::Character;
@@ -563,7 +577,7 @@ impl Buffer {
         vec.extend(u16::to_le_bytes(t_info2 as u16));
         vec.extend(u16::to_le_bytes(t_info3));
         vec.extend(u16::to_le_bytes(t_info4));
-        vec.push(self.comments.len() as u8); // comment len is checked above for <= 255
+        vec.push(comment_len); // comment len is checked above for <= 255
         vec.push(t_flags);
         t_info_str.append_to(vec);
 

@@ -3,7 +3,7 @@ use i18n_embed_fl::fl;
 
 use crate::{EngineResult, Layer, Position, Size};
 
-use super::{undo_operations, EditState, UndoOperation};
+use super::{undo_operations, EditState};
 
 impl EditState {
     pub fn add_new_layer(&mut self, layer: usize) -> EngineResult<()> {
@@ -19,27 +19,23 @@ impl EditState {
             layer + 1
         };
 
-        let mut op = undo_operations::AddLayer::new(idx, new_layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
+        let op = undo_operations::AddLayer::new(idx, new_layer);
+        self.push_undo(Box::new(op))?;
         self.current_layer = idx;
         Ok(())
     }
 
     pub fn remove_layer(&mut self, layer: usize) -> EngineResult<()> {
-        let mut op = undo_operations::RemoveLayer::new(layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
-        Ok(())
+        let op = undo_operations::RemoveLayer::new(layer);
+        self.push_undo(Box::new(op))
     }
 
     pub fn raise_layer(&mut self, layer: usize) -> EngineResult<()> {
         if layer + 1 >= self.buffer.layers.len() {
             return Ok(());
         }
-        let mut op = undo_operations::RaiseLayer::new(layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
+        let op = undo_operations::RaiseLayer::new(layer);
+        self.push_undo(Box::new(op))?;
         self.current_layer = layer + 1;
         Ok(())
     }
@@ -48,9 +44,8 @@ impl EditState {
         if layer == 0 {
             return Ok(());
         }
-        let mut op = undo_operations::LowerLayer::new(layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
+        let op = undo_operations::LowerLayer::new(layer);
+        self.push_undo(Box::new(op))?;
         self.current_layer = layer - 1;
         Ok(())
     }
@@ -62,9 +57,8 @@ impl EditState {
             "layer-duplicate-name",
             name = new_layer.title
         );
-        let mut op = undo_operations::AddLayer::new(layer + 1, new_layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
+        let op = undo_operations::AddLayer::new(layer + 1, new_layer);
+        self.push_undo(Box::new(op))?;
         self.current_layer = layer + 1;
         Ok(())
     }
@@ -75,10 +69,8 @@ impl EditState {
     }
 
     pub fn add_floating_layer(&mut self) -> EngineResult<()> {
-        let mut op = undo_operations::AddFloatingLayer::default();
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
-        Ok(())
+        let op = undo_operations::AddFloatingLayer::default();
+        self.push_undo(Box::new(op))
     }
 
     pub fn merge_layer_down(&mut self, layer: usize) -> EngineResult<()> {
@@ -132,18 +124,15 @@ impl EditState {
             }
         }
 
-        let mut op = undo_operations::MergeLayerDown::new(layer, merge_layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
+        let op = undo_operations::MergeLayerDown::new(layer, merge_layer);
+        self.push_undo(Box::new(op))?;
         self.clamp_current_layer();
         Ok(())
     }
 
     pub fn toggle_layer_visibility(&mut self, layer: usize) -> EngineResult<()> {
-        let mut op = undo_operations::ToggleLayerVisibility::new(layer);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
-        Ok(())
+        let op = undo_operations::ToggleLayerVisibility::new(layer);
+        self.push_undo(Box::new(op))
     }
 
     pub fn move_layer(&mut self, to: Position) -> EngineResult<()> {
@@ -152,17 +141,13 @@ impl EditState {
             return Ok(());
         };
         cur_layer.set_preview_offset(None);
-        let mut op = undo_operations::MoveLayer::new(i, cur_layer.get_offset(), to);
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
-        Ok(())
+        let op = undo_operations::MoveLayer::new(i, cur_layer.get_offset(), to);
+        self.push_undo(Box::new(op))
     }
 
     pub fn set_layer_size(&mut self, layer: usize, size: impl Into<Size>) -> EngineResult<()> {
-        let mut op = undo_operations::SetLayerSize::new(layer, size.into());
-        op.redo(self)?;
-        self.push_undo(Box::new(op));
-        Ok(())
+        let op = undo_operations::SetLayerSize::new(layer, size.into());
+        self.push_undo(Box::new(op))
     }
 }
 

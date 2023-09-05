@@ -50,7 +50,7 @@ impl Glyph {
         let mut glyph = Glyph {
             data: vec![0; height as usize],
         };
-        glyph.data.copy_from_slice(&data[4..]);
+        glyph.data = data[4..].to_vec();
         ((width, height).into(), glyph)
     }
 }

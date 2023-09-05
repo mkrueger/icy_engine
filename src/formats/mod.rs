@@ -29,6 +29,8 @@ pub use tundra::*;
 mod icy_draw;
 pub use icy_draw::*;
 
+use crate::{EngineResult, BufferFeatures};
+
 use super::{Position, TextAttribute};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -68,6 +70,27 @@ impl Default for SaveOptions {
     fn default() -> Self {
         Self::new()
     }
+}
+
+pub trait OutputFormat {
+    fn get_file_extension(&self) -> &str;
+    fn get_name(&self) -> &str;
+
+    fn analyze_features(&self, features: &BufferFeatures) -> String;
+
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>>;
+
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    fn from_bytes(data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer>;
 }
 
 #[cfg(test)]
