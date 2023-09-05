@@ -10,6 +10,8 @@ mod layer_operations;
 pub use layer_operations::*;
 mod edit_operations;
 pub use edit_operations::*;
+mod area_operations;
+pub use area_operations::*;
 
 use crate::{
     ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,

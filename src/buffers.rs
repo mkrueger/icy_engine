@@ -145,6 +145,7 @@ impl Buffer {
     pub fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if let Some(overlay) = &self.overlay_layer {
+            let pos = pos - overlay.get_offset();
             let ch = overlay.get_char(pos);
             if ch.is_visible() {
                 return ch;
@@ -397,7 +398,6 @@ impl Buffer {
     ///
     /// Panics if .
     pub fn set_buffer_height(&mut self, height: i32) {
-
         self.terminal_state.set_height(height);
     }
 

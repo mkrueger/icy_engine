@@ -452,3 +452,34 @@ impl UndoOperation for AddFloatingLayer {
         Ok(())
     }
 }
+
+#[derive(Default)]
+pub struct ResizeBuffer {
+    orig_size: Size,
+    size: Size,
+}
+
+impl ResizeBuffer {
+    pub fn new(orig_size: impl Into<Size>, size: impl Into<Size>) -> Self {
+        Self {
+            orig_size: orig_size.into(),
+            size: size.into(),
+        }
+    }
+}
+
+impl UndoOperation for ResizeBuffer {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-resize_buffer")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.get_buffer_mut().set_buffer_size(self.orig_size);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.get_buffer_mut().set_buffer_size(self.size);
+        Ok(())
+    }
+}

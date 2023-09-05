@@ -2,7 +2,7 @@
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position, Sixel};
+use crate::{AttributedChar, EngineResult, Layer, Position, Sixel, Size};
 
 use super::{
     undo_operations::{Paste, UndoSetChar, UndoSwapChar},
@@ -75,5 +75,33 @@ impl EditState {
         self.push_undo(Box::new(op));
         self.selection_opt = None;
         Ok(())
+    }
+
+    pub fn resize_buffer(&mut self, size: impl Into<Size>) -> EngineResult<()> {
+        let mut op =
+            super::undo_operations::ResizeBuffer::new(self.get_buffer().get_buffer_size(), size);
+        op.redo(self)?;
+        self.push_undo(Box::new(op));
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        editor::{EditState, UndoState},
+        Size,
+    };
+
+    #[test]
+    fn test_resize_buffer() {
+        let mut state = EditState::default();
+        assert_eq!(Size::new(80, 25), state.buffer.get_buffer_size());
+        state.resize_buffer(Size::new(10, 10)).unwrap();
+        assert_eq!(Size::new(10, 10), state.buffer.get_buffer_size());
+        state.undo().unwrap();
+        assert_eq!(Size::new(80, 25), state.buffer.get_buffer_size());
+        state.redo().unwrap();
+        assert_eq!(Size::new(10, 10), state.buffer.get_buffer_size());
     }
 }
