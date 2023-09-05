@@ -1,7 +1,9 @@
 use std::path::Path;
 
 use crate::ascii::CP437_TO_UNICODE;
-use crate::{parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane};
+use crate::{
+    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane,
+};
 use crate::{Position, TextAttribute};
 
 use super::SaveOptions;

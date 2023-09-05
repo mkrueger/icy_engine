@@ -1,5 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 
+use std::io;
+
 use i18n_embed_fl::fl;
 
 use crate::{AttributedChar, EngineResult, Layer, Position, Sixel, Size, TextPane};
@@ -15,14 +17,21 @@ impl EditState {
         pos: impl Into<Position>,
         attributed_char: AttributedChar,
     ) -> EngineResult<()> {
-        let pos = pos.into();
-        let old = self.buffer.layers[self.current_layer].get_char(pos);
-        self.push_undo(Box::new(UndoSetChar {
-            pos,
-            layer: self.current_layer,
-            old,
-            new: attributed_char,
-        }))
+        if let Some(layer) = self.get_cur_layer() {
+            let pos = pos.into();
+            let old = layer.get_char(pos);
+            self.push_undo(Box::new(UndoSetChar {
+                pos,
+                layer: self.current_layer,
+                old,
+                new: attributed_char,
+            }))
+        } else {
+            Err(Box::new(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Current layer is invalid",
+            )))
+        }
     }
 
     pub fn swap_char(
@@ -72,8 +81,7 @@ impl EditState {
     }
 
     pub fn resize_buffer(&mut self, size: impl Into<Size>) -> EngineResult<()> {
-        let op =
-            super::undo_operations::ResizeBuffer::new(self.get_buffer().get_size(), size);
+        let op = super::undo_operations::ResizeBuffer::new(self.get_buffer().get_size(), size);
         self.push_undo(Box::new(op))
     }
 }

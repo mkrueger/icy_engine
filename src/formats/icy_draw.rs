@@ -4,7 +4,8 @@ use base64::{engine::general_purpose, Engine};
 
 use crate::{
     convert_to_ansi_data, parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
-    Layer, OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size, TextPane,
+    Layer, OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size,
+    TextPane,
 };
 
 mod constants {

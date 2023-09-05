@@ -6,7 +6,7 @@ use crate::{
         ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
     },
     AttributedChar, BufferType, CallbackAction, Caret, Color, OutputFormat, Position, SaveOptions,
-    TerminalScrolling, TextAttribute, XTERM_256_PALETTE, TextPane,
+    TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE,
 };
 
 #[test]

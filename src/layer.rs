@@ -114,7 +114,7 @@ impl TextPane for Layer {
     fn get_line_count(&self) -> i32 {
         self.lines.len() as i32
     }
-    
+
     fn get_line_length(&self, line: i32) -> i32 {
         self.lines[line as usize].get_line_length()
     }
@@ -130,7 +130,6 @@ impl TextPane for Layer {
     fn get_size(&self) -> Size {
         self.size
     }
-
 }
 
 impl Layer {
@@ -325,7 +324,9 @@ impl Layer {
 mod tests {
     use i18n_embed_fl::fl;
 
-    use crate::{editor::EditState, AttributedChar, Layer, Line, Selection, TextAttribute, TextPane};
+    use crate::{
+        editor::EditState, AttributedChar, Layer, Line, Selection, TextAttribute, TextPane,
+    };
 
     #[test]
     fn test_get_char() {

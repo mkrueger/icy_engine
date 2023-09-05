@@ -10,7 +10,7 @@ use i18n_embed_fl::fl;
 
 use crate::{
     parsers, BufferParser, EngineResult, Glyph, Layer, OutputFormat, Position, Rectangle,
-    SauceData, Sixel, TerminalState, FORMATS, TextPane,
+    SauceData, Sixel, TerminalState, TextPane, FORMATS,
 };
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
@@ -110,7 +110,6 @@ impl std::fmt::Display for Buffer {
 }
 
 impl Buffer {
- 
     pub fn scan_buffer_features(&self) -> BufferFeatures {
         let mut result = BufferFeatures::default();
         for layer in &self.layers {
@@ -451,7 +450,6 @@ impl Buffer {
         self.font_table[&0].size
     }
 
- 
     /// .
     ///
     /// # Panics
