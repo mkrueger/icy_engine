@@ -494,8 +494,12 @@ impl Buffer {
     /// This function will return an error if .
     pub fn from_bytes(file_name: &Path, _skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
         let ext = file_name.extension().unwrap().to_str().unwrap();
+        let mut len = bytes.len();
         let sauce_data = match SauceData::extract(bytes) {
-            Ok(sauce) => Some(sauce),
+            Ok(sauce) => {
+                len -= sauce.sauce_header_len;
+                Some(sauce)
+            },
             Err(err) => {
                 log::error!("Error reading sauce data: {}", err);
                 None
@@ -504,11 +508,11 @@ impl Buffer {
 
         for format in &*FORMATS {
             if format.get_file_extension() == ext {
-                return format.load_buffer(file_name, bytes, sauce_data);
+                return format.load_buffer(file_name, &bytes[..len], sauce_data);
             }
         }
 
-        crate::Ansi::default().load_buffer(file_name, bytes, sauce_data)
+        crate::Ansi::default().load_buffer(file_name, &bytes[..len], sauce_data)
     }
 
     pub fn to_screenx(&self, x: i32) -> f64 {
