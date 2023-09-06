@@ -517,3 +517,40 @@ impl UndoOperation for UndoLayerChange {
         Ok(())
     }
 }
+
+
+
+#[derive(Default)]
+pub struct Crop {
+    orig_size: Size,
+    size: Size,
+    layers: Vec<Layer>
+}
+
+impl Crop {
+    pub fn new(orig_size: impl Into<Size>, size: impl Into<Size>, layers: Vec<Layer>) -> Self {
+        Self {
+            orig_size: orig_size.into(),
+            size: size.into(),
+            layers
+        }
+    }
+}
+
+impl UndoOperation for Crop {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-crop")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.get_buffer_mut().set_size(self.orig_size);
+        mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.get_buffer_mut().set_size(self.size);
+        mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
+        Ok(())
+    }
+}

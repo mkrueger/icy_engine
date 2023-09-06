@@ -198,7 +198,7 @@ impl Rectangle {
         assert!(y1 <= y2);
         Rectangle {
             start: Position::new(x1, y1),
-            size: Size::new((x2 - x1) + 1, (y2 - y1) + 1),
+            size: Size::new(x2 - x1, y2 - y1),
         }
     }
 
@@ -209,6 +209,10 @@ impl Rectangle {
             start,
             size: Size::new((p1.x - p2.x).abs(), (p1.y - p2.y).abs()),
         }
+    }
+
+    pub fn top_left(&self) -> Position {
+        self.start
     }
 
     pub fn lower_right(&self) -> Position {
@@ -229,26 +233,26 @@ impl Rectangle {
         self.contains_pt(other.start) && self.contains_pt(other.lower_right())
     }
 
-    fn get_width(&self) -> i32 {
+    pub fn get_width(&self) -> i32 {
         self.size.width
     }
 
-    fn get_height(&self) -> i32 {
+    pub fn get_height(&self) -> i32 {
         self.size.height
     }
 
-    fn get_size(&self) -> Size {
+    pub fn get_size(&self) -> Size {
         self.size
     }
 
-    fn from_min_size(pos: impl Into<Position>, size: impl Into<Size>) -> Rectangle {
+    pub fn from_min_size(pos: impl Into<Position>, size: impl Into<Size>) -> Rectangle {
         Rectangle {
             start: pos.into(),
             size: size.into(),
         }
     }
 
-    fn intersect(&self, other: &Rectangle) -> Rectangle {
+    pub fn intersect(&self, other: &Rectangle) -> Rectangle {
         let x1 = self.start.x.max(other.start.x);
         let y1 = self.start.y.max(other.start.y);
         let x2 = self.lower_right().x.min(other.lower_right().x);
@@ -256,29 +260,34 @@ impl Rectangle {
         Rectangle::from_coords(x1, y1, x2, y2)
     }
 
-    fn y_range(&self) -> std::ops::Range<i32> {
+    pub fn y_range(&self) -> std::ops::Range<i32> {
         self.start.y..self.lower_right().y
     }
 
-    fn x_range(&self) -> std::ops::Range<i32> {
+    pub fn x_range(&self) -> std::ops::Range<i32> {
         self.start.x..self.lower_right().x
     }
 
-    fn left(&self) -> i32 {
+    pub fn left(&self) -> i32 {
         self.start.x
     }
 
-    fn right(&self) -> i32 {
+    pub fn right(&self) -> i32 {
         self.lower_right().x
     }
 
-    fn top(&self) -> i32 {
+    pub fn top(&self) -> i32 {
         self.start.y
     }
 
-    fn bottom(&self) -> i32 {
+    pub fn bottom(&self) -> i32 {
         self.lower_right().y
     }
+
+    fn is_empty(&self) -> bool {
+        self.size.width <= 0 || self.size.height <= 0
+    }
+
 }
 
 impl Add<Position> for Rectangle {

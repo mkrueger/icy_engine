@@ -1,22 +1,6 @@
-use std::sync::mpsc::Receiver;
 
 use crate::{Position, Rectangle, Size};
 
-#[derive(Debug, Clone, Copy)]
-pub struct Coordinates {
-    pub x: f32,
-    pub y: f32,
-}
-
-impl Coordinates {
-    pub fn new(x: f32, y: f32) -> Self {
-        Self { x, y }
-    }
-
-    pub fn as_position(&self) -> Position {
-        Position::new(self.x as i32, self.y as i32)
-    }
-}
 
 #[derive(Clone, Copy, Debug)]
 pub enum Shape {
@@ -26,8 +10,8 @@ pub enum Shape {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Selection {
-    pub anchor: Coordinates,
-    pub lead: Coordinates,
+    pub anchor: Position,
+    pub lead: Position,
 
     pub locked: bool,
     pub shape: Shape,
@@ -35,47 +19,39 @@ pub struct Selection {
 
 impl Default for Selection {
     fn default() -> Self {
-        Selection::new(0., 0.)
+        Selection::new(0, 0)
     }
 }
 
 impl Selection {
-    pub fn new(x: f32, y: f32) -> Self {
+    pub fn new(x: i32, y: i32) -> Self {
         Self {
-            anchor: Coordinates::new(x, y),
-            lead: Coordinates::new(x, y),
+            anchor: Position::new(x, y),
+            lead: Position::new(x, y),
             locked: false,
             shape: Shape::Lines,
         }
     }
 
-    pub fn from_rectangle(x: f32, y: f32, width: f32, height: f32) -> Self {
-        Self {
-            anchor: Coordinates::new(x, y),
-            lead: Coordinates::new(x + width, y + height),
-            locked: false,
-            shape: Shape::Rectangle,
-        }
-    }
 
     pub fn is_empty(&self) -> bool {
-        let anchor_pos = self.anchor.as_position();
-        let lead_pos = self.lead.as_position();
+        let anchor_pos = self.anchor;
+        let lead_pos = self.lead;
 
         anchor_pos == lead_pos
     }
 
     pub fn is_inside(&self, pos: impl Into<Position>) -> bool {
         let pos = pos.into();
-        let anchor_pos = self.anchor.as_position();
-        let lead_pos = self.lead.as_position();
+        let anchor_pos = self.anchor;
+        let lead_pos = self.lead;
 
         anchor_pos <= pos && lead_pos < pos || lead_pos <= pos && anchor_pos < pos
     }
 
     pub fn min(&self) -> Position {
-        let anchor_pos = self.anchor.as_position();
-        let lead_pos = self.lead.as_position();
+        let anchor_pos = self.anchor;
+        let lead_pos = self.lead;
 
         Position::new(anchor_pos.x.min(lead_pos.x), anchor_pos.y.min(lead_pos.y))
     }
@@ -97,13 +73,29 @@ impl Selection {
         )
     }
 
-    pub fn get_rectangle(&self) -> Rectangle {
+    pub fn as_rectangle(&self) -> Rectangle {
         Rectangle::from_min_size(self.min(), self.size())
     }
 }
 
-impl Selection {
-    pub fn set_lead(&mut self, x: f32, y: f32) {
-        self.lead = Coordinates::new(x, y);
+impl From<Rectangle> for Selection {
+    fn from(value: Rectangle) -> Self {
+        Selection {
+            anchor: value.top_left(),
+            lead: value.lower_right(),
+            locked: false,
+            shape: Shape::Rectangle,
+        }
+    }
+}
+
+impl From<(f32, f32, f32, f32)> for Selection {
+    fn from(value: (f32, f32, f32, f32)) -> Self {
+        Selection {
+            anchor: (value.0, value.1).into(),
+            lead: (value.2, value.3).into(),
+            locked: false,
+            shape: Shape::Rectangle,
+        }
     }
 }

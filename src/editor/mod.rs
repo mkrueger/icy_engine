@@ -166,10 +166,10 @@ impl EditState {
                 res.push('\n');
             }
         } else {
-            let (start, end) = if selection.anchor.as_position() < selection.lead.as_position() {
-                (selection.anchor.as_position(), selection.lead.as_position())
+            let (start, end) = if selection.anchor < selection.lead {
+                (selection.anchor, selection.lead)
             } else {
-                (selection.lead.as_position(), selection.anchor.as_position())
+                (selection.lead, selection.anchor)
             };
             if start.y == end.y {
                 for x in start.x..end.x {

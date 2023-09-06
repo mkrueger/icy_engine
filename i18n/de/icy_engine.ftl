@@ -13,6 +13,12 @@ undo-set_layer_size=Ebenengröße ändern
 undo-paste=Einfügen
 undo-add_floating_layer=Schwebende Auswahl hinzufügen
 undo-resize_buffer=Größe ändern
+undo-justify-left=Links ausrichten
+undo-center=Zentrieren
+undo-justify-right=Rechts ausrichten
+undo-flip-x=X-Spiegeln
+undo-flip-y=Y-Spiegeln
+undo-crop=Zuschneiden
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

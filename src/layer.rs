@@ -353,7 +353,7 @@ mod tests {
     use i18n_embed_fl::fl;
 
     use crate::{
-        editor::EditState, AttributedChar, Layer, Line, Selection, TextAttribute, TextPane,
+        editor::EditState, AttributedChar, Layer, Line, TextAttribute, TextPane,
     };
 
     #[test]
@@ -430,7 +430,7 @@ mod tests {
                     .unwrap();
             }
         }
-        state.set_selection(Selection::from_rectangle(5., 6., 7., 8.));
+        state.set_selection((5., 6., 7., 8.).into());
         let data = state.get_clipboard_data().unwrap();
 
         let layer = Layer::from_clipboard_data(&data).unwrap();

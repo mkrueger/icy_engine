@@ -65,6 +65,18 @@ impl std::fmt::Display for AttributedChar {
         )
     }
 }
+
+
+impl From<char> for AttributedChar {
+    fn from(value: char) -> Self {
+        AttributedChar {
+            ch: value,
+            attribute: TextAttribute::default(),
+        }
+    }
+}
+
+
 /*
 pub fn get_color(color: u8) -> &'static str
 {

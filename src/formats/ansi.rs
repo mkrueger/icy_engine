@@ -39,7 +39,7 @@ impl OutputFormat for Ansi {
                 result.extend_from_slice(b"\x1b[1;1H");
             }
         }
-        let mut gen = AnsiGenerator::new(options.clone());
+        let mut gen = StringGenerator::new(options.clone());
         gen.generate(buf, buf);
         gen.add_sixels(buf);
         result.extend(gen.get_data());
@@ -70,14 +70,14 @@ impl OutputFormat for Ansi {
     }
 }
 
-pub struct AnsiGenerator {
+pub struct StringGenerator {
     output: Vec<u8>,
     options: SaveOptions,
     last_line_break: usize,
     max_output_line_length: usize,
 }
 
-impl AnsiGenerator {
+impl StringGenerator {
     pub fn new(options: SaveOptions) -> Self {
         let max_output_line_length = options.output_line_length.unwrap_or(usize::MAX);
         Self {
@@ -316,10 +316,11 @@ impl AnsiGenerator {
         }
     }
 
-    pub fn add_sixels(&mut self, buf: &Buffer) {
+    pub fn add_sixels(&mut self, _buf: &Buffer) {
+        /* TODO
         for layer in &buf.layers {
             for sixel in &layer.sixels {
-                /* TODO
+               
                 match sixel_bytes::sixel_string(
                     &sixel.picture_data,
                     sixel.get_width(),
@@ -333,9 +334,9 @@ impl AnsiGenerator {
                         self.output.extend(format!("\x1b[{};{}H", p.y + 1, p.x + 1).as_bytes());
                         self.output.extend(data.as_bytes());
                     },
-                }*/
+                }
             }
-        }
+        }*/
     }
 
     pub fn get_data(&self) -> &[u8] {
