@@ -44,9 +44,14 @@ impl EditState {
                     };
                     layer.set_char(Position::new(x, y), ch);
                 }
-            } 
+            }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.current_layer, area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
         }
@@ -86,7 +91,12 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.current_layer, area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
         }
@@ -124,7 +134,12 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.current_layer, area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
         }
@@ -147,7 +162,12 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.current_layer, area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
         }
@@ -170,7 +190,12 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.current_layer, area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
         }
@@ -195,12 +220,13 @@ impl EditState {
                 continue;
             }
 
-            new_layer.set_offset(new_rectangle.start);
+            new_layer.set_offset(new_rectangle.start - sel.start);
             new_layer.set_size(new_rectangle.size);
 
             for y in 0..new_rectangle.get_height() {
                 for x in 0..new_rectangle.get_width() {
-                    let ch = old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
+                    let ch =
+                        old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
                     new_layer.set_char((x, y), ch);
                 }
             }
@@ -214,10 +240,12 @@ impl EditState {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::{editor::{EditState, UndoState}, Rectangle, TextPane, Layer, Size};
+    use crate::{
+        editor::{EditState, UndoState},
+        Layer, Rectangle, Size, TextPane,
+    };
 
     #[test]
     fn test_flip_x() {
@@ -228,10 +256,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.delete_selection();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((3, 5), '#'.into()).unwrap();
         state.set_char((0, 9), '#'.into()).unwrap();
 
@@ -246,8 +274,7 @@ mod tests {
         for y in 0..10 {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
-                if x == 9 && y == 9  || 
-                   x == 6 && y == 5 { 
+                if x == 9 && y == 9 || x == 6 && y == 5 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -260,7 +287,7 @@ mod tests {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
 
-                if x == 3 && y == 5 || x == 0 && y == 9 { 
+                if x == 3 && y == 5 || x == 0 && y == 9 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -278,10 +305,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.delete_selection();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((3, 3), '#'.into()).unwrap();
         state.set_char((9, 9), '#'.into()).unwrap();
 
@@ -296,8 +323,7 @@ mod tests {
         for y in 0..10 {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
-                if x == 9 && y == 0  || 
-                   x == 3 && y == 6 { 
+                if x == 9 && y == 0 || x == 3 && y == 6 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -310,7 +336,7 @@ mod tests {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
 
-                if x == 3 && y == 3 || x == 9 && y == 9 { 
+                if x == 3 && y == 3 || x == 9 && y == 9 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -327,10 +353,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.delete_selection();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((5, 5), '#'.into()).unwrap();
         state.set_char((0, 9), '#'.into()).unwrap();
 
@@ -346,7 +372,7 @@ mod tests {
         for y in 0..10 {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
-                if x == 9 && (y == 5 || y  == 9) { 
+                if x == 9 && (y == 5 || y == 9) {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -359,7 +385,7 @@ mod tests {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
 
-                if x == 5 && y == 5 || x == 0 && y == 9 { 
+                if x == 5 && y == 5 || x == 0 && y == 9 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -377,10 +403,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.delete_selection();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((0, 5), '#'.into()).unwrap();
         state.set_char((9, 9), '#'.into()).unwrap();
 
@@ -395,7 +421,7 @@ mod tests {
         for y in 0..10 {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
-                if x == 4 && (y == 5 || y == 9) { 
+                if x == 4 && (y == 5 || y == 9) {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -407,16 +433,13 @@ mod tests {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
 
-                if x == 0 && y == 5  ||
-                   x == 9 && y == 9 { 
+                if x == 0 && y == 5 || x == 9 && y == 9 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
                 }
             }
         }
-        
-
     }
 
     #[test]
@@ -428,10 +451,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.delete_selection();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10).into());
+        state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((5, 5), '#'.into()).unwrap();
         state.set_char((9, 9), '#'.into()).unwrap();
 
@@ -446,7 +469,7 @@ mod tests {
         for y in 0..10 {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
-                if x == 0 && (y == 5 || y  == 9) { 
+                if x == 0 && (y == 5 || y == 9) {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
@@ -459,15 +482,13 @@ mod tests {
             for x in 0..10 {
                 let ch = state.get_buffer().get_char((x, y));
 
-                if x == 5 && y == 5 || x == 9 && y == 9 { 
+                if x == 5 && y == 5 || x == 9 && y == 9 {
                     assert_eq!(ch.ch, '#');
                 } else {
                     assert_eq!(ch.ch, ' ');
                 }
             }
         }
-        
-
     }
 
     #[test]
@@ -477,13 +498,12 @@ mod tests {
         let mut layer = Layer::new("1", Size::new(100, 100));
         layer.set_offset((-5, -5));
         state.get_buffer_mut().layers.push(layer);
-        
 
         let mut layer = Layer::new("2", Size::new(2, 2));
         layer.set_offset((7, 6));
         state.get_buffer_mut().layers.push(layer);
-        
-        state.set_selection(Rectangle::from(5, 5, 5, 4).into());
+
+        state.set_selection(Rectangle::from(5, 5, 5, 4));
 
         state.crop().unwrap();
 
@@ -498,6 +518,5 @@ mod tests {
         assert_eq!(state.get_buffer().get_height(), 25);
         assert_eq!(state.get_buffer().layers[1].get_size(), Size::new(100, 100));
         assert_eq!(state.get_buffer().layers[2].get_size(), Size::new(2, 2));
-
     }
 }

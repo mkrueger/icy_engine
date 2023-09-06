@@ -518,13 +518,11 @@ impl UndoOperation for UndoLayerChange {
     }
 }
 
-
-
 #[derive(Default)]
 pub struct Crop {
     orig_size: Size,
     size: Size,
-    layers: Vec<Layer>
+    layers: Vec<Layer>,
 }
 
 impl Crop {
@@ -532,7 +530,7 @@ impl Crop {
         Self {
             orig_size: orig_size.into(),
             size: size.into(),
-            layers
+            layers,
         }
     }
 }

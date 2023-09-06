@@ -53,6 +53,14 @@ impl Position {
             y: self.y.signum(),
         }
     }
+
+    pub fn min(self, other: Self) -> Self {
+        Position::new(self.x.min(other.x), self.y.min(other.y))
+    }
+
+    pub fn max(self, other: Self) -> Self {
+        Position::new(self.x.max(other.x), self.y.max(other.y))
+    }
 }
 
 impl Default for Position {

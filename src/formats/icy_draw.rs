@@ -3,8 +3,8 @@ use std::{io, path::Path};
 use base64::{engine::general_purpose, Engine};
 
 use crate::{
-    parsers, StringGenerator, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer,
-    OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size,
+    parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer, OutputFormat,
+    Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size, StringGenerator,
     TextPane,
 };
 

@@ -320,7 +320,7 @@ impl StringGenerator {
         /* TODO
         for layer in &buf.layers {
             for sixel in &layer.sixels {
-               
+
                 match sixel_bytes::sixel_string(
                     &sixel.picture_data,
                     sixel.get_width(),

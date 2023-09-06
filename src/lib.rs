@@ -161,6 +161,15 @@ impl From<(u8, u8)> for Size {
     }
 }
 
+impl From<Position> for Size {
+    fn from(value: Position) -> Self {
+        Size {
+            width: value.x,
+            height: value.y,
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct Rectangle {
     pub start: Position,
@@ -253,11 +262,12 @@ impl Rectangle {
     }
 
     pub fn intersect(&self, other: &Rectangle) -> Rectangle {
-        let x1 = self.start.x.max(other.start.x);
-        let y1 = self.start.y.max(other.start.y);
-        let x2 = self.lower_right().x.min(other.lower_right().x);
-        let y2 = self.lower_right().y.min(other.lower_right().y);
-        Rectangle::from_coords(x1, y1, x2, y2)
+        let min = self.start.max(other.start);
+        let max = self.lower_right().min(other.lower_right());
+        Rectangle {
+            start: min,
+            size: (max - min).into(),
+        }
     }
 
     pub fn y_range(&self) -> std::ops::Range<i32> {
@@ -287,7 +297,6 @@ impl Rectangle {
     fn is_empty(&self) -> bool {
         self.size.width <= 0 || self.size.height <= 0
     }
-
 }
 
 impl Add<Position> for Rectangle {

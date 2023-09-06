@@ -1,6 +1,4 @@
-
 use crate::{Position, Rectangle, Size};
-
 
 #[derive(Clone, Copy, Debug)]
 pub enum Shape {
@@ -33,7 +31,6 @@ impl Selection {
             shape: Shape::Lines,
         }
     }
-
 
     pub fn is_empty(&self) -> bool {
         let anchor_pos = self.anchor;
@@ -92,6 +89,17 @@ impl From<Rectangle> for Selection {
 
 impl From<(f32, f32, f32, f32)> for Selection {
     fn from(value: (f32, f32, f32, f32)) -> Self {
+        Selection {
+            anchor: (value.0, value.1).into(),
+            lead: (value.2, value.3).into(),
+            locked: false,
+            shape: Shape::Rectangle,
+        }
+    }
+}
+
+impl From<(i32, i32, i32, i32)> for Selection {
+    fn from(value: (i32, i32, i32, i32)) -> Self {
         Selection {
             anchor: (value.0, value.1).into(),
             lead: (value.2, value.3).into(),

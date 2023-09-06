@@ -141,8 +141,8 @@ impl EditState {
         self.selection_opt
     }
 
-    pub fn set_selection(&mut self, sel: Selection) {
-        self.selection_opt = Some(sel);
+    pub fn set_selection(&mut self, sel: impl Into<Selection>) {
+        self.selection_opt = Some(sel.into());
     }
 
     pub fn clear_selection(&mut self) {
