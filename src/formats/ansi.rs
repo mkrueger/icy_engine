@@ -1,10 +1,8 @@
 use std::path::Path;
 
-use sixel_image::{SixelImage, SixelSerializer};
-
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
-    layer, parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane,
+    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane,
 };
 use crate::{Position, TextAttribute};
 

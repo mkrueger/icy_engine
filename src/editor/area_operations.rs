@@ -4,7 +4,7 @@ use i18n_embed_fl::fl;
 
 use crate::{AttributedChar, EngineResult, Layer, Position, Rectangle, Selection, TextPane};
 
-use super::{undo_operations::UndoLayerChange, EditState};
+use super::EditState;
 
 fn get_area(sel: Option<Selection>, layer: Rectangle) -> Rectangle {
     if let Some(selection) = sel {
