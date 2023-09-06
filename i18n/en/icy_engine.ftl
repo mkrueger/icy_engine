@@ -19,6 +19,14 @@ undo-justify-right=Justify right
 undo-flip-x=Flip X
 undo-flip-y=Flip Y
 undo-crop=Crop
+undo-delete_row=Delete row
+undo-insert_row=Insert row
+undo-insert_column=Insert column
+undo-delete_column=Delete column
+undo-scroll_layer_up=Scroll layer up
+undo-scroll_layer_down=Scroll layer down
+undo-scroll_layer_left=Scroll layer left
+undo-scroll_layer_right=Scroll layer right
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

@@ -1,10 +1,12 @@
 pub mod undo_stack;
 use std::sync::{Arc, Mutex};
 
-use i18n_embed_fl::fl;
 pub use undo_stack::*;
 
 mod undo_operations;
+
+mod editor_error;
+pub use editor_error::*;
 
 mod layer_operations;
 pub use layer_operations::*;
@@ -14,8 +16,7 @@ mod area_operations;
 pub use area_operations::*;
 
 use crate::{
-    ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,
-    Shape, TextPane,
+    ansi, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection, Shape, TextPane,
 };
 
 pub struct EditState {

@@ -19,6 +19,14 @@ undo-justify-right=Rechts ausrichten
 undo-flip-x=X-Spiegeln
 undo-flip-y=Y-Spiegeln
 undo-crop=Zuschneiden
+undo-delete_row=Zeile löschen
+undo-insert_row=Zeile einfügen
+undo-insert_column=Spalte einfügen
+undo-delete_column=Spalte löschen
+undo-scroll_layer_up=Bereich hoch scrollen
+undo-scroll_layer_down=Bereich runter scrollen
+undo-scroll_layer_left=Bereich links scrollen
+undo-scroll_layer_right=Bereich rechts scrollen
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

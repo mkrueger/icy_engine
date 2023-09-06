@@ -6,7 +6,7 @@ use i18n_embed_fl::fl;
 
 use crate::{AttributedChar, EngineResult, Layer, Position, Rectangle, Selection, TextPane};
 
-use super::EditState;
+use super::{EditState, EditorError};
 
 fn get_area(sel: Option<Selection>, layer: Rectangle) -> Rectangle {
     if let Some(selection) = sel {
@@ -54,8 +54,10 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(super::EditorError::CurrentLayerInvalid))
         }
-        Ok(())
     }
 
     pub fn center(&mut self) -> EngineResult<()> {
@@ -99,8 +101,10 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
-        Ok(())
     }
 
     pub fn justify_right(&mut self) -> EngineResult<()> {
@@ -142,8 +146,10 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
-        Ok(())
     }
 
     pub fn flip_x(&mut self) -> EngineResult<()> {
@@ -170,8 +176,10 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
-        Ok(())
     }
 
     pub fn flip_y(&mut self) -> EngineResult<()> {
@@ -198,8 +206,10 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
-        Ok(())
     }
 
     pub fn crop(&mut self) -> EngineResult<()> {
@@ -268,9 +278,197 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
+            self.clear_selection();
+
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
-        self.clear_selection();
-        Ok(())
+    }
+
+    pub fn scroll_area_up(&mut self) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-justify-left"));
+        let sel = self.get_selection();
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
+            if area.is_empty() {
+                return Ok(());
+            }
+            if area.get_width() >= layer.get_width() {
+                let op = super::undo_operations::UndoScrollWholeLayerUp::new(self.current_layer);
+                return self.push_undo(Box::new(op));
+            }
+
+            let old_layer = Layer::from_layer(layer, area);
+
+            let mut saved_line = Vec::new();
+
+            for y in area.y_range() {
+                let line = &mut layer.lines[y as usize];
+                if line.chars.len() < area.right() as usize {
+                    line.chars
+                        .resize(area.right() as usize, AttributedChar::invisible());
+                }
+                if y == area.top() {
+                    saved_line.extend(
+                        line.chars
+                            .drain(area.left() as usize..area.right() as usize),
+                    );
+                    continue;
+                }
+                if y == area.bottom() - 1 {
+                    line.chars.splice(
+                        area.right() as usize..area.right() as usize,
+                        saved_line.iter().copied(),
+                    );
+                }
+                let chars = line
+                    .chars
+                    .drain(area.left() as usize..area.right() as usize)
+                    .collect::<Vec<AttributedChar>>();
+                let line_above = &mut layer.lines[y as usize - 1];
+                line_above
+                    .chars
+                    .splice(area.left() as usize..area.left() as usize, chars);
+            }
+            let new_layer = Layer::from_layer(layer, area);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+        }
+    }
+
+    pub fn scroll_area_down(&mut self) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-justify-left"));
+        let sel = self.get_selection();
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
+            if area.is_empty() {
+                return Ok(());
+            }
+            if area.get_width() >= layer.get_width() {
+                let op = super::undo_operations::UndoScrollWholeLayerDown::new(self.current_layer);
+                return self.push_undo(Box::new(op));
+            }
+            let old_layer = Layer::from_layer(layer, area);
+
+            let mut saved_line = Vec::new();
+
+            for y in area.y_range().rev() {
+                let line = &mut layer.lines[y as usize];
+                if line.chars.len() < area.right() as usize {
+                    line.chars
+                        .resize(area.right() as usize, AttributedChar::invisible());
+                }
+                if y == area.bottom() - 1 {
+                    saved_line.extend(
+                        line.chars
+                            .drain(area.left() as usize..area.right() as usize),
+                    );
+                    continue;
+                }
+                if y == area.top() {
+                    line.chars.splice(
+                        area.right() as usize..area.right() as usize,
+                        saved_line.iter().copied(),
+                    );
+                }
+                let chars = line
+                    .chars
+                    .drain(area.left() as usize..area.right() as usize)
+                    .collect::<Vec<AttributedChar>>();
+                let line_below = &mut layer.lines[y as usize + 1];
+                line_below
+                    .chars
+                    .splice(area.left() as usize..area.left() as usize, chars);
+            }
+            let new_layer = Layer::from_layer(layer, area);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+        }
+    }
+
+    pub fn scroll_area_left(&mut self) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-justify-left"));
+        let sel = self.get_selection();
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
+            if area.is_empty() {
+                return Ok(());
+            }
+            let old_layer = Layer::from_layer(layer, area);
+            for y in area.y_range() {
+                let line = &mut layer.lines[y as usize];
+                if line.chars.len() < area.right() as usize {
+                    line.chars
+                        .resize(area.right() as usize, AttributedChar::invisible());
+                }
+                let ch = line.chars.remove(area.left() as usize);
+                line.chars.insert(area.right() as usize - 1, ch);
+            }
+            let new_layer = Layer::from_layer(layer, area);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+        }
+    }
+
+    pub fn scroll_area_right(&mut self) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-justify-left"));
+        let sel = self.get_selection();
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
+            if area.is_empty() {
+                return Ok(());
+            }
+            let old_layer = Layer::from_layer(layer, area);
+            for y in area.y_range() {
+                let line = &mut layer.lines[y as usize];
+                if line.chars.len() < area.right() as usize {
+                    line.chars
+                        .resize(area.right() as usize, AttributedChar::invisible());
+                }
+                let ch = line.chars.remove(area.right() as usize - 1);
+                line.chars.insert(area.left() as usize, ch);
+            }
+            let new_layer = Layer::from_layer(layer, area);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+        }
     }
 }
 

@@ -2,9 +2,9 @@ use std::mem;
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position, Size, TextPane};
+use crate::{AttributedChar, EngineResult, Layer, Line, Position, Size, TextPane};
 
-use super::{EditState, UndoOperation};
+use super::{EditState, EditorError, UndoOperation};
 
 pub(crate) struct AtomicUndo {
     description: String,
@@ -550,5 +550,279 @@ impl UndoOperation for Crop {
         edit_state.get_buffer_mut().set_size(self.size);
         mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
         Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct DeleteRow {
+    layer: usize,
+    line: i32,
+    deleted_row: Line,
+}
+
+impl DeleteRow {
+    pub fn new(layer: usize, line: i32) -> Self {
+        Self {
+            layer,
+            line,
+            deleted_row: Line::default(),
+        }
+    }
+}
+
+impl UndoOperation for DeleteRow {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-delete_row")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let mut deleted_row = Line::default();
+            mem::swap(&mut self.deleted_row, &mut deleted_row);
+            layer.lines.insert(self.line as usize, deleted_row);
+            layer.set_height(layer.get_height() + 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            self.deleted_row = layer.lines.remove(self.line as usize);
+            layer.set_height(layer.get_height() - 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct InsertRow {
+    layer: usize,
+    line: i32,
+    deleted_row: Line,
+}
+
+impl InsertRow {
+    pub fn new(layer: usize, line: i32) -> Self {
+        Self {
+            layer,
+            line,
+            deleted_row: Line::default(),
+        }
+    }
+}
+
+impl UndoOperation for InsertRow {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-insert_row")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            self.deleted_row = layer.lines.remove(self.line as usize);
+            layer.set_height(layer.get_height() - 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let mut deleted_row = Line::default();
+            mem::swap(&mut self.deleted_row, &mut deleted_row);
+            layer.lines.insert(self.line as usize, deleted_row);
+            layer.set_height(layer.get_height() + 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct DeleteColumn {
+    layer: usize,
+    column: i32,
+    deleted_chars: Vec<Option<AttributedChar>>,
+}
+
+impl DeleteColumn {
+    pub fn new(layer: usize, column: i32) -> Self {
+        Self {
+            layer,
+            column,
+            deleted_chars: Vec::new(),
+        }
+    }
+}
+
+impl UndoOperation for DeleteColumn {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-delete_column")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let offset: usize = self.column as usize;
+            for (i, ch) in self.deleted_chars.iter().enumerate() {
+                if let Some(ch) = ch {
+                    layer.lines[i].chars.insert(offset, *ch);
+                }
+            }
+            layer.set_width(layer.get_width() + 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let mut deleted_row = Vec::new();
+            let offset: usize = self.column as usize;
+            for line in &mut layer.lines {
+                if offset < line.chars.len() {
+                    deleted_row.push(Some(line.chars.remove(offset)));
+                } else {
+                    deleted_row.push(None);
+                }
+            }
+            self.deleted_chars = deleted_row;
+            layer.set_width(layer.get_width() - 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct InsertColumn {
+    layer: usize,
+    column: i32,
+}
+
+impl InsertColumn {
+    pub fn new(layer: usize, column: i32) -> Self {
+        Self { layer, column }
+    }
+}
+
+impl UndoOperation for InsertColumn {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-insert_column")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let offset: usize = self.column as usize;
+            for line in &mut layer.lines {
+                if line.chars.len() >= offset {
+                    line.chars.remove(offset);
+                }
+            }
+            layer.set_width(layer.get_width() - 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let offset: usize = self.column as usize;
+            for line in &mut layer.lines {
+                if line.chars.len() >= offset {
+                    line.chars.insert(offset, AttributedChar::invisible());
+                }
+            }
+            layer.set_width(layer.get_width() + 1);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+}
+
+mod scroll_util {
+    use crate::{editor::EditorError, EngineResult};
+
+    pub(crate) fn scroll_layer_up(
+        edit_state: &mut crate::editor::EditState,
+        layer: usize,
+    ) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(layer) {
+            let lines = layer.lines.remove(0);
+            layer.lines.push(lines);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(layer)))
+        }
+    }
+    pub(crate) fn scroll_layer_down(
+        edit_state: &mut crate::editor::EditState,
+        layer: usize,
+    ) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(layer) {
+            let lines = layer.lines.pop().unwrap();
+            layer.lines.insert(0, lines);
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(layer)))
+        }
+    }
+}
+
+#[derive(Default)]
+pub struct UndoScrollWholeLayerUp {
+    layer: usize,
+}
+
+impl UndoScrollWholeLayerUp {
+    pub fn new(layer: usize) -> Self {
+        Self { layer }
+    }
+}
+
+impl UndoOperation for UndoScrollWholeLayerUp {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-scroll_layer_up")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        scroll_util::scroll_layer_down(edit_state, self.layer)
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        scroll_util::scroll_layer_up(edit_state, self.layer)
+    }
+}
+
+#[derive(Default)]
+pub struct UndoScrollWholeLayerDown {
+    layer: usize,
+}
+
+impl UndoScrollWholeLayerDown {
+    pub fn new(layer: usize) -> Self {
+        Self { layer }
+    }
+}
+
+impl UndoOperation for UndoScrollWholeLayerDown {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-scroll_layer_down")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        scroll_util::scroll_layer_up(edit_state, self.layer)
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        scroll_util::scroll_layer_down(edit_state, self.layer)
     }
 }

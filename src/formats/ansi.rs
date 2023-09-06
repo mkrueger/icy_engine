@@ -129,7 +129,7 @@ impl StringGenerator {
                 if cur_font_page != cur_attr.get_font_page() {
                     cur_font_page = cur_attr.get_font_page();
                     result.extend_from_slice(b"\x1b[0;");
-                    push_int(&mut result, space_count);
+                    push_int(&mut result, cur_font_page);
                     result.extend_from_slice(b" D");
                     self.push_result(&mut result);
                 }
