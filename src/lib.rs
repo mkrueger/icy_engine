@@ -297,6 +297,15 @@ impl Rectangle {
     fn is_empty(&self) -> bool {
         self.size.width <= 0 || self.size.height <= 0
     }
+
+    fn is_inside(&self, pos: impl Into<Position>) -> bool {
+        let pos = pos.into();
+
+        self.start.x <= pos.x
+            && self.start.y <= pos.y
+            && pos.x < self.start.x + self.size.width
+            && pos.y < self.start.y + self.size.height
+    }
 }
 
 impl Add<Position> for Rectangle {

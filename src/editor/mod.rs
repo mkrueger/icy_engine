@@ -267,31 +267,8 @@ impl EditState {
         Ok(())
     }
 
-    /// Returns the delete selection of this [`EditState`].
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    pub fn delete_selection(&mut self) {
-        if let Some(selection) = &self.get_selection() {
-            let _paste =
-                self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
-            let min = selection.min();
-            let max = selection.max();
-
-            for y in min.y..max.y {
-                if y < 0 {
-                    continue;
-                }
-                for x in min.x..max.x {
-                    if x < 0 {
-                        continue;
-                    }
-                    self.set_char((x, y), AttributedChar::invisible()).unwrap();
-                }
-            }
-            self.clear_selection();
-        }
+    pub fn undo_stack_len(&self) -> usize {
+        self.undo_stack.lock().unwrap().len()
     }
 }
 

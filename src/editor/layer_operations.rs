@@ -74,7 +74,7 @@ impl EditState {
     }
 
     pub fn merge_layer_down(&mut self, layer: usize) -> EngineResult<()> {
-        if layer == 0 {
+        if layer == 0 || layer >= self.buffer.layers.len() {
             return Ok(());
         }
 

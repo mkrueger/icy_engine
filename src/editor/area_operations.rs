@@ -238,14 +238,84 @@ impl EditState {
 
         Ok(())
     }
+
+    /// Returns the delete selection of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    pub fn delete_selection(&mut self) -> EngineResult<()> {
+        if self.selection_opt.is_none() {
+            return Ok(());
+        }
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+        let sel = self.get_selection();
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
+
+            let old_layer = Layer::from_layer(layer, area);
+            for y in area.y_range() {
+                for x in area.x_range() {
+                    layer.set_char((x, y), AttributedChar::invisible());
+                }
+            }
+            let new_layer = Layer::from_layer(layer, area);
+            let op = super::undo_operations::UndoLayerChange::new(
+                self.current_layer,
+                area.start,
+                old_layer,
+                new_layer,
+            );
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+        }
+        self.clear_selection();
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
         editor::{EditState, UndoState},
-        Layer, Rectangle, Size, TextPane,
+        Layer, Position, Rectangle, Size, TextPane,
     };
+
+    #[test]
+    fn test_delete_selection() {
+        let mut state = EditState::default();
+        for y in 0..20 {
+            for x in 0..20 {
+                state.set_char((x, y), '#'.into()).unwrap();
+            }
+        }
+
+        let rect = Rectangle::from(5, 5, 10, 10);
+        state.set_selection(rect);
+        state.delete_selection().unwrap();
+        for y in 0..20 {
+            for x in 0..20 {
+                let pos = Position::new(x, y);
+                let ch = state.get_buffer().get_char(pos);
+
+                if rect.is_inside(pos) {
+                    assert_eq!(ch.ch, ' ');
+                } else {
+                    assert_eq!(ch.ch, '#');
+                }
+            }
+        }
+
+        state.undo().unwrap();
+
+        for y in 0..20 {
+            for x in 0..20 {
+                let pos = Position::new(x, y);
+                let ch = state.get_buffer().get_char(pos);
+                assert_eq!(ch.ch, '#');
+            }
+        }
+    }
 
     #[test]
     fn test_flip_x() {

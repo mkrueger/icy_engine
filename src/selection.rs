@@ -33,41 +33,26 @@ impl Selection {
     }
 
     pub fn is_empty(&self) -> bool {
-        let anchor_pos = self.anchor;
-        let lead_pos = self.lead;
-
-        anchor_pos == lead_pos
+        self.anchor == self.lead
     }
 
     pub fn is_inside(&self, pos: impl Into<Position>) -> bool {
         let pos = pos.into();
-        let anchor_pos = self.anchor;
-        let lead_pos = self.lead;
-
-        anchor_pos <= pos && lead_pos < pos || lead_pos <= pos && anchor_pos < pos
+        self.as_rectangle().is_inside(pos)
     }
 
     pub fn min(&self) -> Position {
-        let anchor_pos = self.anchor;
-        let lead_pos = self.lead;
-
-        Position::new(anchor_pos.x.min(lead_pos.x), anchor_pos.y.min(lead_pos.y))
+        self.anchor.min(self.lead)
     }
 
     pub fn max(&self) -> Position {
-        let anchor_pos = Position::new(self.anchor.x as i32, self.anchor.y as i32);
-        let lead_pos = Position::new(self.lead.x as i32, self.lead.y as i32);
-
-        Position::new(anchor_pos.x.max(lead_pos.x), anchor_pos.y.max(lead_pos.y))
+        self.anchor.max(self.lead)
     }
 
     pub fn size(&self) -> Size {
-        let anchor_pos = Position::new(self.anchor.x as i32, self.anchor.y as i32);
-        let lead_pos = Position::new(self.lead.x as i32, self.lead.y as i32);
-
         Size::new(
-            (anchor_pos.x - lead_pos.x).abs(),
-            (anchor_pos.y - lead_pos.y).abs(),
+            (self.anchor.x - self.lead.x).abs(),
+            (self.anchor.y - self.lead.y).abs(),
         )
     }
 
