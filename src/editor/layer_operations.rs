@@ -1,9 +1,9 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{EngineResult, Layer, Position, Size, TextPane};
+use crate::{EngineResult, Layer, Position, Size, TextPane, layer};
 
-use super::{undo_operations, EditState};
+use super::{undo_operations, EditState, EditorError};
 
 impl EditState {
     pub fn add_new_layer(&mut self, layer: usize) -> EngineResult<()> {
@@ -126,9 +126,9 @@ impl EditState {
 
         let op = undo_operations::MergeLayerDown::new(layer, merge_layer);
         self.push_undo(Box::new(op))?;
-        self.clamp_current_layer();
+self.clamp_current_layer();
         Ok(())
-    }
+         }
 
     pub fn toggle_layer_visibility(&mut self, layer: usize) -> EngineResult<()> {
         let op = undo_operations::ToggleLayerVisibility::new(layer);
@@ -148,6 +148,81 @@ impl EditState {
     pub fn set_layer_size(&mut self, layer: usize, size: impl Into<Size>) -> EngineResult<()> {
         let op = undo_operations::SetLayerSize::new(layer, size.into());
         self.push_undo(Box::new(op))
+    }
+
+    pub fn stamp_layer_down(&mut self) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-stamp-down"));
+        let layer_idx = self.current_layer;
+        let layer = if let Some(layer) = self.get_cur_layer() {
+            layer.clone()
+        } else {
+            return Err(Box::new(super::EditorError::CurrentLayerInvalid))
+        };
+
+        let base_layer = &mut self.buffer.layers[layer_idx - 1];
+        let area = layer.get_rectangle() + base_layer.get_offset();
+        let old_layer = Layer::from_layer(base_layer, area);
+
+        for x in 0..layer.get_width() as u32 {
+            for y in 0..layer.get_height() as u32 {
+                let pos = Position::new(x as i32, y as i32);
+                let ch = layer.get_char(pos);
+                if !ch.is_visible() {
+                    continue;
+                }
+
+                let dest = pos + area.top_left();
+                base_layer.set_char(dest, ch);
+            }
+        }
+
+        let new_layer = Layer::from_layer(base_layer, area);
+        let op = super::undo_operations::UndoLayerChange::new(
+            layer_idx - 1,
+            area.start,
+            old_layer,
+            new_layer,
+        );
+        self.redo_stack.clear();
+        self.undo_stack.lock().unwrap().push(Box::new(op));
+        Ok(())
+    }
+
+
+    pub fn rotate_layer(&mut self) -> EngineResult<()> {
+        let op = super::undo_operations::RotateLayer::new(self.current_layer);
+        self.push_undo(Box::new(op))
+    }
+
+    pub fn make_layer_transparent(&mut self) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-make_transparent"));
+        let layer_idx = self.current_layer;
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = crate::Rectangle { start: Position::new(0,0 ), size: layer.get_size() };
+            let old_layer = Layer::from_layer(layer, area);
+    
+            for x in 0..layer.get_width() as u32 {
+                for y in 0..layer.get_height() as u32 {
+                    let pos = Position::new(x as i32, y as i32);
+                    let ch = layer.get_char(pos);
+                    if ch.is_transparent() {
+                        layer.set_char(pos, crate::AttributedChar::invisible());
+                    }
+                }
+            }
+            let new_layer = Layer::from_layer(layer, area);
+            let op = super::undo_operations::UndoLayerChange::new(
+                layer_idx,
+                area.start,
+                old_layer,
+                new_layer,
+            );
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+            Ok(())
+        } else {
+            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+        }
     }
 }
 

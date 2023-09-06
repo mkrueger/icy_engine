@@ -826,3 +826,47 @@ impl UndoOperation for UndoScrollWholeLayerDown {
         scroll_util::scroll_layer_down(edit_state, self.layer)
     }
 }
+
+
+#[derive(Default)]
+pub struct RotateLayer {
+    layer: usize,
+}
+
+impl RotateLayer {
+    pub fn new(layer: usize) -> Self {
+        Self { layer }
+    }
+}
+
+impl UndoOperation for RotateLayer {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-rotate_layer")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.redo(edit_state)
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            let mut lines = Vec::new();
+            mem::swap(&mut layer.lines, &mut lines);
+            let size = layer.get_size();
+            layer.set_size((size.height, size.width));
+
+            for (y, line) in lines.into_iter().enumerate() {
+                for (x, ch) in line.chars.into_iter().enumerate() {
+                    layer.set_char((y, x), ch);
+                }
+            }
+
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+        }
+    }
+}
+
+
+

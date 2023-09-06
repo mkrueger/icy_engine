@@ -27,6 +27,9 @@ undo-scroll_layer_up=Bereich hoch scrollen
 undo-scroll_layer_down=Bereich runter scrollen
 undo-scroll_layer_left=Bereich links scrollen
 undo-scroll_layer_right=Bereich rechts scrollen
+undo-stamp-down=Stempeln
+undo-make_transparent=Transparenz
+undo-rotate_layer=Ebene drehen
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene
