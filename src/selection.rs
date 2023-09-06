@@ -19,15 +19,16 @@ pub struct Selection {
 
 impl Default for Selection {
     fn default() -> Self {
-        Selection::new(0, 0)
+        Selection::new((0, 0))
     }
 }
 
 impl Selection {
-    pub fn new(x: i32, y: i32) -> Self {
+    pub fn new(pos: impl Into<Position>) -> Self {
+        let pos = pos.into();
         Self {
-            anchor: Position::new(x, y),
-            lead: Position::new(x, y),
+            anchor: pos,
+            lead: pos,
             locked: false,
             shape: Shape::Lines,
         }
