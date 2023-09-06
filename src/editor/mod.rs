@@ -270,6 +270,15 @@ impl EditState {
     pub fn undo_stack_len(&self) -> usize {
         self.undo_stack.lock().unwrap().len()
     }
+
+    pub fn has_floating_layer(&self) -> bool {
+        for layer in &self.buffer.layers {
+            if layer.role.is_paste() {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl UndoState for EditState {
