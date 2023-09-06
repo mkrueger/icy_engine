@@ -1,4 +1,6 @@
-use crate::{Position, Size};
+use std::sync::mpsc::Receiver;
+
+use crate::{Position, Rectangle, Size};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Coordinates {
@@ -93,6 +95,10 @@ impl Selection {
             (anchor_pos.x - lead_pos.x).abs(),
             (anchor_pos.y - lead_pos.y).abs(),
         )
+    }
+
+    pub fn get_rectangle(&self) -> Rectangle {
+        Rectangle::from_min_size(self.min(), self.size())
     }
 }
 

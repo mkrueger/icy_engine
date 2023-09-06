@@ -3,9 +3,9 @@ use std::{io, path::Path};
 use base64::{engine::general_purpose, Engine};
 
 use crate::{
-    parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult,
-    Layer, OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size,
-    TextPane, AnsiGenerator,
+    parsers, AnsiGenerator, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer,
+    OutputFormat, Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size,
+    TextPane,
 };
 
 mod constants {

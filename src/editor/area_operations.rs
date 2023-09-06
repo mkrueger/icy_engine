@@ -1,113 +1,94 @@
 #![allow(clippy::missing_errors_doc)]
 
-use crate::{EngineResult, TextPane};
+use i18n_embed_fl::fl;
 
-use super::EditState;
+use crate::{AttributedChar, EngineResult, Layer, Position, Rectangle, Selection, TextPane};
 
-impl EditState {
-    fn get_area(&self) -> (i32, i32, i32, i32) {
-        if let Some(selection) = &self.get_selection() {
-            let min = selection.min();
-            let max = selection.max();
-            (min.x, min.y, max.x, max.y)
-        } else {
-            let size = self.buffer.get_size();
-            (0, 0, size.width - 1, size.height - 1)
-        }
+use super::{undo_operations::UndoLayerChange, EditState};
+
+fn get_area(sel: Option<Selection>, layer: Rectangle) -> Rectangle {
+    if let Some(selection) = sel {
+        let rect = selection.get_rectangle();
+        rect.intersect(&layer) - layer.start
+    } else {
+        layer - layer.start
     }
-
+}
+impl EditState {
     pub fn justify_left(&mut self) -> EngineResult<()> {
-        /*
-            let _undo = self.begin_atomic_undo("Justify left");
-            let (x1, y1, x2, y2) = self.get_blockaction_rectangle();
-            let is_bg_layer =
-                self.get_cur_layer() == self.buffer_view.lock().get_buffer().layers.len() - 1;
-            {
-                let lock = &mut self.buffer_view.lock();
-                let cur_layer = self.get_cur_layer();
-                let layer = &mut lock.get_buffer_mut().layers[cur_layer];
-                for y in y1..=y2 {
-                    let mut removed_chars = 0;
-                    let len = x2 - x1 + 1;
-                    while removed_chars < len {
-                        let ch = layer.get_char(Position::new(x1 + removed_chars, y));
-                        if ch.is_visible() && !ch.is_transparent() {
-                            break;
-                        }
-                        removed_chars += 1;
-                    }
-                    if len == removed_chars {
-                        continue;
-                    }
-                    for x in x1..=x2 {
-                        let ch = if x + removed_chars <= x2 {
-                            layer.get_char(Position::new(x + removed_chars, y))
-                        } else if is_bg_layer {
-                            AttributedChar::default()
-                        } else {
-                            AttributedChar::invisible()
-                        };
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-justify-left"));
+        let sel = self.get_selection();
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
 
-                        let pos = Position::new(x, y);
-                        self.buffer_view
-                            .lock()
-                            .get_edit_state_mut()
-                            .set_char(pos, ch)
-                            .unwrap();
+            let old_layer = Layer::from_layer(layer, area);
+
+            for y in area.y_range() {
+                let mut removed_chars = 0;
+                let len = area.get_width() - 1;
+                while removed_chars < len {
+                    let ch = layer.get_char((area.left() + removed_chars, y));
+                    if ch.is_visible() && !ch.is_transparent() {
+                        break;
                     }
+                    removed_chars += 1;
                 }
-            }
+                println!("{}:{} - {}", y, removed_chars, len);
+                /*  if len <= removed_chars {
+                    continue;
+                }*/
+                for x in area.x_range() {
+                    let mut ch = if x + removed_chars < area.right() - 1 {
+                        layer.get_char((x + removed_chars, y))
+                    } else {
+                        AttributedChar::invisible()
+                    };
+                    ch.ch = '#';
 
-        */
+                    layer.set_char(Position::new(x, y), ch);
+                }
+            } /*
+              let new_layer = Layer::from_layer(layer, area);
+              let op = UndoLayerChange::new(self.current_layer, area.start, old_layer, new_layer);
+              self.redo_stack.clear();
+              self.undo_stack.lock().unwrap().push(Box::new(op));*/
+        }
         Ok(())
     }
 
     pub fn center(&mut self) -> EngineResult<()> {
-        /*   let _undo = self.begin_atomic_undo("Justify center");
-            self.justify_left();
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-center"));
+        let sel = self.get_selection();
+        self.justify_left()?;
+        if let Some(layer) = self.get_cur_layer_mut() {
+            let area = get_area(sel, layer.get_rectangle());
 
-            let (x1, y1, x2, y2) = self.get_blockaction_rectangle();
-            let is_bg_layer =
-                self.get_cur_layer() == self.buffer_view.lock().get_buffer().layers.len() - 1;
-            {
-                let mut lock: eframe::epaint::mutex::MutexGuard<'_, BufferView> =
-                    self.buffer_view.lock();
-                let cur_layer = self.get_cur_layer();
-                let layer = &mut lock.get_buffer_mut().layers[cur_layer];
-                for y in y1..=y2 {
-                    let mut removed_chars = 0;
-                    let len = x2 - x1 + 1;
-                    while removed_chars < len {
-                        let ch = layer.get_char(Position::new(x2 - removed_chars, y));
-                        if ch.is_visible() && !ch.is_transparent() {
-                            break;
-                        }
-                        removed_chars += 1;
+            for y in area.y_range() {
+                let mut removed_chars = 0;
+                let len = area.get_width() + 1;
+                while removed_chars < len {
+                    let ch = layer.get_char((area.right() - removed_chars, y));
+                    if ch.is_visible() && !ch.is_transparent() {
+                        break;
                     }
+                    removed_chars += 1;
+                }
 
-                    if len == removed_chars {
-                        continue;
-                    }
-                    removed_chars /= 2;
-                    for x in 0..len {
-                        let ch = if x2 - x - removed_chars >= x1 {
-                            layer.get_char(Position::new(x2 - x - removed_chars, y))
-                        } else if is_bg_layer {
-                            AttributedChar::default()
-                        } else {
-                            AttributedChar::invisible()
-                        };
+                if len == removed_chars {
+                    continue;
+                }
+                removed_chars /= 2;
+                for x in 0..len {
+                    let ch = if area.right() - x - removed_chars >= area.left() {
+                        layer.get_char((area.right() - x - removed_chars, y))
+                    } else {
+                        AttributedChar::invisible()
+                    };
 
-                        let pos = Position::new(x2 - x, y);
-                        let _ = self
-                            .buffer_view
-                            .lock()
-                            .get_edit_state_mut()
-                            .set_char(pos, ch);
-                    }
+                    let _ = layer.set_char((area.right() - x, y), ch);
                 }
             }
-        */
+        }
         Ok(())
     }
 

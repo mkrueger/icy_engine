@@ -543,6 +543,7 @@ impl Buffer {
             for x in 0..rect.get_width() {
                 let ch = self.get_char((x + rect.start.x, y + rect.start.y));
                 let font = self.get_font(ch.get_font_page()).unwrap();
+                let font_size = font.size;
 
                 let fg = if ch.attribute.is_bold() && ch.attribute.get_foreground() < 8 {
                     ch.attribute.get_foreground() + 8
@@ -721,6 +722,10 @@ impl TextPane for Buffer {
 
     fn get_size(&self) -> Size {
         self.terminal_state.get_size()
+    }
+
+    fn get_rectangle(&self) -> Rectangle {
+        Rectangle::from_min_size((0, 0), (self.get_width(), self.get_height()))
     }
 }
 

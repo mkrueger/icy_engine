@@ -1,6 +1,8 @@
 use i18n_embed_fl::fl;
 
-use crate::{Buffer, BufferParser, Color, Line, Position, Sixel, Size, TextAttribute, TextPane};
+use crate::{
+    Buffer, BufferParser, Color, Line, Position, Rectangle, Sixel, Size, TextAttribute, TextPane,
+};
 
 use super::AttributedChar;
 
@@ -129,6 +131,10 @@ impl TextPane for Layer {
 
     fn get_size(&self) -> Size {
         self.size
+    }
+
+    fn get_rectangle(&self) -> Rectangle {
+        Rectangle::from_min_size(self.get_offset(), (self.get_width(), self.get_height()))
     }
 }
 
@@ -317,6 +323,28 @@ impl Layer {
             }
         }
         Some(layer)
+    }
+
+    pub(crate) fn from_layer(layer: &Layer, area: Rectangle) -> Layer {
+        let mut result = Layer::new("new", area.get_size());
+
+        for y in area.y_range() {
+            for x in area.x_range() {
+                let pos = Position::new(x, y) - area.start;
+                result.set_char(pos, layer.get_char((x, y)));
+            }
+        }
+        result
+    }
+
+    pub(crate) fn stamp(&mut self, target_pos: Position, layer: &Layer) {
+        let area = layer.get_rectangle();
+        for y in area.y_range() {
+            for x in area.x_range() {
+                let pos = Position::new(x, y);
+                self.set_char(pos + target_pos, layer.get_char(pos));
+            }
+        }
     }
 }
 

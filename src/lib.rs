@@ -11,7 +11,11 @@
     clippy::return_self_not_must_use
 )]
 mod text_attribute;
-use std::{cmp::min, error::Error};
+use std::{
+    cmp::min,
+    error::Error,
+    ops::{Add, AddAssign, Sub, SubAssign},
+};
 
 pub use text_attribute::*;
 
@@ -232,6 +236,83 @@ impl Rectangle {
     fn get_height(&self) -> i32 {
         self.size.height
     }
+
+    fn get_size(&self) -> Size {
+        self.size
+    }
+
+    fn from_min_size(pos: impl Into<Position>, size: impl Into<Size>) -> Rectangle {
+        Rectangle {
+            start: pos.into(),
+            size: size.into(),
+        }
+    }
+
+    fn intersect(&self, other: &Rectangle) -> Rectangle {
+        let x1 = self.start.x.max(other.start.x);
+        let y1 = self.start.y.max(other.start.y);
+        let x2 = self.lower_right().x.min(other.lower_right().x);
+        let y2 = self.lower_right().y.min(other.lower_right().y);
+        Rectangle::from_coords(x1, y1, x2, y2)
+    }
+
+    fn y_range(&self) -> std::ops::Range<i32> {
+        self.start.y..self.lower_right().y
+    }
+
+    fn x_range(&self) -> std::ops::Range<i32> {
+        self.start.x..self.lower_right().x
+    }
+
+    fn left(&self) -> i32 {
+        self.start.x
+    }
+
+    fn right(&self) -> i32 {
+        self.lower_right().x
+    }
+
+    fn top(&self) -> i32 {
+        self.start.y
+    }
+
+    fn bottom(&self) -> i32 {
+        self.lower_right().y
+    }
+}
+
+impl Add<Position> for Rectangle {
+    type Output = Rectangle;
+
+    fn add(self, rhs: Position) -> Rectangle {
+        Rectangle {
+            start: self.start + rhs,
+            size: self.size,
+        }
+    }
+}
+
+impl AddAssign<Position> for Rectangle {
+    fn add_assign(&mut self, rhs: Position) {
+        self.start += rhs;
+    }
+}
+
+impl Sub<Position> for Rectangle {
+    type Output = Rectangle;
+
+    fn sub(self, rhs: Position) -> Rectangle {
+        Rectangle {
+            start: self.start - rhs,
+            size: self.size,
+        }
+    }
+}
+
+impl SubAssign<Position> for Rectangle {
+    fn sub_assign(&mut self, rhs: Position) {
+        self.start -= rhs;
+    }
 }
 
 pub trait TextPane {
@@ -241,4 +322,5 @@ pub trait TextPane {
     fn get_height(&self) -> i32;
     fn get_size(&self) -> Size;
     fn get_line_length(&self, line: i32) -> i32;
+    fn get_rectangle(&self) -> Rectangle;
 }

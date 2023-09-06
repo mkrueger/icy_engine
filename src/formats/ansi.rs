@@ -1,8 +1,10 @@
 use std::path::Path;
 
+use sixel_image::{SixelImage, SixelSerializer};
+
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
-    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane, layer,
+    layer, parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane,
 };
 use crate::{Position, TextAttribute};
 
@@ -70,35 +72,31 @@ impl OutputFormat for Ansi {
     }
 }
 
-
 pub struct AnsiGenerator {
     output: Vec<u8>,
     options: SaveOptions,
     last_line_break: usize,
-    max_output_line_length: usize
+    max_output_line_length: usize,
 }
 
 impl AnsiGenerator {
     pub fn new(options: SaveOptions) -> Self {
-        let max_output_line_length = options.output_line_length.unwrap_or(usize::MAX);;
+        let max_output_line_length = options.output_line_length.unwrap_or(usize::MAX);
         Self {
             output: Vec::new(),
             options,
             last_line_break: 0,
-            max_output_line_length
+            max_output_line_length,
         }
     }
 
-    pub fn generate<T: TextPane>(
-        &mut self,
-        buf: &Buffer,
-        layer: &T
-    ) {
+    pub fn generate<T: TextPane>(&mut self, buf: &Buffer, layer: &T) {
         let mut result = Vec::new();
         let mut last_attr = TextAttribute::default();
         let mut pos = Position::default();
         let height = layer.get_line_count();
         let mut first_char = true;
+        let mut cur_font_page = 0;
         self.last_line_break = 0;
 
         while pos.y < height {
@@ -128,6 +126,14 @@ impl AnsiGenerator {
                 // optimize color output for empty space lines.
                 if space_count > 0 && cur_attr.get_background() == ch.attribute.get_background() {
                     cur_attr = ch.attribute;
+                }
+
+                if cur_font_page != cur_attr.get_font_page() {
+                    cur_font_page = cur_attr.get_font_page();
+                    result.extend_from_slice(b"\x1b[0;");
+                    push_int(&mut result, space_count);
+                    result.extend_from_slice(b" D");
+                    self.push_result(&mut result);
                 }
 
                 if last_attr != cur_attr || first_char {
@@ -186,7 +192,8 @@ impl AnsiGenerator {
                             }
                             result.push(b'5');
                             wrote_part = true;
-                        } else if (last_attr.is_blinking() || first_char) && !cur_attr.is_blinking() {
+                        } else if (last_attr.is_blinking() || first_char) && !cur_attr.is_blinking()
+                        {
                             if wrote_part {
                                 result.push(b';');
                             }
@@ -262,7 +269,6 @@ impl AnsiGenerator {
                             result.extend_from_slice(b.to_string().as_bytes());
                             result.push(b't');
                             self.push_result(&mut result);
-
                         }
                     }
                     last_attr = cur_attr;
@@ -283,7 +289,7 @@ impl AnsiGenerator {
                 }
                 if self.options.modern_terminal_output {
                     if ch.ch == '\0' {
-                        result.push(b' ');                        
+                        result.push(b' ');
                     } else {
                         let uni_ch = CP437_TO_UNICODE[ch.ch as usize].to_string();
                         result.extend(uni_ch.as_bytes());
@@ -310,13 +316,12 @@ impl AnsiGenerator {
             pos.x = 0;
             pos.y += 1;
         }
-
     }
 
-    pub fn add_sixels(&mut self, buf: & Buffer) { 
+    pub fn add_sixels(&mut self, buf: &Buffer) {
         for layer in &buf.layers {
             for sixel in &layer.sixels {
-
+                /* TODO
                 match sixel_bytes::sixel_string(
                     &sixel.picture_data,
                     sixel.get_width(),
@@ -330,19 +335,16 @@ impl AnsiGenerator {
                         self.output.extend(format!("\x1b[{};{}H", p.y + 1, p.x + 1).as_bytes());
                         self.output.extend(data.as_bytes());
                     },
-                }
-
+                }*/
             }
         }
-
-
     }
 
     pub fn get_data(&self) -> &[u8] {
         &self.output
     }
 
-    fn push_result(&mut self, result: &mut Vec::<u8>)  {
+    fn push_result(&mut self, result: &mut Vec<u8>) {
         if self.output.len() + result.len() - self.last_line_break > self.max_output_line_length {
             self.output.extend_from_slice(b"\x1b[s");
             self.output.push(13);

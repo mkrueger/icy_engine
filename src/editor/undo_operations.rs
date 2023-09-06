@@ -483,3 +483,37 @@ impl UndoOperation for ResizeBuffer {
         Ok(())
     }
 }
+
+pub struct UndoLayerChange {
+    pub layer: usize,
+    pub pos: Position,
+    pub old_chars: Layer,
+    pub new_chars: Layer,
+}
+
+impl UndoLayerChange {
+    pub fn new(layer: usize, pos: Position, old_chars: Layer, new_chars: Layer) -> Self {
+        Self {
+            layer,
+            pos,
+            old_chars,
+            new_chars,
+        }
+    }
+}
+
+impl UndoOperation for UndoLayerChange {
+    fn get_description(&self) -> String {
+        String::new() // No stand alone operation.
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.layer].stamp(self.pos, &self.old_chars);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers[self.layer].stamp(self.pos, &self.new_chars);
+        Ok(())
+    }
+}
