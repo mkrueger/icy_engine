@@ -149,7 +149,6 @@ impl OutputFormat for XBin {
         result.set_height(height);
         result.layers[0].set_size((width, height));
         o += 2;
-
         let font_size = data[o];
         o += 1;
         let flags = data[o];
@@ -197,9 +196,9 @@ impl OutputFormat for XBin {
         }
 
         if is_compressed {
-            read_data_compressed(&mut result, &data[o..], data.len() - o)?;
+            read_data_compressed(&mut result, &data[o..])?;
         } else {
-            read_data_uncompressed(&mut result, &data[o..], data.len() - o)?;
+            read_data_uncompressed(&mut result, &data[o..])?;
         }
 
         Ok(result)
@@ -215,17 +214,11 @@ fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     true
 }
 
-fn read_data_compressed(result: &mut Buffer, bytes: &[u8], file_size: usize) -> EngineResult<bool> {
+fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
-    while o < file_size {
+    while o < bytes.len() {
         let xbin_compression = bytes[o];
-        if o > file_size {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "Invalid XBin.\nRead block start at EOF.",
-            )));
-        }
 
         o += 1;
         let compression = unsafe { std::mem::transmute(xbin_compression & 0b_1100_0000) };
@@ -342,12 +335,11 @@ fn encode_attr(char_code: u16, attr: TextAttribute, buffer_type: BufferType) -> 
 fn read_data_uncompressed(
     result: &mut Buffer,
     bytes: &[u8],
-    file_size: usize,
 ) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
-    while o < file_size {
-        if o + 1 > file_size {
+    while o < bytes.len() {
+        if o + 1 >= bytes.len() {
             return Err(Box::new(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "Invalid XBin.\n Uncompressed data length needs to be % 2 == 0",

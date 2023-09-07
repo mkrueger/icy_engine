@@ -271,7 +271,7 @@ impl SauceData {
             data.len() - SAUCE_LEN
         };
 
-        let offset = len - 1; // -1 is from the EOF char
+        let offset = len; // -1 is from the EOF char
 
         Ok(SauceData {
             title,

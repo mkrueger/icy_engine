@@ -464,7 +464,7 @@ impl Buffer {
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes)?;
 
-        Ok(Buffer::from_bytes(file_name, skip_errors, &bytes).unwrap())
+        Buffer::from_bytes(file_name, skip_errors, &bytes)
     }
 
     /// .
@@ -473,6 +473,7 @@ impl Buffer {
     ///
     /// This function will return an error if .
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        let extension = extension.to_ascii_lowercase();
         for fmt in &*crate::FORMATS {
             if fmt.get_file_extension() == extension {
                 return fmt.to_bytes(self, options);
@@ -506,6 +507,7 @@ impl Buffer {
             }
         };
 
+        let ext = ext.to_ascii_lowercase();
         for format in &*FORMATS {
             if format.get_file_extension() == ext {
                 return format.load_buffer(file_name, &bytes[..len], sauce_data);
