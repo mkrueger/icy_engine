@@ -1,7 +1,6 @@
 #![allow(clippy::unnecessary_wraps)]
 use super::{
-    constants::{ANSI_FONT_NAMES, COLOR_OFFSETS},
-    set_font_selection_success, BaudEmulation, EngineState, Parser,
+    constants::COLOR_OFFSETS, set_font_selection_success, BaudEmulation, EngineState, Parser,
 };
 use crate::{
     update_crc16, AttributedChar, BitFont, Buffer, CallbackAction, Caret, EngineResult,
@@ -704,20 +703,15 @@ impl Parser {
                 set_font_selection_success(buf, caret, nr);
                 return Ok(CallbackAction::None);
             }
-            if let Some(font_name) = ANSI_FONT_NAMES.get(nr) {
-                match BitFont::from_name(font_name) {
-                    Ok(font) => {
-                        set_font_selection_success(buf, caret, nr);
-                        buf.set_font(nr, font);
-                    }
-                    Err(err) => {
-                        buf.terminal_state.font_selection_state = FontSelectionState::Failure;
-                        return Err(err);
-                    }
+            match BitFont::from_ansi_font_page(nr) {
+                Ok(font) => {
+                    set_font_selection_success(buf, caret, nr);
+                    buf.set_font(nr, font);
                 }
-            } else {
-                buf.terminal_state.font_selection_state = FontSelectionState::Failure;
-                return Err(Box::new(ParserError::UnsupportedFont(nr)));
+                Err(err) => {
+                    buf.terminal_state.font_selection_state = FontSelectionState::Failure;
+                    return Err(err);
+                }
             }
         }
         Ok(CallbackAction::None)

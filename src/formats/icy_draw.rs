@@ -4,8 +4,7 @@ use base64::{engine::general_purpose, Engine};
 
 use crate::{
     parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer, OutputFormat,
-    Position, SauceData, SauceFileType, SauceString, SaveOptions, Sixel, Size, StringGenerator,
-    TextPane,
+    Position, SauceData, SauceFileType, SaveOptions, Sixel, Size, StringGenerator, TextPane,
 };
 
 mod constants {
@@ -76,7 +75,7 @@ impl OutputFormat for IcyDraw {
         for (k, v) in buf.font_iter() {
             if k >= &100 {
                 let mut font_data: Vec<u8> = Vec::new();
-                v.name.append_to(&mut font_data);
+                write_utf8_encoded_string(&mut font_data, &v.name);
                 font_data.extend(v.to_psf2_bytes().unwrap());
 
                 encoder.add_ztxt_chunk(
@@ -238,24 +237,12 @@ impl OutputFormat for IcyDraw {
                                 text => {
                                     if let Some(font_slot) = text.strip_prefix("FONT_") {
                                         let font_slot: usize = font_slot.parse()?;
-
                                         let mut o: usize = 0;
-                                        let mut font_name: SauceString<22, 0> = SauceString::new();
-
-                                        o += font_name.read(&bytes[o..]);
-
                                         let (font_name, size) =
                                             read_utf8_encoded_string(&bytes[o..]);
                                         o += size;
-                                        let data_length = u32::from_le_bytes(
-                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                        );
-                                        o += 4;
-                                        let font = BitFont::from_bytes(
-                                            font_name,
-                                            &bytes[o..(o + data_length as usize)],
-                                        )
-                                        .unwrap();
+                                        let font =
+                                            BitFont::from_bytes(font_name, &bytes[o..]).unwrap();
                                         result.set_font(font_slot, font);
                                         continue;
                                     }

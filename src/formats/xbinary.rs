@@ -182,23 +182,13 @@ impl OutputFormat for XBin {
             result.clear_font_table();
             result.set_font(
                 0,
-                BitFont::create_8(
-                    SauceString::new(),
-                    8,
-                    font_size,
-                    &data[o..(o + font_length)],
-                ),
+                BitFont::create_8("", 8, font_size, &data[o..(o + font_length)]),
             );
             o += font_length;
             if extended_char_mode {
                 result.set_font(
                     1,
-                    BitFont::create_8(
-                        SauceString::new(),
-                        8,
-                        font_size,
-                        &data[o..(o + font_length)],
-                    ),
+                    BitFont::create_8("", 8, font_size, &data[o..(o + font_length)]),
                 );
                 o += font_length;
             }

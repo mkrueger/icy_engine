@@ -1,4 +1,4 @@
-use crate::EngineResult;
+use crate::{EngineResult, ParserError};
 use std::{
     collections::HashMap,
     error::Error,
@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 
-use super::{SauceString, Size};
+use super::Size;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BitFontType {
@@ -58,7 +58,7 @@ impl Glyph {
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct BitFont {
-    pub name: SauceString<22, 0>,
+    pub name: String,
     pub size: Size,
     pub length: i32,
     font_type: BitFontType,
@@ -67,54 +67,11 @@ pub struct BitFont {
 
 impl Default for BitFont {
     fn default() -> Self {
-        BitFont::from_name(DEFAULT_FONT_NAME).unwrap()
+        BitFont::from_ansi_font_page(0).unwrap()
     }
 }
-
-static mut ALL_FONTS: Vec<String> = Vec::new();
-/*
-fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-    entry.file_name()
-         .to_str()
-         .map_or(false, |s| s.starts_with('.'))
-}
-
-fn load_fonts()
-{
-    if let Some(path) = unsafe { &WORKSPACE.settings.console_font_path } {
-        let walker = WalkDir::new(path).into_iter();
-        for entry in walker.filter_entry(|e| !is_hidden(e)) {
-            if let Err(e) = entry {
-                log::error!("Can't load tdf font library: {}", e);
-                break;
-            }
-            let entry = entry.unwrap();
-            let path = entry.path();
-
-            if path.is_dir() {
-                continue;
-            }
-            let prefix  = path.file_stem().unwrap().to_str().unwrap().to_string();
-            unsafe {
-                ALL_FONTS.push(prefix.to_string());
-            }
-        }
-    }
-}*/
 
 impl BitFont {
-    pub fn get_font_list() -> &'static Vec<String> {
-        unsafe {
-            if ALL_FONTS.is_empty() {
-                for s in SUPPORTED_FONTS {
-                    ALL_FONTS.push(s.to_string());
-                }
-                // load_fonts();
-            }
-            &ALL_FONTS
-        }
-    }
-
     /// .
     ///
     /// # Panics
@@ -137,7 +94,7 @@ impl BitFont {
     }
 
     pub fn is_default(&self) -> bool {
-        self.name.to_string() == DEFAULT_FONT_NAME || self.name.to_string() == ALT_DEFAULT_FONT_NAME
+        self.name == DEFAULT_FONT_NAME
     }
 
     pub fn set_glyphs_from_u8_data(&mut self, data: &[u8]) {
@@ -167,9 +124,9 @@ impl BitFont {
         self.glyphs.get_mut(&ch)
     }
 
-    pub fn create_8(name: SauceString<22, 0>, width: u8, height: u8, data: &[u8]) -> Self {
+    pub fn create_8(name: impl Into<String>, width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
-            name,
+            name: name.into(),
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
@@ -182,7 +139,7 @@ impl BitFont {
 
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
-            name: SauceString::EMPTY,
+            name: String::new(),
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
@@ -208,7 +165,7 @@ impl BitFont {
         };
 
         let mut r = BitFont {
-            name: SauceString::from(font_name),
+            name: font_name.into(),
             size: (8, charsize).into(),
             length,
             font_type: BitFontType::BuiltIn,
@@ -229,8 +186,8 @@ impl BitFont {
             }
         };
 
-        let mut r = BitFont {
-            name: SauceString::from(font_name),
+        let mut r: BitFont = BitFont {
+            name: font_name.into(),
             size,
             length: 256,
             font_type: BitFontType::BuiltIn,
@@ -268,7 +225,7 @@ impl BitFont {
         let width = u32::from_le_bytes(data[28..32].try_into().unwrap()) as usize;
 
         let mut r = BitFont {
-            name: SauceString::from(font_name),
+            name: font_name.into(),
             size: (width, height).into(),
             length,
             font_type: BitFontType::BuiltIn,
@@ -344,56 +301,6 @@ impl BitFont {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn from_name(font_name: &str) -> EngineResult<Self> {
-        if let Some(data) = get_font_data(font_name) {
-            BitFont::from_bytes(font_name, data)
-        } else {
-            Err(Box::new(FontError::FontNotFound))
-        }
-
-        /* else {
-            if let Some(path) = unsafe { &WORKSPACE.settings.console_font_path } {
-                let walker = WalkDir::new(path).into_iter();
-                for entry in walker.filter_entry(|e| !is_hidden(e)) {
-                    if let Err(e) = entry {
-                        log::error!("Can't load tdf font library: {}", e);
-                        break;
-                    }
-                    let entry = entry.unwrap();
-                    let path = entry.path();
-
-                    if path.is_dir() {
-                        continue;
-                    }
-                    let prefix  = path.file_stem().unwrap().to_str().unwrap().to_string();
-                    if prefix == font_name {
-                        let mut f = File::open(path).unwrap();
-                        let mut bytes = Vec::new();
-                        f.read_to_end(&mut bytes).expect("error while reading file");
-
-                        return Some(BitFont {
-                            name: SauceString::from(&prefix),
-                            size: len_to_size(bytes.len()),
-                            font_type: BitFontType::Library,
-                            data_32: None,
-                            data_8: bytes
-                        });
-                    }
-                }
-            }
-            None
-        }*/
-    }
-
-    /// .
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if .
     pub fn import(path: &Path) -> io::Result<String> {
         let file_name = path.file_name();
         if file_name.is_none() {
@@ -431,438 +338,363 @@ impl BitFont {
     }
 }
 
-const IBM_CP437_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA50.psf");
-const IBM_CP437_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/EGA.psf");
-const IBM_CP437_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA.psf");
-const IBM_CP437_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp437/VGA25G.psf");
+macro_rules! fonts {
+    ($( ($i:ident, $file:expr, $name: expr, $width:expr, $height:expr $(, $font_slot:expr)? ) ),* $(,)? ) => {
 
-const IBM_CP737_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA50.psf");
-const IBM_CP737_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp737/EGA.psf");
-const IBM_CP737_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp737/VGA.psf");
+        $(
+            pub const $i: &[u8] = include_bytes!(concat!("../data/fonts/", $file));
+        )*
 
-const IBM_CP775_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA50.psf");
-const IBM_CP775_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp775/EGA.psf");
-const IBM_CP775_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp775/VGA.psf");
+        impl BitFont {
+            /// .
+            ///
+            /// # Panics
+            ///
+            /// Panics if .
+            ///
+            /// # Errors
+            ///
+            /// This function will return an error if .
+            pub fn from_ansi_font_page(font_page: usize) -> EngineResult<Self> {
+                match font_page {
+                    $(
+                        $( $font_slot => {BitFont::from_bytes($name, $i)}  )?
+                    )*
+                    _ => Err(Box::new(ParserError::UnsupportedFont(font_page))),
+                }
+            }
+        }
 
-const IBM_CP850_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA50.psf");
-const IBM_CP850_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/EGA.psf");
-const IBM_CP850_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA.psf");
-const IBM_CP850_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp850/VGA25G.psf");
-
-const IBM_CP852_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA50.psf");
-const IBM_CP852_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp852/EGA.psf");
-const IBM_CP852_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA.psf");
-const IBM_CP852_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp852/VGA25G.psf");
-
-const IBM_CP855_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA50.psf");
-const IBM_CP855_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp855/EGA.psf");
-const IBM_CP855_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp855/VGA.psf");
-
-const IBM_CP857_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA50.psf");
-const IBM_CP857_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp857/EGA.psf");
-const IBM_CP857_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp857/VGA.psf");
-
-const IBM_CP860_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA50.psf");
-const IBM_CP860_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp860/EGA.psf");
-const IBM_CP860_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA.psf");
-const IBM_CP860_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp860/VGA25G.psf");
-
-const IBM_CP861_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA50.psf");
-const IBM_CP861_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp861/EGA.psf");
-const IBM_CP861_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA.psf");
-const IBM_CP861_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp861/VGA25G.psf");
-
-const IBM_CP862_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA50.psf");
-const IBM_CP862_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp862/EGA.psf");
-const IBM_CP862_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp862/VGA.psf");
-
-const IBM_CP863_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA50.psf");
-const IBM_CP863_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp863/EGA.psf");
-const IBM_CP863_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA.psf");
-const IBM_CP863_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp863/VGA25G.psf");
-
-const IBM_CP864_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA50.psf");
-const IBM_CP864_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp864/EGA.psf");
-const IBM_CP864_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp864/VGA.psf");
-
-const IBM_CP865_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA50.psf");
-const IBM_CP865_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp865/EGA.psf");
-const IBM_CP865_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA.psf");
-const IBM_CP865_VGA25G: &[u8] = include_bytes!("../data/fonts/IBM/cp865/VGA25G.psf");
-
-const IBM_CP866_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA50.psf");
-const IBM_CP866_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp866/EGA.psf");
-const IBM_CP866_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp866/VGA.psf");
-
-const IBM_CP869_VGA50: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA50.psf");
-const IBM_CP869_EGA: &[u8] = include_bytes!("../data/fonts/IBM/cp869/EGA.psf");
-const IBM_CP869_VGA: &[u8] = include_bytes!("../data/fonts/IBM/cp869/VGA.psf");
-
-const AMIGA_TOPAZ_1: &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1.psf");
-const AMIGA_TOPAZ_1P: &[u8] = include_bytes!("../data/fonts/Amiga/Topaz1+.psf");
-const AMIGA_TOPAZ_2: &[u8] = include_bytes!("../data/fonts/Amiga/Topaz2.psf");
-const AMIGA_TOPAZ_2P: &[u8] = include_bytes!("../data/fonts/Amiga/Topaz2+.psf");
-const AMIGA_P0T_NOODLE: &[u8] = include_bytes!("../data/fonts/Amiga/P0T-NOoDLE.psf");
-const AMIGA_MICROKNIGHT: &[u8] = include_bytes!("../data/fonts/Amiga/MicroKnight.psf");
-const AMIGA_MICROKNIGHTP: &[u8] = include_bytes!("../data/fonts/Amiga/MicroKnight+.psf");
-const AMIGA_MOSOUL: &[u8] = include_bytes!("../data/fonts/Amiga/mOsOul.psf");
-
-const C64_PETSCII_UNSHIFTED: &[u8] = include_bytes!("../data/fonts/C64_PETSCII_unshifted.psf");
-const C64_PETSCII_SHIFTED: &[u8] = include_bytes!("../data/fonts/C64_PETSCII_shifted.psf");
-const ATARI_ATASCII: &[u8] = include_bytes!("../data/fonts/Atari_ATASCII.psf");
-const VIEWDATA: &[u8] = include_bytes!("../data/fonts/saa5050.psf");
-
-pub const DEFAULT_FONT_NAME: &str = "IBM VGA";
-pub const ALT_DEFAULT_FONT_NAME: &str = "IBM VGA 437";
-
-pub const SUPPORTED_FONTS: [&str; 91] = [
-    "IBM VGA",
-    "IBM VGA50",
-    "IBM VGA25G",
-    "IBM EGA",
-    "IBM EGA43",
-    "IBM VGA 437",
-    "IBM VGA50 437",
-    "IBM VGA25G 437",
-    "IBM EGA 437",
-    "IBM EGA43 437",
-    /*
-    "IBM VGA 720",
-    "IBM VGA50 720",
-    "IBM VGA25G 720",
-    "IBM EGA 720",
-    "IBM EGA43 720",*/
-    "IBM VGA 737",
-    "IBM VGA50 737",
-    //"IBM VGA25G 737",
-    "IBM EGA 737",
-    "IBM EGA43 737",
-    "IBM VGA 775",
-    "IBM VGA50 775",
-    //"IBM VGA25G 775",
-    "IBM EGA 775",
-    "IBM EGA43 775",
-    /* "IBM VGA 819",
-    "IBM VGA50 819",
-    "IBM VGA25G 819",
-    "IBM EGA 819",
-    "IBM EGA43 819",*/
-    "IBM VGA 850",
-    "IBM VGA50 850",
-    "IBM VGA25G 850",
-    "IBM EGA 850",
-    "IBM EGA43 850",
-    "IBM VGA 852",
-    "IBM VGA50 852",
-    "IBM VGA25G 852",
-    "IBM EGA 852",
-    "IBM EGA43 852",
-    "IBM VGA 855",
-    "IBM VGA50 855",
-    //"IBM VGA25G 855",
-    "IBM EGA 855",
-    "IBM EGA43 855",
-    "IBM VGA 857",
-    "IBM VGA50 857",
-    //"IBM VGA25G 857",
-    "IBM EGA 857",
-    "IBM EGA43 857", /*
-
-                     "IBM VGA 858",
-                     "IBM VGA50 858",
-                     "IBM VGA25G 858",
-                     "IBM EGA 858",
-                     "IBM EGA43 858",*/
-    "IBM VGA 860",
-    "IBM VGA50 860",
-    "IBM VGA25G 860",
-    "IBM EGA 860",
-    "IBM EGA43 860",
-    "IBM VGA 861",
-    "IBM VGA50 861",
-    "IBM VGA25G 861",
-    "IBM EGA 861",
-    "IBM EGA43 861",
-    "IBM VGA 862",
-    "IBM VGA50 862",
-    //"IBM VGA25G 862",
-    "IBM EGA 862",
-    "IBM EGA43 862",
-    "IBM VGA 863",
-    "IBM VGA50 863",
-    "IBM VGA25G 863",
-    "IBM EGA 863",
-    "IBM EGA43 863",
-    "IBM VGA 864",
-    "IBM VGA50 864",
-    //"IBM VGA25G 864",
-    "IBM EGA 864",
-    "IBM EGA43 864",
-    "IBM VGA 865",
-    "IBM VGA50 865",
-    "IBM VGA25G 865",
-    "IBM EGA 865",
-    "IBM EGA43 865",
-    "IBM VGA 866",
-    "IBM VGA50 866",
-    //"IBM VGA25G 866",
-    "IBM EGA 866",
-    "IBM EGA43 866",
-    "IBM VGA 869",
-    "IBM VGA50 869",
-    //"IBM VGA25G 869",
-    "IBM EGA 869",
-    "IBM EGA43 869",
-    /*"IBM VGA 872",
-    "IBM VGA50 872",
-    "IBM VGA25G 872",
-    "IBM EGA 872",
-    "IBM EGA43 872",
-
-    "IBM VGA KAM",
-    "IBM VGA50 KAM",
-    "IBM VGA25G KAM",
-    "IBM EGA KAM",
-    "IBM EGA43 KAM",
-
-    "IBM VGA MAZ",
-    "IBM VGA50 MAZ",
-    "IBM VGA25G MAZ",
-    "IBM EGA MAZ",
-    "IBM EGA43 MAZ",*/
-    "IBM VGA MIK",
-    "IBM VGA50 MIK",
-    //"IBM VGA25G MIK",
-    "IBM EGA MIK",
-    "IBM EGA43 MIK",
-    /* "IBM VGA 667",
-    "IBM VGA50 667",
-    "IBM VGA25G 667",
-    "IBM EGA 667",
-    "IBM EGA43 667",
-
-    "IBM VGA 790",
-    "IBM VGA50 790",
-    "IBM VGA25G 790",
-    "IBM EGA 790",
-    "IBM EGA43 790",*/
-    "IBM VGA 866",
-    "IBM VGA50 866",
-    //"IBM VGA25G 866",
-    "IBM EGA 866",
-    "IBM EGA43 866",
-    /*
-    "IBM VGA 867",
-    "IBM VGA50 867",
-    "IBM VGA25G 867",
-    "IBM EGA 867",
-    "IBM EGA43 867",
-
-    "IBM VGA 895",
-    "IBM VGA50 895",
-    "IBM VGA25G 895",
-    "IBM EGA 895",
-    "IBM EGA43 895",
-
-    "IBM VGA 991",
-    "IBM VGA50 991",
-    "IBM VGA25G 991",
-    "IBM EGA 991",
-    "IBM EGA43 991",*/
-    "Amiga Topaz 1",
-    "Amiga Topaz 1+",
-    "Amiga Topaz 2",
-    "Amiga Topaz 2+",
-    "Amiga P0T-NOoDLE",
-    "Amiga MicroKnight",
-    "Amiga MicroKnight+",
-    "Amiga mOsOul",
-    "C64 PETSCII unshifted",
-    "C64 PETSCII shifted",
-    "Atari ATASCII",
-];
-
-#[allow(clippy::match_same_arms)]
-pub fn get_font_data(font_name: &str) -> Option<&[u8]> {
-    match font_name {
-        "IBM VGA" | "IBM VGA 437" => Some(IBM_CP437_VGA),
-        "IBM VGA50" | "IBM VGA50 437" => Some(IBM_CP437_VGA50),
-        "IBM VGA25G" | "IBM VGA25G 437" => Some(IBM_CP437_VGA25G),
-        "IBM EGA" | "IBM EGA 437" => Some(IBM_CP437_EGA),
-        "IBM EGA43" | "IBM EGA43 437" => Some(IBM_CP437_VGA50),
-
-        /*
-
-        "IBM VGA 720" => Some(IBM_CP720_VGA),
-        "IBM VGA50 720" => Some(IBM_CP720_VGA50),
-        "IBM VGA25G 720" => Some(IBM_CP720_VGA25G),
-        "IBM EGA 720" => Some(IBM_CP720_EGA),
-        "IBM EGA43 720" => Some(IBM_CP720_VGA50),*/
-        "IBM VGA 737" => Some(IBM_CP737_VGA),
-        "IBM VGA50 737" => Some(IBM_CP737_VGA50),
-        //        "IBM VGA25G 737" => Some(IBM_CP737_VGA25G),
-        "IBM EGA 737" => Some(IBM_CP737_EGA),
-        "IBM EGA43 737" => Some(IBM_CP737_VGA50),
-
-        "IBM VGA 775" => Some(IBM_CP775_VGA),
-        "IBM VGA50 775" => Some(IBM_CP775_VGA50),
-        //        "IBM VGA25G 775" => Some(IBM_CP775_VGA25G),
-        "IBM EGA 775" => Some(IBM_CP775_EGA),
-        "IBM EGA43 775" => Some(IBM_CP775_VGA50),
-
-        /*         "IBM VGA 819" => Some(IBM_CP819_VGA),
-        "IBM VGA50 819" => Some(IBM_CP819_VGA50),
-        "IBM VGA25G 819" => Some(IBM_CP819_VGA25G),
-        "IBM EGA 819" => Some(IBM_CP819_EGA),
-        "IBM EGA43 819" => Some(IBM_CP819_VGA50),*/
-        "IBM VGA 850" => Some(IBM_CP850_VGA),
-        "IBM VGA50 850" => Some(IBM_CP850_VGA50),
-        "IBM VGA25G 850" => Some(IBM_CP850_VGA25G),
-        "IBM EGA 850" => Some(IBM_CP850_EGA),
-        "IBM EGA43 850" => Some(IBM_CP850_VGA50),
-
-        "IBM VGA 852" => Some(IBM_CP852_VGA),
-        "IBM VGA50 852" => Some(IBM_CP852_VGA50),
-        "IBM VGA25G 852" => Some(IBM_CP852_VGA25G),
-        "IBM EGA 852" => Some(IBM_CP852_EGA),
-        "IBM EGA43 852" => Some(IBM_CP852_VGA50),
-
-        "IBM VGA 855" => Some(IBM_CP855_VGA),
-        "IBM VGA50 855" => Some(IBM_CP855_VGA50),
-        //        "IBM VGA25G 855" => Some(IBM_CP855_VGA25G),
-        "IBM EGA 855" => Some(IBM_CP855_EGA),
-        "IBM EGA43 855" => Some(IBM_CP855_VGA50),
-
-        "IBM VGA 857" => Some(IBM_CP857_VGA),
-        "IBM VGA50 857" => Some(IBM_CP857_VGA50),
-        //        "IBM VGA25G 857" => Some(IBM_CP857_VGA25G),
-        "IBM EGA 857" => Some(IBM_CP857_EGA),
-        "IBM EGA43 857" => Some(IBM_CP857_VGA50), /*
-
-        "IBM VGA 858" => Some(IBM_CP858_VGA),
-        "IBM VGA50 858" => Some(IBM_CP858_VGA50),
-        "IBM VGA25G 858" => Some(IBM_CP858_VGA25G),
-        "IBM EGA 858" => Some(IBM_CP858_EGA),
-        "IBM EGA43 858" => Some(IBM_CP858_VGA50),*/
-        "IBM VGA 860" => Some(IBM_CP860_VGA),
-        "IBM VGA50 860" => Some(IBM_CP860_VGA50),
-        "IBM VGA25G 860" => Some(IBM_CP860_VGA25G),
-        "IBM EGA 860" => Some(IBM_CP860_EGA),
-        "IBM EGA43 860" => Some(IBM_CP860_VGA50),
-
-        "IBM VGA 861" => Some(IBM_CP861_VGA),
-        "IBM VGA50 861" => Some(IBM_CP861_VGA50),
-        "IBM VGA25G 861" => Some(IBM_CP861_VGA25G),
-        "IBM EGA 861" => Some(IBM_CP861_EGA),
-        "IBM EGA43 861" => Some(IBM_CP861_VGA50),
-
-        "IBM VGA 862" => Some(IBM_CP862_VGA),
-        "IBM VGA50 862" => Some(IBM_CP862_VGA50),
-        //        "IBM VGA25G 862" => Some(IBM_CP862_VGA25G),
-        "IBM EGA 862" => Some(IBM_CP862_EGA),
-        "IBM EGA43 862" => Some(IBM_CP862_VGA50),
-
-        "IBM VGA 863" => Some(IBM_CP863_VGA),
-        "IBM VGA50 863" => Some(IBM_CP863_VGA50),
-        "IBM VGA25G 863" => Some(IBM_CP863_VGA25G),
-        "IBM EGA 863" => Some(IBM_CP863_EGA),
-        "IBM EGA43 863" => Some(IBM_CP863_VGA50),
-
-        "IBM VGA 864" => Some(IBM_CP864_VGA),
-        "IBM VGA50 864" => Some(IBM_CP864_VGA50),
-        //        "IBM VGA25G 864" => Some(IBM_CP864_VGA25G),
-        "IBM EGA 864" => Some(IBM_CP864_EGA),
-        "IBM EGA43 864" => Some(IBM_CP864_VGA50),
-
-        "IBM VGA 865" => Some(IBM_CP865_VGA),
-        "IBM VGA50 865" => Some(IBM_CP865_VGA50),
-        "IBM VGA25G 865" => Some(IBM_CP865_VGA25G),
-        "IBM EGA 865" => Some(IBM_CP865_EGA),
-        "IBM EGA43 865" => Some(IBM_CP865_VGA50),
-
-        "IBM VGA 866" => Some(IBM_CP866_VGA),
-        "IBM VGA50 866" => Some(IBM_CP866_VGA50),
-        //        "IBM VGA25G 866" => Some(IBM_CP866_VGA25G),
-        "IBM EGA 866" => Some(IBM_CP866_EGA),
-        "IBM EGA43 866" => Some(IBM_CP866_VGA50),
-
-        "IBM VGA 869" => Some(IBM_CP869_VGA),
-        "IBM VGA50 869" => Some(IBM_CP869_VGA50),
-        //        "IBM VGA25G 869" => Some(IBM_CP869_VGA25G),
-        "IBM EGA 869" => Some(IBM_CP869_EGA),
-        "IBM EGA43 869" => Some(IBM_CP869_VGA50),
-
-        /*"IBM VGA 872" => Some(IBM_CP872_VGA),
-                "IBM VGA50 872" => Some(IBM_CP872_VGA50),
-                "IBM VGA25G 872" => Some(IBM_CP872_VGA25G),
-                "IBM EGA 872" => Some(IBM_CP872_EGA),
-                "IBM EGA43 872" => Some(IBM_CP872_VGA50),
-
-                "IBM VGA KAM" => Some(IBM_CP867_VGA),
-                "IBM VGA50 KAM" => Some(IBM_CP867_VGA50),
-                "IBM VGA25G KAM" => Some(IBM_CP867_VGA25G),
-                "IBM EGA KAM" => Some(IBM_CP867_EGA),
-                "IBM EGA43 KAM" => Some(IBM_CP867_VGA50),
-
-                "IBM VGA MAZ" => Some(IBM_CP667_VGA),
-                "IBM VGA50 MAZ" => Some(IBM_CP667_VGA50),
-                "IBM VGA25G MAZ" => Some(IBM_CP667_VGA25G),
-                "IBM EGA MAZ" => Some(IBM_CP667_EGA),
-                "IBM EGA43 MAZ" => Some(IBM_CP667_VGA50),
-
-                "IBM VGA MIK" => Some(IBM_CP866_VGA),
-                "IBM VGA50 MIK" => Some(IBM_CP866_VGA50),
-        //        "IBM VGA25G MIK" => Some(IBM_CP866_VGA25G),
-                "IBM EGA MIK" => Some(IBM_CP866_EGA),
-                "IBM EGA43 MIK" => Some(IBM_CP866_VGA50),
-
-        /*         "IBM VGA 667" => Some(IBM_CP667_VGA),
-                "IBM VGA50 667" => Some(IBM_CP667_VGA50),
-                "IBM VGA25G 667" => Some(IBM_CP667_VGA25G),
-                "IBM EGA 667" => Some(IBM_CP667_EGA),
-                "IBM EGA43 667" => Some(IBM_CP667_VGA50),
-
-                "IBM VGA 790" => Some(IBM_CP790_VGA),
-                "IBM VGA50 790" => Some(IBM_CP790_VGA50),
-                "IBM VGA25G 790" => Some(IBM_CP790_VGA25G),
-                "IBM EGA 790" => Some(IBM_CP790_EGA),
-                "IBM EGA43 790" => Some(IBM_CP790_VGA50),*/
-
-
-                "IBM VGA 867" => Some(IBM_CP867_VGA),
-                "IBM VGA50 867" => Some(IBM_CP867_VGA50),
-                "IBM VGA25G 867" => Some(IBM_CP867_VGA25G),
-                "IBM EGA 867" => Some(IBM_CP867_EGA),
-                "IBM EGA43 867" => Some(IBM_CP867_VGA50),
-
-                "IBM VGA 895" => Some(IBM_CP895_VGA),
-                "IBM VGA50 895" => Some(IBM_CP895_VGA50),
-                "IBM VGA25G 895" => Some(IBM_CP895_VGA25G),
-                "IBM EGA 895" => Some(IBM_CP895_EGA),
-                "IBM EGA43 895" => Some(IBM_CP895_VGA50),
-
-                "IBM VGA 991" => Some(IBM_CP991_VGA),
-                "IBM VGA50 991" => Some(IBM_CP991_VGA50),
-                "IBM VGA25G 991" => Some(IBM_CP991_VGA25G),
-                "IBM EGA 991" => Some(IBM_CP991_EGA),
-                "IBM EGA43 991" => Some(IBM_CP991_VGA50),*/
-        "Amiga Topaz 1" => Some(AMIGA_TOPAZ_1),
-        "Amiga Topaz 1+" => Some(AMIGA_TOPAZ_1P),
-        "Amiga Topaz 2" => Some(AMIGA_TOPAZ_2),
-        "Amiga Topaz 2+" => Some(AMIGA_TOPAZ_2P),
-        "Amiga P0T-NOoDLE" => Some(AMIGA_P0T_NOODLE),
-        "Amiga MicroKnight" => Some(AMIGA_MICROKNIGHT),
-        "Amiga MicroKnight+" => Some(AMIGA_MICROKNIGHTP),
-        "Amiga mOsOul" => Some(AMIGA_MOSOUL),
-
-        "C64 PETSCII unshifted" => Some(C64_PETSCII_UNSHIFTED),
-        "C64 PETSCII shifted" => Some(C64_PETSCII_SHIFTED),
-
-        "Atari ATASCII" => Some(ATARI_ATASCII),
-        "Viewdata" => Some(VIEWDATA),
-        _ => None,
-    }
+        pub const FONT_NAMES: &[&str] = &[
+            $(
+                $name,
+            )*
+        ];
+    };
 }
+
+const DEFAULT_FONT_NAME: &str = "Codepage 437 English";
+pub const ANSI_FONTS: usize = 42;
+
+fonts![
+    (CP437, "Ansi/cp437_8x16.psf", DEFAULT_FONT_NAME, 8, 16, 0),
+    (
+        CP1251,
+        "Ansi/cp1251_swiss.f16",
+        "Codepage 1251 Cyrillic, (swiss)",
+        8,
+        16,
+        1
+    ),
+    (KOI8_R, "Ansi/KOI8-R.F16", "Russian koi8-r", 8, 16, 2),
+    (
+        ISO8859,
+        "Ansi/ISO-8859-2_Central_European_8x16.f16",
+        "ISO-8859-2 Central European",
+        8,
+        16,
+        3
+    ),
+    (
+        ISO8859_BALTIC_9BIT,
+        "Ansi/ISO-8859-4_Baltic_wide_VGA_9bit_mapped_8x16.f16",
+        "ISO-8859-4 Baltic wide (VGA 9bit mapped)",
+        8,
+        16,
+        4
+    ),
+    (
+        CP866,
+        "Ansi/cp866_russian.psf",
+        "Codepage 866 (c) Russian",
+        8,
+        16,
+        5
+    ),
+    (
+        CP8859_T,
+        "Ansi/ISO-8859-9_Turkish_8x16.f16",
+        "ISO-8859-9 Turkish",
+        8,
+        16,
+        6
+    ),
+    (HAIK8, "Ansi/HAIK8.F16", "haik8 codepage", 8, 16, 7),
+    (
+        ISO8859_HEB,
+        "Ansi/ISO-8859-8_Hebrew_8x16.f16",
+        "ISO-8859-8 Hebrew",
+        8,
+        16,
+        8
+    ),
+    (
+        KOI8_U,
+        "Ansi/Ukrainian_font_koi8-u_8x16.f16",
+        "Ukrainian font koi8-u",
+        8,
+        16,
+        9
+    ),
+    (
+        ISO8859_WE,
+        "Ansi/ISO-8859-15_West_European_thin_8x16.f16",
+        "ISO-8859-15 West European, (thin)",
+        8,
+        16,
+        10
+    ),
+    (
+        ISO8859_4_BALTIC,
+        "Ansi/ISO-8859-4_Baltic_VGA_9bit_mapped_8x16.f16",
+        "ISO-8859-4 Baltic (VGA 9bit mapped)",
+        8,
+        16,
+        11
+    ),
+    (
+        KOI8_R_B,
+        "Ansi/Russian_koi8-r_b_8x16.f16",
+        "Russian koi8-r (b)",
+        8,
+        16,
+        12
+    ),
+    (
+        ISO8859_BW,
+        "Ansi/ISO-8859-4_Baltic_wide_8x16.f16",
+        "ISO-8859-4 Baltic wide",
+        8,
+        16,
+        13
+    ),
+    (
+        ISO8859_5,
+        "Ansi/ISO-8859-5_Cyrillic_8x16.f16",
+        "ISO-8859-5 Cyrillic",
+        8,
+        16,
+        14
+    ),
+    (
+        ARMSCII_8,
+        "Ansi/ARMSCII-8_Character_set_8x16.f16",
+        "ARMSCII-8 Character set",
+        8,
+        16,
+        15
+    ),
+    (
+        ISO8859_15,
+        "Ansi/ISO-8859-15_West_European_8x16.f16",
+        "ISO-8859-15 West European",
+        8,
+        16,
+        16
+    ),
+    (
+        CP850_LI,
+        "Ansi/Codepage_850_Multilingual_Latin_I_thin_8x16.f16",
+        "Codepage 850 Multilingual Latin I, (thin)",
+        8,
+        16,
+        17
+    ),
+    (
+        CP850_ML,
+        "Ansi/Codepage_850_Multilingual_Latin_I_8x16.f16",
+        "Codepage 850 Multilingual Latin I",
+        8,
+        16,
+        18
+    ),
+    (
+        CP865,
+        "Ansi/Codepage_865_Norwegian_thin_8x16.f16",
+        "Codepage 865 Norwegian, (thin)",
+        8,
+        16,
+        19
+    ),
+    (
+        CP1251_CYR,
+        "Ansi/Codepage_1251_Cyrillic_8x16.f16",
+        "Codepage 1251 Cyrillic",
+        8,
+        16,
+        20
+    ),
+    (
+        ISO8859_7,
+        "Ansi/ISO-8859-7_Greek_8x16.f16",
+        "ISO-8859-7 Greek",
+        8,
+        16,
+        21
+    ),
+    (
+        KOI8_RC,
+        "Ansi/Russian_koi8-r_c_8x16.f16",
+        "Russian koi8-r (c)",
+        8,
+        16,
+        22
+    ),
+    (
+        ISO8859_4_BALTIC2,
+        "Ansi/ISO-8859-4_Baltic_8x16.f16",
+        "ISO-8859-4 Baltic",
+        8,
+        16,
+        23
+    ),
+    (
+        ISO8859_1_WE,
+        "Ansi/ISO-8859-1_West_European_8x16.f16",
+        "ISO-8859-1 West European",
+        8,
+        16,
+        24
+    ),
+    (
+        CP886_RUS,
+        "Ansi/Codepage_866_Russian_8x16.f16",
+        "Codepage 866 Russian",
+        8,
+        16,
+        25
+    ),
+    (
+        CP437_THIN,
+        "Ansi/Codepage_437_English_thin_8x16.f16",
+        "Codepage 437 English, (thin)",
+        8,
+        16,
+        26
+    ),
+    (
+        CP866_R,
+        "Ansi/Codepage_866_b_Russian_8x16.f16",
+        "Codepage 866 (b) Russian",
+        8,
+        16,
+        27
+    ),
+    (
+        CP865_NOR,
+        "Ansi/Codepage_865_Norwegian_8x16.f16",
+        "Codepage 865 Norwegian",
+        8,
+        16,
+        28
+    ),
+    (
+        CP866U,
+        "Ansi/Ukrainian_font_cp866u_8x16.f16",
+        "Ukrainian font cp866u",
+        8,
+        16,
+        29
+    ),
+    (
+        ISO8859_1_WE_T,
+        "Ansi/ISO-8859-1_West_European_thin_8x16.f16",
+        "ISO-8859-1 West European, (thin)",
+        8,
+        16,
+        30
+    ),
+    (
+        CP1131_BEL,
+        "Ansi/Codepage_1131_Belarusian_swiss_8x16.f16",
+        "Codepage 1131 Belarusian, (swiss)",
+        8,
+        16,
+        31
+    ),
+    (
+        C64_UPPER,
+        "Commodore/C64_PETSCII_shifted.psf",
+        "Commodore 64 (UPPER)",
+        8,
+        8,
+        32
+    ),
+    (
+        C64_LOWER,
+        "Commodore/C64_PETSCII_unshifted.psf",
+        "Commodore 64 (Lower)",
+        8,
+        8,
+        33
+    ),
+    (
+        C128_UPPER,
+        "Commodore/Commodore_128_UPPER_8x16.f16",
+        "Commodore 128 (UPPER)",
+        8,
+        8,
+        34
+    ),
+    (
+        C128_LOWER,
+        "Commodore/Commodore_128_Lower_8x16.f16",
+        "Commodore 128 (Lower)",
+        8,
+        8,
+        35
+    ),
+    (ATARI, "Atari/Atari_ATASCII.psf", "Atari", 8, 8, 36),
+    (
+        AMIGA_P0T_NOODLE,
+        "Amiga/P0T-NOoDLE.psf",
+        "P0T NOoDLE (Amiga)",
+        8,
+        16,
+        37
+    ),
+    (
+        AMIGA_MOSOUL,
+        "Amiga/mOsOul.psf",
+        "mO'sOul (Amiga)",
+        8,
+        16,
+        38
+    ),
+    (
+        AMIGA_MICROKNIGHTP,
+        "Amiga/MicroKnight+.psf",
+        "MicroKnight Plus (Amiga)",
+        8,
+        16,
+        39
+    ),
+    (
+        AMIGA_TOPAZ_1P,
+        "Amiga/Topaz1+.psf",
+        "Topaz Plus (Amiga)",
+        8,
+        16,
+        40
+    ),
+    (
+        AMIGA_MICROKNIGHT,
+        "Amiga/MicroKnight.psf",
+        "MicroKnight (Amiga)",
+        8,
+        16,
+        41
+    ),
+    (
+        AMIGA_TOPAZ_1,
+        "Amiga/Topaz1.psf",
+        "Topaz (Amiga)",
+        8,
+        16,
+        42
+    ),
+    (VIEWDATA, "Viewdata/saa5050.psf", "Viewdata", 6, 16),
+];
 
 #[derive(Debug, Clone)]
 pub enum FontError {

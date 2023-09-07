@@ -433,8 +433,6 @@ const ANSI_ASPECT_RATIO_LEGACY: u8 = 0b0000_0000;
 const ANSI_ASPECT_RATIO_STRETCH: u8 = 0b0000_1000;
 const ANSI_ASPECT_RATIO_SQUARE: u8 = 0b0001_0000;
 
-static EMPTY_TINFO: SauceString<22, 0> = SauceString(Vec::new());
-
 impl Buffer {
     /// .
     ///
@@ -499,7 +497,7 @@ impl Buffer {
         let t_info3 = 0;
         let t_info4 = 0;
         let mut t_flags = 0;
-        let mut t_info_str = &self.get_font(0).unwrap().name;
+        let mut t_info_str = self.get_font(0).unwrap().name.clone();
 
         match sauce_file_type {
             SauceFileType::Ascii => {
@@ -535,7 +533,7 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
                 // no flags
-                t_info_str = &EMPTY_TINFO;
+                t_info_str = String::new();
             },
             SauceFileType::Avatar => {
                 data_type = SauceDataType::Character;
@@ -543,14 +541,14 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
                 // no flags
-                t_info_str = &EMPTY_TINFO;
+                t_info_str = String::new();
             },
             SauceFileType::TundraDraw => {
                 data_type = SauceDataType::Character;
                 file_type = SAUCE_FILE_TYPE_TUNDRA_DRAW;
                 t_info1 = self.get_width();
                 // no flags
-                t_info_str = &EMPTY_TINFO;
+                t_info_str = String::new();
             }
             SauceFileType::Bin => {
                 data_type = SauceDataType::BinaryText;
@@ -567,7 +565,7 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
                 // no flags
-                t_info_str = &EMPTY_TINFO;
+                t_info_str = String::new();
             }
         }
 
@@ -579,8 +577,8 @@ impl Buffer {
         vec.extend(u16::to_le_bytes(t_info4));
         vec.push(comment_len); // comment len is checked above for <= 255
         vec.push(t_flags);
+        let t_info_str: SauceString<22, 0> = SauceString::from(t_info_str);
         t_info_str.append_to(vec);
-
         Ok(true)
     }
 }

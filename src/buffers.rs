@@ -258,7 +258,7 @@ impl Buffer {
     pub fn search_font_by_name(&self, name: impl Into<String>) -> Option<usize> {
         let name = name.into();
         for (i, font) in &self.font_table {
-            if font.name.to_string() == name {
+            if font.name == name {
                 return Some(*i);
             }
         }

@@ -44,7 +44,6 @@ Keyword: 'FONT_{SLOT}'
 Field      Bytes  Meaning
 [NameLen]  4      LE_U32 Length of Name
 [Name]     *      U8 - UTF8 encoded chars
-[Length]   4      LE_U32 Data Length
 [Data]     *      Font data as PSF
 ```
 
