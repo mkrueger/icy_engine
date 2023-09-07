@@ -170,7 +170,7 @@ impl From<Position> for Size {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct Rectangle {
     pub start: Position,
     pub size: Size,
@@ -294,11 +294,11 @@ impl Rectangle {
         self.lower_right().y
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.size.width <= 0 || self.size.height <= 0
     }
 
-    fn is_inside(&self, pos: impl Into<Position>) -> bool {
+    pub fn is_inside(&self, pos: impl Into<Position>) -> bool {
         let pos = pos.into();
 
         self.start.x <= pos.x

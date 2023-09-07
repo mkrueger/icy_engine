@@ -1,9 +1,9 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{layer, EngineResult, Layer, Position, Size, TextPane};
+use crate::{EngineResult, Layer, Position, Size, TextPane};
 
-use super::{undo_operations, EditState, EditorError};
+use super::{undo_operations, EditState};
 
 impl EditState {
     pub fn add_new_layer(&mut self, layer: usize) -> EngineResult<()> {
@@ -150,6 +150,15 @@ impl EditState {
         self.push_undo(Box::new(op))
     }
 
+    /// Returns the stamp layer down of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn stamp_layer_down(&mut self) -> EngineResult<()> {
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-stamp-down"));
         let layer_idx = self.current_layer;
@@ -193,6 +202,15 @@ impl EditState {
         self.push_undo(Box::new(op))
     }
 
+    /// Returns the make layer transparent of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn make_layer_transparent(&mut self) -> EngineResult<()> {
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-make_transparent"));
         let layer_idx = self.current_layer;

@@ -178,7 +178,7 @@ impl UndoOperation for RemoveLayer {
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        if self.layer_index < edit_state.buffer.layers.len() { 
+        if self.layer_index < edit_state.buffer.layers.len() {
             self.layer = Some(edit_state.buffer.layers.remove(self.layer_index));
             edit_state.clamp_current_layer();
             Ok(())
@@ -446,7 +446,6 @@ impl UndoOperation for Paste {
         if let Some(layer) = self.layer.take() {
             edit_state.buffer.layers.push(layer);
             Ok(())
-
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
         }
@@ -905,5 +904,31 @@ impl UndoOperation for RotateLayer {
         } else {
             Err(Box::new(EditorError::InvalidLayer(self.layer)))
         }
+    }
+}
+
+
+pub(crate) struct ReversedUndo {
+    description: String,
+    op: Box<dyn UndoOperation>,
+}
+
+impl ReversedUndo {
+    pub(crate) fn new(description: String, op: Box<dyn UndoOperation>) -> Self {
+        Self { description, op }
+    }
+}
+
+impl UndoOperation for ReversedUndo {
+    fn get_description(&self) -> String {
+        self.description.clone()
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.op.redo(edit_state)
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.op.undo(edit_state)
     }
 }

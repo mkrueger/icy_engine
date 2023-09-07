@@ -525,7 +525,7 @@ mod tests {
         }
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection();
+        state.delete_selection().unwrap();
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((3, 5), '#'.into()).unwrap();
@@ -574,7 +574,7 @@ mod tests {
         }
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection();
+        state.delete_selection().unwrap();
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((3, 3), '#'.into()).unwrap();
@@ -622,7 +622,7 @@ mod tests {
         }
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection();
+        state.delete_selection().unwrap();
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((5, 5), '#'.into()).unwrap();
@@ -672,7 +672,7 @@ mod tests {
         }
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection();
+        state.delete_selection().unwrap();
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((0, 5), '#'.into()).unwrap();
@@ -720,7 +720,7 @@ mod tests {
         }
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection();
+        state.delete_selection().unwrap();
 
         state.set_selection(Rectangle::from(0, 0, 10, 10));
         state.set_char((5, 5), '#'.into()).unwrap();

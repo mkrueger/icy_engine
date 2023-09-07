@@ -22,7 +22,7 @@ pub trait UndoState {
     fn redo(&mut self) -> EngineResult<()>;
 }
 
-pub trait UndoOperation: Send {
+pub trait UndoOperation {
     fn get_description(&self) -> String;
 
     /// .
