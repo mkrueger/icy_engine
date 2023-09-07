@@ -163,6 +163,7 @@ impl UndoOperation for AddLayer {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         self.layer = Some(edit_state.buffer.layers.remove(self.index));
+        edit_state.clamp_current_layer();
         Ok(())
     }
 
@@ -306,6 +307,7 @@ impl UndoOperation for MergeLayerDown {
                 edit_state.buffer.layers.insert(self.index - 1, layer);
             }
             self.merged_layer = Some(edit_state.buffer.layers.remove(self.index + 1));
+            edit_state.clamp_current_layer();
             Ok(())
         } else {
             Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
