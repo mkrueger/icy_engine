@@ -142,9 +142,12 @@ impl OutputFormat for XBin {
 
         // let eof_char = bytes[o];
         o += 1;
-        result.set_width(data[o] as i32 + ((data[o + 1] as i32) << 8));
+        let width = data[o] as i32 + ((data[o + 1] as i32) << 8);
+        result.set_width(width);
         o += 2;
-        result.set_height(data[o] as i32 + ((data[o + 1] as i32) << 8));
+        let height = data[o] as i32 + ((data[o + 1] as i32) << 8);
+        result.set_height(height);
+        result.layers[0].set_size((width, height));
         o += 2;
 
         let font_size = data[o];
