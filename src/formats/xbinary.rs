@@ -194,7 +194,6 @@ impl OutputFormat for XBin {
                 o += font_length;
             }
         }
-
         if is_compressed {
             read_data_compressed(&mut result, &data[o..])?;
         } else {
@@ -332,18 +331,15 @@ fn encode_attr(char_code: u16, attr: TextAttribute, buffer_type: BufferType) -> 
     }
 }
 
-fn read_data_uncompressed(
-    result: &mut Buffer,
-    bytes: &[u8],
-) -> EngineResult<bool> {
+fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
         if o + 1 >= bytes.len() {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "Invalid XBin.\n Uncompressed data length needs to be % 2 == 0",
-            )));
+            // last byte is not important enough to throw an error
+            // there seem to be some invalid files out there.
+            log::error!("Invalid XBin. Read char block beyond EOF.");
+            return Ok(true);
         }
         result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], result.buffer_type));
         o += 2;

@@ -266,12 +266,12 @@ impl SauceData {
                 o += comment.read(&data[o..]);
                 comments.push(comment);
             }
-            comment_start // -1 is from the EOF char
+            comment_start
         } else {
             data.len() - SAUCE_LEN
         };
 
-        let offset = len; // -1 is from the EOF char
+        let offset = len - 1; // -1 is from the EOF char
 
         Ok(SauceData {
             title,

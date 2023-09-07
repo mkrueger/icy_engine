@@ -58,7 +58,7 @@ impl OutputFormat for IcyDraw {
             let mut result: Vec<u8> = Vec::new();
             result.push(constants::ICD_VERSION as u8);
             result.push((constants::ICD_VERSION >> 8) as u8);
-            result.push(0); // Type 
+            result.push(0); // Type
             result.push(0); // Mode
             result.extend(u32::to_le_bytes(buf.get_width() as u32));
             result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
