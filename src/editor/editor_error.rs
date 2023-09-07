@@ -6,6 +6,7 @@ pub enum EditorError {
 
     Error(String),
     InvalidLayer(usize),
+    MergeLayerDownHasNoMergeLayer,
 }
 
 impl std::fmt::Display for EditorError {
@@ -14,6 +15,9 @@ impl std::fmt::Display for EditorError {
             EditorError::CurrentLayerInvalid => write!(f, "Current layer is invalid"),
             EditorError::InvalidLayer(layer) => write!(f, "Layer {layer} is invalid"),
             EditorError::Error(err) => write!(f, "Editor error: {err}"),
+            EditorError::MergeLayerDownHasNoMergeLayer => {
+                write!(f, "Merge layer down has no merge layer")
+            }
         }
     }
 }

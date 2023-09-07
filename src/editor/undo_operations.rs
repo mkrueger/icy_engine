@@ -178,9 +178,13 @@ impl UndoOperation for RemoveLayer {
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.layer = Some(edit_state.buffer.layers.remove(self.layer_index));
-        edit_state.clamp_current_layer();
-        Ok(())
+        if self.layer_index < edit_state.buffer.layers.len() { 
+            self.layer = Some(edit_state.buffer.layers.remove(self.layer_index));
+            edit_state.clamp_current_layer();
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.layer_index).into())
+        }
     }
 }
 
@@ -278,8 +282,10 @@ impl UndoOperation for MergeLayerDown {
                 edit_state.buffer.layers.insert(self.index - 1, layer);
             }
             self.merged_layer = Some(edit_state.buffer.layers.remove(self.index + 1));
+            Ok(())
+        } else {
+            Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
         }
-        Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
@@ -292,8 +298,10 @@ impl UndoOperation for MergeLayerDown {
                     .collect(),
             );
             edit_state.buffer.layers.insert(self.index - 1, layer);
+            Ok(())
+        } else {
+            Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
         }
-        Ok(())
     }
 }
 
@@ -314,15 +322,21 @@ impl UndoOperation for ToggleLayerVisibility {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].is_visible =
-            !edit_state.buffer.layers[self.index].is_visible;
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.is_visible = !layer.is_visible;
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].is_visible =
-            !edit_state.buffer.layers[self.index].is_visible;
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.is_visible = !layer.is_visible;
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
     }
 }
 
@@ -345,13 +359,21 @@ impl UndoOperation for MoveLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].set_offset(self.from);
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.set_offset(self.from);
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].set_offset(self.to);
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.set_offset(self.to);
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
     }
 }
 
@@ -378,14 +400,22 @@ impl UndoOperation for SetLayerSize {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.index].set_size(self.from);
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.set_size(self.from);
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.from = edit_state.buffer.layers[self.index].get_size();
-        edit_state.buffer.layers[self.index].set_size(self.to);
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            self.from = layer.get_size();
+            layer.set_size(self.to);
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
     }
 }
 
@@ -415,8 +445,11 @@ impl UndoOperation for Paste {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = self.layer.take() {
             edit_state.buffer.layers.push(layer);
+            Ok(())
+
+        } else {
+            Err(EditorError::CurrentLayerInvalid.into())
         }
-        Ok(())
     }
 }
 
@@ -508,13 +541,21 @@ impl UndoOperation for UndoLayerChange {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.layer].stamp(self.pos, &self.old_chars);
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.layer) {
+            layer.stamp(self.pos, &self.old_chars);
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.layer).into())
+        }
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state.buffer.layers[self.layer].stamp(self.pos, &self.new_chars);
-        Ok(())
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.layer) {
+            layer.stamp(self.pos, &self.new_chars);
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.layer).into())
+        }
     }
 }
 
