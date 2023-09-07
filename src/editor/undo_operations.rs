@@ -827,7 +827,6 @@ impl UndoOperation for UndoScrollWholeLayerDown {
     }
 }
 
-
 #[derive(Default)]
 pub struct RotateLayer {
     layer: usize,
@@ -867,6 +866,3 @@ impl UndoOperation for RotateLayer {
         }
     }
 }
-
-
-

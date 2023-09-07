@@ -499,7 +499,7 @@ impl Buffer {
             Ok(sauce) => {
                 len -= sauce.sauce_header_len;
                 Some(sauce)
-            },
+            }
             Err(err) => {
                 log::error!("Error reading sauce data: {}", err);
                 None

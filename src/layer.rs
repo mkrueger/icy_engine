@@ -161,6 +161,10 @@ impl Layer {
         self.offset
     }
 
+    pub fn get_base_offset(&self) -> Position {
+        self.offset
+    }
+
     pub fn set_offset(&mut self, pos: impl Into<Position>) {
         if self.is_position_locked {
             return;
