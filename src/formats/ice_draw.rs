@@ -97,7 +97,6 @@ impl OutputFormat for IceDraw {
         _sauce_opt: Option<crate::SauceData>,
     ) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
-        result.layers.clear();
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
 

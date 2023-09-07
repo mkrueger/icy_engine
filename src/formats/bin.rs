@@ -42,7 +42,6 @@ impl OutputFormat for Bin {
         sauce_opt: Option<crate::SauceData>,
     ) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((160, 25));
-        result.layers.clear();
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
         if let Some(sauce) = sauce_opt {
