@@ -7,8 +7,8 @@ use i18n_embed_fl::fl;
 use crate::{AttributedChar, EngineResult, Layer, Position, Rectangle, Sixel, Size, TextPane};
 
 use super::{
-    undo_operations::{Paste, UndoSetChar, UndoSwapChar},
-    EditState,
+    undo_operations::{Paste, ReverseCaretPosition, ReversedUndo, UndoSetChar, UndoSwapChar},
+    EditState, OperationType, UndoOperation,
 };
 
 impl EditState {
@@ -220,6 +220,35 @@ impl EditState {
         let x = self.get_caret().get_position().x + offset.x;
         self.set_selection(Rectangle::from_coords(x, y, x, 1_000_000));
         self.delete_selection()
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn push_reverse_undo(
+        &mut self,
+        description: impl Into<String>,
+        op: Box<dyn UndoOperation>,
+        operation_type: OperationType,
+    ) -> EngineResult<()> {
+        self.push_undo(Box::new(ReversedUndo::new(
+            description.into(),
+            op,
+            operation_type,
+        )))
+    }
+
+    pub fn undo_caret_position(&mut self) -> EngineResult<()> {
+        let op = ReverseCaretPosition::new(self.caret.get_position());
+        self.redo_stack.clear();
+        self.undo_stack.lock().unwrap().push(Box::new(op));
+        Ok(())
     }
 }
 

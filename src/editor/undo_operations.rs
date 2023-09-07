@@ -1,19 +1,31 @@
-use std::mem;
+use std::{
+    mem,
+    sync::{Arc, Mutex},
+};
 
 use i18n_embed_fl::fl;
 
 use crate::{AttributedChar, EngineResult, Layer, Line, Position, Size, TextPane};
 
-use super::{EditState, EditorError, UndoOperation};
+use super::{EditState, EditorError, OperationType, UndoOperation};
 
 pub(crate) struct AtomicUndo {
     description: String,
-    stack: Vec<Box<dyn UndoOperation>>,
+    stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
+    operation_type: OperationType,
 }
 
 impl AtomicUndo {
-    pub(crate) fn new(description: String, stack: Vec<Box<dyn UndoOperation>>) -> Self {
-        Self { description, stack }
+    pub(crate) fn new(
+        description: String,
+        stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
+        operation_type: OperationType,
+    ) -> Self {
+        Self {
+            description,
+            stack,
+            operation_type,
+        }
     }
 }
 
@@ -22,18 +34,30 @@ impl UndoOperation for AtomicUndo {
         self.description.clone()
     }
 
+    fn get_operation_type(&self) -> OperationType {
+        self.operation_type
+    }
+
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        for op in self.stack.iter_mut().rev() {
+        for op in self.stack.lock().unwrap().iter_mut().rev() {
             op.undo(edit_state)?;
         }
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        for op in &mut self.stack {
+        for op in self.stack.lock().unwrap().iter_mut() {
             op.redo(edit_state)?;
         }
         Ok(())
+    }
+
+    fn try_clone(&self) -> Option<Box<dyn UndoOperation>> {
+        Some(Box::new(AtomicUndo::new(
+            self.description.clone(),
+            self.stack.clone(),
+            self.operation_type,
+        )))
     }
 }
 
@@ -516,6 +540,7 @@ impl UndoOperation for ResizeBuffer {
     }
 }
 
+#[derive(Clone)]
 pub struct UndoLayerChange {
     pub layer: usize,
     pub pos: Position,
@@ -907,15 +932,23 @@ impl UndoOperation for RotateLayer {
     }
 }
 
-
 pub(crate) struct ReversedUndo {
     description: String,
     op: Box<dyn UndoOperation>,
+    operation_type: OperationType,
 }
 
 impl ReversedUndo {
-    pub(crate) fn new(description: String, op: Box<dyn UndoOperation>) -> Self {
-        Self { description, op }
+    pub(crate) fn new(
+        description: String,
+        op: Box<dyn UndoOperation>,
+        operation_type: OperationType,
+    ) -> Self {
+        Self {
+            description,
+            op,
+            operation_type,
+        }
     }
 }
 
@@ -924,11 +957,43 @@ impl UndoOperation for ReversedUndo {
         self.description.clone()
     }
 
+    fn get_operation_type(&self) -> OperationType {
+        self.operation_type
+    }
+
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         self.op.redo(edit_state)
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         self.op.undo(edit_state)
+    }
+}
+
+pub(crate) struct ReverseCaretPosition {
+    pos: Position,
+    old_pos: Position,
+}
+
+impl ReverseCaretPosition {
+    pub(crate) fn new(pos: Position) -> Self {
+        Self { pos, old_pos: pos }
+    }
+}
+
+impl UndoOperation for ReverseCaretPosition {
+    fn get_description(&self) -> String {
+        "Reverse caret position".into()
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.old_pos = edit_state.caret.pos;
+        edit_state.caret.pos = self.pos;
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.caret.pos = self.old_pos;
+        Ok(())
     }
 }

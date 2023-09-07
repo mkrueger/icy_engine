@@ -35,16 +35,22 @@ pub struct EditState {
 pub struct AtomicUndoGuard {
     base_count: usize,
     description: String,
+    operation_type: OperationType,
 
     undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
 }
 
 impl AtomicUndoGuard {
-    fn new(description: String, undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>) -> Self {
+    fn new(
+        description: String,
+        undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
+        operation_type: OperationType,
+    ) -> Self {
         let base_count = undo_stack.lock().unwrap().len();
         Self {
             base_count,
             description,
+            operation_type,
             undo_stack,
         }
     }
@@ -62,13 +68,14 @@ impl Drop for AtomicUndoGuard {
             .unwrap()
             .drain(self.base_count..)
             .collect();
-
+        let stack = Arc::new(Mutex::new(stack));
         self.undo_stack
             .lock()
             .unwrap()
             .push(Box::new(undo_operations::AtomicUndo::new(
                 self.description.clone(),
                 stack,
+                self.operation_type,
             )));
     }
 }
@@ -250,9 +257,18 @@ impl EditState {
     }
 
     #[must_use]
-    pub fn begin_atomic_undo(&mut self, description: String) -> AtomicUndoGuard {
+    pub fn begin_atomic_undo(&mut self, description: impl Into<String>) -> AtomicUndoGuard {
+        self.begin_typed_atomic_undo(description, OperationType::Unknown)
+    }
+
+    #[must_use]
+    pub fn begin_typed_atomic_undo(
+        &mut self,
+        description: impl Into<String>,
+        operation_type: OperationType,
+    ) -> AtomicUndoGuard {
         self.redo_stack.clear();
-        AtomicUndoGuard::new(description, self.undo_stack.clone())
+        AtomicUndoGuard::new(description.into(), self.undo_stack.clone(), operation_type)
     }
 
     fn clamp_current_layer(&mut self) {
@@ -268,8 +284,17 @@ impl EditState {
         Ok(())
     }
 
+    /// Returns the undo stack len of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn undo_stack_len(&self) -> usize {
         self.undo_stack.lock().unwrap().len()
+    }
+
+    pub fn get_undo_stack(&self) -> Arc<Mutex<Vec<Box<dyn UndoOperation>>>> {
+        self.undo_stack.clone()
     }
 
     pub fn has_floating_layer(&self) -> bool {

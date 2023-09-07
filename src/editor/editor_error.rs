@@ -7,6 +7,7 @@ pub enum EditorError {
     Error(String),
     InvalidLayer(usize),
     MergeLayerDownHasNoMergeLayer,
+    UndoStackEmpty,
 }
 
 impl std::fmt::Display for EditorError {
@@ -18,6 +19,7 @@ impl std::fmt::Display for EditorError {
             EditorError::MergeLayerDownHasNoMergeLayer => {
                 write!(f, "Merge layer down has no merge layer")
             }
+            EditorError::UndoStackEmpty => write!(f, "Undo stack is empty"),
         }
     }
 }
