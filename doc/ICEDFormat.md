@@ -22,10 +22,14 @@ Keyword: 'ICED'
 Field      Bytes  Meaning
 [VER]      2      LE_U16 u8 Major:u8 Minor - [00:00] atm
 [Type]     1      0 - ANSI, 1 - PETSCII, 2 - ATASCII, 3 - VIEWDATA
+[Mode]     1      0 - Picture, 1 - Animation
 [Width]    4      LE_U32
 [Height]   4      LE_U32
 
 ```
+
+Note Animation needs still to be specified. There should be transformation options between them.
+Not yet decided of a "frame" is single layer or a set of layers.
 
 #### END block
 Keyword: 'END'
@@ -53,7 +57,7 @@ Keyword: 'LAYER_{SLOT}'
 ```
 Field      Bytes  Meaning
 [Title_Len]4      LE_U32 length of the utf8 title
-[Title]    *      U8 - UTF8 encoded chars - Note: May only be 16 chars depending on language.
+[Title]    *      U8 - UTF8 encoded chars
 [Role]     1      0 - normal, 1 - image (data contains rgba image data)
 [Extra]    4      unused 
 [Mode]     1      0 - normal, 1 - chars, 2 - attributes
@@ -69,10 +73,10 @@ Field      Bytes  Meaning
 [Width]    4      LE_U32
 [Height]   4      LE_U32
 [DataLen]  8      LE_U64 Length of Data
-[Data]     *      Ansi encoded data/Sixel data
+[Data]     *      Ansi encoded data/Image data
 ```
 
-Sixel data:
+Image data:
 
 [Width]      4      LE_U32 Width
 [Height]     4      LE_U32 Height

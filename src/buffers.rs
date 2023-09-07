@@ -146,7 +146,9 @@ impl Buffer {
 
     pub fn set_sauce(&mut self, sauce: SauceData) {
         self.set_size(sauce.buffer_size);
-        self.layers[0].set_size(sauce.buffer_size);
+        if !self.layers.is_empty() {
+            self.layers[0].set_size(sauce.buffer_size);
+        }
         self.sauce_data = Some(sauce);
     }
 }

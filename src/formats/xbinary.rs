@@ -2,7 +2,7 @@ use std::{cmp::min, io, path::Path};
 
 use crate::{
     AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
-    Palette, Position, SauceString, TextPane,
+    Palette, Position, TextPane,
 };
 
 use super::{CompressionLevel, SaveOptions, TextAttribute};
