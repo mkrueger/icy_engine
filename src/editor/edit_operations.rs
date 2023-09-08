@@ -244,6 +244,15 @@ impl EditState {
         )))
     }
 
+    /// Returns the undo caret position of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn undo_caret_position(&mut self) -> EngineResult<()> {
         let op = ReverseCaretPosition::new(self.caret.get_position());
         self.redo_stack.clear();

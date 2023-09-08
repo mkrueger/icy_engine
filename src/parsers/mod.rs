@@ -1,4 +1,4 @@
-use crate::{EngineResult, Line, OutputFormat, TextPane};
+use crate::{EngineResult, Line, TextPane};
 use std::cmp::{max, min};
 
 use self::ansi::sound::AnsiMusic;
@@ -205,8 +205,10 @@ impl Caret {
 
 impl Buffer {
     fn print_value(&mut self, layer: usize, caret: &mut Caret, ch: u16) {
-        let ch = AttributedChar::new(char::from_u32(ch as u32).unwrap(), caret.attribute);
-        self.print_char(layer, caret, ch);
+        if let Some(ch) = char::from_u32(ch as u32) {
+            let ch = AttributedChar::new(ch, caret.attribute);
+            self.print_char(layer, caret, ch);
+        }
     }
 
     fn print_char(&mut self, layer: usize, caret: &mut Caret, ch: AttributedChar) {
@@ -396,19 +398,6 @@ impl Buffer {
         let buffer_width = self.layers[layer].get_width();
         self.layers[layer].insert_line(line, Line::with_capacity(buffer_width));
     }
-}
-
-fn _get_string_from_buffer(buf: &Buffer) -> String {
-    let converted = crate::Ascii::default()
-        .to_bytes(buf, &crate::SaveOptions::new())
-        .unwrap(); // test code
-    let b: Vec<u8> = converted
-        .iter()
-        .map(|&x| if x == 27 { b'x' } else { x })
-        .collect();
-    let converted = String::from_utf8_lossy(b.as_slice());
-
-    converted.to_string()
 }
 
 #[cfg(test)]

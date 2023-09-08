@@ -1,8 +1,8 @@
 use std::{cmp::min, io, path::Path};
 
 use crate::{
-    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
-    Palette, Position, TextPane,
+    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, LoadingError,
+    OutputFormat, Palette, Position, SavingError, TextPane,
 };
 
 use super::{CompressionLevel, SaveOptions, TextAttribute};
@@ -52,9 +52,12 @@ impl OutputFormat for XBin {
         result.push((buf.get_line_count() >> 8) as u8);
 
         let mut flags = 0;
-        let font = buf.get_font(0).unwrap();
+        let Some(font) = buf.get_font(0) else {
+            return Err(Box::new(SavingError::NoFontFound));
+        };
+
         if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
-            return Err(Box::new(io::Error::new(io::ErrorKind::InvalidData, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported.")));
+            return Err(Box::new(SavingError::InvalidXBinFont));
         }
 
         result.push(font.size.height as u8);
@@ -126,16 +129,10 @@ impl OutputFormat for XBin {
         }
 
         if data.len() < XBIN_HEADER_SIZE {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid XBin.\nFile too short.",
-            )));
+            return Err(Box::new(LoadingError::FileTooShort));
         }
         if b"XBIN" != &data[0..4] {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid XBin.\nID doesn't match.",
-            )));
+            return Err(Box::new(LoadingError::IDMismatch));
         }
 
         let mut o = 4;
@@ -237,10 +234,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         .set_char(pos, decode_char(char_code, attribute, result.buffer_type));
 
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "data out of bounds",
-                        )));
+                        return Err(Box::new(LoadingError::OutOfBounds));
                     }
                 }
             }
@@ -257,10 +251,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         .set_char(pos, decode_char(char_code, bytes[o], result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "data out of bounds",
-                        )));
+                        return Err(Box::new(LoadingError::OutOfBounds));
                     }
                 }
             }
@@ -276,10 +267,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         .set_char(pos, decode_char(bytes[o], attribute, result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "data out of bounds",
-                        )));
+                        return Err(Box::new(LoadingError::OutOfBounds));
                     }
                 }
             }
@@ -297,10 +285,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                 for _ in 0..repeat_counter {
                     result.layers[0].set_char(pos, rep_ch);
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(io::Error::new(
-                            io::ErrorKind::UnexpectedEof,
-                            "data out of bounds",
-                        )));
+                        return Err(Box::new(LoadingError::OutOfBounds));
                     }
                 }
             }
@@ -344,10 +329,7 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<boo
         result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], result.buffer_type));
         o += 2;
         if !advance_pos(result, &mut pos) {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "data out of bounds",
-            )));
+            return Err(Box::new(LoadingError::OutOfBounds));
         }
     }
 

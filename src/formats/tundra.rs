@@ -2,8 +2,8 @@ use std::{io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat, Position,
-    TextPane,
+    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, LoadingError, OutputFormat,
+    Position, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
@@ -143,20 +143,14 @@ impl OutputFormat for TundraDraw {
             result.set_sauce(sauce);
         }
         if data.len() < 1 + TUNDRA_HEADER.len() {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid Tundra Draw file.\nFile too short",
-            )));
+            return Err(Box::new(LoadingError::FileTooShort));
         }
         let mut o = 1;
 
         let header = &data[1..=TUNDRA_HEADER.len()];
 
         if header != TUNDRA_HEADER {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid Tundra Draw file.\nWrong ID",
-            )));
+            return Err(Box::new(LoadingError::IDMismatch));
         }
         o += TUNDRA_HEADER.len();
 

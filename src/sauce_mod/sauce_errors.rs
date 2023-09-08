@@ -10,6 +10,8 @@ pub enum SauceError {
     InvalidCommentBlock,
     InvalidCommentId(String),
     UnsupportedSauceDate(String),
+    CommentLimitExceeded(usize),
+    BinFileWidthLimitExceeded(i32),
 }
 
 impl std::fmt::Display for SauceError {
@@ -22,6 +24,12 @@ impl std::fmt::Display for SauceError {
             SauceError::InvalidCommentId(id) => write!(f, "invalid sauce comment id {id}"),
             SauceError::UnsupportedSauceDate(err) => {
                 write!(f, "unsupported sauce date format: {err}")
+            }
+            SauceError::CommentLimitExceeded(limit) => {
+                write!(f, "comment limit exceeded (maximum of 255): {limit}")
+            }
+            SauceError::BinFileWidthLimitExceeded(limit) => {
+                write!(f, "bin file width limit exceeded (maximum of 512): {limit}")
             }
         }
     }

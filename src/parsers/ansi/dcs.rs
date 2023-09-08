@@ -65,7 +65,7 @@ impl Parser {
             let p = caret.get_position();
             let dcs_string = std::mem::take(&mut self.parse_string);
             let handle = thread::spawn(move || {
-                Sixel::parse_from(p, 1, vertical_scale, bg_color, &dcs_string[i + 1..]).unwrap()
+                Sixel::parse_from(p, 1, vertical_scale, bg_color, &dcs_string[i + 1..])
             });
 
             buf.sixel_threads.push_back(handle);

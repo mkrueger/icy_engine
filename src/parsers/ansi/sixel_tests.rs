@@ -8,7 +8,7 @@ use crate::{
 
 fn update_sixels(buf: &mut Buffer) {
     while !buf.sixel_threads.is_empty() {
-        buf.update_sixel_threads();
+        buf.update_sixel_threads().unwrap();
         thread::sleep(Duration::from_millis(10));
     }
 }

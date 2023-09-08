@@ -50,7 +50,7 @@ pub use crc::*;
 mod terminal_state;
 pub use terminal_state::*;
 
-pub type EngineResult<T> = Result<T, Box<dyn Error>>;
+pub type EngineResult<T: Send> = Result<T, Box<dyn Error + Send>>;
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct Size<T> 

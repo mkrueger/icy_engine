@@ -1,6 +1,6 @@
 mod ansi;
 
-use std::path::Path;
+use std::{error::Error, path::Path};
 
 pub use ansi::*;
 pub use ansi::*;
@@ -143,12 +143,94 @@ pub fn parse_with_parser(
     }
 
     for b in bytes {
-        let res = interpreter.print_char(result, 0, &mut caret, char::from_u32(*b as u32).unwrap());
-        if !skip_errors && res.is_err() {
-            res?;
+        if let Some(ch) = char::from_u32(*b as u32) {
+            let res = interpreter.print_char(result, 0, &mut caret, ch);
+            if !skip_errors && res.is_err() {
+                res?;
+            }
         }
     }
     Ok(())
+}
+
+#[derive(Debug, Clone)]
+pub enum LoadingError {
+    OpenFileError(String),
+    Error(String),
+    ReadFileError(String),
+    FileTooShort,
+    IcyDrawUnsupportedLayerMode(u8),
+    InvalidPng(String),
+    UnsupportedADFVersion(u8),
+    FileLengthNeedsToBeEven,
+    IDMismatch,
+    OutOfBounds,
+}
+
+impl std::fmt::Display for LoadingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoadingError::Error(err) => write!(f, "Error while loading: {err}"),
+            LoadingError::OpenFileError(err) => write!(f, "Error while opening file: {err}"),
+            LoadingError::ReadFileError(err) => write!(f, "Error while reading file: {err}"),
+            LoadingError::FileTooShort => write!(f, "File too short"),
+            LoadingError::UnsupportedADFVersion(version) => {
+                write!(f, "Unsupported ADF version: {version}")
+            }
+            LoadingError::IcyDrawUnsupportedLayerMode(mode) => {
+                write!(f, "Unsupported layer mode: {mode}")
+            }
+            LoadingError::InvalidPng(err) => write!(f, "Error decoding PNG: {err}"),
+            LoadingError::FileLengthNeedsToBeEven => write!(f, "File length needs to be even"),
+            LoadingError::IDMismatch => write!(f, "ID mismatch"),
+            LoadingError::OutOfBounds => write!(f, "Out of bounds"),
+        }
+    }
+}
+
+impl Error for LoadingError {
+    fn description(&self) -> &str {
+        "use std::display"
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum SavingError {
+    NoFontFound,
+    Only8x16FontsSupported,
+    InvalidXBinFont,
+}
+
+impl std::fmt::Display for SavingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SavingError::NoFontFound => write!(f, "No font found"),
+            SavingError::Only8x16FontsSupported => write!(f, "Only 8x16 fonts are supported by this format."),
+            SavingError::InvalidXBinFont => write!(f, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."),
+
+        }
+    }
+}
+impl Error for SavingError {
+    fn description(&self) -> &str {
+        "use std::display"
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
+    }
 }
 
 #[cfg(test)]

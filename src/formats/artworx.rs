@@ -1,9 +1,9 @@
-use std::{io, path::Path};
+use std::path::Path;
 
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, OutputFormat,
-    Palette, Size, TextPane,
+    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, LoadingError,
+    OutputFormat, Palette, SavingError, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -37,13 +37,14 @@ impl OutputFormat for Artworx {
 
         result.extend(buf.palette.to_ega_palette());
         if buf.get_font_dimensions() != Size::new(8, 16) {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Only 8x16 fonts are supported by adf.",
-            )));
+            return Err(Box::new(SavingError::Only8x16FontsSupported));
         }
 
-        buf.get_font(0).unwrap().convert_to_u8_data(&mut result);
+        if let Some(font) = buf.get_font(0) {
+            font.convert_to_u8_data(&mut result);
+        } else {
+            return Err(Box::new(SavingError::NoFontFound));
+        }
 
         for y in 0..buf.get_line_count() {
             for x in 0..buf.get_width() {
@@ -76,18 +77,12 @@ impl OutputFormat for Artworx {
         let mut o = 0;
         let mut pos = Position::default();
         if file_size < 1 + 3 * 64 + 4096 {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid ADF - file too short",
-            )));
+            return Err(Box::new(LoadingError::FileTooShort));
         }
 
         let version = data[o];
         if version != 1 {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("Unsupported ADF version {version}"),
-            )));
+            return Err(Box::new(LoadingError::UnsupportedADFVersion(version)));
         }
         o += 1;
 

@@ -922,12 +922,12 @@ impl BufferParser for Parser {
                                 self.current_escape_sequence.clone(),
                             )));
                         }
-                        match self.parsed_numbers.first().unwrap() {
-                            5 => {
+                        match self.parsed_numbers.first() {
+                            Some(5) => {
                                 // Device status report
                                 return Ok(CallbackAction::SendString("\x1b[0n".to_string()));
                             }
-                            6 => {
+                            Some(6) => {
                                 // Get cursor position
                                 let s = format!(
                                     "\x1b[{};{}R",
@@ -936,7 +936,7 @@ impl BufferParser for Parser {
                                 );
                                 return Ok(CallbackAction::SendString(s));
                             }
-                            255 => {
+                            Some(255) => {
                                 // Current screen size
                                 let s = format!(
                                     "\x1b[{};{}R",

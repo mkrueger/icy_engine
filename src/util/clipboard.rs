@@ -27,7 +27,9 @@ pub fn push_data(data_type: u16, data: &[u8]) -> EngineResult<()> {
                 height: 1,
                 bytes: clipboard_data.into(),
             };
-            clipboard.set_image(image)?;
+            if let Err(err) = clipboard.set_image(image) {
+                return Err(Box::new(ClipboardError::ErrorInSetImage(format!("{err}"))));
+            }
             Ok(())
         }
         Err(err) => Err(Box::new(ClipboardError::Error(format!("{err}")))),
@@ -73,12 +75,16 @@ pub fn pop_sixel_image() -> Option<Sixel> {
 
 #[derive(Debug, Clone)]
 enum ClipboardError {
+    ErrorInSetImage(String),
     Error(String),
 }
 
 impl std::fmt::Display for ClipboardError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ClipboardError::ErrorInSetImage(err) => {
+                write!(f, "Error in setting image to clipboard: {err}")
+            }
             ClipboardError::Error(err) => write!(f, "Error creating clipboard: {err}"),
         }
     }

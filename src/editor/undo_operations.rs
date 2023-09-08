@@ -208,7 +208,7 @@ impl UndoOperation for RemoveLayer {
             edit_state.clamp_current_layer();
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.layer_index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.layer_index)))
         }
     }
 }
@@ -310,7 +310,7 @@ impl UndoOperation for MergeLayerDown {
             edit_state.clamp_current_layer();
             Ok(())
         } else {
-            Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
+            Err(Box::new(EditorError::MergeLayerDownHasNoMergeLayer))
         }
     }
 
@@ -326,7 +326,7 @@ impl UndoOperation for MergeLayerDown {
             edit_state.buffer.layers.insert(self.index - 1, layer);
             Ok(())
         } else {
-            Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
+            Err(Box::new(EditorError::MergeLayerDownHasNoMergeLayer))
         }
     }
 }
@@ -352,7 +352,7 @@ impl UndoOperation for ToggleLayerVisibility {
             layer.is_visible = !layer.is_visible;
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.index)))
         }
     }
 
@@ -361,7 +361,7 @@ impl UndoOperation for ToggleLayerVisibility {
             layer.is_visible = !layer.is_visible;
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.index)))
         }
     }
 }
@@ -389,7 +389,7 @@ impl UndoOperation for MoveLayer {
             layer.set_offset(self.from);
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.index)))
         }
     }
 
@@ -398,7 +398,7 @@ impl UndoOperation for MoveLayer {
             layer.set_offset(self.to);
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.index)))
         }
     }
 }
@@ -430,7 +430,7 @@ impl UndoOperation for SetLayerSize {
             layer.set_size(self.from);
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.index)))
         }
     }
 
@@ -440,7 +440,7 @@ impl UndoOperation for SetLayerSize {
             layer.set_size(self.to);
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.index).into())
+            Err(Box::new(EditorError::InvalidLayer(self.index)))
         }
     }
 }
@@ -473,7 +473,7 @@ impl UndoOperation for Paste {
             edit_state.buffer.layers.push(layer);
             Ok(())
         } else {
-            Err(EditorError::CurrentLayerInvalid.into())
+            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
     }
 }
@@ -571,7 +571,7 @@ impl UndoOperation for UndoLayerChange {
             layer.stamp(self.pos, &self.old_chars);
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.layer).into())
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
         }
     }
 
@@ -580,7 +580,7 @@ impl UndoOperation for UndoLayerChange {
             layer.stamp(self.pos, &self.new_chars);
             Ok(())
         } else {
-            Err(EditorError::InvalidLayer(self.layer).into())
+            Err(Box::new(EditorError::InvalidLayer(self.layer)))
         }
     }
 }

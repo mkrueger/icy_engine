@@ -1,10 +1,11 @@
-use std::{io, path::Path};
+use std::{error::Error, io, path::Path};
 
 use base64::{engine::general_purpose, Engine};
 
 use crate::{
-    parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer, OutputFormat,
-    Position, SauceData, SauceFileType, SaveOptions, Sixel, Size, StringGenerator, TextPane,
+    parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer, LoadingError,
+    OutputFormat, Position, SauceData, SauceFileType, SaveOptions, Sixel, Size, StringGenerator,
+    TextPane,
 };
 
 mod constants {
@@ -55,22 +56,27 @@ impl OutputFormat for IcyDraw {
         encoder.set_compression(png::Compression::Best);
 
         {
-            let mut result: Vec<u8> = Vec::new();
-            result.push(constants::ICD_VERSION as u8);
-            result.push((constants::ICD_VERSION >> 8) as u8);
-            result.push(0); // Type
-            result.push(0); // Mode
+            let mut result = vec![
+                constants::ICD_VERSION as u8,
+                (constants::ICD_VERSION >> 8) as u8,
+                0, // Type
+                0, // Mode
+            ];
             result.extend(u32::to_le_bytes(buf.get_width() as u32));
             result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
             let sauce_data = general_purpose::STANDARD.encode(&result);
-            encoder.add_ztxt_chunk("ICED".to_string(), sauce_data)?;
+            if let Err(err) = encoder.add_ztxt_chunk("ICED".to_string(), sauce_data) {
+                return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+            }
         }
 
         if buf.sauce_data.is_some() {
             let mut sauce_vec: Vec<u8> = Vec::new();
             buf.write_sauce_info(SauceFileType::Ansi, &mut sauce_vec)?;
             let sauce_data = general_purpose::STANDARD.encode(&sauce_vec);
-            encoder.add_ztxt_chunk("SAUCE".to_string(), sauce_data)?;
+            if let Err(err) = encoder.add_ztxt_chunk("SAUCE".to_string(), sauce_data) {
+                return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+            }
         }
 
         for (k, v) in buf.font_iter() {
@@ -79,10 +85,12 @@ impl OutputFormat for IcyDraw {
                 write_utf8_encoded_string(&mut font_data, &v.name);
                 font_data.extend(v.to_psf2_bytes().unwrap());
 
-                encoder.add_ztxt_chunk(
+                if let Err(err) = encoder.add_ztxt_chunk(
                     format!("FONT_{k}"),
                     general_purpose::STANDARD.encode(&font_data),
-                )?;
+                ) {
+                    return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+                }
             }
         }
 
@@ -155,10 +163,14 @@ impl OutputFormat for IcyDraw {
                 result.extend(gen.get_data());
             }
             let layer_data = general_purpose::STANDARD.encode(&result);
-            encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data)?;
+            if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
+                return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+            }
         }
 
-        encoder.add_ztxt_chunk("END".to_string(), String::new())?;
+        if let Err(err) = encoder.add_ztxt_chunk("END".to_string(), String::new()) {
+            return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+        }
 
         if last_line > first_line {
             let mut writer = encoder.write_header().unwrap();
@@ -239,15 +251,26 @@ impl OutputFormat for IcyDraw {
                                 }
                                 text => {
                                     if let Some(font_slot) = text.strip_prefix("FONT_") {
-                                        let font_slot: usize = font_slot.parse()?;
-                                        let mut o: usize = 0;
-                                        let (font_name, size) =
-                                            read_utf8_encoded_string(&bytes[o..]);
-                                        o += size;
-                                        let font =
-                                            BitFont::from_bytes(font_name, &bytes[o..]).unwrap();
-                                        result.set_font(font_slot, font);
-                                        continue;
+                                        match font_slot.parse() {
+                                            Ok(font_slot) => {
+                                                let mut o: usize = 0;
+                                                let (font_name, size) =
+                                                    read_utf8_encoded_string(&bytes[o..]);
+                                                o += size;
+                                                let font =
+                                                    BitFont::from_bytes(font_name, &bytes[o..])
+                                                        .unwrap();
+                                                result.set_font(font_slot, font);
+                                                continue;
+                                            }
+                                            Err(err) => {
+                                                return Err(Box::new(
+                                                    IcedError::ErrorParsingFontSlot(format!(
+                                                        "{err}"
+                                                    )),
+                                                ));
+                                            }
+                                        }
                                     }
                                     if !text.starts_with("LAYER_") {
                                         log::warn!("unsupported chunk {text}");
@@ -276,10 +299,9 @@ impl OutputFormat for IcyDraw {
                                         1 => crate::Mode::Chars,
                                         2 => crate::Mode::Attributes,
                                         _ => {
-                                            return Err(Box::new(io::Error::new(
-                                                io::ErrorKind::InvalidData,
-                                                format!("Unsupported layer mode {mode}"),
-                                            )));
+                                            return Err(Box::new(
+                                                LoadingError::IcyDrawUnsupportedLayerMode(mode),
+                                            ));
                                         }
                                     };
                                     o += 1;
@@ -402,10 +424,7 @@ impl OutputFormat for IcyDraw {
                     }
                 }
                 Err(err) => {
-                    return Err(Box::new(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!("error while decoding png: {err}"),
-                    )));
+                    return Err(Box::new(LoadingError::InvalidPng(format!("{err}"))));
                 }
             }
         }
@@ -437,5 +456,38 @@ impl Buffer {
             }
         }
         true
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum IcedError {
+    ErrorEncodingZText(String),
+    ErrorParsingFontSlot(String),
+}
+
+impl std::fmt::Display for IcedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IcedError::ErrorEncodingZText(err) => {
+                write!(f, "Error while encoding ztext chunk: {err}")
+            }
+            IcedError::ErrorParsingFontSlot(err) => {
+                write!(f, "Error while parsing font slot: {err}")
+            }
+        }
+    }
+}
+
+impl Error for IcedError {
+    fn description(&self) -> &str {
+        "use std::display"
+    }
+
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        None
+    }
+
+    fn cause(&self) -> Option<&dyn Error> {
+        self.source()
     }
 }

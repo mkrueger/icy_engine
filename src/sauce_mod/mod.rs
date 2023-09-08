@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-
-use std::io;
-
 use crate::{ascii::CP437_TO_UNICODE, EngineResult, Size, TextPane};
 
 use super::Buffer;
@@ -64,8 +60,6 @@ impl SauceDataType {
         }
     }
 }
-
-const SAUCE_SIZE: i32 = 128;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub enum SauceFileType {
@@ -447,21 +441,16 @@ impl Buffer {
         &self,
         sauce_file_type: SauceFileType,
         vec: &mut Vec<u8>,
-    ) -> io::Result<bool> {
+    ) -> EngineResult<bool> {
         vec.push(0x1A); // EOF Char.
         let file_size = vec.len() as u32;
         let mut comment_len = 0;
         if let Some(data) = &self.sauce_data {
             if !data.comments.is_empty() {
                 if data.comments.len() > 255 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!(
-                            "sauce comments exceed maximum of 255: {}.",
-                            data.comments.len()
-                        )
-                        .as_str(),
-                    ));
+                    return Err(Box::new(SauceError::CommentLimitExceeded(
+                        data.comments.len(),
+                    )));
                 }
                 comment_len = data.comments.len() as u8;
                 vec.extend(SAUCE_COMMENT_ID);
@@ -554,7 +543,7 @@ impl Buffer {
                 data_type = SauceDataType::BinaryText;
                 let w = self.get_width() / 2;
                 if w > u8::MAX as i32 {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "BIN files can only be saved up to 510 width."));
+                    return Err(Box::new(SauceError::BinFileWidthLimitExceeded(w)));
                 }
                 file_type = w as u8;
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }

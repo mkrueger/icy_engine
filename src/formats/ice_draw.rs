@@ -2,8 +2,8 @@ use std::{io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, BitFont, Buffer, BufferType, EngineResult, OutputFormat, Palette, Position,
-    Size, TextPane,
+    AttributedChar, BitFont, Buffer, BufferType, EngineResult, LoadingError, OutputFormat, Palette,
+    Position, SavingError, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -75,12 +75,13 @@ impl OutputFormat for IceDraw {
 
         // font
         if buf.get_font_dimensions() != Size::new(8, 16) {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Only 8x16 fonts are supported by adf.",
-            )));
+            return Err(Box::new(SavingError::Only8x16FontsSupported));
         }
-        buf.get_font(0).unwrap().convert_to_u8_data(&mut result);
+        if let Some(font) = buf.get_font(0) {
+            font.convert_to_u8_data(&mut result);
+        } else {
+            return Err(Box::new(SavingError::NoFontFound));
+        }
 
         // palette
         result.extend(buf.palette.to_16color_vec());
@@ -101,18 +102,12 @@ impl OutputFormat for IceDraw {
         result.file_name = Some(file_name.into());
 
         if data.len() < HEADER_SIZE + FONT_SIZE + PALETTE_SIZE {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid IDF - file too short",
-            )));
+            return Err(Box::new(LoadingError::FileTooShort));
         }
         let version = &data[0..4];
 
         if version != IDF_V1_3_HEADER && version != IDF_V1_4_HEADER {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid IDF or no supported idf version",
-            )));
+            return Err(Box::new(LoadingError::IDMismatch));
         }
 
         let mut o = 4;

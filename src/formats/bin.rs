@@ -1,7 +1,9 @@
 use std::{io, path::Path};
 
 use super::{Position, SaveOptions, TextAttribute};
-use crate::{AttributedChar, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane};
+use crate::{
+    AttributedChar, Buffer, BufferFeatures, EngineResult, LoadingError, OutputFormat, TextPane,
+};
 
 #[derive(Default)]
 pub(super) struct Bin {}
@@ -57,10 +59,7 @@ impl OutputFormat for Bin {
                 }
 
                 if o + 1 > data.len() {
-                    return Err(Box::new(io::Error::new(
-                        io::ErrorKind::UnexpectedEof,
-                        "invalid file - needs to be % 2 == 0",
-                    )));
+                    return Err(Box::new(LoadingError::FileLengthNeedsToBeEven));
                 }
 
                 result.layers[0].set_height(pos.y + 1);

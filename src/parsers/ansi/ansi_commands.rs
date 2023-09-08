@@ -293,8 +293,8 @@ impl Parser {
                 self.current_escape_sequence.clone(),
             )));
         }
-        match self.parsed_numbers.get(*i + 1).unwrap() {
-            5 => {
+        match self.parsed_numbers.get(*i + 1) {
+            Some(5) => {
                 // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
                 if *i + 3 > self.parsed_numbers.len() {
                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -314,7 +314,7 @@ impl Parser {
                     )))
                 }
             }
-            2 => {
+            Some(2) => {
                 // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
                 if *i + 5 > self.parsed_numbers.len() {
                     return Err(Box::new(ParserError::UnsupportedEscapeSequence(
@@ -521,8 +521,8 @@ impl Parser {
         self.state = EngineState::Default;
         let n = self.parsed_numbers[1] - 1;
 
-        match self.parsed_numbers.first().unwrap() {
-            0 => {
+        match self.parsed_numbers.first() {
+            Some(0) => {
                 let top = if let Some((t, _)) = buf.terminal_state.get_margins_top_bottom() {
                     t
                 } else {
@@ -530,7 +530,7 @@ impl Parser {
                 };
                 buf.terminal_state.set_margins_top_bottom(top, n);
             }
-            1 => {
+            Some(1) => {
                 let bottom = if let Some((_, b)) = buf.terminal_state.get_margins_top_bottom() {
                     b
                 } else {
@@ -538,7 +538,7 @@ impl Parser {
                 };
                 buf.terminal_state.set_margins_top_bottom(n, bottom);
             }
-            2 => {
+            Some(2) => {
                 let left = if let Some((l, _)) = buf.terminal_state.get_margins_left_right() {
                     l
                 } else {
@@ -546,7 +546,7 @@ impl Parser {
                 };
                 buf.terminal_state.set_margins_left_right(left, n);
             }
-            3 => {
+            Some(3) => {
                 let right = if let Some((_, r)) = buf.terminal_state.get_margins_left_right() {
                     r
                 } else {
@@ -554,10 +554,15 @@ impl Parser {
                 };
                 buf.terminal_state.set_margins_left_right(n, right);
             }
-            n => {
+            Some(n) => {
                 return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
                     "Set specific margin '{n}' is invalid."
                 ))));
+            }
+            None => {
+                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                    "No argument found for SSM.".to_string(),
+                )));
             }
         }
         Ok(CallbackAction::None)

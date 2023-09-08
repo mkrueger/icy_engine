@@ -9,8 +9,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    parsers, BufferParser, EngineResult, Glyph, Layer, OutputFormat, Position, Rectangle,
-    SauceData, Sixel, TerminalState, TextPane, FORMATS,
+    parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position,
+    Rectangle, SauceData, Sixel, TerminalState, TextPane, FORMATS,
 };
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
@@ -75,8 +75,8 @@ pub struct Buffer {
 
     pub layers: Vec<Layer>,
 
-    pub sixel_threads: VecDeque<std::thread::JoinHandle<Sixel>>, // pub undo_stack: Vec<Box<dyn UndoOperation>>,
-                                                                 // pub redo_stack: Vec<Box<dyn UndoOperation>>,
+    pub sixel_threads: VecDeque<std::thread::JoinHandle<EngineResult<Sixel>>>, // pub undo_stack: Vec<Box<dyn UndoOperation>>,
+                                                                               // pub redo_stack: Vec<Box<dyn UndoOperation>>,
 }
 
 #[allow(clippy::missing_fields_in_debug)]
@@ -205,39 +205,44 @@ impl Buffer {
 
     /// Returns the update sixel threads of this [`Buffer`].
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if .
-    pub fn update_sixel_threads(&mut self) -> bool {
+    /// This function will return an error if .
+    pub fn update_sixel_threads(&mut self) -> EngineResult<bool> {
         let mut updated_sixel = false;
         while let Some(handle) = self.sixel_threads.front() {
             if !handle.is_finished() {
-                return false;
+                return Ok(false);
             }
-            let handle = self.sixel_threads.pop_front().unwrap();
-            let sixel = handle.join().unwrap();
-            {
-                updated_sixel = true;
+            let Some(handle) = self.sixel_threads.pop_front() else {
+                continue;
+            };
+            let Ok(result) = handle.join() else {
+                continue;
+            };
 
-                let screen_rect = sixel.get_screen_rect();
+            let sixel = result?;
 
-                let vec = &mut self.layers[0].sixels;
-                let mut sixel_count = vec.len();
-                // remove old sixel that are shadowed by the new one
-                let mut i = 0;
-                while i < sixel_count {
-                    let old_rect = vec[i].get_screen_rect();
-                    if screen_rect.contains_rect(&old_rect) {
-                        vec.remove(i);
-                        sixel_count -= 1;
-                    } else {
-                        i += 1;
-                    }
+            updated_sixel = true;
+
+            let screen_rect = sixel.get_screen_rect();
+
+            let vec = &mut self.layers[0].sixels;
+            let mut sixel_count = vec.len();
+            // remove old sixel that are shadowed by the new one
+            let mut i = 0;
+            while i < sixel_count {
+                let old_rect = vec[i].get_screen_rect();
+                if screen_rect.contains_rect(&old_rect) {
+                    vec.remove(i);
+                    sixel_count -= 1;
+                } else {
+                    i += 1;
                 }
-                vec.push(sixel);
             }
+            vec.push(sixel);
         }
-        updated_sixel
+        Ok(updated_sixel)
     }
 
     pub fn clear_font_table(&mut self) {
@@ -462,9 +467,16 @@ impl Buffer {
     ///
     /// This function will return an error if .
     pub fn load_buffer(file_name: &Path, skip_errors: bool) -> EngineResult<Buffer> {
-        let mut f = File::open(file_name)?;
+        let mut f = match File::open(file_name) {
+            Ok(f) => f,
+            Err(err) => {
+                return Err(Box::new(LoadingError::OpenFileError(format!("{err}"))));
+            }
+        };
         let mut bytes = Vec::new();
-        f.read_to_end(&mut bytes)?;
+        if let Err(err) = f.read_to_end(&mut bytes) {
+            return Err(Box::new(LoadingError::ReadFileError(format!("{err}"))));
+        }
 
         Buffer::from_bytes(file_name, skip_errors, &bytes)
     }
