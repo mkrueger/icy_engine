@@ -1,4 +1,4 @@
-use std::{cmp::min, io, path::Path};
+use std::{cmp::min, path::Path};
 
 use crate::{
     AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, LoadingError,

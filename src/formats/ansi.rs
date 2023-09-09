@@ -316,17 +316,16 @@ impl StringGenerator {
         }
     }
 
-    pub fn add_sixels(&mut self, _buf: &Buffer) {
-        /* TODO
+    pub fn add_sixels(&mut self, buf: &Buffer) {
         for layer in &buf.layers {
             for sixel in &layer.sixels {
 
-                match sixel_bytes::sixel_string(
+                match icy_sixel::sixel_string(
                     &sixel.picture_data,
                     sixel.get_width(),
                     sixel.get_height(),
-                    sixel_bytes::PixelFormat::RGBA8888,
-                    sixel_bytes::DiffusionMethod::Stucki,
+                    icy_sixel::PixelFormat::RGBA8888,
+                    icy_sixel::DiffusionMethod::None,
                 ) {
                     Err(err) => eprintln!("{err}"),
                     Ok(data) => {
@@ -336,7 +335,7 @@ impl StringGenerator {
                     },
                 }
             }
-        }*/
+        }
     }
 
     pub fn get_data(&self) -> &[u8] {
