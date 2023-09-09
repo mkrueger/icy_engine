@@ -12,7 +12,7 @@ log = "0.4.20"
 rfind_url = "0.4.4"
 chrono = "0.4.19"
 png = "0.17.10"
-icy_sixel = "0.1.0"
+icy_sixel = "0.1.1"
 
 i18n-embed = { version = "0.13.4", features = ["fluent-system", "desktop-requester"]} 
 i18n-embed-fl = "0.6.4"

@@ -326,6 +326,9 @@ impl StringGenerator {
                     sixel.get_height(),
                     icy_sixel::PixelFormat::RGBA8888,
                     icy_sixel::DiffusionMethod::None,
+                    icy_sixel::MethodForLargest::Auto,
+                    icy_sixel::MethodForRep::Auto,
+                    icy_sixel::Quality::AUTO,
                 ) {
                     Err(err) => eprintln!("{err}"),
                     Ok(data) => {
