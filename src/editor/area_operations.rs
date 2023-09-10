@@ -214,23 +214,28 @@ impl EditState {
 
     pub fn crop(&mut self) -> EngineResult<()> {
         let sel = self.get_selection().unwrap().as_rectangle();
+        self.crop_rect(sel)
+    }
+
+
+    pub fn crop_rect(&mut self, rect: Rectangle) -> EngineResult<()> {
 
         let old_size = self.get_buffer().get_size();
         let mut old_layers = Vec::new();
         mem::swap(&mut self.get_buffer_mut().layers, &mut old_layers);
 
-        self.get_buffer_mut().set_size(sel.size);
+        self.get_buffer_mut().set_size(rect.size);
         self.get_buffer_mut().layers.clear();
 
         for old_layer in &old_layers {
             let mut new_layer = old_layer.clone();
             new_layer.lines.clear();
-            let new_rectangle = old_layer.get_rectangle().intersect(&sel);
+            let new_rectangle = old_layer.get_rectangle().intersect(&rect);
             if new_rectangle.is_empty() {
                 continue;
             }
 
-            new_layer.set_offset(new_rectangle.start - sel.start);
+            new_layer.set_offset(new_rectangle.start - rect.start);
             new_layer.set_size(new_rectangle.size);
 
             for y in 0..new_rectangle.get_height() {
@@ -242,7 +247,7 @@ impl EditState {
             }
             self.get_buffer_mut().layers.push(new_layer);
         }
-        let op = super::undo_operations::Crop::new(old_size, sel.get_size(), old_layers);
+        let op = super::undo_operations::Crop::new(old_size, rect.get_size(), old_layers);
         self.redo_stack.clear();
         self.undo_stack.lock().unwrap().push(Box::new(op));
 

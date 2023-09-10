@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{EngineResult, Layer, Position, Size, TextPane};
+use crate::{EngineResult, Layer, Position, Size, TextPane, Role};
 
 use super::{undo_operations, EditState};
 
@@ -63,7 +63,20 @@ impl EditState {
         Ok(())
     }
 
+    /// Returns the anchor layer of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn anchor_layer(&mut self) -> EngineResult<()> {
+        let role = self.get_cur_layer().unwrap().role;
+        if !matches!(role, Role::PastePreview) {
+            return Ok(());
+        }
         let _op = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "layer-anchor"));
         self.merge_layer_down(self.buffer.layers.len() - 1)
     }
@@ -73,8 +86,21 @@ impl EditState {
         self.push_undo(Box::new(op))
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn merge_layer_down(&mut self, layer: usize) -> EngineResult<()> {
         if layer == 0 || layer >= self.buffer.layers.len() {
+            return Ok(());
+        }
+        let role = self.get_cur_layer().unwrap().role;
+        if matches!(role, Role::PasteImage) {
             return Ok(());
         }
 

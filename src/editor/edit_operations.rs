@@ -80,7 +80,12 @@ impl EditState {
         Ok(())
     }
 
-    pub fn resize_buffer(&mut self, size: impl Into<Size>) -> EngineResult<()> {
+    pub fn resize_buffer(&mut self, resize_layer: bool, size: impl Into<Size>) -> EngineResult<()> {
+        if resize_layer {
+            let rect = Rectangle::from_min_size(Position::default(), size.into());
+            return self.crop_rect(rect);
+        }
+
         let op = super::undo_operations::ResizeBuffer::new(self.get_buffer().get_size(), size);
         self.push_undo(Box::new(op))
     }
@@ -272,7 +277,7 @@ mod tests {
     fn test_resize_buffer() {
         let mut state = EditState::default();
         assert_eq!(Size::new(80, 25), state.buffer.get_size());
-        state.resize_buffer(Size::new(10, 10)).unwrap();
+        state.resize_buffer(false, Size::new(10, 10)).unwrap();
         assert_eq!(Size::new(10, 10), state.buffer.get_size());
         state.undo().unwrap();
         assert_eq!(Size::new(80, 25), state.buffer.get_size());

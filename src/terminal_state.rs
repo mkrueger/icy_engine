@@ -114,6 +114,7 @@ impl TerminalState {
     pub fn get_size(&self) -> Size {
         self.size
     }
+
     pub fn set_size(&mut self, size: impl Into<Size>) {
         self.size = size.into();
     }
