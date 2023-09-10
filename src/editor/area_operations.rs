@@ -217,9 +217,7 @@ impl EditState {
         self.crop_rect(sel)
     }
 
-
     pub fn crop_rect(&mut self, rect: Rectangle) -> EngineResult<()> {
-
         let old_size = self.get_buffer().get_size();
         let mut old_layers = Vec::new();
         mem::swap(&mut self.get_buffer_mut().layers, &mut old_layers);

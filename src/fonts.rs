@@ -1,11 +1,5 @@
 use crate::{EngineResult, ParserError};
-use std::{
-    collections::HashMap,
-    error::Error,
-    fmt::Display,
-    io::Read,
-    path::Path, fs::File,
-};
+use std::{collections::HashMap, error::Error, fmt::Display, fs::File, io::Read, path::Path};
 
 use super::Size;
 
@@ -292,6 +286,15 @@ impl BitFont {
         BitFont::load_plain_font(font_name, data)
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn load(file_name: &Path) -> EngineResult<Self> {
         let mut f = File::open(file_name).expect("error while opening file");
         let mut bytes = Vec::new();

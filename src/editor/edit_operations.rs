@@ -17,9 +17,23 @@ impl EditState {
         pos: impl Into<Position>,
         attributed_char: AttributedChar,
     ) -> EngineResult<()> {
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-set_char"));
+
         if let Some(layer) = self.get_cur_layer() {
             let pos = pos.into();
             let old = layer.get_char(pos);
+
+            if self.mirror_mode {
+                let mirror_pos = Position::new(layer.get_width() - pos.x - 1, pos.y);
+                let mirror_old = layer.get_char(mirror_pos);
+                self.push_undo(Box::new(UndoSetChar {
+                    pos: mirror_pos,
+                    layer: self.current_layer,
+                    old: mirror_old,
+                    new: attributed_char,
+                }))?;
+            }
+
             self.push_undo(Box::new(UndoSetChar {
                 pos,
                 layer: self.current_layer,

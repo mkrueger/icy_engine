@@ -27,6 +27,7 @@ pub struct EditState {
 
     current_layer: usize,
     outline_style: usize,
+    mirror_mode: bool,
 
     undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
     redo_stack: Vec<Box<dyn UndoOperation>>,
@@ -91,6 +92,7 @@ impl Default for EditState {
             redo_stack: Vec::new(),
             current_layer: 0,
             outline_style: 0,
+            mirror_mode: false,
         }
     }
 }
@@ -304,6 +306,15 @@ impl EditState {
             }
         }
         false
+    }
+
+    pub fn get_mirror_mode(&self) -> bool {
+        self.mirror_mode
+    }
+
+    pub fn set_mirror_mode(&mut self, mirror_mode: bool) {
+        self.mirror_mode = mirror_mode;
+        println!("set mirror mode to {}", mirror_mode);
     }
 }
 

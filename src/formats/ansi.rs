@@ -319,7 +319,6 @@ impl StringGenerator {
     pub fn add_sixels(&mut self, buf: &Buffer) {
         for layer in &buf.layers {
             for sixel in &layer.sixels {
-
                 match icy_sixel::sixel_string(
                     &sixel.picture_data,
                     sixel.get_width(),
@@ -333,9 +332,10 @@ impl StringGenerator {
                     Err(err) => eprintln!("{err}"),
                     Ok(data) => {
                         let p = layer.get_offset() + sixel.position;
-                        self.output.extend(format!("\x1b[{};{}H", p.y + 1, p.x + 1).as_bytes());
+                        self.output
+                            .extend(format!("\x1b[{};{}H", p.y + 1, p.x + 1).as_bytes());
                         self.output.extend(data.as_bytes());
-                    },
+                    }
                 }
             }
         }

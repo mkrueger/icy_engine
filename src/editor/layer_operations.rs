@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 use i18n_embed_fl::fl;
 
-use crate::{EngineResult, Layer, Position, Size, TextPane, Role};
+use crate::{EngineResult, Layer, Position, Role, Size, TextPane};
 
 use super::{undo_operations, EditState};
 
