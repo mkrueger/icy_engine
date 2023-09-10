@@ -3,8 +3,8 @@ use std::{
     collections::HashMap,
     error::Error,
     fmt::Display,
-    io::{self},
-    path::Path,
+    io::Read,
+    path::Path, fs::File,
 };
 
 use super::Size;
@@ -16,7 +16,7 @@ pub enum BitFontType {
     Custom,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Glyph {
     pub data: Vec<u8>,
 }
@@ -55,7 +55,7 @@ impl Glyph {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[allow(dead_code)]
 pub struct BitFont {
     pub name: String,
@@ -292,49 +292,11 @@ impl BitFont {
         BitFont::load_plain_font(font_name, data)
     }
 
-    /// .
-    ///
-    /// # Panics
-    ///
-    /// Panics if .
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if .
-    pub fn import(path: &Path) -> io::Result<String> {
-        let file_name = path.file_name();
-        if file_name.is_none() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid file name",
-            ));
-        }
-        let file_name = file_name.unwrap().to_str();
-        if file_name.is_none() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Invalid file name",
-            ));
-        }
-        panic!("todo");
-        /*
-        let file_name = file_name.unwrap();
-
-        if let Some(font_path) = unsafe { &WORKSPACE.settings.console_font_path } {
-            let dest_file = font_path.join(file_name);
-
-            if dest_file.exists() {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("'{}' already exists", dest_file.to_str().unwrap())));
-            }
-
-            fs::copy(path, dest_file)?;
-
-            let prefix  = path.file_stem().unwrap().to_str().unwrap().to_string();
-            unsafe { ALL_FONTS.push(prefix.clone()); }
-            Ok(prefix)
-        } else {
-            Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid font path"))
-        } */
+    pub fn load(file_name: &Path) -> EngineResult<Self> {
+        let mut f = File::open(file_name).expect("error while opening file");
+        let mut bytes = Vec::new();
+        f.read_to_end(&mut bytes).expect("error while reading file");
+        BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes)
     }
 }
 

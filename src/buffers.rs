@@ -254,6 +254,10 @@ impl Buffer {
         !self.font_table.is_empty()
     }
 
+    pub fn has_font(&self, id: usize) -> bool {
+        self.font_table.contains_key(&id)
+    }
+
     pub fn is_font_table_updated(&self) -> bool {
         self.is_font_table_dirty
     }
