@@ -1,12 +1,12 @@
 use crate::{Position, Rectangle, Size};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
     Rectangle,
     Lines,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Selection {
     pub anchor: Position,
     pub lead: Position,
