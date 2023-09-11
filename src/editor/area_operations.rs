@@ -47,7 +47,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -94,7 +94,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -139,7 +139,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -169,7 +169,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -199,7 +199,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -274,7 +274,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -298,7 +298,8 @@ impl EditState {
                 return Ok(());
             }
             if area.get_width() >= layer.get_width() {
-                let op = super::undo_operations::UndoScrollWholeLayerUp::new(self.current_layer);
+                let op =
+                    super::undo_operations::UndoScrollWholeLayerUp::new(self.get_current_layer());
                 return self.push_undo(Box::new(op));
             }
 
@@ -336,7 +337,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -358,7 +359,8 @@ impl EditState {
                 return Ok(());
             }
             if area.get_width() >= layer.get_width() {
-                let op = super::undo_operations::UndoScrollWholeLayerDown::new(self.current_layer);
+                let op =
+                    super::undo_operations::UndoScrollWholeLayerDown::new(self.get_current_layer());
                 return self.push_undo(Box::new(op));
             }
             let old_layer = Layer::from_layer(layer, area);
@@ -395,7 +397,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -428,7 +430,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,
@@ -461,7 +463,7 @@ impl EditState {
             }
             let new_layer = Layer::from_layer(layer, area);
             let op = super::undo_operations::UndoLayerChange::new(
-                self.current_layer,
+                self.get_current_layer(),
                 area.start,
                 old_layer,
                 new_layer,

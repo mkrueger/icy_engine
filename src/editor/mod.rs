@@ -126,11 +126,12 @@ impl EditState {
     }
 
     pub fn get_cur_layer(&self) -> Option<&Layer> {
-        self.buffer.layers.get(self.current_layer)
+        self.buffer.layers.get(self.get_current_layer())
     }
 
     pub fn get_cur_layer_mut(&mut self) -> Option<&mut Layer> {
-        self.buffer.layers.get_mut(self.current_layer)
+        let layer = self.get_current_layer();
+        self.buffer.layers.get_mut(layer)
     }
 
     pub fn get_caret(&self) -> &Caret {
@@ -244,10 +245,11 @@ impl EditState {
 
     pub fn get_current_layer(&self) -> usize {
         self.current_layer
+            .clamp(0, self.buffer.layers.len().saturating_sub(1))
     }
 
     pub fn set_current_layer(&mut self, layer: usize) {
-        self.current_layer = layer;
+        self.current_layer = layer.clamp(0, self.buffer.layers.len().saturating_sub(1));
     }
 
     pub fn get_outline_style(&self) -> usize {

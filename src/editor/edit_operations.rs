@@ -28,7 +28,7 @@ impl EditState {
                 let mirror_old = layer.get_char(mirror_pos);
                 self.push_undo(Box::new(UndoSetChar {
                     pos: mirror_pos,
-                    layer: self.current_layer,
+                    layer: self.get_current_layer(),
                     old: mirror_old,
                     new: attributed_char,
                 }))?;
@@ -36,7 +36,7 @@ impl EditState {
 
             self.push_undo(Box::new(UndoSetChar {
                 pos,
-                layer: self.current_layer,
+                layer: self.get_current_layer(),
                 old,
                 new: attributed_char,
             }))
@@ -55,7 +55,7 @@ impl EditState {
     ) -> EngineResult<()> {
         let pos1 = pos1.into();
         let pos2 = pos2.into();
-        let layer = self.current_layer;
+        let layer = self.get_current_layer();
         let op = UndoSwapChar { layer, pos1, pos2 };
         self.push_undo(Box::new(op))
     }
