@@ -112,7 +112,7 @@ impl TextAttribute {
         let fg = if buffer_type.use_extended_font() {
             self.foreground_color & 0b_0111
         } else {
-            self.foreground_color & 0b_0111 | if self.is_bold() { 0b_1000 } else { 0 }
+            self.foreground_color & 0b_1111
         };
 
         let bg = self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 };

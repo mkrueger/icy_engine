@@ -13,7 +13,7 @@ pub enum FontType {
     Color,
 }
 
-struct FontGlyph {
+pub struct FontGlyph {
     pub size: Size,
     pub data: Vec<u8>,
 }
@@ -348,6 +348,20 @@ impl TheDrawFont {
             return false;
         }
         self.char_table[char_offset as usize].is_some()
+    }
+
+    pub fn set_glyph(&mut self, ch: char, glyph: FontGlyph) {
+        let char_offset = (ch as i32) - b' ' as i32 - 1;
+        if char_offset > 0 || char_offset < self.char_table.len() as i32 {
+            self.char_table[char_offset as usize] = Some(glyph);
+        }
+    }
+
+    pub fn clear_glyph(&mut self, ch: char) {
+        let char_offset = (ch as i32) - b' ' as i32 - 1;
+        if char_offset > 0 || char_offset < self.char_table.len() as i32 {
+            self.char_table[char_offset as usize] = None;
+        }
     }
 
     pub fn render(&self, editor: &mut EditState, char_code: u8) -> Option<Size> {
