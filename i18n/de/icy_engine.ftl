@@ -30,6 +30,7 @@ undo-scroll_layer_right=Bereich rechts scrollen
 undo-stamp-down=Stempeln
 undo-make_transparent=Transparenz
 undo-rotate_layer=Ebene drehen
+undo-clear_layer=Ebene leeren
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

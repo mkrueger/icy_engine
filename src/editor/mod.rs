@@ -314,7 +314,6 @@ impl EditState {
 
     pub fn set_mirror_mode(&mut self, mirror_mode: bool) {
         self.mirror_mode = mirror_mode;
-        println!("set mirror mode to {}", mirror_mode);
     }
 }
 

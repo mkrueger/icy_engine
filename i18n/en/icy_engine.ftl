@@ -30,6 +30,7 @@ undo-scroll_layer_right=Scroll layer right
 undo-stamp-down=Stamp down
 undo-make_transparent=Make transparent
 undo-rotate_layer=Rotate layer
+undo-clear_layer=Clear layer
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

@@ -999,3 +999,40 @@ impl UndoOperation for ReverseCaretPosition {
         Ok(())
     }
 }
+
+#[derive(Default)]
+pub struct ClearLayer {
+    layer_index: usize,
+    layer: Vec<Line>,
+}
+
+impl ClearLayer {
+    pub fn new(layer_index: usize) -> Self {
+        Self {
+            layer_index,
+            layer: Vec::new(),
+        }
+    }
+}
+
+impl UndoOperation for ClearLayer {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-clear_layer")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.redo(edit_state)
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if self.layer_index < edit_state.buffer.layers.len() {
+            mem::swap(
+                &mut self.layer,
+                &mut edit_state.buffer.layers[self.layer_index].lines,
+            );
+            Ok(())
+        } else {
+            Err(Box::new(EditorError::InvalidLayer(self.layer_index)))
+        }
+    }
+}

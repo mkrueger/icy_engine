@@ -60,6 +60,13 @@ impl EditState {
         Ok(())
     }
 
+    pub fn clear_layer(&mut self, layer: usize) -> EngineResult<()> {
+        let op = undo_operations::ClearLayer::new(layer);
+        self.push_undo(Box::new(op))?;
+        self.current_layer = layer + 1;
+        Ok(())
+    }
+
     /// Returns the anchor layer of this [`EditState`].
     ///
     /// # Panics
@@ -289,7 +296,6 @@ mod tests {
         state.add_new_layer(0).unwrap();
         assert!(state.buffer.layers[0].has_alpha_channel);
     }
-
 
     #[test]
     fn test_add_layer_size() {
