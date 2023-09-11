@@ -108,7 +108,7 @@ impl TextAttribute {
         res
     }
 
-    pub fn as_u8(self, buffer_type: BufferType) -> u8 {
+    pub fn as_u8(self, _buffer_type: BufferType) -> u8 {
         let mut fg = self.foreground_color & 0b_0111;
 
         if self.is_bold() {

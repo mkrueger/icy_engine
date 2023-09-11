@@ -13,6 +13,7 @@ pub enum FontType {
     Color,
 }
 
+#[derive(Clone)]
 pub struct FontGlyph {
     pub size: Size,
     pub data: Vec<u8>,
@@ -65,7 +66,7 @@ impl FontGlyph {
     }
 }
 
-#[allow(dead_code)]
+#[derive(Clone)]
 pub struct TheDrawFont {
     pub name: String,
     pub font_type: FontType,
@@ -88,6 +89,15 @@ const CTRL_Z: u8 = 0x1A; // indicates end of file
 const FONT_INDICATOR: u32 = 0xFF00_AA55;
 
 impl TheDrawFont {
+    pub fn new(name: impl Into<String>, font_type: FontType, spaces: i32) -> Self {
+        Self {
+            name: name.into(),
+            font_type,
+            spaces,
+            char_table: vec![None; CHAR_TABLE_SIZE],
+        }
+    }
+
     /// .
     ///
     /// # Panics
