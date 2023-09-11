@@ -48,6 +48,8 @@ pub struct Layer {
     size: Size,
     pub lines: Vec<Line>,
 
+    pub forced_output_attribute: Option<TextAttribute>,
+
     pub sixels: Vec<Sixel>,
     pub(crate) hyperlinks: Vec<HyperLink>,
 }
@@ -100,7 +102,19 @@ impl TextPane for Layer {
             if pos.x < cur_line.chars.len() as i32 {
                 let ch = cur_line.chars[pos.x as usize];
                 if !self.has_alpha_channel && !ch.is_visible() {
+                    if let Some(attr) = self.forced_output_attribute {
+                        return AttributedChar {
+                            ch: ' ',
+                            attribute: attr,
+                        };
+                    }
                     return AttributedChar::default();
+                }
+                if let Some(attr) = self.forced_output_attribute {
+                    return AttributedChar {
+                        ch: ch.ch,
+                        attribute: attr,
+                    };
                 }
                 return ch;
             }
@@ -109,6 +123,12 @@ impl TextPane for Layer {
         if self.has_alpha_channel {
             AttributedChar::invisible()
         } else {
+            if let Some(attr) = self.forced_output_attribute {
+                return AttributedChar {
+                    ch: ' ',
+                    attribute: attr,
+                };
+            }
             AttributedChar::default()
         }
     }
