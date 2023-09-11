@@ -109,13 +109,13 @@ impl TextAttribute {
     }
 
     pub fn as_u8(self, buffer_type: BufferType) -> u8 {
-        let fg = if buffer_type.use_extended_font() {
-            self.foreground_color & 0b_0111
-        } else {
-            self.foreground_color & 0b_1111
-        };
+        let mut fg = self.foreground_color & 0b_0111;
 
-        let bg = self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 };
+        if self.is_bold() {
+            fg |= 0b_1000;
+        }
+
+        let bg = self.background_color & 0b_1111/*  | if self.is_blinking() { 0b_1000 } else { 0 }*/;
         (fg | bg << 4) as u8
     }
 
