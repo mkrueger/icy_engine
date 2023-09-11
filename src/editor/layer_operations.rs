@@ -10,9 +10,6 @@ impl EditState {
         let size = self.buffer.get_size();
         let mut new_layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-new-name"), size);
         new_layer.has_alpha_channel = true;
-        if self.buffer.layers.is_empty() {
-            new_layer.has_alpha_channel = false;
-        }
         let idx = if self.buffer.layers.is_empty() {
             0
         } else {
@@ -283,6 +280,16 @@ mod tests {
         state.add_new_layer(0).unwrap();
         assert_eq!(2, state.buffer.layers.len());
     }
+
+    #[test]
+    fn test_add_layer_transparency_behavior() {
+        // test an issue where new layer was created w/o alpha channel when there was no base layer
+        let mut state = EditState::default();
+        state.buffer.layers.clear();
+        state.add_new_layer(0).unwrap();
+        assert!(state.buffer.layers[0].has_alpha_channel);
+    }
+
 
     #[test]
     fn test_add_layer_size() {
