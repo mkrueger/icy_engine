@@ -34,6 +34,7 @@ undo-clear_layer=Clear layer
 undo-deselect=Deselect
 undo-select-nothing=Select nothing
 undo-set_selection=Selection
+undo-inverse_selection=Inverse selection
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

@@ -1,4 +1,6 @@
 #![allow(clippy::missing_errors_doc)]
+use i18n_embed_fl::fl;
+
 use super::{undo_operations, EditState};
 use crate::{AttributedChar, EngineResult, Position, Rectangle, Selection, TextPane};
 
@@ -38,7 +40,7 @@ impl EditState {
         }
     }
 
-    fn is_something_selected(&self) -> bool {
+    pub fn is_something_selected(&self) -> bool {
         self.selection_opt.is_some() || !self.selection_mask.is_empty()
     }
 
@@ -72,6 +74,38 @@ impl EditState {
         rect
     }
 
+    pub fn inverse_selection(&mut self) -> EngineResult<()> {
+        let old_mask = self.selection_mask.clone();
+        let old_selection = self.selection_opt.clone();
+        if let Some(selection) = self.selection_opt {
+            if selection.is_negative_selection {
+                self.selection_mask
+                    .remove_rectangle(selection.as_rectangle());
+            } else {
+                self.selection_mask.add_rectangle(selection.as_rectangle());
+            }
+        }
+        self.selection_opt = None;
+        for y in 0..self.buffer.get_height() {
+            for x in 0..self.buffer.get_width() {
+                let pos = Position::new(x, y);
+                let is_selected = self.selection_mask.get_is_selected(pos);
+                self.selection_mask.set_is_selected(pos, !is_selected);
+            }
+        }
+
+        self.redo_stack.clear();
+        self.undo_stack
+            .lock()
+            .unwrap()
+            .push(Box::new(undo_operations::InverseSelection::new(
+                old_selection,
+                old_mask,
+                self.selection_mask.clone(),
+            )));
+        Ok(())
+    }
+
     /// .
     ///
     /// # Panics
@@ -98,6 +132,7 @@ impl EditState {
                 .lock()
                 .unwrap()
                 .push(Box::new(undo_operations::SetSelectionMask::new(
+                    fl!(crate::LANGUAGE_LOADER, "undo-set_selection"),
                     old_mask,
                     self.selection_mask.clone(),
                 )));

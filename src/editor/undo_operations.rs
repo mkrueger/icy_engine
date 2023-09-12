@@ -1150,19 +1150,24 @@ impl UndoOperation for SetSelection {
 
 #[derive(Default)]
 pub struct SetSelectionMask {
+    description: String,
     old: SelectionMask,
     new: SelectionMask,
 }
 
 impl SetSelectionMask {
-    pub fn new(old: crate::SelectionMask, new: crate::SelectionMask) -> Self {
-        Self { old, new }
+    pub fn new(description: String, old: crate::SelectionMask, new: crate::SelectionMask) -> Self {
+        Self {
+            description,
+            old,
+            new,
+        }
     }
 }
 
 impl UndoOperation for SetSelectionMask {
     fn get_description(&self) -> String {
-        fl!(crate::LANGUAGE_LOADER, "undo-set_selection")
+        self.description.clone()
     }
 
     fn changes_data(&self) -> bool {
@@ -1216,6 +1221,45 @@ impl UndoOperation for AddSelectionToMask {
                 .selection_mask
                 .add_rectangle(self.selection.as_rectangle());
         }
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct InverseSelection {
+    sel: Option<Selection>,
+    old: SelectionMask,
+    new: SelectionMask,
+}
+
+impl InverseSelection {
+    pub fn new(
+        sel: Option<Selection>,
+        old: crate::SelectionMask,
+        new: crate::SelectionMask,
+    ) -> Self {
+        Self { sel, old, new }
+    }
+}
+
+impl UndoOperation for InverseSelection {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-inverse_selection")
+    }
+
+    fn changes_data(&self) -> bool {
+        false
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = self.sel;
+        edit_state.selection_mask = self.old.clone();
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = None;
+        edit_state.selection_mask = self.new.clone();
         Ok(())
     }
 }
