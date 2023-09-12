@@ -110,10 +110,12 @@ impl EditState {
         } else {
             0
         };
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
         let y = self.get_caret().get_position().y + offset;
-        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1));
+        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1))?;
         let res = self.center();
-        self.clear_selection();
+        self.clear_selection()?;
         res
     }
 
@@ -123,10 +125,12 @@ impl EditState {
         } else {
             0
         };
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
         let y = self.get_caret().get_position().y + offset;
-        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1));
+        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1))?;
         let res = self.justify_left();
-        self.clear_selection();
+        self.clear_selection()?;
         res
     }
 
@@ -136,10 +140,12 @@ impl EditState {
         } else {
             0
         };
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
         let y = self.get_caret().get_position().y + offset;
-        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1));
+        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1))?;
         let res = self.justify_right();
-        self.clear_selection();
+        self.clear_selection()?;
         res
     }
 
@@ -178,8 +184,10 @@ impl EditState {
             0
         };
         let y = self.get_caret().get_position().y + offset;
-        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1));
-        self.delete_selection()
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
+        self.set_selection(Rectangle::from_coords(-1_000_000, y, 1_000_000, y + 1))?;
+        self.erase_selection()
     }
 
     pub fn erase_row_to_start(&mut self) -> EngineResult<()> {
@@ -190,8 +198,10 @@ impl EditState {
         };
         let y = self.get_caret().get_position().y + offset.y;
         let x = self.get_caret().get_position().x + offset.x;
-        self.set_selection(Rectangle::from_coords(-1_000_000, y, x, y + 1));
-        self.delete_selection()
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
+        self.set_selection(Rectangle::from_coords(-1_000_000, y, x, y + 1))?;
+        self.erase_selection()
     }
 
     pub fn erase_row_to_end(&mut self) -> EngineResult<()> {
@@ -202,8 +212,10 @@ impl EditState {
         };
         let y = self.get_caret().get_position().y + offset.y;
         let x = self.get_caret().get_position().x + offset.x;
-        self.set_selection(Rectangle::from_coords(x, y, 1_000_000, y + 1));
-        self.delete_selection()
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
+        self.set_selection(Rectangle::from_coords(x, y, 1_000_000, y + 1))?;
+        self.erase_selection()
     }
 
     pub fn erase_column(&mut self) -> EngineResult<()> {
@@ -213,8 +225,10 @@ impl EditState {
             Position::default()
         };
         let x = self.get_caret().get_position().x + offset.x;
-        self.set_selection(Rectangle::from_coords(x, -1_000_000, x, 1_000_000));
-        self.delete_selection()
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
+        self.set_selection(Rectangle::from_coords(x, -1_000_000, x, 1_000_000))?;
+        self.erase_selection()
     }
 
     pub fn erase_column_to_start(&mut self) -> EngineResult<()> {
@@ -225,8 +239,10 @@ impl EditState {
         };
         let y = self.get_caret().get_position().y + offset.y;
         let x = self.get_caret().get_position().x + offset.x;
-        self.set_selection(Rectangle::from_coords(x, -1_000_000, x, y));
-        self.delete_selection()
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+
+        self.set_selection(Rectangle::from_coords(x, -1_000_000, x, y))?;
+        self.erase_selection()
     }
 
     pub fn erase_column_to_end(&mut self) -> EngineResult<()> {
@@ -237,8 +253,9 @@ impl EditState {
         };
         let y = self.get_caret().get_position().y + offset.y;
         let x = self.get_caret().get_position().x + offset.x;
-        self.set_selection(Rectangle::from_coords(x, y, x, 1_000_000));
-        self.delete_selection()
+        let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
+        self.set_selection(Rectangle::from_coords(x, y, x, 1_000_000))?;
+        self.erase_selection()
     }
 
     /// .

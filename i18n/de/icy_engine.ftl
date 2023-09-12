@@ -31,6 +31,9 @@ undo-stamp-down=Stempeln
 undo-make_transparent=Transparenz
 undo-rotate_layer=Ebene drehen
 undo-clear_layer=Ebene leeren
+undo-deselect=Deselektieren
+undo-select-nothing=Nichts auswählen
+undo-set_selection=Auswahl
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

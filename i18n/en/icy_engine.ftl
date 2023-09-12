@@ -31,6 +31,9 @@ undo-stamp-down=Stamp down
 undo-make_transparent=Make transparent
 undo-rotate_layer=Rotate layer
 undo-clear_layer=Clear layer
+undo-deselect=Deselect
+undo-select-nothing=Select nothing
+undo-set_selection=Selection
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

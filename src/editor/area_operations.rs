@@ -257,22 +257,25 @@ impl EditState {
     /// # Panics
     ///
     /// Panics if .
-    pub fn delete_selection(&mut self) -> EngineResult<()> {
-        if self.selection_opt.is_none() {
+    pub fn erase_selection(&mut self) -> EngineResult<()> {
+        if self.selection_mask.is_empty() {
             return Ok(());
         }
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
-        let sel = self.get_selection();
-        if let Some(layer) = self.get_cur_layer_mut() {
-            let area = get_area(sel, layer.get_rectangle());
-
-            let old_layer = Layer::from_layer(layer, area);
-            for y in area.y_range() {
-                for x in area.x_range() {
-                    layer.set_char((x, y), AttributedChar::invisible());
+        let layer_idx = self.get_current_layer();
+        if let Some(layer) = self.buffer.layers.get_mut(layer_idx) {
+            let area = layer.get_rectangle();
+            let old_layer = layer.clone();
+            let selection_mask = &self.selection_mask;
+            for y in 0..layer.get_height() {
+                for x in 0..layer.get_width() {
+                    let pos = Position::new(x, y);
+                    if selection_mask.get_is_selected(pos + layer.get_offset()) {
+                        layer.set_char(pos, AttributedChar::invisible());
+                    }
                 }
             }
-            let new_layer = Layer::from_layer(layer, area);
+            let new_layer = layer.clone();
             let op = super::undo_operations::UndoLayerChange::new(
                 self.get_current_layer(),
                 area.start,
@@ -281,9 +284,7 @@ impl EditState {
             );
             self.redo_stack.clear();
             self.undo_stack.lock().unwrap().push(Box::new(op));
-            self.clear_selection();
-
-            Ok(())
+            self.clear_selection()
         } else {
             Err(Box::new(EditorError::CurrentLayerInvalid))
         }
@@ -494,8 +495,8 @@ mod tests {
         }
 
         let rect = Rectangle::from(5, 5, 10, 10);
-        state.set_selection(rect);
-        state.delete_selection().unwrap();
+        state.set_selection(rect).unwrap();
+        state.erase_selection().unwrap();
         for y in 0..20 {
             for x in 0..20 {
                 let pos = Position::new(x, y);
@@ -529,10 +530,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection().unwrap();
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
+        state.erase_selection().unwrap();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
         state.set_char((3, 5), '#'.into()).unwrap();
         state.set_char((0, 9), '#'.into()).unwrap();
 
@@ -578,10 +579,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection().unwrap();
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
+        state.erase_selection().unwrap();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
         state.set_char((3, 3), '#'.into()).unwrap();
         state.set_char((9, 9), '#'.into()).unwrap();
 
@@ -626,10 +627,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection().unwrap();
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
+        state.erase_selection().unwrap();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
         state.set_char((5, 5), '#'.into()).unwrap();
         state.set_char((0, 9), '#'.into()).unwrap();
 
@@ -676,10 +677,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection().unwrap();
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
+        state.erase_selection().unwrap();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
         state.set_char((0, 5), '#'.into()).unwrap();
         state.set_char((9, 9), '#'.into()).unwrap();
 
@@ -724,10 +725,10 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
-        state.delete_selection().unwrap();
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
+        state.erase_selection().unwrap();
 
-        state.set_selection(Rectangle::from(0, 0, 10, 10));
+        state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
         state.set_char((5, 5), '#'.into()).unwrap();
         state.set_char((9, 9), '#'.into()).unwrap();
 
@@ -776,7 +777,7 @@ mod tests {
         layer.set_offset((7, 6));
         state.get_buffer_mut().layers.push(layer);
 
-        state.set_selection(Rectangle::from(5, 5, 5, 4));
+        state.set_selection(Rectangle::from(5, 5, 5, 4)).unwrap();
 
         state.crop().unwrap();
 

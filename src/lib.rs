@@ -70,6 +70,9 @@ pub use selection::*;
 mod url_scanner;
 pub use url_scanner::*;
 
+mod selection_mask;
+pub use selection_mask::*;
+
 pub type EngineResult<T> = Result<T, Box<dyn Error + Send>>;
 
 pub mod editor;
@@ -224,7 +227,7 @@ impl Rectangle {
         self.start
     }
 
-    pub fn lower_right(&self) -> Position {
+    pub fn bottom_right(&self) -> Position {
         Position {
             x: self.start.x + self.size.width,
             y: self.start.y + self.size.height,
@@ -239,7 +242,7 @@ impl Rectangle {
     }
 
     pub fn contains_rect(&self, other: &Rectangle) -> bool {
-        self.contains_pt(other.start) && self.contains_pt(other.lower_right())
+        self.contains_pt(other.start) && self.contains_pt(other.bottom_right())
     }
 
     pub fn get_width(&self) -> i32 {
@@ -263,7 +266,16 @@ impl Rectangle {
 
     pub fn intersect(&self, other: &Rectangle) -> Rectangle {
         let min = self.start.max(other.start);
-        let max = self.lower_right().min(other.lower_right());
+        let max = self.bottom_right().min(other.bottom_right());
+        Rectangle {
+            start: min,
+            size: (max - min).into(),
+        }
+    }
+
+    pub fn union(&self, other: &Rectangle) -> Rectangle {
+        let min = self.start.min(other.start);
+        let max = self.bottom_right().max(other.bottom_right());
         Rectangle {
             start: min,
             size: (max - min).into(),
@@ -271,11 +283,11 @@ impl Rectangle {
     }
 
     pub fn y_range(&self) -> std::ops::Range<i32> {
-        self.start.y..self.lower_right().y
+        self.start.y..self.bottom_right().y
     }
 
     pub fn x_range(&self) -> std::ops::Range<i32> {
-        self.start.x..self.lower_right().x
+        self.start.x..self.bottom_right().x
     }
 
     pub fn left(&self) -> i32 {
@@ -283,7 +295,7 @@ impl Rectangle {
     }
 
     pub fn right(&self) -> i32 {
-        self.lower_right().x
+        self.bottom_right().x
     }
 
     pub fn top(&self) -> i32 {
@@ -291,7 +303,7 @@ impl Rectangle {
     }
 
     pub fn bottom(&self) -> i32 {
-        self.lower_right().y
+        self.bottom_right().y
     }
 
     pub fn is_empty(&self) -> bool {

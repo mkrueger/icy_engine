@@ -13,6 +13,7 @@ pub struct Selection {
 
     pub locked: bool,
     pub shape: Shape,
+    pub is_negative_selection: bool,
 }
 
 impl Default for Selection {
@@ -29,6 +30,7 @@ impl Selection {
             lead: pos,
             locked: false,
             shape: Shape::Lines,
+            is_negative_selection: false,
         }
     }
 
@@ -65,9 +67,10 @@ impl From<Rectangle> for Selection {
     fn from(value: Rectangle) -> Self {
         Selection {
             anchor: value.top_left(),
-            lead: value.lower_right(),
+            lead: value.bottom_right(),
             locked: false,
             shape: Shape::Rectangle,
+            is_negative_selection: false,
         }
     }
 }
@@ -79,6 +82,7 @@ impl From<(f32, f32, f32, f32)> for Selection {
             lead: (value.2, value.3).into(),
             locked: false,
             shape: Shape::Rectangle,
+            is_negative_selection: false,
         }
     }
 }
@@ -90,6 +94,7 @@ impl From<(i32, i32, i32, i32)> for Selection {
             lead: (value.2, value.3).into(),
             locked: false,
             shape: Shape::Rectangle,
+            is_negative_selection: false,
         }
     }
 }

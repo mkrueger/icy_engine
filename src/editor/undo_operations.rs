@@ -5,7 +5,9 @@ use std::{
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Line, Position, Size, TextPane};
+use crate::{
+    AttributedChar, EngineResult, Layer, Line, Position, Selection, SelectionMask, Size, TextPane,
+};
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
 
@@ -533,11 +535,13 @@ impl UndoOperation for ResizeBuffer {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.orig_size);
+        edit_state.selection_mask.set_size(self.orig_size);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.size);
+        edit_state.selection_mask.set_size(self.size);
         Ok(())
     }
 }
@@ -568,7 +572,11 @@ impl UndoOperation for UndoLayerChange {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.buffer.layers.get_mut(self.layer) {
-            layer.stamp(self.pos, &self.old_chars);
+            if layer.get_size() == self.old_chars.get_size() {
+                layer.lines = self.old_chars.lines.clone();
+            } else {
+                layer.stamp(self.pos, &self.old_chars);
+            }
             Ok(())
         } else {
             Err(Box::new(EditorError::InvalidLayer(self.layer)))
@@ -577,7 +585,11 @@ impl UndoOperation for UndoLayerChange {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.buffer.layers.get_mut(self.layer) {
-            layer.stamp(self.pos, &self.new_chars);
+            if layer.get_size() == self.new_chars.get_size() {
+                layer.lines = self.new_chars.lines.clone();
+            } else {
+                layer.stamp(self.pos, &self.new_chars);
+            }
             Ok(())
         } else {
             Err(Box::new(EditorError::InvalidLayer(self.layer)))
@@ -609,12 +621,14 @@ impl UndoOperation for Crop {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.orig_size);
+        edit_state.selection_mask.set_size(self.orig_size);
         mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.size);
+        edit_state.selection_mask.set_size(self.size);
         mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
         Ok(())
     }
@@ -1034,5 +1048,154 @@ impl UndoOperation for ClearLayer {
         } else {
             Err(Box::new(EditorError::InvalidLayer(self.layer_index)))
         }
+    }
+}
+
+#[derive(Default)]
+pub struct Deselect {
+    sel: Selection,
+}
+
+impl Deselect {
+    pub fn new(sel: Selection) -> Self {
+        Self { sel }
+    }
+}
+
+impl UndoOperation for Deselect {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-deselect")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = Some(self.sel);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = None;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SelectNothing {
+    sel: Option<Selection>,
+    mask: SelectionMask,
+}
+
+impl SelectNothing {
+    pub fn new(sel: Option<Selection>, mask: crate::SelectionMask) -> Self {
+        Self { sel, mask }
+    }
+}
+
+impl UndoOperation for SelectNothing {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-select-nothing")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = self.sel;
+        edit_state.selection_mask = self.mask.clone();
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = None;
+        edit_state.selection_mask.clear();
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SetSelection {
+    old: Option<Selection>,
+    new: Option<Selection>,
+}
+
+impl SetSelection {
+    pub fn new(old: Option<Selection>, new: Option<Selection>) -> Self {
+        Self { old, new }
+    }
+}
+
+impl UndoOperation for SetSelection {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-set_selection")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = self.old;
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_opt = self.new;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SetSelectionMask {
+    old: SelectionMask,
+    new: SelectionMask,
+}
+
+impl SetSelectionMask {
+    pub fn new(old: crate::SelectionMask, new: crate::SelectionMask) -> Self {
+        Self { old, new }
+    }
+}
+
+impl UndoOperation for SetSelectionMask {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-set_selection")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_mask = self.old.clone();
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_mask = self.new.clone();
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct AddSelectionToMask {
+    old: SelectionMask,
+    selection: Selection,
+}
+
+impl AddSelectionToMask {
+    pub fn new(old: crate::SelectionMask, selection: Selection) -> Self {
+        Self { old, selection }
+    }
+}
+
+impl UndoOperation for AddSelectionToMask {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-set_selection")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.selection_mask = self.old.clone();
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if self.selection.is_negative_selection {
+            edit_state
+                .selection_mask
+                .remove_rectangle(self.selection.as_rectangle());
+        } else {
+            edit_state
+                .selection_mask
+                .add_rectangle(self.selection.as_rectangle());
+        }
+        Ok(())
     }
 }

@@ -14,15 +14,19 @@ mod edit_operations;
 pub use edit_operations::*;
 mod area_operations;
 pub use area_operations::*;
+mod selection_operations;
+pub use selection_operations::*;
 
 use crate::{
-    ansi, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection, Shape, TextPane,
+    ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,
+    SelectionMask, Shape, TextPane,
 };
 
 pub struct EditState {
     buffer: Buffer,
     caret: Caret,
     selection_opt: Option<Selection>,
+    selection_mask: SelectionMask,
     parser: Box<dyn BufferParser>,
 
     current_layer: usize,
@@ -83,9 +87,13 @@ impl Drop for AtomicUndoGuard {
 
 impl Default for EditState {
     fn default() -> Self {
+        let buffer = Buffer::default();
+        let mut selection_mask = SelectionMask::default();
+        selection_mask.set_size(buffer.get_size());
+
         Self {
             parser: Box::<ansi::Parser>::default(),
-            buffer: Buffer::default(),
+            buffer,
             caret: Caret::default(),
             selection_opt: None,
             undo_stack: Arc::new(Mutex::new(Vec::new())),
@@ -93,14 +101,19 @@ impl Default for EditState {
             current_layer: 0,
             outline_style: 0,
             mirror_mode: false,
+            selection_mask,
         }
     }
 }
 
 impl EditState {
     pub fn from_buffer(buffer: Buffer) -> Self {
+        let mut selection_mask = SelectionMask::default();
+        selection_mask.set_size(buffer.get_size());
+
         Self {
             buffer,
+            selection_mask,
             ..Default::default()
         }
     }
@@ -115,6 +128,7 @@ impl EditState {
 
     pub fn set_buffer(&mut self, buffer: Buffer) {
         self.buffer = buffer;
+        self.selection_mask.set_size(self.buffer.get_size());
     }
 
     pub fn get_buffer(&self) -> &Buffer {
@@ -146,18 +160,6 @@ impl EditState {
         &mut self,
     ) -> (&mut Buffer, &mut Caret, &mut Box<dyn BufferParser>) {
         (&mut self.buffer, &mut self.caret, &mut self.parser)
-    }
-
-    pub fn get_selection(&self) -> Option<Selection> {
-        self.selection_opt
-    }
-
-    pub fn set_selection(&mut self, sel: impl Into<Selection>) {
-        self.selection_opt = Some(sel.into());
-    }
-
-    pub fn clear_selection(&mut self) {
-        self.selection_opt = None;
     }
 
     pub fn get_copy_text(&mut self) -> Option<String> {
@@ -206,39 +208,37 @@ impl EditState {
                 }
             }
         }
-        self.selection_opt = None;
         Some(res)
     }
 
     pub fn get_clipboard_data(&self) -> Option<Vec<u8>> {
-        let Some(selection) = &self.selection_opt else {
+        if self.selection_mask.is_empty() {
             return None;
         };
 
+        let selection = self.get_selected_rectangle();
+
         let mut data = Vec::new();
-        if matches!(selection.shape, Shape::Rectangle) {
-            data.push(0);
-            data.extend(i32::to_le_bytes(selection.min().x));
-            data.extend(i32::to_le_bytes(selection.min().y));
+        data.push(0);
+        data.extend(i32::to_le_bytes(selection.start.x));
+        data.extend(i32::to_le_bytes(selection.start.y));
 
-            data.extend(u32::to_le_bytes(selection.size().width as u32));
-            data.extend(u32::to_le_bytes(selection.size().height as u32));
+        data.extend(u32::to_le_bytes(selection.get_size().width as u32));
+        data.extend(u32::to_le_bytes(selection.get_size().height as u32));
 
-            let start = selection.min();
-            let end = selection.max();
-
-            for y in start.y..end.y {
-                for x in start.x..end.x {
-                    let ch = self.buffer.get_char((x, y));
-                    data.extend(u16::to_le_bytes(ch.ch as u16));
-                    data.extend(u16::to_le_bytes(ch.attribute.attr));
-                    data.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
-                    data.extend(u32::to_le_bytes(ch.attribute.background_color));
-                    data.extend(u32::to_le_bytes(ch.attribute.foreground_color));
-                }
+        for y in selection.y_range() {
+            for x in selection.x_range() {
+                let ch = if self.get_is_selected((x, y)) {
+                    self.buffer.get_char((x, y))
+                } else {
+                    AttributedChar::invisible()
+                };
+                data.extend(u16::to_le_bytes(ch.ch as u16));
+                data.extend(u16::to_le_bytes(ch.attribute.attr));
+                data.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+                data.extend(u32::to_le_bytes(ch.attribute.background_color));
+                data.extend(u32::to_le_bytes(ch.attribute.foreground_color));
             }
-        } else {
-            // TODO
         }
         Some(data)
     }

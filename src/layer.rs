@@ -455,7 +455,9 @@ mod tests {
             }
         }
 
-        state.set_selection(Rectangle::from_min_size((5, 6), (7, 8)));
+        state
+            .set_selection(Rectangle::from_min_size((5, 6), (7, 8)))
+            .unwrap();
         let data = state.get_clipboard_data().unwrap();
 
         let layer = Layer::from_clipboard_data(&data).unwrap();
