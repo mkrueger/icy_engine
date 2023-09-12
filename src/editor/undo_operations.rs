@@ -1067,6 +1067,10 @@ impl UndoOperation for Deselect {
         fl!(crate::LANGUAGE_LOADER, "undo-deselect")
     }
 
+    fn changes_data(&self) -> bool {
+        false
+    }
+
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.selection_opt = Some(self.sel);
         Ok(())
@@ -1093,6 +1097,10 @@ impl SelectNothing {
 impl UndoOperation for SelectNothing {
     fn get_description(&self) -> String {
         fl!(crate::LANGUAGE_LOADER, "undo-select-nothing")
+    }
+
+    fn changes_data(&self) -> bool {
+        false
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
@@ -1125,6 +1133,10 @@ impl UndoOperation for SetSelection {
         fl!(crate::LANGUAGE_LOADER, "undo-set_selection")
     }
 
+    fn changes_data(&self) -> bool {
+        false
+    }
+
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.selection_opt = self.old;
         Ok(())
@@ -1151,6 +1163,10 @@ impl SetSelectionMask {
 impl UndoOperation for SetSelectionMask {
     fn get_description(&self) -> String {
         fl!(crate::LANGUAGE_LOADER, "undo-set_selection")
+    }
+
+    fn changes_data(&self) -> bool {
+        false
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
@@ -1184,6 +1200,10 @@ impl UndoOperation for AddSelectionToMask {
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.selection_mask = self.old.clone();
         Ok(())
+    }
+
+    fn changes_data(&self) -> bool {
+        false
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {

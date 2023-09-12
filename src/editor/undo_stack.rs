@@ -50,6 +50,10 @@ pub trait UndoOperation: Send + Sync {
         OperationType::Unknown
     }
 
+    fn changes_data(&self) -> bool {
+        true
+    }
+
     fn try_clone(&self) -> Option<Box<dyn UndoOperation>> {
         None
     }
