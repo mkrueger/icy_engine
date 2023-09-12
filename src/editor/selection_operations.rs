@@ -55,6 +55,12 @@ impl EditState {
         self.selection_mask.get_is_selected(pos)
     }
 
+    pub fn get_is_mask_selected(&self, pos: impl Into<Position>) -> bool {
+        let pos = pos.into();
+
+        self.selection_mask.get_is_selected(pos)
+    }
+
     pub fn add_selection_to_mask(&mut self) -> EngineResult<()> {
         if let Some(selection) = self.selection_opt {
             self.push_undo(Box::new(undo_operations::AddSelectionToMask::new(
@@ -74,9 +80,18 @@ impl EditState {
         rect
     }
 
+    /// Returns the inverse selection of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn inverse_selection(&mut self) -> EngineResult<()> {
         let old_mask = self.selection_mask.clone();
-        let old_selection = self.selection_opt.clone();
+        let old_selection = self.selection_opt;
         if let Some(selection) = self.selection_opt {
             if selection.is_negative_selection {
                 self.selection_mask
@@ -89,7 +104,7 @@ impl EditState {
         for y in 0..self.buffer.get_height() {
             for x in 0..self.buffer.get_width() {
                 let pos = Position::new(x, y);
-                let is_selected = self.selection_mask.get_is_selected(pos);
+                let is_selected = self.get_is_selected(pos);
                 self.selection_mask.set_is_selected(pos, !is_selected);
             }
         }
@@ -119,7 +134,7 @@ impl EditState {
         for y in 0..self.buffer.get_height() {
             for x in 0..self.buffer.get_width() {
                 let pos = Position::new(x, y);
-                let is_selected = self.selection_mask.get_is_selected(pos);
+                let is_selected = self.get_is_selected(pos);
                 if let Some(res) = f(pos, self.buffer.get_char(pos), is_selected) {
                     self.selection_mask.set_is_selected(pos, res);
                 }

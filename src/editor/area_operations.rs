@@ -258,36 +258,39 @@ impl EditState {
     ///
     /// Panics if .
     pub fn erase_selection(&mut self) -> EngineResult<()> {
-        if self.selection_mask.is_empty() {
+        if !self.is_something_selected() {
             return Ok(());
         }
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
         let layer_idx = self.get_current_layer();
-        if let Some(layer) = self.buffer.layers.get_mut(layer_idx) {
-            let area = layer.get_rectangle();
-            let old_layer = layer.clone();
-            let selection_mask = &self.selection_mask;
-            for y in 0..layer.get_height() {
-                for x in 0..layer.get_width() {
-                    let pos = Position::new(x, y);
-                    if selection_mask.get_is_selected(pos + layer.get_offset()) {
-                        layer.set_char(pos, AttributedChar::invisible());
-                    }
+        let (area, old_layer) = if let Some(layer) = self.buffer.layers.get_mut(layer_idx) {
+            (layer.get_rectangle(), layer.clone())
+        } else {
+            return Err(Box::new(EditorError::CurrentLayerInvalid));
+        };
+
+        for y in 0..area.get_height() {
+            for x in 0..area.get_width() {
+                let pos = Position::new(x, y);
+                if self.get_is_selected(pos + area.start) {
+                    self.buffer
+                        .layers
+                        .get_mut(layer_idx)
+                        .unwrap()
+                        .set_char(pos, AttributedChar::invisible());
                 }
             }
-            let new_layer = layer.clone();
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            self.clear_selection()
-        } else {
-            Err(Box::new(EditorError::CurrentLayerInvalid))
         }
+        let new_layer = self.buffer.layers.get_mut(layer_idx).unwrap().clone();
+        let op = super::undo_operations::UndoLayerChange::new(
+            self.get_current_layer(),
+            area.start,
+            old_layer,
+            new_layer,
+        );
+        self.redo_stack.clear();
+        self.undo_stack.lock().unwrap().push(Box::new(op));
+        self.clear_selection()
     }
 
     pub fn scroll_area_up(&mut self) -> EngineResult<()> {
