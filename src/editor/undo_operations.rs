@@ -6,7 +6,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AttributedChar, EngineResult, Layer, Line, Position, Selection, SelectionMask, Size, TextPane,
+    AddType, AttributedChar, EngineResult, Layer, Line, Position, Selection, SelectionMask, Size,
+    TextPane,
 };
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
@@ -1212,15 +1213,19 @@ impl UndoOperation for AddSelectionToMask {
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        if self.selection.is_negative_selection {
-            edit_state
-                .selection_mask
-                .remove_rectangle(self.selection.as_rectangle());
-        } else {
-            edit_state
-                .selection_mask
-                .add_rectangle(self.selection.as_rectangle());
+        match self.selection.add_type {
+            AddType::Default | AddType::Add => {
+                edit_state
+                    .selection_mask
+                    .add_rectangle(self.selection.as_rectangle());
+            }
+            AddType::Subtract => {
+                edit_state
+                    .selection_mask
+                    .remove_rectangle(self.selection.as_rectangle());
+            }
         }
+
         Ok(())
     }
 }

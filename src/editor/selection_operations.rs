@@ -2,7 +2,7 @@
 use i18n_embed_fl::fl;
 
 use super::{undo_operations, EditState};
-use crate::{AttributedChar, EngineResult, Position, Rectangle, Selection, TextPane};
+use crate::{AddType, AttributedChar, EngineResult, Position, Rectangle, Selection, TextPane};
 
 impl EditState {
     pub fn get_selection(&self) -> Option<Selection> {
@@ -48,7 +48,7 @@ impl EditState {
         let pos = pos.into();
         if let Some(sel) = self.selection_opt {
             if sel.is_inside(pos) {
-                return !sel.is_negative_selection;
+                return !matches!(sel.add_type, AddType::Subtract);
             }
         }
 
@@ -93,11 +93,14 @@ impl EditState {
         let old_mask = self.selection_mask.clone();
         let old_selection = self.selection_opt;
         if let Some(selection) = self.selection_opt {
-            if selection.is_negative_selection {
-                self.selection_mask
-                    .remove_rectangle(selection.as_rectangle());
-            } else {
-                self.selection_mask.add_rectangle(selection.as_rectangle());
+            match selection.add_type {
+                AddType::Default | AddType::Add => {
+                    self.selection_mask
+                        .remove_rectangle(selection.as_rectangle());
+                }
+                AddType::Subtract => {
+                    self.selection_mask.add_rectangle(selection.as_rectangle());
+                }
             }
         }
         self.selection_opt = None;

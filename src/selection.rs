@@ -6,6 +6,13 @@ pub enum Shape {
     Lines,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AddType {
+    Default,
+    Add,
+    Subtract,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Selection {
     pub anchor: Position,
@@ -13,7 +20,7 @@ pub struct Selection {
 
     pub locked: bool,
     pub shape: Shape,
-    pub is_negative_selection: bool,
+    pub add_type: AddType,
 }
 
 impl Default for Selection {
@@ -30,7 +37,7 @@ impl Selection {
             lead: pos,
             locked: false,
             shape: Shape::Lines,
-            is_negative_selection: false,
+            add_type: AddType::Default,
         }
     }
 
@@ -70,7 +77,7 @@ impl From<Rectangle> for Selection {
             lead: value.bottom_right(),
             locked: false,
             shape: Shape::Rectangle,
-            is_negative_selection: false,
+            add_type: AddType::Default,
         }
     }
 }
@@ -82,7 +89,7 @@ impl From<(f32, f32, f32, f32)> for Selection {
             lead: (value.2, value.3).into(),
             locked: false,
             shape: Shape::Rectangle,
-            is_negative_selection: false,
+            add_type: AddType::Default,
         }
     }
 }
@@ -94,7 +101,7 @@ impl From<(i32, i32, i32, i32)> for Selection {
             lead: (value.2, value.3).into(),
             locked: false,
             shape: Shape::Rectangle,
-            is_negative_selection: false,
+            add_type: AddType::Default,
         }
     }
 }
