@@ -25,7 +25,7 @@ pub enum FontSelectionState {
     Failure,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TerminalState {
     size: Size,
 
