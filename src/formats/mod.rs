@@ -31,7 +31,7 @@ pub use tundra::*;
 
 mod icy_draw;
 
-use crate::{Buffer, BufferFeatures, BufferParser, Caret, EngineResult};
+use crate::{Buffer, BufferFeatures, BufferParser, Caret, EngineResult, TextPane};
 
 use super::{Position, TextAttribute};
 
@@ -150,6 +150,12 @@ pub fn parse_with_parser(
             }
         }
     }
+
+    // crop last empty line (if any)
+    while result.layers[0].lines.len() > 1 && result.layers[0].lines.last().unwrap().chars.is_empty() {
+        result.layers[0].lines.pop();
+    }
+    result.set_height(result.get_line_count());
     Ok(())
 }
 
