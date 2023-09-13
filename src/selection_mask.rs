@@ -1,4 +1,4 @@
-use crate::{Position, Rectangle, Size};
+use crate::{Position, Rectangle, Selection, Size};
 
 #[derive(Default, Clone, PartialEq)]
 pub struct SelectionMask {
@@ -96,6 +96,52 @@ impl SelectionMask {
             Rectangle::from_min_size((x_min, y_min), (x_max - x_min + 1, y_max - y_min + 1))
         } else {
             Rectangle::default()
+        }
+    }
+
+    pub(crate) fn add_selection(&mut self, selection: Selection) {
+        match selection.shape {
+            crate::Shape::Rectangle => {
+                self.add_rectangle(selection.as_rectangle());
+            }
+            crate::Shape::Lines => {
+                let mut pos = selection.anchor;
+                let mut max = selection.lead;
+                if pos > max {
+                    std::mem::swap(&mut pos, &mut max);
+                }
+                while pos < max {
+                    self.set_is_selected(pos, true);
+                    pos.x += 1;
+                    if pos.x >= self.size.width {
+                        pos.x = 0;
+                        pos.y += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn remove_selection(&mut self, selection: Selection) {
+        match selection.shape {
+            crate::Shape::Rectangle => {
+                self.remove_rectangle(selection.as_rectangle());
+            }
+            crate::Shape::Lines => {
+                let mut pos = selection.anchor;
+                let mut max = selection.lead;
+                if pos > max {
+                    std::mem::swap(&mut pos, &mut max);
+                }
+                while pos < max {
+                    self.set_is_selected(pos, false);
+                    pos.x += 1;
+                    if pos.x >= self.size.width {
+                        pos.x = 0;
+                        pos.y += 1;
+                    }
+                }
+            }
         }
     }
 }

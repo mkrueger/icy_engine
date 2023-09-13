@@ -1215,14 +1215,10 @@ impl UndoOperation for AddSelectionToMask {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         match self.selection.add_type {
             AddType::Default | AddType::Add => {
-                edit_state
-                    .selection_mask
-                    .add_rectangle(self.selection.as_rectangle());
+                edit_state.selection_mask.add_selection(self.selection);
             }
             AddType::Subtract => {
-                edit_state
-                    .selection_mask
-                    .remove_rectangle(self.selection.as_rectangle());
+                edit_state.selection_mask.remove_selection(self.selection);
             }
         }
 
