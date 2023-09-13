@@ -215,6 +215,9 @@ impl EditState {
         if !self.is_something_selected() {
             return None;
         };
+        let Some(layer) = self.get_cur_layer() else {
+            return None;
+        };
 
         let selection = self.get_selected_rectangle();
 
@@ -225,11 +228,11 @@ impl EditState {
 
         data.extend(u32::to_le_bytes(selection.get_size().width as u32));
         data.extend(u32::to_le_bytes(selection.get_size().height as u32));
-
         for y in selection.y_range() {
             for x in selection.x_range() {
+                let pos = Position::new(x, y);
                 let ch = if self.get_is_selected((x, y)) {
-                    self.buffer.get_char((x, y))
+                    layer.get_char(pos - layer.get_offset())
                 } else {
                     AttributedChar::invisible()
                 };

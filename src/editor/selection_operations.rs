@@ -136,12 +136,15 @@ impl EditState {
     where
         F: Fn(Position, AttributedChar, bool) -> Option<bool>,
     {
+        let offset = self.get_cur_layer().unwrap().get_offset();
+
         let old_mask = self.selection_mask.clone();
         for y in 0..self.buffer.get_height() {
             for x in 0..self.buffer.get_width() {
                 let pos = Position::new(x, y);
                 let is_selected = self.get_is_selected(pos);
-                if let Some(res) = f(pos, self.buffer.get_char(pos), is_selected) {
+                let ch = self.get_cur_layer().unwrap().get_char(pos - offset);
+                if let Some(res) = f(pos, ch, is_selected) {
                     self.selection_mask.set_is_selected(pos, res);
                 }
             }
