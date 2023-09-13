@@ -25,7 +25,7 @@ pub(super) struct IcyDraw {}
 
 impl OutputFormat for IcyDraw {
     fn get_file_extension(&self) -> &str {
-        "icd"
+        "iced"
     }
 
     fn get_name(&self) -> &str {
@@ -59,9 +59,10 @@ impl OutputFormat for IcyDraw {
             let mut result = vec![
                 constants::ICD_VERSION as u8,
                 (constants::ICD_VERSION >> 8) as u8,
-                0, // Type
-                0, // Mode
             ];
+            result.extend(u32::to_le_bytes(0)); // Type
+            result.extend(u16::to_le_bytes(0)); // Mode
+
             result.extend(u32::to_le_bytes(buf.get_width() as u32));
             result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
             let sauce_data = general_purpose::STANDARD.encode(&result);
@@ -232,9 +233,10 @@ impl OutputFormat for IcyDraw {
 
                                     o += 2; // skip version
 
-                                    o += 1; // skip type
+                                    // TODO: read type ATM only 1 type is generated.
+                                    o += 4; // skip type
 
-                                    o += 1; // skip mode
+                                    o += 2; // skip mode
 
                                     let width: i32 =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
