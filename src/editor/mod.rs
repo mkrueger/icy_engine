@@ -212,7 +212,7 @@ impl EditState {
     }
 
     pub fn get_clipboard_data(&self) -> Option<Vec<u8>> {
-        if self.selection_mask.is_empty() {
+        if !self.is_something_selected() {
             return None;
         };
 
