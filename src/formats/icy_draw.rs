@@ -25,7 +25,7 @@ pub struct IcyDraw {}
 
 impl OutputFormat for IcyDraw {
     fn get_file_extension(&self) -> &str {
-        "iced"
+        "icy"
     }
 
     fn get_name(&self) -> &str {
