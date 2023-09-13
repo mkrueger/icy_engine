@@ -545,11 +545,6 @@ impl Buffer {
         y as f64 * font_dimensions.height as f64
     }
 
-    pub fn set_height_for_pos(&mut self, pos: impl Into<Position>) {
-        let pos = pos.into();
-        self.set_height(if pos.x == 0 { pos.y } else { pos.y + 1 });
-    }
-
     /// .
     ///
     /// # Panics

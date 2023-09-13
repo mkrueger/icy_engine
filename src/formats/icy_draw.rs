@@ -21,7 +21,7 @@ mod constants {
 }
 
 #[derive(Default)]
-pub(super) struct IcyDraw {}
+pub struct IcyDraw {}
 
 impl OutputFormat for IcyDraw {
     fn get_file_extension(&self) -> &str {

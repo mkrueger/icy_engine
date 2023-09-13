@@ -170,7 +170,7 @@ impl OutputFormat for IceDraw {
 
         result.palette = Palette::from(&data[o..(o + PALETTE_SIZE)]);
 
-        result.set_height_for_pos(pos);
+        crate::crop_loaded_file(&mut result);
 
         Ok(result)
     }

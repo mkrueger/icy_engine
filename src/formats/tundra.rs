@@ -217,7 +217,7 @@ impl OutputFormat for TundraDraw {
             );
             advance_pos(&result, &mut pos);
         }
-        result.set_height_for_pos(pos);
+        crate::crop_loaded_file(&mut result);
         result.palette.fill_to_16();
 
         Ok(result)

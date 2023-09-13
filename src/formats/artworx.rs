@@ -99,7 +99,7 @@ impl OutputFormat for Artworx {
         loop {
             for _ in 0..result.get_width() {
                 if o + 2 > file_size {
-                    result.set_height_for_pos(pos);
+                    crate::crop_loaded_file(&mut result);
                     return Ok(result);
                 }
                 result.layers[0].set_height(pos.y + 1);

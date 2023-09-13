@@ -196,6 +196,7 @@ impl OutputFormat for XBin {
         } else {
             read_data_uncompressed(&mut result, &data[o..])?;
         }
+        crate::crop_loaded_file(&mut result);
 
         Ok(result)
     }

@@ -152,11 +152,17 @@ pub fn parse_with_parser(
     }
 
     // crop last empty line (if any)
-    while result.layers[0].lines.len() > 1 && result.layers[0].lines.last().unwrap().chars.is_empty() {
+    crop_loaded_file(result);
+    Ok(())
+}
+
+pub(crate) fn crop_loaded_file(result: &mut Buffer) {
+    while result.layers[0].lines.len() > 1
+        && result.layers[0].lines.last().unwrap().chars.is_empty()
+    {
         result.layers[0].lines.pop();
     }
     result.set_height(result.get_line_count());
-    Ok(())
 }
 
 #[derive(Debug, Clone)]
