@@ -276,7 +276,7 @@ impl Rectangle {
     pub fn union(&self, other: &Rectangle) -> Rectangle {
         if self.is_empty() {
             return *other;
-        } 
+        }
 
         if other.is_empty() {
             return *self;

@@ -23,6 +23,7 @@ impl Parser {
             return self.load_custom_font(buf);
         }
         let mut i = 0;
+        self.parsed_numbers.clear();
         for ch in self.parse_string.chars() {
             match ch {
                 '0'..='9' => {
@@ -87,7 +88,6 @@ impl Parser {
                     self.macros.clear();
                 }
             }
-
             match self.parsed_numbers.get(2) {
                 Some(0) => {
                     self.parse_macro_sequence(*pid as usize, start_index);

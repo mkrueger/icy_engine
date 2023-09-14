@@ -145,6 +145,7 @@ pub struct Parser {
     last_char: char,
     pub(crate) macros: HashMap<usize, String>,
     pub parse_string: String,
+    pub macro_dcs: String,
     pub bs_is_ctrl_char: bool,
 }
 
@@ -164,6 +165,7 @@ impl Default for Parser {
             cur_tempo: 120,
             dotted_note: false,
             parse_string: String::new(),
+            macro_dcs: String::new(),
             macros: HashMap::new(),
             last_char: '\0',
             hyper_links: Vec::new(),
@@ -305,7 +307,7 @@ impl BufferParser for Parser {
                 // 1: <num>
                 // 2: *
                 // z
-
+                self.macro_dcs.push(ch);
                 if ch.is_ascii_digit() {
                     if *i != 1 {
                         self.state = EngineState::Default;
@@ -362,11 +364,11 @@ impl BufferParser for Parser {
                         *self.parsed_numbers.first().unwrap(),
                     );
                 }
-
-                self.state = EngineState::Default;
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
-                    "Invalid macro inside dcs '{ch}'"
-                ))));
+                self.parse_string.push('\x1b');
+                self.parse_string.push('[');
+                self.parse_string.push_str(&self.macro_dcs);
+                self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                return Ok(CallbackAction::None);
             }
             EngineState::RecordDCS(dcs_state) => match dcs_state {
                 ReadSTState::GotEscape(_nesting_level) => {
@@ -377,6 +379,7 @@ impl BufferParser for Parser {
                     if ch == '[' {
                         //
                         self.state = EngineState::ReadPossibleMacroInDCS(1);
+                        self.macro_dcs.clear();
                         return Ok(CallbackAction::None);
                     }
                     return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
