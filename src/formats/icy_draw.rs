@@ -36,7 +36,7 @@ impl OutputFormat for IcyDraw {
         let mut result = Vec::new();
 
         let font_dims = buf.get_font_dimensions();
-        let width = buf.get_width() * font_dims.width;
+        let mut width = buf.get_width() * font_dims.width;
 
         let mut first_line = 0;
         while first_line < buf.get_height() {
@@ -47,7 +47,15 @@ impl OutputFormat for IcyDraw {
         }
 
         let last_line = (first_line + MAX_LINES).min(buf.get_line_count().max(buf.get_height()));
-        let height = (last_line - first_line) * font_dims.height;
+        let mut height = (last_line - first_line) * font_dims.height;
+
+        let image_empty = if width == 0 || height == 0 {
+            width = 1;
+            height = 1;
+            true
+        } else {
+            false
+        };
 
         let mut encoder: png::Encoder<'_, &mut Vec<u8>> =
             png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
@@ -173,15 +181,18 @@ impl OutputFormat for IcyDraw {
             return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
         }
 
-        if last_line > first_line {
-            let mut writer = encoder.write_header().unwrap();
+        let mut writer = encoder.write_header().unwrap();
+
+        if image_empty {
+            writer.write_image_data(&[0, 0, 0, 0]).unwrap();
+        } else {
             let (_, data) = buf.render_to_rgba(crate::Rectangle {
                 start: Position::new(0, first_line),
                 size: Size::new(buf.get_width(), last_line - first_line),
             });
             writer.write_image_data(&data).unwrap();
-            writer.finish().unwrap();
         }
+        writer.finish().unwrap();
 
         Ok(result)
     }
