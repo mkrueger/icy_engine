@@ -10,7 +10,7 @@ pub enum SixelState {
     Repeat,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Sixel {
     pub position: Position,
 

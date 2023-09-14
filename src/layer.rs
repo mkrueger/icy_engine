@@ -29,7 +29,7 @@ impl Role {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Layer {
     pub title: String,
     pub role: Role,
@@ -71,7 +71,7 @@ impl std::fmt::Display for Layer {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct HyperLink {
     pub url: Option<String>,
     pub position: Position,
@@ -89,7 +89,7 @@ impl HyperLink {
 }
 
 impl TextPane for Layer {
-    fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
+    /* fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
             return AttributedChar::invisible();
@@ -131,6 +131,21 @@ impl TextPane for Layer {
             }
             AttributedChar::default()
         }
+    }*/
+
+    fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
+        let pos = pos.into();
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
+            return AttributedChar::invisible();
+        }
+        let y = pos.y;
+        if y < self.lines.len() as i32 {
+            let cur_line = &self.lines[y as usize];
+            if pos.x < cur_line.chars.len() as i32 {
+                return cur_line.chars[pos.x as usize];
+            }
+        }
+        AttributedChar::invisible()
     }
 
     fn get_line_count(&self) -> i32 {
@@ -232,6 +247,7 @@ impl Layer {
         }
 
         let cur_line = &mut self.lines[pos.y as usize];
+
         cur_line.set_char(pos.x, attributed_char);
     }
 

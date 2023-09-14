@@ -335,20 +335,6 @@ impl OutputFormat for IcyDraw {
                                     let flags =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
                                     o += 4;
-                                    layer.is_visible = (flags & constants::layer::IS_VISIBLE)
-                                        == constants::layer::IS_VISIBLE;
-                                    layer.is_locked = (flags & constants::layer::EDIT_LOCK)
-                                        == constants::layer::EDIT_LOCK;
-                                    layer.is_position_locked = (flags & constants::layer::POS_LOCK)
-                                        == constants::layer::POS_LOCK;
-
-                                    layer.has_alpha_channel = (flags & constants::layer::HAS_ALPHA)
-                                        == constants::layer::HAS_ALPHA;
-
-                                    layer.is_alpha_channel_locked = (flags
-                                        & constants::layer::ALPHA_LOCKED)
-                                        == constants::layer::ALPHA_LOCKED;
-
                                     let x_offset: i32 =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
                                             as i32;
@@ -407,6 +393,7 @@ impl OutputFormat for IcyDraw {
                                     } else {
                                         let mut p = parsers::ansi::Parser::default();
                                         let mut caret = Caret::default();
+                                        layer.is_visible = true;
                                         result.layers.push(layer);
                                         if bytes.len() < o + length {
                                             return Err(Box::new(io::Error::new(
@@ -429,6 +416,25 @@ impl OutputFormat for IcyDraw {
                                                 char::from_u32(b as u32).unwrap(),
                                             );
                                         });
+                                    }
+
+                                    // set attributes at the end because of the way the parser works
+                                    if let Some(layer) = result.layers.last_mut() {
+                                        layer.is_visible = (flags & constants::layer::IS_VISIBLE)
+                                            == constants::layer::IS_VISIBLE;
+                                        layer.is_locked = (flags & constants::layer::EDIT_LOCK)
+                                            == constants::layer::EDIT_LOCK;
+                                        layer.is_position_locked = (flags
+                                            & constants::layer::POS_LOCK)
+                                            == constants::layer::POS_LOCK;
+
+                                        layer.has_alpha_channel = (flags
+                                            & constants::layer::HAS_ALPHA)
+                                            == constants::layer::HAS_ALPHA;
+
+                                        layer.is_alpha_channel_locked = (flags
+                                            & constants::layer::ALPHA_LOCKED)
+                                            == constants::layer::ALPHA_LOCKED;
                                     }
                                 }
                             }
@@ -502,5 +508,108 @@ impl Error for IcedError {
 
     fn cause(&self) -> Option<&dyn Error> {
         self.source()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::{
+        AttributedChar, Buffer, Layer, OutputFormat, SaveOptions, TextAttribute, TextPane,
+    };
+
+    use super::IcyDraw;
+
+    #[test]
+    fn test_empty_buffer() {
+        let mut buf = Buffer::default();
+        buf.set_width(12);
+        buf.set_height(23);
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_buffer_bug() {
+        let mut buf = Buffer::new((1, 1));
+        buf.layers.push(Layer::new("test", (1, 1)));
+        buf.layers[1].set_char((0, 0), AttributedChar::new('a', TextAttribute::default()));
+        buf.layers[0].is_visible = false;
+        buf.layers[1].is_visible = false;
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+
+        compare_buffers(&mut buf, &mut buf2);
+        buf2.layers[0].is_visible = true;
+        buf2.layers[1].is_visible = true;
+    }
+
+    fn crop2_loaded_file(result: &mut Buffer) {
+        for l in 0..result.layers.len() {
+            if let Some(line) = result.layers[l].lines.last_mut() {
+                while !line.chars.is_empty() && !line.chars.last().unwrap().is_visible() {
+                    line.chars.pop();
+                }
+            }
+
+            if !result.layers[l].lines.is_empty()
+                && result.layers[l].lines.last().unwrap().chars.is_empty()
+            {
+                result.layers[l].lines.pop();
+                crop2_loaded_file(result);
+            }
+        }
+    }
+
+    fn compare_buffers(buf: &mut Buffer, buf2: &mut Buffer) {
+        assert_eq!(buf.layers.len(), buf2.layers.len());
+        let ic = AttributedChar::invisible();
+
+        crop2_loaded_file(buf);
+        crop2_loaded_file(buf2);
+
+        for layer in 0..buf.layers.len() {
+            assert_eq!(
+                buf.layers[layer].lines.len(),
+                buf2.layers[layer].lines.len(),
+                "layer {layer} line count differs"
+            );
+            assert_eq!(
+                buf.layers[layer].get_offset(),
+                buf2.layers[layer].get_offset(),
+                "layer {layer} offset differs"
+            );
+            assert_eq!(
+                buf.layers[layer].get_size(),
+                buf2.layers[layer].get_size(),
+                "layer {layer} size differs"
+            );
+            assert_eq!(
+                buf.layers[layer].is_visible, buf2.layers[layer].is_visible,
+                "layer {layer} is_visible differs"
+            );
+
+            for line in 0..buf.layers[layer].lines.len() {
+                let l = buf.layers[layer].lines[line]
+                    .chars
+                    .len()
+                    .max(buf2.layers[layer].lines[line].chars.len());
+                for i in 0..l {
+                    let ch = buf.layers[layer].lines[line].chars.get(i).unwrap_or(&ic);
+                    let ch2 = buf2.layers[layer].lines[line].chars.get(i).unwrap_or(&ic);
+                    assert_eq!(*ch, *ch2, "layer: {layer}, line: {line}, char: {i}");
+                }
+            }
+        }
     }
 }

@@ -1,5 +1,5 @@
 use super::AttributedChar;
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Line {
     pub chars: Vec<AttributedChar>,
 }

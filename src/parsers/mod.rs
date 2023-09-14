@@ -213,7 +213,6 @@ impl Buffer {
 
     fn print_char(&mut self, layer: usize, caret: &mut Caret, ch: AttributedChar) {
         let buffer_width = self.layers[layer].get_width();
-
         if caret.insert_mode {
             let layer = &mut self.layers[layer];
             if layer.lines.len() < caret.pos.y as usize + 1 {

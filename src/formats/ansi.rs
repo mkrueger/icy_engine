@@ -108,7 +108,6 @@ impl StringGenerator {
                 let mut space_count = 0;
                 let mut ch = layer.get_char(pos);
                 let mut cur_attr = ch.attribute;
-
                 // doesn't work well with unix terminal - background color needs to be painted.
                 if !self.options.modern_terminal_output {
                     while (ch.ch == ' ' || ch.ch == '\0')
