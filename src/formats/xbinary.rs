@@ -159,9 +159,9 @@ impl OutputFormat for XBin {
 
         if extended_char_mode {
             result.buffer_type = if use_ice {
-                BufferType::ExtFontIce
+                BufferType::ExtendedFontAndIce
             } else {
-                BufferType::ExtFont
+                BufferType::ExtendedFont
             };
         } else {
             result.buffer_type = if use_ice {

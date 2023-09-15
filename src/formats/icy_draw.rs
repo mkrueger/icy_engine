@@ -69,7 +69,7 @@ impl OutputFormat for IcyDraw {
                 (constants::ICD_VERSION >> 8) as u8,
             ];
             result.extend(u32::to_le_bytes(0)); // Type
-            result.extend(u16::to_le_bytes(0)); // Mode
+            result.extend(u16::to_le_bytes(buf.buffer_type.to_byte() as u16)); // Mode
 
             result.extend(u32::to_le_bytes(buf.get_width() as u32));
             result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
@@ -250,7 +250,10 @@ impl OutputFormat for IcyDraw {
                                     // TODO: read type ATM only 1 type is generated.
                                     o += 4; // skip type
 
-                                    o += 2; // skip mode
+                                    let mode =
+                                        u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap());
+                                    o += 2;
+                                    result.buffer_type = crate::BufferType::from_byte(mode as u8);
 
                                     let width: i32 =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())

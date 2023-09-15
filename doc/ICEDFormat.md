@@ -22,12 +22,20 @@ Keyword: 'ICED'
 Field      Bytes  Meaning
 [VER]      2      LE_U16 u8 Major:u8 Minor - [00:00] atm
 [Type]     4      0 - CP437/8BIT_ANSI, 1 - UNICODE ANSI, 2 - PETSCII, 3 - ATASCII, 4 - VIEWDATA
-[Mode]     2      0 - Picture, 1 - Animation
+[Mode]     2     
+For CP437: 
+    0 True Color
+    1 16c
+    2 ICE
+    3 256 Colors
+    4 XB extended font + blink
+    5 XB extended font ice
 
 [TYPE SPECFIC DATA ] 
 For "character buffer" types (ansi/ascii):
 [Width]    4      LE_U32
 [Height]   4      LE_U32
+
 
 ```
 

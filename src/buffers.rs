@@ -15,45 +15,51 @@ use crate::{
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
 
-#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BufferType {
-    LegacyDos = 0b_0000,  // 0-15 fg, 0-7 bg, blink
-    LegacyIce = 0b_0001,  // 0-15 fg, 0-15 bg
-    ExtFont = 0b_0010,    // 0-7 fg, 0-7 bg, blink + extended font
-    ExtFontIce = 0b_0011, // 0-7 fg, 0-15 bg + extended font
-    NoLimits = 0b_0111,   // free colors, blink + extended font
+    /// 16 fg colors, 8 bg colors, blink
+    LegacyDos,
+    // 16 fg + bg colors, no blink
+    LegacyIce,
+    // 256 Colors, has blink
+    ExtendedColors,
+    /// 7 fg colors, 7 bg colors, blink + extended font
+    ExtendedFont,
+    /// 7 fg colors, 16 bg colors + extended font
+    ExtendedFontAndIce, // 0-7 fg, 0-15 bg + extended font
+    // free colors, blink + extended font
+    NoLimits,
 }
 
 impl BufferType {
-    #[must_use]
-    pub fn use_ice_colors(self) -> bool {
-        self == BufferType::LegacyIce || self == BufferType::ExtFontIce
-    }
-
-    #[must_use]
-    pub fn use_blink(self) -> bool {
-        self == BufferType::LegacyDos || self == BufferType::ExtFont || self == BufferType::NoLimits
-    }
-
-    #[must_use]
     pub fn use_extended_font(self) -> bool {
-        self == BufferType::ExtFont || self == BufferType::ExtFontIce
+        self == BufferType::ExtendedFont || self == BufferType::ExtendedFontAndIce
     }
 
-    #[must_use]
-    pub fn get_fg_colors(self) -> u8 {
-        match self {
-            BufferType::LegacyDos | BufferType::LegacyIce | BufferType::NoLimits => 16, // may change in the future
-            BufferType::ExtFont | BufferType::ExtFontIce => 8,
+    pub fn use_ice_colors(self) -> bool {
+        self == BufferType::LegacyIce || self == BufferType::ExtendedFontAndIce
+    }
+
+    pub fn from_byte(b: u8) -> Self {
+        match b {
+            0 => BufferType::NoLimits,
+            1 => BufferType::LegacyDos,
+            2 => BufferType::LegacyIce,
+            3 => BufferType::ExtendedColors,
+            4 => BufferType::ExtendedFont,
+            5 => BufferType::ExtendedFontAndIce,
+            _ => todo!(),
         }
     }
 
-    #[must_use]
-    pub fn get_bg_colors(self) -> u8 {
+    pub fn to_byte(self) -> u8 {
         match self {
-            BufferType::LegacyDos | BufferType::ExtFont => 8,
-            BufferType::LegacyIce | BufferType::ExtFontIce | BufferType::NoLimits => 16, // may change in the future
+            BufferType::NoLimits => 0,
+            BufferType::LegacyDos => 1,
+            BufferType::LegacyIce => 2,
+            BufferType::ExtendedColors => 3,
+            BufferType::ExtendedFont => 4,
+            BufferType::ExtendedFontAndIce => 5,
         }
     }
 }
