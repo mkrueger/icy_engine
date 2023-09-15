@@ -58,6 +58,7 @@ pub struct SaveOptions {
     pub save_sauce: bool,
     pub compression_level: CompressionLevel,
     pub output_line_length: Option<usize>,
+    pub preserve_invisible_chars: bool,
 }
 
 impl SaveOptions {
@@ -68,6 +69,7 @@ impl SaveOptions {
             save_sauce: false,
             compression_level: CompressionLevel::High,
             output_line_length: None,
+            preserve_invisible_chars: false,
         }
     }
 }

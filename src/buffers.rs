@@ -169,6 +169,9 @@ fn merge(
     ch_opt: Option<char>,
     attr_opt: Option<crate::TextAttribute>,
 ) -> AttributedChar {
+    if !input_char.is_visible() {
+        return input_char;
+    }
     if let Some(ch) = ch_opt {
         input_char.ch = ch;
     }
@@ -278,6 +281,10 @@ impl Buffer {
 
     pub fn font_iter(&self) -> impl Iterator<Item = (&usize, &BitFont)> {
         self.font_table.iter()
+    }
+
+    pub fn font_iter_mut(&mut self) -> impl Iterator<Item = (&usize, &mut BitFont)> {
+        self.font_table.iter_mut()
     }
 
     pub fn get_font(&self, font_number: usize) -> Option<&BitFont> {

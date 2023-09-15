@@ -1,5 +1,5 @@
 use crate::{EngineResult, ParserError};
-use std::{collections::HashMap, error::Error, fmt::Display, fs::File, io::Read, path::Path};
+use std::{collections::HashMap, error::Error, fmt::Display, fs::File, io::Read, path::{Path, PathBuf}};
 
 use super::Size;
 
@@ -53,10 +53,11 @@ impl Glyph {
 #[allow(dead_code)]
 pub struct BitFont {
     pub name: String,
+    pub path_opt: Option<PathBuf>,
     pub size: Size,
     pub length: i32,
     font_type: BitFontType,
-    glyphs: HashMap<char, Glyph>,
+    pub glyphs: HashMap<char, Glyph>,
 }
 
 impl Default for BitFont {
@@ -121,6 +122,7 @@ impl BitFont {
     pub fn create_8(name: impl Into<String>, width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
             name: name.into(),
+            path_opt: None,
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
@@ -134,6 +136,7 @@ impl BitFont {
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self {
         let mut r = BitFont {
             name: String::new(),
+            path_opt: None,
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
@@ -160,6 +163,7 @@ impl BitFont {
 
         let mut r = BitFont {
             name: font_name.into(),
+            path_opt: None,
             size: (8, charsize).into(),
             length,
             font_type: BitFontType::BuiltIn,
@@ -182,6 +186,7 @@ impl BitFont {
 
         let mut r: BitFont = BitFont {
             name: font_name.into(),
+            path_opt: None,
             size,
             length: 256,
             font_type: BitFontType::BuiltIn,
@@ -220,6 +225,7 @@ impl BitFont {
 
         let mut r = BitFont {
             name: font_name.into(),
+            path_opt: None,
             size: (width, height).into(),
             length,
             font_type: BitFontType::BuiltIn,
@@ -299,7 +305,11 @@ impl BitFont {
         let mut f = File::open(file_name).expect("error while opening file");
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes).expect("error while reading file");
-        BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes)
+        let mut font = BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes);
+        if let Ok(ref mut font) = font {
+            font.path_opt = Some(file_name.to_path_buf());
+        }
+        font
     }
 }
 

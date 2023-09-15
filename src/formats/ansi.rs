@@ -109,7 +109,7 @@ impl StringGenerator {
                 let mut ch = layer.get_char(pos);
                 let mut cur_attr = ch.attribute;
                 // doesn't work well with unix terminal - background color needs to be painted.
-                if !self.options.modern_terminal_output {
+                if !self.options.modern_terminal_output  && !self.options.preserve_invisible_chars {
                     while (ch.ch == ' ' || ch.ch == '\0')
                         && ch.attribute.get_background() == 0
                         && pos.x < line_length
@@ -292,7 +292,11 @@ impl StringGenerator {
                         result.extend(uni_ch.as_bytes());
                     }
                 } else {
-                    result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
+                    if !ch.is_visible() && self.options.preserve_invisible_chars {
+                        result.extend_from_slice(b"\x1b[C");
+                    } else {
+                        result.push(if ch.ch == '\0' { b' ' } else { ch.ch as u8 });
+                    }
                 }
                 self.push_result(&mut result);
                 pos.x += 1;

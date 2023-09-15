@@ -166,7 +166,10 @@ impl OutputFormat for IcyDraw {
                 result.extend(i32::to_le_bytes(sixel.horizontal_scale));
                 result.extend(&sixel.picture_data);
             } else {
-                let mut gen = StringGenerator::new(SaveOptions::default());
+                let mut opt = SaveOptions::default();
+                opt.preserve_invisible_chars = true;
+
+                let mut gen = StringGenerator::new(opt);
                 gen.generate(buf, layer);
                 result.extend(u64::to_le_bytes(gen.get_data().len() as u64));
                 result.extend(gen.get_data());
@@ -554,6 +557,29 @@ mod tests {
         buf2.layers[1].is_visible = true;
     }
 
+    #[test]
+    fn test_invisisible_persistance_bug() {
+        let mut buf = Buffer::new((3, 1));
+        buf.layers.push(Layer::new("test", (3, 1)));
+        buf.layers[1].set_char((0, 0), AttributedChar::new('a', TextAttribute::default()));
+        buf.layers[1].set_char((2, 0), AttributedChar::new('b', TextAttribute::default()));
+        buf.layers[0].is_visible = false;
+        buf.layers[1].is_visible = false;
+        buf.layers[1].has_alpha_channel = true;
+
+        assert_eq!(AttributedChar::invisible(), buf.layers[1].get_char((1, 0)));
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+
+        compare_buffers(&mut buf, &mut buf2);
+        buf2.layers[0].is_visible = true;
+        buf2.layers[1].is_visible = true;
+    }
+
     fn crop2_loaded_file(result: &mut Buffer) {
         for l in 0..result.layers.len() {
             if let Some(line) = result.layers[l].lines.last_mut() {
@@ -597,6 +623,9 @@ mod tests {
             assert_eq!(
                 buf.layers[layer].is_visible, buf2.layers[layer].is_visible,
                 "layer {layer} is_visible differs"
+            );assert_eq!(
+                buf.layers[layer].has_alpha_channel, buf2.layers[layer].has_alpha_channel,
+                "layer {layer} has_alpha_channel differs"
             );
 
             for line in 0..buf.layers[layer].lines.len() {
