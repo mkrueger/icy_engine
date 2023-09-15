@@ -1,5 +1,12 @@
 use crate::{EngineResult, ParserError};
-use std::{collections::HashMap, error::Error, fmt::Display, fs::File, io::Read, path::{Path, PathBuf}};
+use std::{
+    collections::HashMap,
+    error::Error,
+    fmt::Display,
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+};
 
 use super::Size;
 
@@ -305,7 +312,8 @@ impl BitFont {
         let mut f = File::open(file_name).expect("error while opening file");
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes).expect("error while reading file");
-        let mut font = BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes);
+        let mut font =
+            BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes);
         if let Ok(ref mut font) = font {
             font.path_opt = Some(file_name.to_path_buf());
         }

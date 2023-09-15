@@ -296,6 +296,10 @@ impl Buffer {
         self.is_font_table_dirty = true;
     }
 
+    pub fn remove_font(&mut self, font_number: usize) -> Option<BitFont> {
+        self.font_table.remove(&font_number)
+    }
+
     pub fn font_count(&self) -> usize {
         self.font_table.len()
     }

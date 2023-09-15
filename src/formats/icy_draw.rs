@@ -623,7 +623,8 @@ mod tests {
             assert_eq!(
                 buf.layers[layer].is_visible, buf2.layers[layer].is_visible,
                 "layer {layer} is_visible differs"
-            );assert_eq!(
+            );
+            assert_eq!(
                 buf.layers[layer].has_alpha_channel, buf2.layers[layer].has_alpha_channel,
                 "layer {layer} has_alpha_channel differs"
             );
