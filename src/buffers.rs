@@ -40,6 +40,33 @@ impl BufferType {
         self == BufferType::LegacyIce || self == BufferType::ExtendedFontAndIce
     }
 
+    pub fn has_extended_colors(self) -> bool {
+        self == BufferType::ExtendedColors || 
+        self == BufferType::NoLimits
+    }
+
+    pub fn has_rgb_colors(self) -> bool {
+        self == BufferType::NoLimits
+    }
+
+    pub fn has_high_fg_colors(self) -> bool {
+        self != BufferType::ExtendedFontAndIce &&        
+        self != BufferType::ExtendedFont
+
+    }
+
+    pub fn has_high_bg_colors(self) -> bool {
+        self != BufferType::LegacyDos && 
+        self != BufferType::ExtendedFont
+    }
+
+    pub fn has_blink(self) -> bool {
+        self == BufferType::LegacyDos || 
+        self == BufferType::ExtendedColors || 
+        self == BufferType::ExtendedFont || 
+        self == BufferType::NoLimits
+    }
+    
     pub fn from_byte(b: u8) -> Self {
         match b {
             0 => BufferType::NoLimits,
