@@ -197,7 +197,7 @@ impl Buffer {
             terminal_state: TerminalState::from(size),
             sauce_data: None,
 
-            buffer_type: BufferType::LegacyDos,
+            buffer_type: BufferType::NoLimits,
             is_terminal_buffer: false,
             palette: Palette::new(),
 
