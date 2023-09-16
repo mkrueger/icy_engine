@@ -12,7 +12,7 @@ use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
     FontSelectionState, HyperLink, MouseMode, OriginMode, ParserError, Position, TerminalScrolling,
-    TextPane, BEL, CR, FF, LF,
+    TextPane, BEL, BS, CR, FF, LF,
 };
 
 mod ansi_commands;
@@ -274,9 +274,17 @@ impl BufferParser for Parser {
                             self.state = EngineState::Default;
                             Ok(CallbackAction::None)
                         }
-                        _ => Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        FF | BEL | BS | '\x7F' | '\x1B' => {
+                            // non standard extension to print esc chars ESC ESC -> ESC
+                            self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
+                            let ch = AttributedChar::new(self.last_char, caret.get_attribute());
+                            buf.print_char(current_layer, caret, ch);
+                            Ok(CallbackAction::None)
+                        }
+                        _ => Err(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
-                        ))),
+                        )
+                        .into()),
                     }
                 };
             }
@@ -311,9 +319,10 @@ impl BufferParser for Parser {
                 if ch.is_ascii_digit() {
                     if *i != 1 {
                         self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        return Err(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected number got '{ch}'"
-                        ))));
+                        ))
+                        .into());
                     }
                     let d = match self.parsed_numbers.pop() {
                         Some(number) => number,
@@ -325,9 +334,10 @@ impl BufferParser for Parser {
                 if ch == '[' {
                     if *i != 0 {
                         self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        return Err(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected '[' got '{ch}'"
-                        ))));
+                        ))
+                        .into());
                     }
                     self.state = EngineState::ReadPossibleMacroInDCS(1);
                     return Ok(CallbackAction::None);
@@ -335,9 +345,10 @@ impl BufferParser for Parser {
                 if ch == '*' {
                     if *i != 1 {
                         self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        return Err(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected '*' got '{ch}'"
-                        ))));
+                        ))
+                        .into());
                     }
                     self.state = EngineState::ReadPossibleMacroInDCS(2);
                     return Ok(CallbackAction::None);
@@ -345,16 +356,18 @@ impl BufferParser for Parser {
                 if ch == 'z' {
                     if *i != 2 {
                         self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        return Err(ParserError::UnsupportedDCSSequence(format!(
                             "Error in macro inside dcs, expected 'z' got '{ch}'"
-                        ))));
+                        ))
+                        .into());
                     }
                     if self.parsed_numbers.len() != 1 {
                         self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                        return Err(ParserError::UnsupportedDCSSequence(format!(
                             "Macro hasn't one number defined got '{}'",
                             self.parsed_numbers.len()
-                        ))));
+                        ))
+                        .into());
                     }
                     self.state = EngineState::RecordDCS(ReadSTState::Default(0));
                     return self.invoke_macro_by_id(
@@ -382,10 +395,11 @@ impl BufferParser for Parser {
                         self.macro_dcs.clear();
                         return Ok(CallbackAction::None);
                     }
-                    return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    return Err(ParserError::UnsupportedDCSSequence(format!(
                         "sequence: {} end char <ESC>{ch}",
                         self.parse_string
-                    ))));
+                    ))
+                    .into());
                 }
                 ReadSTState::Default(nesting_level) => match ch {
                     '\x1B' => {
@@ -423,9 +437,10 @@ impl BufferParser for Parser {
                     'l' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            )
+                            .into());
                         }
                         match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Fast,
@@ -446,18 +461,20 @@ impl BufferParser for Parser {
                                 buf.terminal_state.mouse_mode = MouseMode::Default;
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                )
+                                .into());
                             }
                         }
                     }
                     'h' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            )
+                            .into());
                         }
                         match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
@@ -492,12 +509,13 @@ impl BufferParser for Parser {
                             Some(1016) => buf.terminal_state.mouse_mode = MouseMode::PixelPosition,
 
                             Some(cmd) => {
-                                return Err(Box::new(ParserError::UnsupportedCustomCommand(*cmd)));
+                                return Err(ParserError::UnsupportedCustomCommand(*cmd).into());
                             }
                             None => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )))
+                                )
+                                .into())
                             }
                         }
                     }
@@ -521,10 +539,11 @@ impl BufferParser for Parser {
                             Some(63) => {
                                 // Memory Checksum Report (DECCKSR)
                                 if self.parsed_numbers.len() != 2 {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    return Err(ParserError::UnsupportedEscapeSequence(
                                         "Memory Checksum Report (DECCKSR) requires 2 parameters."
                                             .to_string(),
-                                    )));
+                                    )
+                                    .into());
                                 }
                                 let mut crc16 = 0;
                                 for i in 0..64 {
@@ -543,18 +562,20 @@ impl BufferParser for Parser {
                                 )));
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                )
+                                .into());
                             }
                         }
                     }
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        return Err(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
-                        )));
+                        )
+                        .into());
                     }
                 }
             }
@@ -565,9 +586,10 @@ impl BufferParser for Parser {
                     'n' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            )
+                            .into());
                         }
                         match self.parsed_numbers.first() {
                             Some(1) => {
@@ -638,9 +660,10 @@ impl BufferParser for Parser {
                                 )));
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                )
+                                .into());
                             }
                         }
                     }
@@ -657,19 +680,21 @@ impl BufferParser for Parser {
                     'r' => return self.reset_margins(buf),
                     'm' => {
                         if self.parsed_numbers.len() != 2 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            )
+                            .into());
                         }
                         return self.set_specific_margin(buf);
                     }
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(format!(
+                        return Err(ParserError::UnsupportedEscapeSequence(format!(
                             "Error in CSI request: {}",
                             self.current_escape_sequence
-                        ))));
+                        ))
+                        .into());
                     }
                 }
             }
@@ -729,17 +754,19 @@ impl BufferParser for Parser {
                             'd' => return self.tabulation_stop_remove(buf),
                             _ => {
                                 self.current_escape_sequence.push(ch);
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                )
+                                .into());
                             }
                         }
                     }
                     _ => {
                         self.state = EngineState::Default;
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        return Err(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
-                        )));
+                        )
+                        .into());
                     }
                 }
             }
@@ -747,7 +774,7 @@ impl BufferParser for Parser {
                 if let Some(ch) = char::from_u32(ch as u32) {
                     self.current_escape_sequence.push(ch);
                 } else {
-                    return Err(Box::new(ParserError::InvalidChar('\0')));
+                    return Err(ParserError::InvalidChar('\0').into());
                 }
                 match ch {
                     'm' => return self.select_graphic_rendition(caret, buf),
@@ -856,7 +883,7 @@ impl BufferParser for Parser {
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
-                            return Err(Box::new(ParserError::InvalidBuffer));
+                            return Err(ParserError::InvalidBuffer.into());
                         }
                     }
                     'a' => {
@@ -874,7 +901,7 @@ impl BufferParser for Parser {
                                 buf.terminal_state.limit_caret_pos(buf, caret);
                             }
                         } else {
-                            return Err(Box::new(ParserError::InvalidBuffer));
+                            return Err(ParserError::InvalidBuffer.into());
                         }
                     }
 
@@ -916,14 +943,14 @@ impl BufferParser for Parser {
                         // DSR - Device Status Report
                         self.state = EngineState::Default;
                         if self.parsed_numbers.is_empty() {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(5) => {
@@ -948,9 +975,9 @@ impl BufferParser for Parser {
                                 return Ok(CallbackAction::SendString(s));
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                         }
                     }
@@ -971,9 +998,9 @@ impl BufferParser for Parser {
                         } else {
                             caret.ins(buf, current_layer);
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                         }
                     }
@@ -992,28 +1019,28 @@ impl BufferParser for Parser {
                                     buf.remove_terminal_line(current_layer, caret.pos.y);
                                 }
                             } else {
-                                return Err(Box::new(ParserError::InvalidBuffer));
+                                return Err(ParserError::InvalidBuffer.into());
                             }
                         } else {
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                             if let Some(number) = self.parsed_numbers.first() {
                                 let mut number = *number;
                                 if let Some(layer) = buf.layers.get(0) {
                                     number = min(number, layer.lines.len() as i32 - caret.pos.y);
                                 } else {
-                                    return Err(Box::new(ParserError::InvalidBuffer));
+                                    return Err(ParserError::InvalidBuffer.into());
                                 }
                                 for _ in 0..number {
                                     buf.remove_terminal_line(current_layer, caret.pos.y);
                                 }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                         }
                     }
@@ -1042,18 +1069,18 @@ impl BufferParser for Parser {
                             caret.del(buf, current_layer);
                         } else {
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                             if let Some(number) = self.parsed_numbers.first() {
                                 for _ in 0..*number {
                                     caret.del(buf,current_layer);
                                 }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                         }
                     }
@@ -1065,18 +1092,18 @@ impl BufferParser for Parser {
                             buf.insert_terminal_line( current_layer, caret.pos.y);
                         } else {
                             if self.parsed_numbers.len() != 1 {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                             if let Some(number) = self.parsed_numbers.first() {
                                 for _ in 0..*number {
                                     buf.insert_terminal_line(current_layer,caret.pos.y);
                                 }
                             } else {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )));
+                                ).into());
                             }
                         }
                     }
@@ -1100,30 +1127,30 @@ impl BufferParser for Parser {
                                 }
                                 _ => {
                                     buf.clear_buffer_down(current_layer,caret);
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone())));
+                                    return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                                 }
                             }
                         } else {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                     }
 
                     '?' => {
                         if !is_start {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         // read custom command
                         self.state = EngineState::ReadCSICommand;
                     }
                     '=' => {
                         if !is_start {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         // read custom command
                         self.state = EngineState::ReadCSIRequest;
@@ -1131,9 +1158,9 @@ impl BufferParser for Parser {
                     }
                     '!' => {
                         if !is_start {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         // read custom command
                         self.state = EngineState::ReadRIPSupportRequest;
@@ -1166,9 +1193,9 @@ impl BufferParser for Parser {
                                     buf.clear_line(current_layer,caret);
                                 }
                                 _ => {
-                                    return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                    return Err(ParserError::UnsupportedEscapeSequence(
                                         self.current_escape_sequence.clone(),
-                                    )));
+                                    ).into());
                                 }
                             }
                         }
@@ -1182,18 +1209,18 @@ impl BufferParser for Parser {
                     'h' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(4) => {
                                 caret.insert_mode = true;
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )))
+                                ).into())
                             }
                         }
                     }
@@ -1201,27 +1228,27 @@ impl BufferParser for Parser {
                     'l' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(4) => {
                                 caret.insert_mode = false;
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )))
+                                ).into())
                             }
                         }
                     }
                     '~' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(1) => {
@@ -1238,9 +1265,9 @@ impl BufferParser for Parser {
                             }
                             Some(5 | 6) => {} // pg up/downf
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     self.current_escape_sequence.clone(),
-                                )))
+                                ).into())
                             }
                         }
                     }
@@ -1250,9 +1277,9 @@ impl BufferParser for Parser {
                         match self.parsed_numbers.len() {
                             3 => return self.window_manipulation(buf),
                             4 => return self.select_24bit_color(buf, caret),
-                            _ => return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            _ => return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )))
+                            ).into())
                         }
                     }
                     'S' => {
@@ -1292,9 +1319,9 @@ impl BufferParser for Parser {
                         // TBC - Tabulation clear
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 format!("Invalid parameter number in clear tab stops: {}", self.parsed_numbers.len()),
-                            )));
+                            ).into());
                         }
 
                         let num: i32 = if let Some(number) = self.parsed_numbers.first() {
@@ -1309,9 +1336,9 @@ impl BufferParser for Parser {
                                 buf.terminal_state.clear_tab_stops();
                             }
                             _ => {
-                                return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                                return Err(ParserError::UnsupportedEscapeSequence(
                                     format!("Unsupported option in clear tab stops sequence: {num}"),
-                                )));
+                                ).into());
                             }
                         }
                     }
@@ -1319,9 +1346,9 @@ impl BufferParser for Parser {
                         // CVT - Cursor line tabulation
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 format!("Invalid parameter number in goto next tab stop: {}", self.parsed_numbers.len()),
-                            )));
+                            ).into());
                         }
 
                         let num: i32 = if let Some(number) = self.parsed_numbers.first() {
@@ -1335,9 +1362,9 @@ impl BufferParser for Parser {
                         // CBT - Cursor backward tabulation
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() > 1 {
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 format!("Invalid parameter number in goto next tab stop: {}", self.parsed_numbers.len()),
-                            )));
+                            ).into());
                         }
 
                         let num: i32 = if let Some(number) = self.parsed_numbers.first() {
@@ -1352,9 +1379,9 @@ impl BufferParser for Parser {
                         if ('\x40'..='\x7E').contains(&ch) {
                             // unknown control sequence, terminate reading
                             self.state = EngineState::Default;
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
 
                         if ch.is_ascii_digit() {
@@ -1368,9 +1395,9 @@ impl BufferParser for Parser {
                         } else {
                             self.state = EngineState::Default;
                             // error in control sequence, terminate reading
-                            return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                            return Err(ParserError::UnsupportedEscapeSequence(
                                 self.current_escape_sequence.clone(),
-                            )));
+                            ).into());
                         }
                     }
                 }

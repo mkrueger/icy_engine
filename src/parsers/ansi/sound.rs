@@ -122,9 +122,10 @@ impl Parser {
                         self.cur_octave = ((ch as u8) - b'0') as usize;
                         self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                     } else {
-                        return Err(Box::new(ParserError::UnsupportedEscapeSequence(
+                        return Err(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
-                        )));
+                        )
+                        .into());
                     }
                 }
                 MusicState::Note(n, len) => {

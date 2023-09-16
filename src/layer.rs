@@ -411,8 +411,8 @@ mod tests {
         assert_eq!(AttributedChar::invisible(), layer.get_char((-1, -1)));
         assert_eq!(AttributedChar::invisible(), layer.get_char((1000, 1000)));
         assert_eq!('a', layer.get_char((10, 0)).ch);
-        assert_eq!(AttributedChar::default(), layer.get_char((9, 0)));
-        assert_eq!(AttributedChar::default(), layer.get_char((11, 0)));
+        assert_eq!(AttributedChar::invisible(), layer.get_char((9, 0)));
+        assert_eq!(AttributedChar::invisible(), layer.get_char((11, 0)));
     }
 
     #[test]

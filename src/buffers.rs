@@ -2,7 +2,7 @@ use std::collections::{HashMap, VecDeque};
 use std::{
     cmp::max,
     fs::File,
-    io::{self, Read},
+    io::Read,
     path::{Path, PathBuf},
 };
 
@@ -41,8 +41,7 @@ impl BufferType {
     }
 
     pub fn has_extended_colors(self) -> bool {
-        self == BufferType::ExtendedColors || 
-        self == BufferType::NoLimits
+        self == BufferType::ExtendedColors || self == BufferType::NoLimits
     }
 
     pub fn has_rgb_colors(self) -> bool {
@@ -50,23 +49,20 @@ impl BufferType {
     }
 
     pub fn has_high_fg_colors(self) -> bool {
-        self != BufferType::ExtendedFontAndIce &&        
-        self != BufferType::ExtendedFont
-
+        self != BufferType::ExtendedFontAndIce && self != BufferType::ExtendedFont
     }
 
     pub fn has_high_bg_colors(self) -> bool {
-        self != BufferType::LegacyDos && 
-        self != BufferType::ExtendedFont
+        self != BufferType::LegacyDos && self != BufferType::ExtendedFont
     }
 
     pub fn has_blink(self) -> bool {
-        self == BufferType::LegacyDos || 
-        self == BufferType::ExtendedColors || 
-        self == BufferType::ExtendedFont || 
-        self == BufferType::NoLimits
+        self == BufferType::LegacyDos
+            || self == BufferType::ExtendedColors
+            || self == BufferType::ExtendedFont
+            || self == BufferType::NoLimits
     }
-    
+
     pub fn from_byte(b: u8) -> Self {
         match b {
             0 => BufferType::NoLimits,
@@ -178,9 +174,13 @@ impl Buffer {
     }
 
     pub fn set_sauce(&mut self, sauce: SauceData) {
-        self.set_size(sauce.buffer_size);
+        let mut size = sauce.buffer_size;
+        if size.width == 0 {
+            size.width = 80;
+        }
+        self.set_size(size);
         if !self.layers.is_empty() {
-            self.layers[0].set_size(sauce.buffer_size);
+            self.layers[0].set_size(size);
         }
         self.sauce_data = Some(sauce);
     }
@@ -518,12 +518,12 @@ impl Buffer {
         let mut f = match File::open(file_name) {
             Ok(f) => f,
             Err(err) => {
-                return Err(Box::new(LoadingError::OpenFileError(format!("{err}"))));
+                return Err(LoadingError::OpenFileError(format!("{err}")).into());
             }
         };
         let mut bytes = Vec::new();
         if let Err(err) = f.read_to_end(&mut bytes) {
-            return Err(Box::new(LoadingError::ReadFileError(format!("{err}"))));
+            return Err(LoadingError::ReadFileError(format!("{err}")).into());
         }
 
         Buffer::from_bytes(file_name, skip_errors, &bytes)
@@ -537,14 +537,13 @@ impl Buffer {
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         let extension = extension.to_ascii_lowercase();
         for fmt in &*crate::FORMATS {
-            if fmt.get_file_extension() == extension {
+            if fmt.get_file_extension() == extension
+                || fmt.get_alt_extensions().contains(&extension)
+            {
                 return fmt.to_bytes(self, options);
             }
         }
-        Err(Box::new(io::Error::new(
-            io::ErrorKind::InvalidData,
-            "Unknown format.",
-        )))
+        Err(anyhow::anyhow!("Unknown format"))
     }
     /// .
     ///
@@ -614,9 +613,8 @@ impl Buffer {
                     ch.attribute.get_foreground()
                 };
 
-                let (f_r, f_g, f_b) = self.palette.colors[fg as usize].get_rgb();
-                let (b_r, b_g, b_b) =
-                    self.palette.colors[ch.attribute.get_background() as usize].get_rgb();
+                let (f_r, f_g, f_b) = self.palette.get_rgb(fg as usize);
+                let (b_r, b_g, b_b) = self.palette.get_rgb(ch.attribute.get_background() as usize);
 
                 if let Some(glyph) = font.get_glyph(ch.ch) {
                     for cy in 0..font_size.height {

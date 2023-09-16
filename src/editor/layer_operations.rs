@@ -195,7 +195,7 @@ impl EditState {
         let layer = if let Some(layer) = self.get_cur_layer() {
             layer.clone()
         } else {
-            return Err(Box::new(super::EditorError::CurrentLayerInvalid));
+            return Err(super::EditorError::CurrentLayerInvalid.into());
         };
 
         let base_layer = &mut self.buffer.layers[layer_idx - 1];
@@ -268,7 +268,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+            Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
 }

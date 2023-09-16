@@ -211,7 +211,7 @@ impl UndoOperation for RemoveLayer {
             edit_state.clamp_current_layer();
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer_index)))
+            Err(EditorError::InvalidLayer(self.layer_index).into())
         }
     }
 }
@@ -313,7 +313,7 @@ impl UndoOperation for MergeLayerDown {
             edit_state.clamp_current_layer();
             Ok(())
         } else {
-            Err(Box::new(EditorError::MergeLayerDownHasNoMergeLayer))
+            Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
         }
     }
 
@@ -329,7 +329,7 @@ impl UndoOperation for MergeLayerDown {
             edit_state.buffer.layers.insert(self.index - 1, layer);
             Ok(())
         } else {
-            Err(Box::new(EditorError::MergeLayerDownHasNoMergeLayer))
+            Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
         }
     }
 }
@@ -355,7 +355,7 @@ impl UndoOperation for ToggleLayerVisibility {
             layer.is_visible = !layer.is_visible;
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.index)))
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 
@@ -364,7 +364,7 @@ impl UndoOperation for ToggleLayerVisibility {
             layer.is_visible = !layer.is_visible;
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.index)))
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 }
@@ -392,7 +392,7 @@ impl UndoOperation for MoveLayer {
             layer.set_offset(self.from);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.index)))
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 
@@ -401,7 +401,7 @@ impl UndoOperation for MoveLayer {
             layer.set_offset(self.to);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.index)))
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 }
@@ -433,7 +433,7 @@ impl UndoOperation for SetLayerSize {
             layer.set_size(self.from);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.index)))
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 
@@ -443,7 +443,7 @@ impl UndoOperation for SetLayerSize {
             layer.set_size(self.to);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.index)))
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 }
@@ -476,7 +476,7 @@ impl UndoOperation for Paste {
             edit_state.buffer.layers.push(layer);
             Ok(())
         } else {
-            Err(Box::new(EditorError::CurrentLayerInvalid))
+            Err(EditorError::CurrentLayerInvalid.into())
         }
     }
 }
@@ -580,7 +580,7 @@ impl UndoOperation for UndoLayerChange {
             }
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 
@@ -593,7 +593,7 @@ impl UndoOperation for UndoLayerChange {
             }
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 }
@@ -665,7 +665,7 @@ impl UndoOperation for DeleteRow {
             layer.set_height(layer.get_height() + 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 
@@ -675,7 +675,7 @@ impl UndoOperation for DeleteRow {
             layer.set_height(layer.get_height() - 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 }
@@ -708,7 +708,7 @@ impl UndoOperation for InsertRow {
             layer.set_height(layer.get_height() - 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 
@@ -720,7 +720,7 @@ impl UndoOperation for InsertRow {
             layer.set_height(layer.get_height() + 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 }
@@ -758,7 +758,7 @@ impl UndoOperation for DeleteColumn {
             layer.set_width(layer.get_width() + 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 
@@ -777,7 +777,7 @@ impl UndoOperation for DeleteColumn {
             layer.set_width(layer.get_width() - 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 }
@@ -810,7 +810,7 @@ impl UndoOperation for InsertColumn {
             layer.set_width(layer.get_width() - 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 
@@ -825,7 +825,7 @@ impl UndoOperation for InsertColumn {
             layer.set_width(layer.get_width() + 1);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 }
@@ -842,7 +842,7 @@ mod scroll_util {
             layer.lines.push(lines);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(layer)))
+            Err(EditorError::InvalidLayer(layer).into())
         }
     }
     pub(crate) fn scroll_layer_down(
@@ -854,7 +854,7 @@ mod scroll_util {
             layer.lines.insert(0, lines);
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(layer)))
+            Err(EditorError::InvalidLayer(layer).into())
         }
     }
 }
@@ -944,7 +944,7 @@ impl UndoOperation for RotateLayer {
 
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer)))
+            Err(EditorError::InvalidLayer(self.layer).into())
         }
     }
 }
@@ -1047,7 +1047,7 @@ impl UndoOperation for ClearLayer {
             );
             Ok(())
         } else {
-            Err(Box::new(EditorError::InvalidLayer(self.layer_index)))
+            Err(EditorError::InvalidLayer(self.layer_index).into())
         }
     }
 }

@@ -254,7 +254,7 @@ impl BufferParser for Parser {
                     0x60..=0x7F => ch - 0x20,
                     0xC0..=0xFE => ch - 0x80,
                     _ => {
-                        return Err(Box::new(ParserError::UnsupportedControlCode(ch as u32)));
+                        return Err(ParserError::UnsupportedControlCode(ch as u32).into());
                     }
                 };
                 let mut ch = AttributedChar::new(

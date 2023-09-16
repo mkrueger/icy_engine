@@ -1,4 +1,4 @@
-use std::{io, path::Path};
+use std::path::Path;
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
@@ -75,12 +75,12 @@ impl OutputFormat for IceDraw {
 
         // font
         if buf.get_font_dimensions() != Size::new(8, 16) {
-            return Err(Box::new(SavingError::Only8x16FontsSupported));
+            return Err(SavingError::Only8x16FontsSupported.into());
         }
         if let Some(font) = buf.get_font(0) {
             font.convert_to_u8_data(&mut result);
         } else {
-            return Err(Box::new(SavingError::NoFontFound));
+            return Err(SavingError::NoFontFound.into());
         }
 
         // palette
@@ -102,12 +102,12 @@ impl OutputFormat for IceDraw {
         result.file_name = Some(file_name.into());
 
         if data.len() < HEADER_SIZE + FONT_SIZE + PALETTE_SIZE {
-            return Err(Box::new(LoadingError::FileTooShort));
+            return Err(LoadingError::FileTooShort.into());
         }
         let version = &data[0..4];
 
         if version != IDF_V1_3_HEADER && version != IDF_V1_4_HEADER {
-            return Err(Box::new(LoadingError::IDMismatch));
+            return Err(LoadingError::IDMismatch.into());
         }
 
         let mut o = 4;
@@ -121,10 +121,9 @@ impl OutputFormat for IceDraw {
         o += 2;
 
         if x2 < x1 {
-            return Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "invalid bounds for idf width needs to be >=0.",
-            )));
+            return Err(anyhow::anyhow!(
+                "invalid bounds for idf width needs to be >=0."
+            ));
         }
 
         result.set_width(x2 + 1);

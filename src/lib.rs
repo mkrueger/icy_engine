@@ -13,7 +13,6 @@
 mod text_attribute;
 use std::{
     cmp::min,
-    error::Error,
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
@@ -73,7 +72,7 @@ pub use url_scanner::*;
 mod selection_mask;
 pub use selection_mask::*;
 
-pub type EngineResult<T> = Result<T, Box<dyn Error + Send>>;
+pub type EngineResult<T> = anyhow::Result<T>;
 
 pub mod editor;
 

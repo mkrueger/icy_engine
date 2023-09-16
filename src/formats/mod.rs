@@ -31,7 +31,7 @@ pub use tundra::*;
 
 mod icy_draw;
 
-use crate::{Buffer, BufferFeatures, BufferParser, Caret, EngineResult, TextPane};
+use crate::{Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, TextPane};
 
 use super::{Position, TextAttribute};
 
@@ -54,6 +54,7 @@ pub enum CompressionLevel {
 #[derive(Clone, Debug)]
 pub struct SaveOptions {
     pub screen_preparation: ScreenPreperation,
+    pub buffer_type: BufferType,
     pub modern_terminal_output: bool,
     pub save_sauce: bool,
     pub compression_level: CompressionLevel,
@@ -65,6 +66,7 @@ impl SaveOptions {
     pub fn new() -> Self {
         SaveOptions {
             screen_preparation: ScreenPreperation::None,
+            buffer_type: BufferType::NoLimits,
             modern_terminal_output: false,
             save_sauce: false,
             compression_level: CompressionLevel::High,
@@ -82,6 +84,11 @@ impl Default for SaveOptions {
 
 pub trait OutputFormat: Send + Sync {
     fn get_file_extension(&self) -> &str;
+
+    fn get_alt_extensions(&self) -> Vec<String> {
+        Vec::new()
+    }
+
     fn get_name(&self) -> &str;
 
     fn analyze_features(&self, _features: &BufferFeatures) -> String {
@@ -93,7 +100,7 @@ pub trait OutputFormat: Send + Sync {
     /// # Errors
     ///
     /// This function will return an error if .
-    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>>;
+    fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> anyhow::Result<Vec<u8>>;
 
     /// .
     ///
@@ -105,7 +112,7 @@ pub trait OutputFormat: Send + Sync {
         file_name: &Path,
         data: &[u8],
         sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer>;
+    ) -> anyhow::Result<crate::Buffer>;
 }
 
 lazy_static::lazy_static! {
@@ -164,7 +171,9 @@ pub(crate) fn crop_loaded_file(result: &mut Buffer) {
     {
         result.layers[0].lines.pop();
     }
-    result.set_height(result.get_line_count());
+    let height = result.get_line_count();
+    result.layers[0].set_height(height);
+    result.set_height(height);
 }
 
 #[derive(Debug, Clone)]

@@ -105,19 +105,20 @@ impl SauceData {
     /// This function will return an error if the file con
     pub fn extract(data: &[u8]) -> EngineResult<SauceData> {
         if data.len() < SAUCE_LEN {
-            return Err(Box::new(SauceError::FileTooShort));
+            return Err(SauceError::FileTooShort.into());
         }
 
         let mut o = data.len() - SAUCE_LEN;
         if SAUCE_ID != data[o..(o + 5)] {
-            return Err(Box::new(SauceError::NoSauce));
+            return Err(SauceError::NoSauce.into());
         }
         o += 5;
 
         if b"00" != &data[o..(o + 2)] {
-            return Err(Box::new(SauceError::UnsupportedSauceVersion(
+            return Err(SauceError::UnsupportedSauceVersion(
                 String::from_utf8_lossy(&data[o..(o + 2)]).to_string(),
-            )));
+            )
+            .into());
         }
 
         let mut title = SauceString::<35, b' '>::new();
@@ -139,7 +140,7 @@ impl SauceData {
         date_string.push_str("000000"); // otherwise the datetime parser will fail, it needs full info
         let date_time = match NaiveDateTime::parse_from_str(&date_string, "%Y%m%d%H%M%S") {
             Ok(d) => d,
-            Err(err) => return Err(Box::new(SauceError::UnsupportedSauceDate(err.to_string()))),
+            Err(err) => return Err(SauceError::UnsupportedSauceDate(err.to_string()).into()),
         };
         o += 8;
 
@@ -245,14 +246,15 @@ impl SauceData {
         }
         let len = if num_comments > 0 {
             if (data.len() - SAUCE_LEN) as i32 - num_comments as i32 * 64 - 5 < 0 {
-                return Err(Box::new(SauceError::InvalidCommentBlock));
+                return Err(SauceError::InvalidCommentBlock.into());
             }
             let comment_start = (data.len() - SAUCE_LEN) - num_comments as usize * 64 - 5;
             o = comment_start;
             if SAUCE_COMMENT_ID != data[o..(o + 5)] {
-                return Err(Box::new(SauceError::InvalidCommentId(
+                return Err(SauceError::InvalidCommentId(
                     String::from_utf8_lossy(&data[o..(o + 5)]).to_string(),
-                )));
+                )
+                .into());
             }
             o += 5;
             for _ in 0..num_comments {
@@ -448,9 +450,7 @@ impl Buffer {
         if let Some(data) = &self.sauce_data {
             if !data.comments.is_empty() {
                 if data.comments.len() > 255 {
-                    return Err(Box::new(SauceError::CommentLimitExceeded(
-                        data.comments.len(),
-                    )));
+                    return Err(SauceError::CommentLimitExceeded(data.comments.len()).into());
                 }
                 comment_len = data.comments.len() as u8;
                 vec.extend(SAUCE_COMMENT_ID);
@@ -543,7 +543,7 @@ impl Buffer {
                 data_type = SauceDataType::BinaryText;
                 let w = self.get_width() / 2;
                 if w > u8::MAX as i32 {
-                    return Err(Box::new(SauceError::BinFileWidthLimitExceeded(w)));
+                    return Err(SauceError::BinFileWidthLimitExceeded(w).into());
                 }
                 file_type = w as u8;
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }

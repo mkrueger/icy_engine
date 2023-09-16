@@ -58,8 +58,9 @@ impl Parser {
             let bg_color = if let Some(1) = self.parsed_numbers.get(1) {
                 [0, 0, 0, 0]
             } else {
-                let (r, g, b) =
-                    buf.palette.colors[caret.attribute.get_background() as usize].get_rgb();
+                let (r, g, b) = buf
+                    .palette
+                    .get_rgb(caret.attribute.get_background() as usize);
                 [0xff, r, g, b]
             };
 
@@ -74,9 +75,7 @@ impl Parser {
             return Ok(CallbackAction::None);
         }
 
-        Err(Box::new(ParserError::UnsupportedDCSSequence(
-            self.parse_string.clone(),
-        )))
+        Err(ParserError::UnsupportedDCSSequence(self.parse_string.clone()).into())
     }
 
     fn parse_macro(&mut self, start_index: usize) -> EngineResult<CallbackAction> {
@@ -96,18 +95,20 @@ impl Parser {
                     self.parse_hex_macro_sequence(*pid as usize, start_index)?;
                 }
                 _ => {
-                    return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                    return Err(ParserError::UnsupportedDCSSequence(format!(
                         "encountered p3 in macro definition: '{}' only 0 and 1 are valid.",
                         self.parse_string
-                    ))))
+                    ))
+                    .into())
                 }
             };
             return Ok(CallbackAction::None);
         }
-        Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+        Err(ParserError::UnsupportedDCSSequence(format!(
             "encountered unsupported macro definition: '{}'",
             self.parse_string
-        ))))
+        ))
+        .into())
     }
 
     fn parse_macro_sequence(&mut self, id: usize, start_index: usize) {
@@ -154,9 +155,10 @@ impl Parser {
                         }
                         state = HexMacroState::FirstHex;
                     } else {
-                        return Err(Box::new(ParserError::Error(
+                        return Err(ParserError::Error(
                             "Invalid hex number in macro sequence".to_string(),
-                        )));
+                        )
+                        .into());
                     }
                 }
                 HexMacroState::RepeatNumber(n) => {
@@ -171,9 +173,9 @@ impl Parser {
                         state = HexMacroState::FirstHex;
                         continue;
                     }
-                    return Err(Box::new(ParserError::Error(format!(
-                        "Invalid end of repeat number {ch}"
-                    ))));
+                    return Err(
+                        ParserError::Error(format!("Invalid end of repeat number {ch}")).into(),
+                    );
                 }
             }
         }
@@ -202,22 +204,25 @@ impl Parser {
                             return Ok(CallbackAction::None);
                         }
                         Err(err) => {
-                            return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                            return Err(ParserError::UnsupportedDCSSequence(format!(
                                 "Can't load bit font from dcs: {err}"
-                            ))));
+                            ))
+                            .into());
                         }
                     }
                 }
-                return Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+                return Err(ParserError::UnsupportedDCSSequence(format!(
                     "Can't decode base64 in dcs: {}",
                     self.parse_string
-                ))));
+                ))
+                .into());
             }
         }
 
-        Err(Box::new(ParserError::UnsupportedDCSSequence(format!(
+        Err(ParserError::UnsupportedDCSSequence(format!(
             "invalid custom font in dcs: {}",
             self.parse_string
-        ))))
+        ))
+        .into())
     }
 }

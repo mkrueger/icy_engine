@@ -296,9 +296,10 @@ impl BufferParser for Parser {
                                     self.enable_rip = true;
                                 }
                                 _ => {
-                                    return Err(Box::new(ParserError::InvalidRipAnsiQuery(
+                                    return Err(ParserError::InvalidRipAnsiQuery(
                                         self.ansi_parser.parsed_numbers[0],
-                                    )));
+                                    )
+                                    .into());
                                 }
                             }
                             return Ok(CallbackAction::None);

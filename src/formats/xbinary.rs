@@ -53,11 +53,11 @@ impl OutputFormat for XBin {
 
         let mut flags = 0;
         let Some(font) = buf.get_font(0) else {
-            return Err(Box::new(SavingError::NoFontFound));
+            return Err(SavingError::NoFontFound.into());
         };
 
         if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
-            return Err(Box::new(SavingError::InvalidXBinFont));
+            return Err(SavingError::InvalidXBinFont.into());
         }
 
         result.push(font.size.height as u8);
@@ -129,10 +129,10 @@ impl OutputFormat for XBin {
         }
 
         if data.len() < XBIN_HEADER_SIZE {
-            return Err(Box::new(LoadingError::FileTooShort));
+            return Err(LoadingError::FileTooShort.into());
         }
         if b"XBIN" != &data[0..4] {
-            return Err(Box::new(LoadingError::IDMismatch));
+            return Err(LoadingError::IDMismatch.into());
         }
 
         let mut o = 4;
@@ -235,7 +235,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         .set_char(pos, decode_char(char_code, attribute, result.buffer_type));
 
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(LoadingError::OutOfBounds));
+                        return Err(LoadingError::OutOfBounds.into());
                     }
                 }
             }
@@ -252,7 +252,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         .set_char(pos, decode_char(char_code, bytes[o], result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(LoadingError::OutOfBounds));
+                        return Err(LoadingError::OutOfBounds.into());
                     }
                 }
             }
@@ -268,7 +268,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         .set_char(pos, decode_char(bytes[o], attribute, result.buffer_type));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(LoadingError::OutOfBounds));
+                        return Err(LoadingError::OutOfBounds.into());
                     }
                 }
             }
@@ -286,7 +286,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                 for _ in 0..repeat_counter {
                     result.layers[0].set_char(pos, rep_ch);
                     if !advance_pos(result, &mut pos) {
-                        return Err(Box::new(LoadingError::OutOfBounds));
+                        return Err(LoadingError::OutOfBounds.into());
                     }
                 }
             }
@@ -330,7 +330,7 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<boo
         result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], result.buffer_type));
         o += 2;
         if !advance_pos(result, &mut pos) {
-            return Err(Box::new(LoadingError::OutOfBounds));
+            return Err(LoadingError::OutOfBounds.into());
         }
     }
 

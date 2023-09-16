@@ -1,11 +1,11 @@
-use std::{error::Error, io, path::Path};
+use std::{error::Error, path::Path};
 
 use base64::{engine::general_purpose, Engine};
+use regex::Regex;
 
 use crate::{
-    parsers, BitFont, Buffer, BufferParser, Caret, Color, EngineResult, Layer, LoadingError,
-    OutputFormat, Position, SauceData, SauceFileType, SaveOptions, Sixel, Size, StringGenerator,
-    TextPane,
+    BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Position, SauceData,
+    SauceFileType, SaveOptions, Sixel, Size, TextPane,
 };
 
 mod constants {
@@ -22,6 +22,9 @@ mod constants {
 
 #[derive(Default)]
 pub struct IcyDraw {}
+
+/// maximum ztext chunk size from libpng source
+const MAX: u64 = 3_000_000;
 
 impl OutputFormat for IcyDraw {
     fn get_file_extension(&self) -> &str {
@@ -75,7 +78,7 @@ impl OutputFormat for IcyDraw {
             result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
             let sauce_data = general_purpose::STANDARD.encode(&result);
             if let Err(err) = encoder.add_ztxt_chunk("ICED".to_string(), sauce_data) {
-                return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+                return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
             }
         }
 
@@ -84,7 +87,34 @@ impl OutputFormat for IcyDraw {
             buf.write_sauce_info(SauceFileType::Ansi, &mut sauce_vec)?;
             let sauce_data = general_purpose::STANDARD.encode(&sauce_vec);
             if let Err(err) = encoder.add_ztxt_chunk("SAUCE".to_string(), sauce_data) {
-                return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+                return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
+            }
+        }
+
+        if !buf.palette.is_default() {
+            let mut pal_data: Vec<u8> = Vec::new();
+            pal_data.extend(u32::to_le_bytes(buf.palette.len() as u32));
+            write_utf8_encoded_string(&mut pal_data, &buf.palette.title);
+            write_utf8_encoded_string(&mut pal_data, &buf.palette.author);
+            write_utf8_encoded_string(&mut pal_data, &buf.palette.description);
+
+            for col in buf.palette.color_iter() {
+                let rgb = col.clone().get_rgb();
+                if let Some(name) = &col.name {
+                    write_utf8_encoded_string(&mut pal_data, name);
+                } else {
+                    write_utf8_encoded_string(&mut pal_data, "");
+                }
+
+                pal_data.push(rgb.0);
+                pal_data.push(rgb.1);
+                pal_data.push(rgb.2);
+                pal_data.push(0xFF); // so far only solid colors are supported
+            }
+
+            let palette_data = general_purpose::STANDARD.encode(&pal_data);
+            if let Err(err) = encoder.add_ztxt_chunk("PALETTE".to_string(), palette_data) {
+                return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
             }
         }
 
@@ -98,7 +128,7 @@ impl OutputFormat for IcyDraw {
                     format!("FONT_{k}"),
                     general_purpose::STANDARD.encode(&font_data),
                 ) {
-                    return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+                    return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
                 }
             }
         }
@@ -123,7 +153,7 @@ impl OutputFormat for IcyDraw {
             result.push(mode);
 
             if let Some(color) = &layer.color {
-                let (r, g, b) = color.get_rgb();
+                let (r, g, b) = color.clone().get_rgb();
                 result.push(r);
                 result.push(g);
                 result.push(b);
@@ -158,30 +188,99 @@ impl OutputFormat for IcyDraw {
 
             if matches!(layer.role, crate::Role::Image) {
                 let sixel = &layer.sixels[0];
-                result.extend(u64::to_le_bytes(16 + sixel.picture_data.len() as u64));
+                let len = 16 + sixel.picture_data.len() as u64;
+
+                let mut bytes_written = MAX.min(len);
+                result.extend(u64::to_le_bytes(bytes_written));
 
                 result.extend(i32::to_le_bytes(sixel.get_width()));
                 result.extend(i32::to_le_bytes(sixel.get_height()));
                 result.extend(i32::to_le_bytes(sixel.vertical_scale));
                 result.extend(i32::to_le_bytes(sixel.horizontal_scale));
-                result.extend(&sixel.picture_data);
-            } else {
-                let mut opt = SaveOptions::default();
-                opt.preserve_invisible_chars = true;
+                bytes_written -= 16;
+                result.extend(&sixel.picture_data[0..bytes_written as usize]);
+                let layer_data = general_purpose::STANDARD.encode(&result);
+                if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
+                    return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
+                }
 
-                let mut gen = StringGenerator::new(opt);
-                gen.generate(buf, layer);
-                result.extend(u64::to_le_bytes(gen.get_data().len() as u64));
-                result.extend(gen.get_data());
-            }
-            let layer_data = general_purpose::STANDARD.encode(&result);
-            if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
-                return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+                let mut chunk = 1;
+                while len > bytes_written {
+                    let next_bytes = MAX.min(len - bytes_written);
+                    let layer_data = general_purpose::STANDARD
+                        .encode(&sixel.picture_data[bytes_written as usize..next_bytes as usize]);
+                    bytes_written = next_bytes;
+                    if let Err(err) =
+                        encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data)
+                    {
+                        return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
+                    }
+                    chunk += 1;
+                }
+            } else {
+                let offset = result.len();
+                result.extend(u64::to_le_bytes(0));
+
+                let mut y = 0;
+
+                while y < layer.get_height() {
+                    if result.len() as u64 + layer.get_width() as u64 * 16 > MAX {
+                        break;
+                    }
+                    for x in 0..layer.get_width() {
+                        let ch = layer.get_char((x, y));
+                        result.extend(u16::to_le_bytes(ch.attribute.attr));
+                        if !ch.is_visible() {
+                            continue;
+                        }
+                        result.extend(u32::to_le_bytes(ch.ch as u32));
+                        result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
+                        result.extend(u32::to_le_bytes(ch.attribute.background_color));
+                        result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+                    }
+                    y += 1;
+                }
+                let len = result.len();
+                result[offset..(offset + 8)]
+                    .copy_from_slice(&u64::to_le_bytes((len - offset - 8) as u64));
+                let layer_data = general_purpose::STANDARD.encode(&result);
+                if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
+                    return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
+                }
+                let mut chunk = 1;
+                while y < layer.get_height() {
+                    result.clear();
+                    while y < layer.get_height() {
+                        if result.len() as u64 + layer.get_width() as u64 * 16 > MAX {
+                            break;
+                        }
+
+                        for x in 0..layer.get_width() {
+                            let ch = layer.get_char((x, y));
+                            result.extend(u16::to_le_bytes(ch.attribute.attr));
+                            if !ch.is_visible() {
+                                continue;
+                            }
+                            result.extend(u32::to_le_bytes(ch.ch as u32));
+                            result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
+                            result.extend(u32::to_le_bytes(ch.attribute.background_color));
+                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+                        }
+                        y += 1;
+                    }
+                    let layer_data = general_purpose::STANDARD.encode(&result);
+                    if let Err(err) =
+                        encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data)
+                    {
+                        return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
+                    }
+                    chunk += 1;
+                }
             }
         }
 
         if let Err(err) = encoder.add_ztxt_chunk("END".to_string(), String::new()) {
-            return Err(Box::new(IcedError::ErrorEncodingZText(format!("{err}"))));
+            return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
         }
 
         let mut writer = encoder.write_header().unwrap();
@@ -264,6 +363,41 @@ impl OutputFormat for IcyDraw {
                                             as i32;
                                     result.set_size((width, height));
                                 }
+
+                                "PALETTE" => {
+                                    result.palette.clear();
+                                    let mut colors =
+                                        u32::from_le_bytes(bytes[0..4].try_into().unwrap());
+                                    let mut o: usize = 4;
+
+                                    let (title, size) = read_utf8_encoded_string(&bytes[o..]);
+                                    o += size;
+                                    result.palette.title = title;
+                                    let (author, size) = read_utf8_encoded_string(&bytes[o..]);
+                                    o += size;
+                                    result.palette.author = author;
+                                    let (description, size) = read_utf8_encoded_string(&bytes[o..]);
+                                    o += size;
+                                    result.palette.description = description;
+
+                                    while colors > 0 {
+                                        let (name, size) = read_utf8_encoded_string(&bytes[o..]);
+                                        o += size;
+                                        let red = bytes[o];
+                                        o += 1;
+                                        let green = bytes[o];
+                                        o += 1;
+                                        let blue = bytes[o];
+                                        o += 2; // skip alpha
+                                        let mut c = Color::new(red, green, blue);
+                                        if !name.is_empty() {
+                                            c.name = Some(name);
+                                        }
+                                        result.palette.push(c);
+                                        colors -= 1;
+                                    }
+                                }
+
                                 "SAUCE" => {
                                     let sauce = SauceData::extract(&bytes).unwrap();
                                     result.set_sauce(sauce);
@@ -283,17 +417,90 @@ impl OutputFormat for IcyDraw {
                                                 continue;
                                             }
                                             Err(err) => {
-                                                return Err(Box::new(
-                                                    IcedError::ErrorParsingFontSlot(format!(
-                                                        "{err}"
-                                                    )),
-                                                ));
+                                                return Err(IcedError::ErrorParsingFontSlot(
+                                                    format!("{err}"),
+                                                )
+                                                .into());
                                             }
                                         }
                                     }
                                     if !text.starts_with("LAYER_") {
                                         log::warn!("unsupported chunk {text}");
                                         continue;
+                                    }
+
+                                    let layer_cont = Regex::new(r"LAYER_(\d+)~(\d+)")?;
+                                    if let Some(m) = layer_cont.captures(text) {
+                                        let (_, [layer_num, _chunk]) = m.extract();
+                                        let layer_num = layer_num.parse::<usize>()?;
+
+                                        let layer = &mut result.layers[layer_num];
+                                        match layer.role {
+                                            crate::Role::Normal => {
+                                                let mut o = 0;
+                                                for y in layer.get_line_count()..layer.get_height()
+                                                {
+                                                    if o >= bytes.len() {
+                                                        // will be continued in a later chunk.
+                                                        break;
+                                                    }
+                                                    for x in 0..layer.get_width() {
+                                                        let attr = u16::from_le_bytes(
+                                                            bytes[o..(o + 2)].try_into().unwrap(),
+                                                        )
+                                                            as u16;
+                                                        o += 2;
+
+                                                        if attr == crate::attribute::INVISIBLE {
+                                                            // invisible is the default, no need to set it here.
+                                                            continue;
+                                                        }
+
+                                                        let ch = u32::from_le_bytes(
+                                                            bytes[o..(o + 4)].try_into().unwrap(),
+                                                        )
+                                                            as u32;
+                                                        o += 4;
+                                                        let fg = u32::from_le_bytes(
+                                                            bytes[o..(o + 4)].try_into().unwrap(),
+                                                        )
+                                                            as u32;
+                                                        o += 4;
+                                                        let bg = u32::from_le_bytes(
+                                                            bytes[o..(o + 4)].try_into().unwrap(),
+                                                        )
+                                                            as u32;
+                                                        o += 4;
+                                                        let font_page = u16::from_le_bytes(
+                                                            bytes[o..(o + 2)].try_into().unwrap(),
+                                                        )
+                                                            as u16;
+                                                        o += 2;
+                                                        layer.set_char(
+                                                            (x, y),
+                                                            crate::AttributedChar {
+                                                                ch: unsafe {
+                                                                    char::from_u32_unchecked(ch)
+                                                                },
+                                                                attribute: crate::TextAttribute {
+                                                                    foreground_color: fg,
+                                                                    background_color: bg,
+                                                                    font_page: font_page as usize,
+                                                                    attr,
+                                                                },
+                                                            },
+                                                        );
+                                                    }
+                                                }
+                                                continue;
+                                            }
+                                            crate::Role::PastePreview => todo!(),
+                                            crate::Role::PasteImage => todo!(),
+                                            crate::Role::Image => {
+                                                layer.sixels[0].picture_data.extend(&bytes);
+                                                continue;
+                                            }
+                                        }
                                     }
                                     let mut o: usize = 0;
 
@@ -318,9 +525,10 @@ impl OutputFormat for IcyDraw {
                                         1 => crate::Mode::Chars,
                                         2 => crate::Mode::Attributes,
                                         _ => {
-                                            return Err(Box::new(
-                                                LoadingError::IcyDrawUnsupportedLayerMode(mode),
-                                            ));
+                                            return Err(LoadingError::IcyDrawUnsupportedLayerMode(
+                                                mode,
+                                            )
+                                            .into());
                                         }
                                     };
                                     o += 1;
@@ -359,7 +567,6 @@ impl OutputFormat for IcyDraw {
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
                                             as i32;
                                     o += 4;
-
                                     layer.set_size((width, height));
 
                                     let length =
@@ -397,31 +604,65 @@ impl OutputFormat for IcyDraw {
                                         ));
                                         result.layers.push(layer);
                                     } else {
-                                        let mut p = parsers::ansi::Parser::default();
-                                        let mut caret = Caret::default();
-                                        layer.is_visible = true;
-                                        result.layers.push(layer);
                                         if bytes.len() < o + length {
-                                            return Err(Box::new(io::Error::new(
-                                                io::ErrorKind::InvalidData,
-                                                format!(
-                                                    "data length out ouf bounds {} data lenth: {}",
-                                                    o + length,
-                                                    bytes.len()
-                                                ),
-                                            )));
+                                            return Err(anyhow::anyhow!(
+                                                "data length out ouf bounds {} data lenth: {}",
+                                                o + length,
+                                                bytes.len()
+                                            ));
                                         }
-                                        (o..(o + length)).for_each(|i| {
-                                            let b = bytes[i];
-                                            let current_layer =
-                                                result.layers.len().saturating_sub(1);
-                                            let _ = p.print_char(
-                                                &mut result,
-                                                current_layer,
-                                                &mut caret,
-                                                char::from_u32(b as u32).unwrap(),
-                                            );
-                                        });
+                                        for y in 0..height {
+                                            if o >= bytes.len() {
+                                                // will be continued in a later chunk.
+                                                break;
+                                            }
+                                            for x in 0..width {
+                                                let attr = u16::from_le_bytes(
+                                                    bytes[o..(o + 2)].try_into().unwrap(),
+                                                )
+                                                    as u16;
+                                                o += 2;
+
+                                                if attr == crate::attribute::INVISIBLE {
+                                                    // invisible is the default, no need to set it here.
+                                                    continue;
+                                                }
+
+                                                let ch = u32::from_le_bytes(
+                                                    bytes[o..(o + 4)].try_into().unwrap(),
+                                                )
+                                                    as u32;
+                                                o += 4;
+                                                let fg = u32::from_le_bytes(
+                                                    bytes[o..(o + 4)].try_into().unwrap(),
+                                                )
+                                                    as u32;
+                                                o += 4;
+                                                let bg = u32::from_le_bytes(
+                                                    bytes[o..(o + 4)].try_into().unwrap(),
+                                                )
+                                                    as u32;
+                                                o += 4;
+                                                let font_page = u16::from_le_bytes(
+                                                    bytes[o..(o + 2)].try_into().unwrap(),
+                                                )
+                                                    as u16;
+                                                o += 2;
+                                                layer.set_char(
+                                                    (x, y),
+                                                    crate::AttributedChar {
+                                                        ch: unsafe { char::from_u32_unchecked(ch) },
+                                                        attribute: crate::TextAttribute {
+                                                            foreground_color: fg,
+                                                            background_color: bg,
+                                                            font_page: font_page as usize,
+                                                            attr,
+                                                        },
+                                                    },
+                                                );
+                                            }
+                                        }
+                                        result.layers.push(layer);
                                     }
 
                                     // set attributes at the end because of the way the parser works
@@ -449,7 +690,7 @@ impl OutputFormat for IcyDraw {
                     }
                 }
                 Err(err) => {
-                    return Err(Box::new(LoadingError::InvalidPng(format!("{err}"))));
+                    return Err(LoadingError::InvalidPng(format!("{err}")).into());
                 }
             }
         }
@@ -522,10 +763,85 @@ mod tests {
     use std::path::Path;
 
     use crate::{
-        AttributedChar, Buffer, Layer, OutputFormat, SaveOptions, TextAttribute, TextPane,
+        AttributedChar, Buffer, Color, Layer, OutputFormat, SaveOptions, TextAttribute, TextPane,
+        FORMATS,
     };
 
     use super::IcyDraw;
+
+    fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+        entry
+            .file_name()
+            .to_str()
+            .map_or(false, |s| s.starts_with('.'))
+    }
+
+    #[test]
+    fn test_roundtrip() {
+        let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
+        let mut num = 0;
+
+        for entry in walker.filter_entry(|e| !is_hidden(e)) {
+            let entry = entry.unwrap();
+            let path = entry.path();
+
+            if path.is_dir() {
+                continue;
+            }
+            let extension = path.extension();
+            if extension.is_none() {
+                continue;
+            }
+            let extension = extension.unwrap().to_str();
+            if extension.is_none() {
+                continue;
+            }
+            let extension = extension.unwrap().to_lowercase();
+
+            let mut found = false;
+            for format in &*FORMATS {
+                if format.get_file_extension() == extension
+                    || format.get_alt_extensions().contains(&extension)
+                {
+                    found = true;
+                }
+            }
+            if !found {
+                continue;
+            }
+            num += 1;
+
+            println!("testing {num}:{path:?}");
+            if let Ok(mut buf) = Buffer::load_buffer(path, true) {
+                let draw = IcyDraw::default();
+                let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+                let mut buf2 = draw
+                    .load_buffer(Path::new("test.icy"), &bytes, None)
+                    .unwrap();
+                compare_buffers(&mut buf, &mut buf2);
+            }
+        }
+    }
+
+    #[test]
+    fn test_single() {
+        // .into()
+        let mut buf = Buffer::load_buffer(
+            Path::new("../sixteencolors-archive/1996/bdp-0696/--------.BIN"),
+            true,
+        )
+        .unwrap();
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        println!("SAVED!");
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap(); /*
+                       println!("{buf}");
+                       println!("------------");
+                       println!("{buf2}");*/
+        compare_buffers(&mut buf, &mut buf2);
+    }
 
     #[test]
     fn test_empty_buffer() {
@@ -542,7 +858,204 @@ mod tests {
     }
 
     #[test]
-    fn test_buffer_bug() {
+    fn test_rgb_serialization_bug() {
+        let mut buf = Buffer::new((2, 2));
+        let fg = buf.palette.insert_color(Color::new(82, 85, 82));
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: '²',
+                attribute: TextAttribute::new(fg, 0),
+            },
+        );
+        let bg = buf.palette.insert_color(Color::new(182, 185, 82));
+        buf.layers[0].set_char(
+            (1, 0),
+            AttributedChar {
+                ch: '²',
+                attribute: TextAttribute::new(fg, bg),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_rgb_serialization_bug_2() {
+        // was a bug in compare_buffers, but having more test doesn't hurt.
+        let mut buf = Buffer::new((2, 2));
+
+        let _ = buf.palette.insert_color(Color::new(1, 2, 3));
+        let fg = buf.palette.insert_color(Color::new(4, 5, 6)); // 17
+        let bg = buf.palette.insert_color(Color::new(7, 8, 9)); // 18
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: 'A',
+                attribute: TextAttribute::new(fg, bg),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_nonstandard_palettes() {
+        // was a bug in compare_buffers, but having more test doesn't hurt.
+        let mut buf = Buffer::new((2, 2));
+        buf.palette.set_color(9, Color::new(4, 5, 6));
+        buf.palette.set_color(10, Color::new(7, 8, 9));
+
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: 'A',
+                attribute: TextAttribute::new(9, 10),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_fg_switch() {
+        // was a bug in compare_buffers, but having more test doesn't hurt.
+        let mut buf = Buffer::new((2, 1));
+        let mut attribute = TextAttribute::new(1, 1);
+        attribute.set_is_bold(true);
+        buf.layers[0].set_char((0, 0), AttributedChar { ch: 'A', attribute });
+        buf.layers[0].set_char(
+            (1, 0),
+            AttributedChar {
+                ch: 'A',
+                attribute: TextAttribute::new(2, 1),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_escape_char() {
+        let mut buf = Buffer::new((2, 2));
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: '\x1b',
+                attribute: TextAttribute::default(),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_0_255_chars() {
+        let mut buf = Buffer::new((2, 2));
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: '\0',
+                attribute: TextAttribute::default(),
+            },
+        );
+        buf.layers[0].set_char(
+            (0, 1),
+            AttributedChar {
+                ch: '\u{FF}',
+                attribute: TextAttribute::default(),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_too_long_lines() {
+        let mut buf = Buffer::new((2, 2));
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: '1',
+                attribute: TextAttribute::default(),
+            },
+        );
+        buf.layers[0].set_char(
+            (0, 1),
+            AttributedChar {
+                ch: '2',
+                attribute: TextAttribute::default(),
+            },
+        );
+        buf.layers[0].lines[0].chars.resize(
+            80,
+            AttributedChar {
+                ch: ' ',
+                attribute: TextAttribute::default(),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_space_persistance_buffer() {
+        let mut buf = Buffer::default();
+        buf.layers[0].set_char(
+            (0, 0),
+            AttributedChar {
+                ch: ' ',
+                attribute: TextAttribute::default(),
+            },
+        );
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
+    #[test]
+    fn test_invisible_layer_bug() {
         let mut buf = Buffer::new((1, 1));
         buf.layers.push(Layer::new("test", (1, 1)));
         buf.layers[1].set_char((0, 0), AttributedChar::new('a', TextAttribute::default()));
@@ -600,47 +1113,58 @@ mod tests {
         }
     }
 
-    fn compare_buffers(buf: &mut Buffer, buf2: &mut Buffer) {
-        assert_eq!(buf.layers.len(), buf2.layers.len());
+    fn compare_buffers(buf_old: &mut Buffer, buf_new: &mut Buffer) {
+        assert_eq!(buf_old.layers.len(), buf_new.layers.len());
         let ic = AttributedChar::invisible();
 
-        crop2_loaded_file(buf);
-        crop2_loaded_file(buf2);
+        crop2_loaded_file(buf_old);
+        crop2_loaded_file(buf_new);
 
-        for layer in 0..buf.layers.len() {
+        for layer in 0..buf_old.layers.len() {
             assert_eq!(
-                buf.layers[layer].lines.len(),
-                buf2.layers[layer].lines.len(),
+                buf_old.layers[layer].lines.len(),
+                buf_new.layers[layer].lines.len(),
                 "layer {layer} line count differs"
             );
             assert_eq!(
-                buf.layers[layer].get_offset(),
-                buf2.layers[layer].get_offset(),
+                buf_old.layers[layer].get_offset(),
+                buf_new.layers[layer].get_offset(),
                 "layer {layer} offset differs"
             );
             assert_eq!(
-                buf.layers[layer].get_size(),
-                buf2.layers[layer].get_size(),
+                buf_old.layers[layer].get_size(),
+                buf_new.layers[layer].get_size(),
                 "layer {layer} size differs"
             );
             assert_eq!(
-                buf.layers[layer].is_visible, buf2.layers[layer].is_visible,
+                buf_old.layers[layer].is_visible, buf_new.layers[layer].is_visible,
                 "layer {layer} is_visible differs"
             );
             assert_eq!(
-                buf.layers[layer].has_alpha_channel, buf2.layers[layer].has_alpha_channel,
+                buf_old.layers[layer].has_alpha_channel, buf_new.layers[layer].has_alpha_channel,
                 "layer {layer} has_alpha_channel differs"
             );
 
-            for line in 0..buf.layers[layer].lines.len() {
-                let l = buf.layers[layer].lines[line]
-                    .chars
-                    .len()
-                    .max(buf2.layers[layer].lines[line].chars.len());
-                for i in 0..l {
-                    let ch = buf.layers[layer].lines[line].chars.get(i).unwrap_or(&ic);
-                    let ch2 = buf2.layers[layer].lines[line].chars.get(i).unwrap_or(&ic);
-                    assert_eq!(*ch, *ch2, "layer: {layer}, line: {line}, char: {i}");
+            for line in 0..buf_old.layers[layer].lines.len() {
+                for i in 0..buf_old.layers[layer].get_width() as usize {
+                    let mut ch = *buf_old.layers[layer].lines[line]
+                        .chars
+                        .get(i)
+                        .unwrap_or(&ic);
+                    let mut ch2 = *buf_new.layers[layer].lines[line]
+                        .chars
+                        .get(i)
+                        .unwrap_or(&ic);
+                    assert_eq!(buf_old.palette.get_color(ch.attribute.get_foreground() as usize), buf_new.palette.get_color(ch2.attribute.get_foreground() as usize), "fg differs at layer: {layer}, line: {line}, char: {i} (old:{}={}, new:{}={})", ch.attribute.get_foreground(), buf_old.palette.get_color(ch.attribute.get_foreground() as usize), ch2.attribute.get_foreground(), buf_new.palette.get_color(ch2.attribute.get_foreground() as usize));
+                    assert_eq!(buf_old.palette.get_color(ch.attribute.get_background() as usize), buf_new.palette.get_color(ch2.attribute.get_background() as usize), "bg differs at layer: {layer}, line: {line}, char: {i} (old:{}={}, new:{}={})", ch.attribute.get_background(), buf_old.palette.get_color(ch.attribute.get_background() as usize), ch2.attribute.get_background(), buf_new.palette.get_color(ch2.attribute.get_background() as usize));
+
+                    ch.attribute.set_foreground(0);
+                    ch.attribute.set_background(0);
+
+                    ch2.attribute.set_foreground(0);
+                    ch2.attribute.set_background(0);
+
+                    assert_eq!(ch, ch2, "layer: {layer}, line: {line}, char: {i}");
                 }
             }
         }

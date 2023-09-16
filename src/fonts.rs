@@ -187,7 +187,7 @@ impl BitFont {
             16 => Size::new(8, 16),
             19 => Size::new(8, 19),
             _ => {
-                return Err(Box::new(FontError::UnknownFontFormat(data.len())));
+                return Err(FontError::UnknownFontFormat(data.len()).into());
             }
         };
 
@@ -215,17 +215,18 @@ impl BitFont {
     fn load_psf2(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
         let version = u32::from_le_bytes(data[4..8].try_into().unwrap());
         if version > BitFont::PSF2_MAXVERSION {
-            return Err(Box::new(FontError::UnsupportedVersion(version)));
+            return Err(FontError::UnsupportedVersion(version).into());
         }
         let headersize = u32::from_le_bytes(data[8..12].try_into().unwrap()) as usize;
         // let flags = u32::from_le_bytes(data[12..16].try_into().unwrap());
         let length = u32::from_le_bytes(data[16..20].try_into().unwrap()) as i32;
         let charsize = u32::from_le_bytes(data[20..24].try_into().unwrap()) as i32;
         if length * charsize + headersize as i32 != data.len() as i32 {
-            return Err(Box::new(FontError::LengthMismatch(
+            return Err(FontError::LengthMismatch(
                 data.len(),
                 (length * charsize) as usize + headersize,
-            )));
+            )
+            .into());
         }
         let height = u32::from_le_bytes(data[24..28].try_into().unwrap()) as usize;
         let width = u32::from_le_bytes(data[28..32].try_into().unwrap()) as usize;
@@ -343,7 +344,7 @@ macro_rules! fonts {
                     $(
                         $( $font_slot => {BitFont::from_bytes($name, $i)}  )?
                     )*
-                    _ => Err(Box::new(ParserError::UnsupportedFont(font_page))),
+                    _ => Err(ParserError::UnsupportedFont(font_page).into()),
                 }
             }
         }

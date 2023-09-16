@@ -33,9 +33,7 @@ impl Parser {
             return Ok(CallbackAction::None);
         }
 
-        Err(Box::new(ParserError::UnsupportedOSCSequence(
-            self.parse_string.clone(),
-        )))
+        Err(ParserError::UnsupportedOSCSequence(self.parse_string.clone()).into())
     }
 
     fn handle_osc_hyperlinks(

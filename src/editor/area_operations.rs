@@ -56,7 +56,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+            Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -103,7 +103,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(EditorError::CurrentLayerInvalid))
+            Err(EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -148,7 +148,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(EditorError::CurrentLayerInvalid))
+            Err(EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -178,7 +178,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(EditorError::CurrentLayerInvalid))
+            Err(EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -208,7 +208,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(EditorError::CurrentLayerInvalid))
+            Err(EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -266,7 +266,7 @@ impl EditState {
         let (area, old_layer) = if let Some(layer) = self.buffer.layers.get_mut(layer_idx) {
             (layer.get_rectangle(), layer.clone())
         } else {
-            return Err(Box::new(EditorError::CurrentLayerInvalid));
+            return Err(EditorError::CurrentLayerInvalid.into());
         };
 
         for y in 0..area.get_height() {
@@ -350,7 +350,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+            Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -410,7 +410,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+            Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -443,7 +443,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+            Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
 
@@ -476,7 +476,7 @@ impl EditState {
             self.undo_stack.lock().unwrap().push(Box::new(op));
             Ok(())
         } else {
-            Err(Box::new(super::EditorError::CurrentLayerInvalid))
+            Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
 }

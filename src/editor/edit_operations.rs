@@ -1,7 +1,5 @@
 #![allow(clippy::missing_errors_doc)]
 
-use std::io;
-
 use i18n_embed_fl::fl;
 
 use crate::{AttributedChar, EngineResult, Layer, Position, Rectangle, Sixel, Size, TextPane};
@@ -41,10 +39,7 @@ impl EditState {
                 new: attributed_char,
             }))
         } else {
-            Err(Box::new(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "Current layer is invalid",
-            )))
+            Err(anyhow::anyhow!("Current layer is invalid"))
         }
     }
 

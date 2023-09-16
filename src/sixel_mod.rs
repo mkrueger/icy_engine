@@ -104,7 +104,7 @@ impl SixelParser {
                     }
                     if self.parsed_numbers.len() > 1 {
                         if self.parsed_numbers.len() != 5 {
-                            return Err(Box::new(ParserError::InvalidColorInSixelSequence));
+                            return Err(ParserError::InvalidColorInSixelSequence.into());
                         }
 
                         match self.parsed_numbers.get(1).unwrap() {
@@ -126,7 +126,7 @@ impl SixelParser {
                                 );
                             }
                             n => {
-                                return Err(Box::new(ParserError::UnsupportedSixelColorformat(*n)));
+                                return Err(ParserError::UnsupportedSixelColorformat(*n).into());
                             }
                         }
                     }
@@ -144,7 +144,7 @@ impl SixelParser {
                     self.parsed_numbers.push(0);
                 } else {
                     if self.parsed_numbers.len() < 2 || self.parsed_numbers.len() > 4 {
-                        return Err(Box::new(ParserError::InvalidPictureSize));
+                        return Err(ParserError::InvalidPictureSize.into());
                     }
                     self.vertical_scale = self.parsed_numbers[0];
                     self.horizontal_scale = self.parsed_numbers[1];
@@ -178,7 +178,7 @@ impl SixelParser {
                             self.parse_sixel_data(ch)?;
                         }
                     } else {
-                        return Err(Box::new(ParserError::NumberMissingInSixelRepeat));
+                        return Err(ParserError::NumberMissingInSixelRepeat.into());
                     }
                     self.state = SixelState::Read;
                 }
@@ -192,12 +192,14 @@ impl SixelParser {
 
         let sixel = &mut buf.layers[0].sixels[current_sixel];*/
         if ch < '?' {
-            return Err(Box::new(ParserError::InvalidSixelChar(ch)));
+            return Err(ParserError::InvalidSixelChar(ch).into());
         }
         let mask = ch as u8 - b'?';
 
-        let fg_color = self.current_sixel_palette.colors
-            [(self.current_sixel_color as usize) % self.current_sixel_palette.colors.len()];
+        let fg_color = self
+            .current_sixel_palette
+            .get_color((self.current_sixel_color as usize) % self.current_sixel_palette.len())
+            .clone();
         let x_pos = self.sixel_cursor.x;
         let y_pos = self.sixel_cursor.y * 6;
 
@@ -225,7 +227,7 @@ impl SixelParser {
                     cur_line.resize((x_pos as usize + 1) * 4, 0);
                 }
 
-                let (r, g, b) = fg_color.get_rgb();
+                let (r, g, b) = fg_color.clone().get_rgb();
                 cur_line[offset] = r;
                 cur_line[offset + 1] = g;
                 cur_line[offset + 2] = b;

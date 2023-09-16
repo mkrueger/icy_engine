@@ -1,9 +1,7 @@
 use std::path::Path;
 
 use super::{Position, SaveOptions, TextAttribute};
-use crate::{
-    AttributedChar, Buffer, BufferFeatures, EngineResult, LoadingError, OutputFormat, TextPane,
-};
+use crate::{AttributedChar, Buffer, BufferFeatures, EngineResult, OutputFormat, TextPane};
 
 #[derive(Default)]
 pub(super) struct Bin {}
@@ -58,8 +56,11 @@ impl OutputFormat for Bin {
                     return Ok(result);
                 }
 
-                if o + 1 > data.len() {
-                    return Err(Box::new(LoadingError::FileLengthNeedsToBeEven));
+                if o + 1 >= data.len() {
+                    // last byte is not important enough to throw an error
+                    // there seem to be some invalid files out there.
+                    log::error!("Invalid Bin. Read char block beyond EOF.");
+                    return Ok(result);
                 }
 
                 result.layers[0].set_height(pos.y + 1);

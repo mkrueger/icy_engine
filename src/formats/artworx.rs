@@ -37,13 +37,13 @@ impl OutputFormat for Artworx {
 
         result.extend(buf.palette.to_ega_palette());
         if buf.get_font_dimensions() != Size::new(8, 16) {
-            return Err(Box::new(SavingError::Only8x16FontsSupported));
+            return Err(SavingError::Only8x16FontsSupported.into());
         }
 
         if let Some(font) = buf.get_font(0) {
             font.convert_to_u8_data(&mut result);
         } else {
-            return Err(Box::new(SavingError::NoFontFound));
+            return Err(SavingError::NoFontFound.into());
         }
 
         for y in 0..buf.get_line_count() {
@@ -77,12 +77,12 @@ impl OutputFormat for Artworx {
         let mut o = 0;
         let mut pos = Position::default();
         if file_size < 1 + 3 * 64 + 4096 {
-            return Err(Box::new(LoadingError::FileTooShort));
+            return Err(LoadingError::FileTooShort.into());
         }
 
         let version = data[o];
         if version != 1 {
-            return Err(Box::new(LoadingError::UnsupportedADFVersion(version)));
+            return Err(LoadingError::UnsupportedADFVersion(version).into());
         }
         o += 1;
 

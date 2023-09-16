@@ -1,8 +1,11 @@
 #![allow(clippy::many_single_char_names)]
 use std::fmt::Display;
 
-#[derive(Debug, Clone, Copy, Default)]
+use regex::Regex;
+
+#[derive(Debug, Clone, Default)]
 pub struct Color {
+    pub name: Option<String>,
     r: u8,
     g: u8,
     b: u8,
@@ -20,7 +23,12 @@ impl Display for Color {
 
 impl Color {
     pub fn new(r: u8, g: u8, b: u8) -> Self {
-        Color { r, g, b }
+        Color {
+            name: None,
+            r,
+            g,
+            b,
+        }
     }
     pub fn get_rgb_f64(self) -> (f64, f64, f64) {
         (
@@ -51,6 +59,7 @@ impl PartialEq for Color {
 impl From<(u8, u8, u8)> for Color {
     fn from(value: (u8, u8, u8)) -> Self {
         Color {
+            name: None,
             r: value.0,
             g: value.1,
             b: value.2,
@@ -67,6 +76,7 @@ impl From<Color> for (u8, u8, u8) {
 impl From<[u8; 3]> for Color {
     fn from(value: [u8; 3]) -> Self {
         Color {
+            name: None,
             r: value[0],
             g: value[1],
             b: value[2],
@@ -83,6 +93,7 @@ impl From<Color> for [u8; 3] {
 impl From<(f32, f32, f32)> for Color {
     fn from(value: (f32, f32, f32)) -> Self {
         Color {
+            name: None,
             r: (value.0 * 255_f32) as u8,
             g: (value.1 * 255_f32) as u8,
             b: (value.2 * 255_f32) as u8,
@@ -103,6 +114,7 @@ impl From<Color> for (f32, f32, f32) {
 impl From<[f32; 3]> for Color {
     fn from(value: [f32; 3]) -> Self {
         Color {
+            name: None,
             r: (value[0] * 255_f32) as u8,
             g: (value[1] * 255_f32) as u8,
             b: (value[2] * 255_f32) as u8,
@@ -120,90 +132,291 @@ impl From<Color> for [f32; 3] {
     }
 }
 
+pub enum PaletteFormat {
+    Hex,
+    Pal,
+    Gpl,
+    Txt,
+    Ase,
+}
+
 #[derive(Debug, Clone)]
 pub struct Palette {
-    pub colors: Vec<Color>,
+    pub title: String,
+    pub description: String,
+    pub author: String,
+    colors: Vec<Color>,
+}
+
+impl Palette {
+    pub fn from_colors(colors: Vec<Color>) -> Self {
+        Self {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors,
+        }
+    }
+
+
+    pub fn get_color(&self, index: usize) -> &Color {
+        &self.colors[index]
+    }
+
+    pub fn get_rgb(&self, index: usize) -> (u8, u8, u8) {
+        let c = &self.colors[index];
+        (c.r, c.g, c.b)
+    }
+
+    pub fn color_iter(&self) -> impl Iterator<Item = &Color> {
+        self.colors.iter()
+    }
+
+    pub fn push(&mut self, b: Color) {
+        self.colors.push(b);
+    }
+
+    pub fn set_color(&mut self, index: usize, color: Color) {
+        self.colors[index] = color;
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn load_palette(format: &PaletteFormat, bytes: &[u8]) -> anyhow::Result<Self> {
+        let mut colors = Vec::new();
+        let mut title = String::new();
+        let author = String::new();
+        let mut description = String::new();
+        match format {
+            PaletteFormat::Hex => match String::from_utf8(bytes.to_vec()) {
+                Ok(data) => {
+                    let re = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
+                    for (_, [r, g, b]) in re.captures_iter(&data).map(|c| c.extract()) {
+                        let r = u32::from_str_radix(r, 16)?;
+                        let g = u32::from_str_radix(g, 16)?;
+                        let b = u32::from_str_radix(b, 16)?;
+                        colors.push(Color::new(r as u8, g as u8, b as u8));
+                    }
+                }
+                Err(err) => return Err(anyhow::anyhow!("Invalid input: {err}")),
+            },
+            PaletteFormat::Pal => {
+                match String::from_utf8(bytes.to_vec()) {
+                    Ok(data) => {
+                        let re = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)")?;
+
+                        for (i, line) in data.lines().enumerate() {
+                            match i {
+                                0 => {
+                                    if line != "JASC-PAL" {
+                                        return Err(anyhow::anyhow!(
+                                            "Only JASC-PAL supported: {line}"
+                                        ));
+                                    }
+                                }
+                                1 | 2 => {
+                                    // Ignore
+                                }
+                                _ => {
+                                    for (_, [r, g, b]) in
+                                        re.captures_iter(line).map(|c| c.extract())
+                                    {
+                                        let r = r.parse::<u32>()?;
+                                        let g = g.parse::<u32>()?;
+                                        let b = b.parse::<u32>()?;
+                                        colors.push(Color::new(r as u8, g as u8, b as u8));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(err) => return Err(anyhow::anyhow!("Invalid input: {err}")),
+                }
+            }
+            PaletteFormat::Gpl => match String::from_utf8(bytes.to_vec()) {
+                Ok(data) => {
+                    let color_regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)\s+\S+")?;
+                    let name_regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*")?;
+                    let description_regex = Regex::new(r"\s*#Description:\s*(.*)\s*")?;
+                    for (i, line) in data.lines().enumerate() {
+                        match i {
+                            0 => {
+                                if line != "GIMP Palette" {
+                                    return Err(anyhow::anyhow!(
+                                        "Only GIMP Palette supported: {line}"
+                                    ));
+                                }
+                            }
+                            _ => {
+                                if line.starts_with('#') {
+                                    if let Some(cap) = name_regex.captures(line) {
+                                        if let Some(name) = cap.get(1) {
+                                            title = name.as_str().to_string();
+                                        }
+                                    }
+                                    if let Some(cap) = description_regex.captures(line) {
+                                        if let Some(name) = cap.get(1) {
+                                            description = name.as_str().to_string();
+                                        }
+                                    }
+                                } else if let Some(cap) = color_regex.captures(line) {
+                                    let (_, [r, g, b]) = cap.extract();
+
+                                    let r = r.parse::<u32>()?;
+                                    let g = g.parse::<u32>()?;
+                                    let b = b.parse::<u32>()?;
+                                    colors.push(Color::new(r as u8, g as u8, b as u8));
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(err) => return Err(anyhow::anyhow!("Invalid input: {err}")),
+            },
+            PaletteFormat::Txt => match String::from_utf8(bytes.to_vec()) {
+                Ok(data) => {
+                    let color_regex = Regex::new(
+                        r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})",
+                    )?;
+                    let name_regex = Regex::new(r"\s*;Palette Name:\s*(.*)\s*")?;
+                    let description_regex = Regex::new(r"\s*;Description:\s*(.*)\s*")?;
+                    for line in data.lines() {
+                        if line.starts_with(';') {
+                            if let Some(cap) = name_regex.captures(line) {
+                                if let Some(name) = cap.get(1) {
+                                    title = name.as_str().to_string();
+                                }
+                            }
+                            if let Some(cap) = description_regex.captures(line) {
+                                if let Some(name) = cap.get(1) {
+                                    description = name.as_str().to_string();
+                                }
+                            }
+                        } else if let Some(cap) = color_regex.captures(line) {
+                            let (_, [_a, r, g, b]) = cap.extract();
+
+                            let r = u32::from_str_radix(r, 16).unwrap();
+                            let g = u32::from_str_radix(g, 16).unwrap();
+                            let b = u32::from_str_radix(b, 16).unwrap();
+                            colors.push(Color::new(r as u8, g as u8, b as u8));
+                        }
+                    }
+                }
+                Err(err) => return Err(anyhow::anyhow!("Invalid input: {err}")),
+            },
+            PaletteFormat::Ase => todo!(),
+        }
+        Ok(Self {
+            title,
+            description,
+            author,
+            colors,
+        })
+    }
 }
 
 static EGA_COLOR_OFFSETS: [usize; 16] = [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
 
 pub const DOS_DEFAULT_PALETTE: [Color; 16] = [
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x00,
     }, // black
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0xAA,
     }, // blue
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0x00,
     }, // green
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0xAA,
     }, // cyan
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0x00,
     }, // red
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0xAA,
     }, // magenta
     Color {
+        name: None,
         r: 0xAA,
         g: 0x55,
         b: 0x00,
     }, // brown
     Color {
+        name: None,
         r: 0xAA,
         g: 0xAA,
         b: 0xAA,
     }, // lightgray
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0x55,
     }, // darkgray
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0xFF,
     }, // lightblue
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0x55,
     }, // lightgreen
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0xFF,
     }, // lightcyan
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0x55,
     }, // lightred
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0xFF,
     }, // lightmagenta
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0x55,
     }, // yellow
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xFF,
@@ -214,81 +427,97 @@ pub const DOS_DEFAULT_PALETTE: [Color; 16] = [
 // https://p1x3l.net/36/c64-community-colors-theor/
 pub const C64_DEFAULT_PALETTE: [Color; 16] = [
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x00,
     }, // black
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xFF,
     }, // white
     Color {
+        name: None,
         r: 0xAF,
         g: 0x2A,
         b: 0x29,
     }, // red
     Color {
+        name: None,
         r: 0x62,
         g: 0xD8,
         b: 0xCC,
     }, // cyan
     Color {
+        name: None,
         r: 0xB0,
         g: 0x3F,
         b: 0xB6,
     }, // violett
     Color {
+        name: None,
         r: 0x4A,
         g: 0xC6,
         b: 0x4A,
     }, // green
     Color {
+        name: None,
         r: 0x37,
         g: 0x39,
         b: 0xC4,
     }, // blue
     Color {
+        name: None,
         r: 0xE4,
         g: 0xED,
         b: 0x4E,
     }, // yellow
     Color {
+        name: None,
         r: 0xB6,
         g: 0x59,
         b: 0x1C,
     }, // orange
     Color {
+        name: None,
         r: 0x68,
         g: 0x38,
         b: 0x08,
     }, // brown
     Color {
+        name: None,
         r: 0xEA,
         g: 0x74,
         b: 0x6C,
     }, // lightred
     Color {
+        name: None,
         r: 0x4D,
         g: 0x4D,
         b: 0x4D,
     }, // gray1
     Color {
+        name: None,
         r: 0x84,
         g: 0x84,
         b: 0x84,
     }, // gray2
     Color {
+        name: None,
         r: 0xA6,
         g: 0xFA,
         b: 0x9E,
     }, // lightgreen
     Color {
+        name: None,
         r: 0x70,
         g: 0x7C,
         b: 0xE6,
     }, // lightblue
     Color {
+        name: None,
         r: 0xB6,
         g: 0xB6,
         b: 0xB5,
@@ -297,81 +526,97 @@ pub const C64_DEFAULT_PALETTE: [Color; 16] = [
 
 pub const ATARI_DEFAULT_PALETTE: [Color; 16] = [
     Color {
+        name: None,
         r: 0x09,
         g: 0x51,
         b: 0x83,
     }, // background
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0xAA,
     }, // unused
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0x00,
     }, // unused
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0xAA,
     }, // unused
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0x00,
     }, // unused
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0xAA,
     }, // unused
     Color {
+        name: None,
         r: 0xAA,
         g: 0x55,
         b: 0x00,
     }, // unused
     Color {
+        name: None,
         r: 0x65,
         g: 0xB7,
         b: 0xE9,
     }, // foreground
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0x55,
     }, // unused
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0xFF,
     }, // unused
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0x55,
     }, // unused
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0xFF,
     }, // unused
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0x55,
     }, // unused
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0xFF,
     }, // unused
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0x55,
     }, // unused
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xFF,
@@ -380,321 +625,385 @@ pub const ATARI_DEFAULT_PALETTE: [Color; 16] = [
 
 pub const EGA_PALETTE: [Color; 64] = [
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xAA,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xAA,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xAA,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x00,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xAA,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xAA,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x55,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x55,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x55,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x55,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xFF,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xFF,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x55,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0x55,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x55,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0x55,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xFF,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xAA,
         g: 0xFF,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x00,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x00,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xAA,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xAA,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xAA,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xAA,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x00,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x00,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xAA,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xAA,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xAA,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xAA,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0x00,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xAA,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0x55,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0x55,
         g: 0xFF,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0x55,
         b: 0xFF,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0x55,
     },
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xFF,
@@ -705,6 +1014,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Black (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0x00,
@@ -713,6 +1023,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Maroon (SYSTEM)",
         Color {
+            name: None,
             r: 0x80,
             g: 0x00,
             b: 0x00,
@@ -721,6 +1032,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Green (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0x80,
             b: 0x00,
@@ -729,6 +1041,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Olive (SYSTEM)",
         Color {
+            name: None,
             r: 0x80,
             g: 0x80,
             b: 0x00,
@@ -737,6 +1050,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Navy (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0x80,
@@ -745,6 +1059,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Purple (SYSTEM)",
         Color {
+            name: None,
             r: 0x80,
             g: 0x00,
             b: 0x80,
@@ -753,6 +1068,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Teal (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0x80,
             b: 0x80,
@@ -761,6 +1077,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Silver (SYSTEM)",
         Color {
+            name: None,
             r: 0xc0,
             g: 0xc0,
             b: 0xc0,
@@ -769,6 +1086,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey (SYSTEM)",
         Color {
+            name: None,
             r: 0x80,
             g: 0x80,
             b: 0x80,
@@ -777,6 +1095,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Red (SYSTEM)",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0x00,
@@ -785,6 +1104,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Lime (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0x00,
@@ -793,6 +1113,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow (SYSTEM)",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0x00,
@@ -801,6 +1122,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Blue (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0xff,
@@ -809,6 +1131,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Fuchsia (SYSTEM)",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0xff,
@@ -817,6 +1140,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Aqua (SYSTEM)",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0xff,
@@ -825,6 +1149,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "White (SYSTEM)",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0xff,
@@ -833,6 +1158,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey0",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0x00,
@@ -841,6 +1167,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "NavyBlue",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0x5f,
@@ -849,6 +1176,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkBlue",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0x87,
@@ -857,6 +1185,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Blue3",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0xaf,
@@ -865,6 +1194,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Blue3",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0xd7,
@@ -873,6 +1203,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Blue1",
         Color {
+            name: None,
             r: 0x00,
             g: 0x00,
             b: 0xff,
@@ -881,6 +1212,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkGreen",
         Color {
+            name: None,
             r: 0x00,
             g: 0x5f,
             b: 0x00,
@@ -889,6 +1221,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue4",
         Color {
+            name: None,
             r: 0x00,
             g: 0x5f,
             b: 0x5f,
@@ -897,6 +1230,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue4",
         Color {
+            name: None,
             r: 0x00,
             g: 0x5f,
             b: 0x87,
@@ -905,6 +1239,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue4",
         Color {
+            name: None,
             r: 0x00,
             g: 0x5f,
             b: 0xaf,
@@ -913,6 +1248,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DodgerBlue3",
         Color {
+            name: None,
             r: 0x00,
             g: 0x5f,
             b: 0xd7,
@@ -921,6 +1257,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DodgerBlue2",
         Color {
+            name: None,
             r: 0x00,
             g: 0x5f,
             b: 0xff,
@@ -929,6 +1266,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Green4",
         Color {
+            name: None,
             r: 0x00,
             g: 0x87,
             b: 0x00,
@@ -937,6 +1275,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SpringGreen4",
         Color {
+            name: None,
             r: 0x00,
             g: 0x87,
             b: 0x5f,
@@ -945,6 +1284,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Turquoise4",
         Color {
+            name: None,
             r: 0x00,
             g: 0x87,
             b: 0x87,
@@ -953,6 +1293,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue3",
         Color {
+            name: None,
             r: 0x00,
             g: 0x87,
             b: 0xaf,
@@ -961,6 +1302,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue3",
         Color {
+            name: None,
             r: 0x00,
             g: 0x87,
             b: 0xd7,
@@ -969,6 +1311,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DodgerBlue1",
         Color {
+            name: None,
             r: 0x00,
             g: 0x87,
             b: 0xff,
@@ -977,6 +1320,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Green3",
         Color {
+            name: None,
             r: 0x00,
             g: 0xaf,
             b: 0x00,
@@ -985,6 +1329,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SpringGreen3",
         Color {
+            name: None,
             r: 0x00,
             g: 0xaf,
             b: 0x5f,
@@ -993,6 +1338,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkCyan",
         Color {
+            name: None,
             r: 0x00,
             g: 0xaf,
             b: 0x87,
@@ -1001,6 +1347,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSeaGreen",
         Color {
+            name: None,
             r: 0x00,
             g: 0xaf,
             b: 0xaf,
@@ -1009,6 +1356,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue2",
         Color {
+            name: None,
             r: 0x00,
             g: 0xaf,
             b: 0xd7,
@@ -1017,6 +1365,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepSkyBlue1",
         Color {
+            name: None,
             r: 0x00,
             g: 0xaf,
             b: 0xff,
@@ -1025,6 +1374,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Green3",
         Color {
+            name: None,
             r: 0x00,
             g: 0xd7,
             b: 0x00,
@@ -1033,6 +1383,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SpringGreen3",
         Color {
+            name: None,
             r: 0x00,
             g: 0xd7,
             b: 0x5f,
@@ -1041,6 +1392,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SpringGreen2",
         Color {
+            name: None,
             r: 0x00,
             g: 0xd7,
             b: 0x87,
@@ -1049,6 +1401,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Cyan3",
         Color {
+            name: None,
             r: 0x00,
             g: 0xd7,
             b: 0xaf,
@@ -1057,6 +1410,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkTurquoise",
         Color {
+            name: None,
             r: 0x00,
             g: 0xd7,
             b: 0xd7,
@@ -1065,6 +1419,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Turquoise2",
         Color {
+            name: None,
             r: 0x00,
             g: 0xd7,
             b: 0xff,
@@ -1073,6 +1428,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Green1",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0x00,
@@ -1081,6 +1437,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SpringGreen2",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0x5f,
@@ -1089,6 +1446,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SpringGreen1",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0x87,
@@ -1097,6 +1455,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumSpringGreen",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0xaf,
@@ -1105,6 +1464,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Cyan2",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0xd7,
@@ -1113,6 +1473,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Cyan1",
         Color {
+            name: None,
             r: 0x00,
             g: 0xff,
             b: 0xff,
@@ -1121,6 +1482,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkRed",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x00,
             b: 0x00,
@@ -1129,6 +1491,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x00,
             b: 0x5f,
@@ -1137,6 +1500,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Purple4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x00,
             b: 0x87,
@@ -1145,6 +1509,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Purple4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x00,
             b: 0xaf,
@@ -1153,6 +1518,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Purple3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x00,
             b: 0xd7,
@@ -1161,6 +1527,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "BlueViolet",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x00,
             b: 0xff,
@@ -1169,6 +1536,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orange4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x5f,
             b: 0x00,
@@ -1177,6 +1545,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey37",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x5f,
             b: 0x5f,
@@ -1185,6 +1554,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x5f,
             b: 0x87,
@@ -1193,6 +1563,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SlateBlue3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x5f,
             b: 0xaf,
@@ -1201,6 +1572,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SlateBlue3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x5f,
             b: 0xd7,
@@ -1209,6 +1581,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "RoyalBlue1",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x5f,
             b: 0xff,
@@ -1217,6 +1590,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Chartreuse4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x87,
             b: 0x00,
@@ -1225,6 +1599,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x87,
             b: 0x5f,
@@ -1233,6 +1608,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleTurquoise4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x87,
             b: 0x87,
@@ -1241,6 +1617,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SteelBlue",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x87,
             b: 0xaf,
@@ -1249,6 +1626,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SteelBlue3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x87,
             b: 0xd7,
@@ -1257,6 +1635,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "CornflowerBlue",
         Color {
+            name: None,
             r: 0x5f,
             g: 0x87,
             b: 0xff,
@@ -1265,6 +1644,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Chartreuse3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xaf,
             b: 0x00,
@@ -1273,6 +1653,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen4",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xaf,
             b: 0x5f,
@@ -1281,6 +1662,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "CadetBlue",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xaf,
             b: 0x87,
@@ -1289,6 +1671,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "CadetBlue",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xaf,
             b: 0xaf,
@@ -1297,6 +1680,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SkyBlue3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xaf,
             b: 0xd7,
@@ -1305,6 +1689,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SteelBlue1",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xaf,
             b: 0xff,
@@ -1313,6 +1698,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Chartreuse3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xd7,
             b: 0x00,
@@ -1321,6 +1707,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleGreen3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xd7,
             b: 0x5f,
@@ -1329,6 +1716,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SeaGreen3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xd7,
             b: 0x87,
@@ -1337,6 +1725,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Aquamarine3",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xd7,
             b: 0xaf,
@@ -1345,6 +1734,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumTurquoise",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xd7,
             b: 0xd7,
@@ -1353,6 +1743,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SteelBlue1",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xd7,
             b: 0xff,
@@ -1361,6 +1752,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Chartreuse2",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xff,
             b: 0x00,
@@ -1369,6 +1761,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SeaGreen2",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xff,
             b: 0x5f,
@@ -1377,6 +1770,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SeaGreen1",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xff,
             b: 0x87,
@@ -1385,6 +1779,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SeaGreen1",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xff,
             b: 0xaf,
@@ -1393,6 +1788,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Aquamarine1",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xff,
             b: 0xd7,
@@ -1401,6 +1797,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSlateGray2",
         Color {
+            name: None,
             r: 0x5f,
             g: 0xff,
             b: 0xff,
@@ -1409,6 +1806,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkRed",
         Color {
+            name: None,
             r: 0x87,
             g: 0x00,
             b: 0x00,
@@ -1417,6 +1815,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink4",
         Color {
+            name: None,
             r: 0x87,
             g: 0x00,
             b: 0x5f,
@@ -1425,6 +1824,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkMagenta",
         Color {
+            name: None,
             r: 0x87,
             g: 0x00,
             b: 0x87,
@@ -1433,6 +1833,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkMagenta",
         Color {
+            name: None,
             r: 0x87,
             g: 0x00,
             b: 0xaf,
@@ -1441,6 +1842,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkViolet",
         Color {
+            name: None,
             r: 0x87,
             g: 0x00,
             b: 0xd7,
@@ -1449,6 +1851,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Purple",
         Color {
+            name: None,
             r: 0x87,
             g: 0x00,
             b: 0xff,
@@ -1457,6 +1860,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orange4",
         Color {
+            name: None,
             r: 0x87,
             g: 0x5f,
             b: 0x00,
@@ -1465,6 +1869,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightPink4",
         Color {
+            name: None,
             r: 0x87,
             g: 0x5f,
             b: 0x5f,
@@ -1473,6 +1878,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Plum4",
         Color {
+            name: None,
             r: 0x87,
             g: 0x5f,
             b: 0x87,
@@ -1481,6 +1887,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple3",
         Color {
+            name: None,
             r: 0x87,
             g: 0x5f,
             b: 0xaf,
@@ -1489,6 +1896,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple3",
         Color {
+            name: None,
             r: 0x87,
             g: 0x5f,
             b: 0xd7,
@@ -1497,6 +1905,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SlateBlue1",
         Color {
+            name: None,
             r: 0x87,
             g: 0x5f,
             b: 0xff,
@@ -1505,6 +1914,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow4",
         Color {
+            name: None,
             r: 0x87,
             g: 0x87,
             b: 0x00,
@@ -1513,6 +1923,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Wheat4",
         Color {
+            name: None,
             r: 0x87,
             g: 0x87,
             b: 0x5f,
@@ -1521,6 +1932,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey53",
         Color {
+            name: None,
             r: 0x87,
             g: 0x87,
             b: 0x87,
@@ -1529,6 +1941,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSlateGrey",
         Color {
+            name: None,
             r: 0x87,
             g: 0x87,
             b: 0xaf,
@@ -1537,6 +1950,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple",
         Color {
+            name: None,
             r: 0x87,
             g: 0x87,
             b: 0xd7,
@@ -1545,6 +1959,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSlateBlue",
         Color {
+            name: None,
             r: 0x87,
             g: 0x87,
             b: 0xff,
@@ -1553,6 +1968,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow4",
         Color {
+            name: None,
             r: 0x87,
             g: 0xaf,
             b: 0x00,
@@ -1561,6 +1977,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOliveGreen3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xaf,
             b: 0x5f,
@@ -1569,6 +1986,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen",
         Color {
+            name: None,
             r: 0x87,
             g: 0xaf,
             b: 0x87,
@@ -1577,6 +1995,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSkyBlue3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xaf,
             b: 0xaf,
@@ -1585,6 +2004,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSkyBlue3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xaf,
             b: 0xd7,
@@ -1593,6 +2013,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SkyBlue2",
         Color {
+            name: None,
             r: 0x87,
             g: 0xaf,
             b: 0xff,
@@ -1601,6 +2022,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Chartreuse2",
         Color {
+            name: None,
             r: 0x87,
             g: 0xd7,
             b: 0x00,
@@ -1609,6 +2031,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOliveGreen3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xd7,
             b: 0x5f,
@@ -1617,6 +2040,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleGreen3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xd7,
             b: 0x87,
@@ -1625,6 +2049,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xd7,
             b: 0xaf,
@@ -1633,6 +2058,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSlateGray3",
         Color {
+            name: None,
             r: 0x87,
             g: 0xd7,
             b: 0xd7,
@@ -1641,6 +2067,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SkyBlue1",
         Color {
+            name: None,
             r: 0x87,
             g: 0xd7,
             b: 0xff,
@@ -1649,6 +2076,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Chartreuse1",
         Color {
+            name: None,
             r: 0x87,
             g: 0xff,
             b: 0x00,
@@ -1657,6 +2085,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGreen",
         Color {
+            name: None,
             r: 0x87,
             g: 0xff,
             b: 0x5f,
@@ -1665,6 +2094,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGreen",
         Color {
+            name: None,
             r: 0x87,
             g: 0xff,
             b: 0x87,
@@ -1673,6 +2103,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleGreen1",
         Color {
+            name: None,
             r: 0x87,
             g: 0xff,
             b: 0xaf,
@@ -1681,6 +2112,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Aquamarine1",
         Color {
+            name: None,
             r: 0x87,
             g: 0xff,
             b: 0xd7,
@@ -1689,6 +2121,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSlateGray1",
         Color {
+            name: None,
             r: 0x87,
             g: 0xff,
             b: 0xff,
@@ -1697,6 +2130,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Red3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x00,
             b: 0x00,
@@ -1705,6 +2139,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink4",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x00,
             b: 0x5f,
@@ -1713,6 +2148,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumVioletRed",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x00,
             b: 0x87,
@@ -1721,6 +2157,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Magenta3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x00,
             b: 0xaf,
@@ -1729,6 +2166,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkViolet",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x00,
             b: 0xd7,
@@ -1737,6 +2175,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Purple",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x00,
             b: 0xff,
@@ -1745,6 +2184,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOrange3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x5f,
             b: 0x00,
@@ -1753,6 +2193,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "IndianRed",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x5f,
             b: 0x5f,
@@ -1761,6 +2202,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "HotPink3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x5f,
             b: 0x87,
@@ -1769,6 +2211,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumOrchid3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x5f,
             b: 0xaf,
@@ -1777,6 +2220,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumOrchid",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x5f,
             b: 0xd7,
@@ -1785,6 +2229,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple2",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x5f,
             b: 0xff,
@@ -1793,6 +2238,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkGoldenrod",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x87,
             b: 0x00,
@@ -1801,6 +2247,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSalmon3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x87,
             b: 0x5f,
@@ -1809,6 +2256,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "RosyBrown",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x87,
             b: 0x87,
@@ -1817,6 +2265,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey63",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x87,
             b: 0xaf,
@@ -1825,6 +2274,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple2",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x87,
             b: 0xd7,
@@ -1833,6 +2283,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumPurple1",
         Color {
+            name: None,
             r: 0xaf,
             g: 0x87,
             b: 0xff,
@@ -1841,6 +2292,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Gold3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xaf,
             b: 0x00,
@@ -1849,6 +2301,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkKhaki",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xaf,
             b: 0x5f,
@@ -1857,6 +2310,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "NavajoWhite3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xaf,
             b: 0x87,
@@ -1865,6 +2319,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey69",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xaf,
             b: 0xaf,
@@ -1873,6 +2328,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSteelBlue3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xaf,
             b: 0xd7,
@@ -1881,6 +2337,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSteelBlue",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xaf,
             b: 0xff,
@@ -1889,6 +2346,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xd7,
             b: 0x00,
@@ -1897,6 +2355,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOliveGreen3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xd7,
             b: 0x5f,
@@ -1905,6 +2364,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xd7,
             b: 0x87,
@@ -1913,6 +2373,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen2",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xd7,
             b: 0xaf,
@@ -1921,6 +2382,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightCyan3",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xd7,
             b: 0xd7,
@@ -1929,6 +2391,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSkyBlue1",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xd7,
             b: 0xff,
@@ -1937,6 +2400,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "GreenYellow",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xff,
             b: 0x00,
@@ -1945,6 +2409,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOliveGreen2",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xff,
             b: 0x5f,
@@ -1953,6 +2418,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleGreen1",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xff,
             b: 0x87,
@@ -1961,6 +2427,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen2",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xff,
             b: 0xaf,
@@ -1969,6 +2436,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen1",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xff,
             b: 0xd7,
@@ -1977,6 +2445,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleTurquoise1",
         Color {
+            name: None,
             r: 0xaf,
             g: 0xff,
             b: 0xff,
@@ -1985,6 +2454,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Red3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x00,
             b: 0x00,
@@ -1993,6 +2463,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x00,
             b: 0x5f,
@@ -2001,6 +2472,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x00,
             b: 0x87,
@@ -2009,6 +2481,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Magenta3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x00,
             b: 0xaf,
@@ -2017,6 +2490,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Magenta3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x00,
             b: 0xd7,
@@ -2025,6 +2499,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Magenta2",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x00,
             b: 0xff,
@@ -2033,6 +2508,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOrange3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x5f,
             b: 0x00,
@@ -2041,6 +2517,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "IndianRed",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x5f,
             b: 0x5f,
@@ -2049,6 +2526,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "HotPink3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x5f,
             b: 0x87,
@@ -2057,6 +2535,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "HotPink2",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x5f,
             b: 0xaf,
@@ -2065,6 +2544,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orchid",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x5f,
             b: 0xd7,
@@ -2073,6 +2553,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumOrchid1",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x5f,
             b: 0xff,
@@ -2081,6 +2562,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orange3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x87,
             b: 0x00,
@@ -2089,6 +2571,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSalmon3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x87,
             b: 0x5f,
@@ -2097,6 +2580,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightPink3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x87,
             b: 0x87,
@@ -2105,6 +2589,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Pink3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x87,
             b: 0xaf,
@@ -2113,6 +2598,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Plum3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x87,
             b: 0xd7,
@@ -2121,6 +2607,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Violet",
         Color {
+            name: None,
             r: 0xd7,
             g: 0x87,
             b: 0xff,
@@ -2129,6 +2616,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Gold3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xaf,
             b: 0x00,
@@ -2137,6 +2625,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGoldenrod3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xaf,
             b: 0x5f,
@@ -2145,6 +2634,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Tan",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xaf,
             b: 0x87,
@@ -2153,6 +2643,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MistyRose3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xaf,
             b: 0xaf,
@@ -2161,6 +2652,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Thistle3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xaf,
             b: 0xd7,
@@ -2169,6 +2661,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Plum2",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xaf,
             b: 0xff,
@@ -2177,6 +2670,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xd7,
             b: 0x00,
@@ -2185,6 +2679,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Khaki3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xd7,
             b: 0x5f,
@@ -2193,6 +2688,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGoldenrod2",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xd7,
             b: 0x87,
@@ -2201,6 +2697,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightYellow3",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xd7,
             b: 0xaf,
@@ -2209,6 +2706,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey84",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xd7,
             b: 0xd7,
@@ -2217,6 +2715,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSteelBlue1",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xd7,
             b: 0xff,
@@ -2225,6 +2724,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow2",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xff,
             b: 0x00,
@@ -2233,6 +2733,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOliveGreen1",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xff,
             b: 0x5f,
@@ -2241,6 +2742,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOliveGreen1",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xff,
             b: 0x87,
@@ -2249,6 +2751,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkSeaGreen1",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xff,
             b: 0xaf,
@@ -2257,6 +2760,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Honeydew2",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xff,
             b: 0xd7,
@@ -2265,6 +2769,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightCyan1",
         Color {
+            name: None,
             r: 0xd7,
             g: 0xff,
             b: 0xff,
@@ -2273,6 +2778,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Red1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0x00,
@@ -2281,6 +2787,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink2",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0x5f,
@@ -2289,6 +2796,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0x87,
@@ -2297,6 +2805,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DeepPink1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0xaf,
@@ -2305,6 +2814,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Magenta2",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0xd7,
@@ -2313,6 +2823,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Magenta1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x00,
             b: 0xff,
@@ -2321,6 +2832,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "OrangeRed1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x5f,
             b: 0x00,
@@ -2329,6 +2841,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "IndianRed1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x5f,
             b: 0x5f,
@@ -2337,6 +2850,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "IndianRed1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x5f,
             b: 0x87,
@@ -2345,6 +2859,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "HotPink",
         Color {
+            name: None,
             r: 0xff,
             g: 0x5f,
             b: 0xaf,
@@ -2353,6 +2868,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "HotPink",
         Color {
+            name: None,
             r: 0xff,
             g: 0x5f,
             b: 0xd7,
@@ -2361,6 +2877,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MediumOrchid1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x5f,
             b: 0xff,
@@ -2369,6 +2886,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "DarkOrange",
         Color {
+            name: None,
             r: 0xff,
             g: 0x87,
             b: 0x00,
@@ -2377,6 +2895,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Salmon1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x87,
             b: 0x5f,
@@ -2385,6 +2904,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightCoral",
         Color {
+            name: None,
             r: 0xff,
             g: 0x87,
             b: 0x87,
@@ -2393,6 +2913,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "PaleVioletRed1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x87,
             b: 0xaf,
@@ -2401,6 +2922,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orchid2",
         Color {
+            name: None,
             r: 0xff,
             g: 0x87,
             b: 0xd7,
@@ -2409,6 +2931,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orchid1",
         Color {
+            name: None,
             r: 0xff,
             g: 0x87,
             b: 0xff,
@@ -2417,6 +2940,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Orange1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xaf,
             b: 0x00,
@@ -2425,6 +2949,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "SandyBrown",
         Color {
+            name: None,
             r: 0xff,
             g: 0xaf,
             b: 0x5f,
@@ -2433,6 +2958,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightSalmon1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xaf,
             b: 0x87,
@@ -2441,6 +2967,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightPink1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xaf,
             b: 0xaf,
@@ -2449,6 +2976,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Pink1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xaf,
             b: 0xd7,
@@ -2457,6 +2985,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Plum1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xaf,
             b: 0xff,
@@ -2465,6 +2994,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Gold1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xd7,
             b: 0x00,
@@ -2473,6 +3003,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGoldenrod2",
         Color {
+            name: None,
             r: 0xff,
             g: 0xd7,
             b: 0x5f,
@@ -2481,6 +3012,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGoldenrod2",
         Color {
+            name: None,
             r: 0xff,
             g: 0xd7,
             b: 0x87,
@@ -2489,6 +3021,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "NavajoWhite1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xd7,
             b: 0xaf,
@@ -2497,6 +3030,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "MistyRose1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xd7,
             b: 0xd7,
@@ -2505,6 +3039,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Thistle1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xd7,
             b: 0xff,
@@ -2513,6 +3048,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Yellow1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0x00,
@@ -2521,6 +3057,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "LightGoldenrod1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0x5f,
@@ -2529,6 +3066,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Khaki1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0x87,
@@ -2537,6 +3075,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Wheat1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0xaf,
@@ -2545,6 +3084,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Cornsilk1",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0xd7,
@@ -2553,6 +3093,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey100",
         Color {
+            name: None,
             r: 0xff,
             g: 0xff,
             b: 0xff,
@@ -2561,6 +3102,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey3",
         Color {
+            name: None,
             r: 0x08,
             g: 0x08,
             b: 0x08,
@@ -2569,6 +3111,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey7",
         Color {
+            name: None,
             r: 0x12,
             g: 0x12,
             b: 0x12,
@@ -2577,6 +3120,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey11",
         Color {
+            name: None,
             r: 0x1c,
             g: 0x1c,
             b: 0x1c,
@@ -2585,6 +3129,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey15",
         Color {
+            name: None,
             r: 0x26,
             g: 0x26,
             b: 0x26,
@@ -2593,6 +3138,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey19",
         Color {
+            name: None,
             r: 0x30,
             g: 0x30,
             b: 0x30,
@@ -2601,6 +3147,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey23",
         Color {
+            name: None,
             r: 0x3a,
             g: 0x3a,
             b: 0x3a,
@@ -2609,6 +3156,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey27",
         Color {
+            name: None,
             r: 0x44,
             g: 0x44,
             b: 0x44,
@@ -2617,6 +3165,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey30",
         Color {
+            name: None,
             r: 0x4e,
             g: 0x4e,
             b: 0x4e,
@@ -2625,6 +3174,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey35",
         Color {
+            name: None,
             r: 0x58,
             g: 0x58,
             b: 0x58,
@@ -2633,6 +3183,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey39",
         Color {
+            name: None,
             r: 0x62,
             g: 0x62,
             b: 0x62,
@@ -2641,6 +3192,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey42",
         Color {
+            name: None,
             r: 0x6c,
             g: 0x6c,
             b: 0x6c,
@@ -2649,6 +3201,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey46",
         Color {
+            name: None,
             r: 0x76,
             g: 0x76,
             b: 0x76,
@@ -2657,6 +3210,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey50",
         Color {
+            name: None,
             r: 0x80,
             g: 0x80,
             b: 0x80,
@@ -2665,6 +3219,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey54",
         Color {
+            name: None,
             r: 0x8a,
             g: 0x8a,
             b: 0x8a,
@@ -2673,6 +3228,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey58",
         Color {
+            name: None,
             r: 0x94,
             g: 0x94,
             b: 0x94,
@@ -2681,6 +3237,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey62",
         Color {
+            name: None,
             r: 0x9e,
             g: 0x9e,
             b: 0x9e,
@@ -2689,6 +3246,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey66",
         Color {
+            name: None,
             r: 0xa8,
             g: 0xa8,
             b: 0xa8,
@@ -2697,6 +3255,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey70",
         Color {
+            name: None,
             r: 0xb2,
             g: 0xb2,
             b: 0xb2,
@@ -2705,6 +3264,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey74",
         Color {
+            name: None,
             r: 0xbc,
             g: 0xbc,
             b: 0xbc,
@@ -2713,6 +3273,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey78",
         Color {
+            name: None,
             r: 0xc6,
             g: 0xc6,
             b: 0xc6,
@@ -2721,6 +3282,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey82",
         Color {
+            name: None,
             r: 0xd0,
             g: 0xd0,
             b: 0xd0,
@@ -2729,6 +3291,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey85",
         Color {
+            name: None,
             r: 0xda,
             g: 0xda,
             b: 0xda,
@@ -2737,6 +3300,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey89",
         Color {
+            name: None,
             r: 0xe4,
             g: 0xe4,
             b: 0xe4,
@@ -2745,6 +3309,7 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
     (
         "Grey93",
         Color {
+            name: None,
             r: 0xee,
             g: 0xee,
             b: 0xee,
@@ -2754,81 +3319,97 @@ pub const XTERM_256_PALETTE: [(&str, Color); 256] = [
 
 pub const VIEWDATA_PALETTE: [Color; 16] = [
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x00,
     }, // black
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0x00,
     }, // red
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0x00,
     }, // green
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0x00,
     }, // yellow
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0xFF,
     }, // blue
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0xFF,
     }, // magenta
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0xFF,
     }, // cyan
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xFF,
     }, // white
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x00,
     }, // black
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0x00,
     }, // red
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0x00,
     }, // green
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0x00,
     }, // yellow
     Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0xFF,
     }, // blue
     Color {
+        name: None,
         r: 0xFF,
         g: 0x00,
         b: 0xFF,
     }, // magenta
     Color {
+        name: None,
         r: 0x00,
         g: 0xFF,
         b: 0xFF,
     }, // cyan
     Color {
+        name: None,
         r: 0xFF,
         g: 0xFF,
         b: 0xFF,
@@ -2838,12 +3419,15 @@ pub const VIEWDATA_PALETTE: [Color; 16] = [
 impl Palette {
     pub fn new() -> Self {
         Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
             colors: DOS_DEFAULT_PALETTE.to_vec(),
         }
     }
 
-    pub fn len(&self) -> u32 {
-        self.colors.len() as u32
+    pub fn len(&self) -> usize {
+        self.colors.len()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -2856,8 +3440,9 @@ impl Palette {
 
     pub fn fill_to_16(&mut self) {
         if self.colors.len() < DOS_DEFAULT_PALETTE.len() {
-            self.colors
-                .extend(&DOS_DEFAULT_PALETTE[self.colors.len()..]);
+            (self.colors.len()..DOS_DEFAULT_PALETTE.len()).for_each(|i| {
+                self.colors.push(DOS_DEFAULT_PALETTE[i].clone());
+            });
         }
     }
 
@@ -2878,7 +3463,12 @@ impl Palette {
         if self.colors.len() <= number {
             self.colors.resize(number + 1, Color::default());
         }
-        self.colors[number] = Color { r, g, b };
+        self.colors[number] = Color {
+            name: None,
+            r,
+            g,
+            b,
+        };
     }
 
     pub fn set_color_hsl(&mut self, number: usize, h: f32, s: f32, l: f32) {
@@ -2905,12 +3495,17 @@ impl Palette {
             )
         };
 
-        self.colors[number] = Color { r, g, b };
+        self.colors[number] = Color {
+            name: None,
+            r,
+            g,
+            b,
+        };
     }
 
     pub fn insert_color(&mut self, color: Color) -> u32 {
         for i in 0..self.colors.len() {
-            let col = self.colors[i];
+            let col = self.colors[i].clone();
             if col == color {
                 return i as u32;
             }
@@ -2928,6 +3523,7 @@ impl Palette {
         let mut o = 0;
         while o < pal.len() {
             colors.push(Color {
+                name: None,
                 r: pal[o] << 2 | pal[o] >> 4,
                 g: pal[o + 1] << 2 | pal[o + 1] >> 4,
                 b: pal[o + 2] << 2 | pal[o + 2] >> 4,
@@ -2935,7 +3531,12 @@ impl Palette {
             o += 3;
         }
 
-        Palette { colors }
+        Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors,
+        }
     }
 
     pub fn cycle_ega_colors(&self) -> Palette {
@@ -2948,7 +3549,12 @@ impl Palette {
             }
             colors.swap(i, offset);
         }
-        Palette { colors }
+        Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors,
+        }
     }
 
     pub fn to_ega_palette(&self) -> Vec<u8> {
@@ -2972,7 +3578,7 @@ impl Palette {
                 if i >= self.colors.len() {
                     break;
                 }
-                ega_colors[EGA_COLOR_OFFSETS[i]] = self.colors[i];
+                ega_colors[EGA_COLOR_OFFSETS[i]] = self.colors[i].clone();
             }
         }
         let mut res = Vec::with_capacity(3 * 64);
@@ -2989,9 +3595,9 @@ impl Palette {
         #[allow(clippy::needless_range_loop)]
         for i in 0..16 {
             let col = if i < self.colors.len() {
-                self.colors[i]
+                self.colors[i].clone()
             } else {
-                DOS_DEFAULT_PALETTE[i]
+                DOS_DEFAULT_PALETTE[i].clone()
             };
 
             res.push(col.r >> 2 | col.r << 4);

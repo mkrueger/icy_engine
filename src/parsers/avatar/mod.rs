@@ -106,7 +106,7 @@ impl BufferParser for Parser {
                         caret.pos.x = min(79, caret.pos.x + 1);
                     }
                     7 => {
-                        return Err(Box::new(ParserError::Description("todo: avt cleareol")));
+                        return Err(ParserError::Description("todo: avt cleareol").into());
                     }
                     8 => {
                         self.avt_state = AvtReadState::MoveCursor;
@@ -116,9 +116,7 @@ impl BufferParser for Parser {
                     // TODO implement commands from FSC0025.txt & FSC0037.txt
                     _ => {
                         self.avt_state = AvtReadState::Chars;
-                        return Err(Box::new(ParserError::Description(
-                            "unsupported avatar command",
-                        )));
+                        return Err(ParserError::Description("unsupported avatar command").into());
                     }
                 }
                 self.avt_state = AvtReadState::Chars;
@@ -146,9 +144,7 @@ impl BufferParser for Parser {
                 }
                 _ => {
                     self.avt_state = AvtReadState::Chars;
-                    Err(Box::new(ParserError::Description(
-                        "error in reading avt state",
-                    )))
+                    Err(ParserError::Description("error in reading avt state").into())
                 }
             },
             AvtReadState::ReadColor => {
@@ -169,9 +165,7 @@ impl BufferParser for Parser {
                     self.avt_state = AvtReadState::Chars;
                     Ok(CallbackAction::None)
                 }
-                _ => Err(Box::new(ParserError::Description(
-                    "error in reading avt avt_gotoxy",
-                ))),
+                _ => Err(ParserError::Description("error in reading avt avt_gotoxy").into()),
             },
         }
     }

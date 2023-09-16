@@ -127,21 +127,21 @@ impl TheDrawFont {
         let mut result = Vec::new();
 
         if bytes.len() < THE_DRAW_FONT_HEADER_SIZE {
-            return Err(Box::new(TdfError::FileTooShort));
+            return Err(TdfError::FileTooShort.into());
         }
 
         if bytes[0] as usize != THE_DRAW_FONT_ID.len() + 1 {
-            return Err(Box::new(TdfError::IdLengthMismatch(bytes[0])));
+            return Err(TdfError::IdLengthMismatch(bytes[0]).into());
         }
 
         if THE_DRAW_FONT_ID != &bytes[1..19] {
-            return Err(Box::new(TdfError::IdMismatch));
+            return Err(TdfError::IdMismatch.into());
         }
         let mut o = THE_DRAW_FONT_ID.len() + 1;
 
         let magic_byte = bytes[o];
         if magic_byte != CTRL_Z {
-            return Err(Box::new(TdfError::IdMismatch));
+            return Err(TdfError::IdMismatch.into());
         }
         o += 1;
 
@@ -151,14 +151,14 @@ impl TheDrawFont {
             }
             let indicator = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
             if indicator != FONT_INDICATOR {
-                return Err(Box::new(TdfError::FontIndicatorMismatch));
+                return Err(TdfError::FontIndicatorMismatch.into());
             }
             o += 4; // FONT_INDICATOR bytes!
 
             let mut font_name_len = bytes[o] as usize;
             o += 1;
             if font_name_len > FONT_NAME_LEN {
-                return Err(Box::new(TdfError::NameTooLong(font_name_len)));
+                return Err(TdfError::NameTooLong(font_name_len).into());
             }
 
             // May be 0 terminated and the font name len is wrong.
@@ -179,14 +179,14 @@ impl TheDrawFont {
                 1 => FontType::Block,
                 2 => FontType::Color,
                 unsupported => {
-                    return Err(Box::new(TdfError::UnsupportedTtfType(unsupported)));
+                    return Err(TdfError::UnsupportedTtfType(unsupported).into());
                 }
             };
             o += 1;
 
             let spaces: i32 = bytes[o] as i32;
             if spaces > MAX_LETTER_SPACE as i32 {
-                return Err(Box::new(TdfError::LetterSpaceTooMuch(spaces)));
+                return Err(TdfError::LetterSpaceTooMuch(spaces).into());
             }
             o += 1;
 
@@ -212,7 +212,7 @@ impl TheDrawFont {
                 }
 
                 if char_offset >= block_size {
-                    return Err(Box::new(TdfError::GlyphOutsideFontDataSize(char_offset)));
+                    return Err(TdfError::GlyphOutsideFontDataSize(char_offset).into());
                 }
                 char_offset += o;
 
@@ -223,7 +223,7 @@ impl TheDrawFont {
 
                 loop {
                     if char_offset >= bytes.len() {
-                        return Err(Box::new(TdfError::DataOverflow(char_offset)));
+                        return Err(TdfError::DataOverflow(char_offset).into());
                     }
 
                     let mut ch = bytes[char_offset];
@@ -277,7 +277,7 @@ impl TheDrawFont {
     fn add_font_data(&self, result: &mut Vec<u8>) -> EngineResult<()> {
         result.extend(u32::to_le_bytes(FONT_INDICATOR));
         if self.name.len() > FONT_NAME_LEN {
-            return Err(Box::new(TdfError::NameTooLong(self.name.len())));
+            return Err(TdfError::NameTooLong(self.name.len()).into());
         }
         result.push(FONT_NAME_LEN as u8);
         result.extend(self.name.as_bytes());
@@ -290,7 +290,7 @@ impl TheDrawFont {
         };
         result.push(type_byte);
         if self.spaces > MAX_LETTER_SPACE as i32 {
-            return Err(Box::new(TdfError::LetterSpaceTooMuch(self.spaces)));
+            return Err(TdfError::LetterSpaceTooMuch(self.spaces).into());
         }
         result.push(self.spaces as u8);
         let mut char_lookup_table = Vec::new();

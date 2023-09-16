@@ -80,16 +80,14 @@ impl OutputFormat for TundraDraw {
                     result.push(cmd);
                     result.push(ch.ch as u8);
                     if attr.get_foreground() != ch.attribute.get_foreground() {
-                        let rgb =
-                            buf.palette.colors[ch.attribute.get_foreground() as usize].get_rgb();
+                        let rgb = buf.palette.get_rgb(ch.attribute.get_foreground() as usize);
                         result.push(0);
                         result.push(rgb.0);
                         result.push(rgb.1);
                         result.push(rgb.2);
                     }
                     if attr.get_background() != ch.attribute.get_background() {
-                        let rgb =
-                            buf.palette.colors[ch.attribute.get_background() as usize].get_rgb();
+                        let rgb = buf.palette.get_rgb(ch.attribute.get_background() as usize);
                         result.push(0);
                         result.push(rgb.0);
                         result.push(rgb.1);
@@ -103,7 +101,7 @@ impl OutputFormat for TundraDraw {
                     result.push(2);
                     result.push(ch.ch as u8);
 
-                    let rgb = buf.palette.colors[attr.get_foreground() as usize].get_rgb();
+                    let rgb = buf.palette.get_rgb(attr.get_foreground() as usize);
                     result.push(0);
                     result.push(rgb.0);
                     result.push(rgb.1);
@@ -143,14 +141,14 @@ impl OutputFormat for TundraDraw {
             result.set_sauce(sauce);
         }
         if data.len() < 1 + TUNDRA_HEADER.len() {
-            return Err(Box::new(LoadingError::FileTooShort));
+            return Err(LoadingError::FileTooShort.into());
         }
         let mut o = 1;
 
         let header = &data[1..=TUNDRA_HEADER.len()];
 
         if header != TUNDRA_HEADER {
-            return Err(Box::new(LoadingError::IDMismatch));
+            return Err(LoadingError::IDMismatch.into());
         }
         o += TUNDRA_HEADER.len();
 
@@ -167,19 +165,16 @@ impl OutputFormat for TundraDraw {
             if cmd == TUNDRA_POSITION {
                 pos.y = to_u32(&data[o..]);
                 if pos.y >= (u16::MAX) as i32 {
-                    return Err(Box::new(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_line_count()))));
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_line_count())).into());
                 }
                 o += 4;
                 pos.x = to_u32(&data[o..]);
                 if pos.x >= result.get_width() {
-                    return Err(Box::new(io::Error::new(
-                        io::ErrorKind::InvalidData,
-                        format!(
-                            "Invalid Tundra Draw file.\nJump x position {} out of bounds (width is {})",
-                            pos.x,
-                            result.get_width()
-                        ),
-                    )));
+                    return Err(anyhow::anyhow!(
+                        "Invalid Tundra Draw file.\nJump x position {} out of bounds (width is {})",
+                        pos.x,
+                        result.get_width()
+                    ));
                 }
                 o += 4;
                 continue;

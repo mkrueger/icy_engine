@@ -28,11 +28,11 @@ pub fn push_data(data_type: u16, data: &[u8]) -> EngineResult<()> {
                 bytes: clipboard_data.into(),
             };
             if let Err(err) = clipboard.set_image(image) {
-                return Err(Box::new(ClipboardError::ErrorInSetImage(format!("{err}"))));
+                return Err(ClipboardError::ErrorInSetImage(format!("{err}")).into());
             }
             Ok(())
         }
-        Err(err) => Err(Box::new(ClipboardError::Error(format!("{err}")))),
+        Err(err) => Err(ClipboardError::Error(format!("{err}")).into()),
     }
 }
 
