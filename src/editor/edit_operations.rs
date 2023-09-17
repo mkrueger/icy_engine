@@ -295,9 +295,7 @@ impl EditState {
 
     pub fn switch_to_palette(&mut self, pal: Palette) -> EngineResult<()> {
         let op = super::undo_operations::SwitchPalettte::new(pal);
-        self.redo_stack.clear();
-        self.undo_stack.lock().unwrap().push(Box::new(op));
-        Ok(())
+        self.push_undo(Box::new(op))
     }
 }
 
