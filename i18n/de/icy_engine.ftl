@@ -35,6 +35,7 @@ undo-deselect=Deselektieren
 undo-select-nothing=Nichts auswählen
 undo-set_selection=Auswahl
 undo-inverse_selection=Invertieren
+undo-switch_palette=Palette ändern
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

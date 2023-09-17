@@ -166,7 +166,7 @@ impl Palette {
     }
 
     pub fn are_colors_equal(&self, other: &Palette) -> bool {
-        self.colors == other.colors        
+        self.colors == other.colors
     }
 
     pub fn get_rgb(&self, index: usize) -> (u8, u8, u8) {

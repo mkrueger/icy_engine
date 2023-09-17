@@ -35,6 +35,8 @@ pub struct EditState {
 
     undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
     redo_stack: Vec<Box<dyn UndoOperation>>,
+
+    pub is_palette_dirty: bool,
 }
 
 pub struct AtomicUndoGuard {
@@ -102,6 +104,7 @@ impl Default for EditState {
             outline_style: 0,
             mirror_mode: false,
             selection_mask,
+            is_palette_dirty: false,
         }
     }
 }

@@ -35,6 +35,7 @@ undo-deselect=Deselect
 undo-select-nothing=Select nothing
 undo-set_selection=Selection
 undo-inverse_selection=Inverse selection
+undo-switch_palette=Set Palette
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

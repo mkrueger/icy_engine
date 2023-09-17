@@ -6,8 +6,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AddType, AttributedChar, EngineResult, Layer, Line, Position, Selection, SelectionMask, Size,
-    TextPane,
+    AddType, AttributedChar, EngineResult, Layer, Line, Palette, Position, Selection,
+    SelectionMask, Size, TextPane,
 };
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
@@ -1261,6 +1261,39 @@ impl UndoOperation for InverseSelection {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.selection_opt = None;
         edit_state.selection_mask = self.new.clone();
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SwitchPalettte {
+    pal: Palette,
+}
+
+impl SwitchPalettte {
+    pub fn new(pal: Palette) -> Self {
+        Self { pal }
+    }
+}
+
+impl UndoOperation for SwitchPalettte {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-switch_palette")
+    }
+
+    fn changes_data(&self) -> bool {
+        false
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        mem::swap(&mut edit_state.get_buffer_mut().palette, &mut self.pal);
+        edit_state.is_palette_dirty = true;
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        mem::swap(&mut edit_state.get_buffer_mut().palette, &mut self.pal);
+        edit_state.is_palette_dirty = true;
         Ok(())
     }
 }

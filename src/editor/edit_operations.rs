@@ -2,7 +2,9 @@
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position, Rectangle, Sixel, Size, TextPane};
+use crate::{
+    AttributedChar, EngineResult, Layer, Palette, Position, Rectangle, Sixel, Size, TextPane,
+};
 
 use super::{
     undo_operations::{Paste, ReverseCaretPosition, ReversedUndo, UndoSetChar, UndoSwapChar},
@@ -286,6 +288,13 @@ impl EditState {
     /// This function will return an error if .
     pub fn undo_caret_position(&mut self) -> EngineResult<()> {
         let op = ReverseCaretPosition::new(self.caret.get_position());
+        self.redo_stack.clear();
+        self.undo_stack.lock().unwrap().push(Box::new(op));
+        Ok(())
+    }
+
+    pub fn switch_to_palette(&mut self, pal: Palette) -> EngineResult<()> {
+        let op = super::undo_operations::SwitchPalettte::new(pal);
         self.redo_stack.clear();
         self.undo_stack.lock().unwrap().push(Box::new(op));
         Ok(())
