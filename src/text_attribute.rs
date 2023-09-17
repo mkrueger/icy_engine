@@ -14,6 +14,10 @@ pub mod attribute {
     pub const DOUBLE_HEIGHT: u16 = 0b0000_0001_0000_0000;
     pub const OVERLINE: u16 = 0b0000_0010_0000_0000;
     pub const INVISIBLE: u16 = 0b1000_0000_0000_0000;
+
+    /// This is a special attribute that is used to indicate that the character data
+    /// can be represented as u8. For loading & saving only.
+    pub const SHORT_DATA: u16 = 0b0100_0000_0000_0000;
 }
 
 #[derive(Clone, Copy)]

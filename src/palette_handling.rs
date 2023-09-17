@@ -158,7 +158,6 @@ impl Palette {
         }
     }
 
-
     pub fn get_color(&self, index: usize) -> &Color {
         &self.colors[index]
     }

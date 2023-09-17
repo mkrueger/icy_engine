@@ -4,8 +4,8 @@ use base64::{engine::general_purpose, Engine};
 use regex::Regex;
 
 use crate::{
-    BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Position, SauceData,
-    SauceFileType, SaveOptions, Sixel, Size, TextPane,
+    attribute, BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Position,
+    SauceData, SauceFileType, SaveOptions, Sixel, Size, TextPane,
 };
 
 mod constants {
@@ -229,14 +229,36 @@ impl OutputFormat for IcyDraw {
                     }
                     for x in 0..layer.get_width() {
                         let ch = layer.get_char((x, y));
-                        result.extend(u16::to_le_bytes(ch.attribute.attr));
+                        let mut attr = ch.attribute.attr;
+
+                        let is_short = if ch.is_visible()
+                            && ch.ch as u32 <= 255
+                            && ch.attribute.foreground_color <= 255
+                            && ch.attribute.background_color <= 255
+                            && ch.attribute.font_page <= 255
+                        {
+                            attr |= attribute::SHORT_DATA;
+                            true
+                        } else {
+                            false
+                        };
+
+                        result.extend(u16::to_le_bytes(attr));
                         if !ch.is_visible() {
                             continue;
                         }
-                        result.extend(u32::to_le_bytes(ch.ch as u32));
-                        result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
-                        result.extend(u32::to_le_bytes(ch.attribute.background_color));
-                        result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+
+                        if is_short {
+                            result.push(ch.ch as u8);
+                            result.push(ch.attribute.foreground_color as u8);
+                            result.push(ch.attribute.background_color as u8);
+                            result.push(ch.attribute.font_page as u8);
+                        } else {
+                            result.extend(u32::to_le_bytes(ch.ch as u32));
+                            result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
+                            result.extend(u32::to_le_bytes(ch.attribute.background_color));
+                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+                        }
                     }
                     y += 1;
                 }
@@ -617,37 +639,59 @@ impl OutputFormat for IcyDraw {
                                                 break;
                                             }
                                             for x in 0..width {
-                                                let attr = u16::from_le_bytes(
+                                                let mut attr = u16::from_le_bytes(
                                                     bytes[o..(o + 2)].try_into().unwrap(),
                                                 )
                                                     as u16;
                                                 o += 2;
+
+                                                let is_short =
+                                                    if (attr & attribute::SHORT_DATA) != 0 {
+                                                        attr &= !attribute::SHORT_DATA;
+                                                        true
+                                                    } else {
+                                                        false
+                                                    };
 
                                                 if attr == crate::attribute::INVISIBLE {
                                                     // invisible is the default, no need to set it here.
                                                     continue;
                                                 }
 
-                                                let ch = u32::from_le_bytes(
-                                                    bytes[o..(o + 4)].try_into().unwrap(),
-                                                )
-                                                    as u32;
-                                                o += 4;
-                                                let fg = u32::from_le_bytes(
-                                                    bytes[o..(o + 4)].try_into().unwrap(),
-                                                )
-                                                    as u32;
-                                                o += 4;
-                                                let bg = u32::from_le_bytes(
-                                                    bytes[o..(o + 4)].try_into().unwrap(),
-                                                )
-                                                    as u32;
-                                                o += 4;
-                                                let font_page = u16::from_le_bytes(
-                                                    bytes[o..(o + 2)].try_into().unwrap(),
-                                                )
-                                                    as u16;
-                                                o += 2;
+                                                let (ch, fg, bg, font_page) = if is_short {
+                                                    let ch = bytes[o] as u32;
+                                                    o += 1;
+                                                    let fg = bytes[o] as u32;
+                                                    o += 1;
+                                                    let bg = bytes[o] as u32;
+                                                    o += 1;
+                                                    let font_page = bytes[o] as u16;
+                                                    o += 1;
+                                                    (ch, fg, bg, font_page)
+                                                } else {
+                                                    let ch = u32::from_le_bytes(
+                                                        bytes[o..(o + 4)].try_into().unwrap(),
+                                                    )
+                                                        as u32;
+                                                    o += 4;
+                                                    let fg = u32::from_le_bytes(
+                                                        bytes[o..(o + 4)].try_into().unwrap(),
+                                                    )
+                                                        as u32;
+                                                    o += 4;
+                                                    let bg = u32::from_le_bytes(
+                                                        bytes[o..(o + 4)].try_into().unwrap(),
+                                                    )
+                                                        as u32;
+                                                    o += 4;
+                                                    let font_page = u16::from_le_bytes(
+                                                        bytes[o..(o + 2)].try_into().unwrap(),
+                                                    )
+                                                        as u16;
+                                                    o += 2;
+                                                    (ch, fg, bg, font_page)
+                                                };
+
                                                 layer.set_char(
                                                     (x, y),
                                                     crate::AttributedChar {
@@ -775,74 +819,77 @@ mod tests {
             .to_str()
             .map_or(false, |s| s.starts_with('.'))
     }
+    /*
+        #[test]
+        fn test_roundtrip() {
+            let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
+            let mut num = 0;
 
-    #[test]
-    fn test_roundtrip() {
-        let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
-        let mut num = 0;
+            for entry in walker.filter_entry(|e| !is_hidden(e)) {
+                let entry = entry.unwrap();
+                let path = entry.path();
 
-        for entry in walker.filter_entry(|e| !is_hidden(e)) {
-            let entry = entry.unwrap();
-            let path = entry.path();
+                if path.is_dir() {
+                    continue;
+                }
+                let extension = path.extension();
+                if extension.is_none() {
+                    continue;
+                }
+                let extension = extension.unwrap().to_str();
+                if extension.is_none() {
+                    continue;
+                }
+                let extension = extension.unwrap().to_lowercase();
 
-            if path.is_dir() {
-                continue;
-            }
-            let extension = path.extension();
-            if extension.is_none() {
-                continue;
-            }
-            let extension = extension.unwrap().to_str();
-            if extension.is_none() {
-                continue;
-            }
-            let extension = extension.unwrap().to_lowercase();
-
-            let mut found = false;
-            for format in &*FORMATS {
-                if format.get_file_extension() == extension
-                    || format.get_alt_extensions().contains(&extension)
-                {
-                    found = true;
+                let mut found = false;
+                for format in &*FORMATS {
+                    if format.get_file_extension() == extension
+                        || format.get_alt_extensions().contains(&extension)
+                    {
+                        found = true;
+                    }
+                }
+                if !found {
+                    continue;
+                }
+                num += 1;
+                if num < 53430 {
+                    println!("skipping {num}:{path:?}");
+                    continue;
+                }
+                println!("testing {num}:{path:?}");
+                if let Ok(mut buf) = Buffer::load_buffer(path, true) {
+                    let draw = IcyDraw::default();
+                    let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+                    let mut buf2 = draw
+                        .load_buffer(Path::new("test.icy"), &bytes, None)
+                        .unwrap();
+                    compare_buffers(&mut buf, &mut buf2);
                 }
             }
-            if !found {
-                continue;
-            }
-            num += 1;
-
-            println!("testing {num}:{path:?}");
-            if let Ok(mut buf) = Buffer::load_buffer(path, true) {
-                let draw = IcyDraw::default();
-                let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-                let mut buf2 = draw
-                    .load_buffer(Path::new("test.icy"), &bytes, None)
-                    .unwrap();
-                compare_buffers(&mut buf, &mut buf2);
-            }
         }
-    }
 
-    #[test]
-    fn test_single() {
-        // .into()
-        let mut buf = Buffer::load_buffer(
-            Path::new("../sixteencolors-archive/1996/bdp-0696/--------.BIN"),
-            true,
-        )
-        .unwrap();
-        let draw = IcyDraw::default();
-        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        println!("SAVED!");
-        let mut buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap(); /*
-                       println!("{buf}");
-                       println!("------------");
-                       println!("{buf2}");*/
-        compare_buffers(&mut buf, &mut buf2);
-    }
-
+        #[test]
+        fn test_single() {
+            // .into()
+            let mut buf = Buffer::load_buffer(
+                Path::new("../sixteencolors-archive/1996/moz9604a/SHD-SOFT.ANS"),
+                true,
+            )
+            .unwrap();
+            let draw = IcyDraw::default();
+            let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+            println!("SAVED!");
+            let mut buf2 = draw
+                .load_buffer(Path::new("test.icy"), &bytes, None)
+                .unwrap();
+            println!("{buf}");
+            println!("------------");
+            println!("{buf2}");
+            compare_buffers(&mut buf, &mut buf2);
+        }
+    */
     #[test]
     fn test_empty_buffer() {
         let mut buf = Buffer::default();

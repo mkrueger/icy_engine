@@ -175,7 +175,9 @@ impl Buffer {
 
     pub fn set_sauce(&mut self, sauce: SauceData) {
         let mut size = sauce.buffer_size;
-        if size.width == 0 {
+        // check limits, some files have wrong sauce data, even if 0 is specified
+        // some files specify the pixel size there and don't have line breaks in the file
+        if size.width == 0 || size.width > 1000 {
             size.width = 80;
         }
         self.set_size(size);
