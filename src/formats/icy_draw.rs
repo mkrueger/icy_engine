@@ -692,6 +692,11 @@ impl OutputFormat for IcyDraw {
                                                 break;
                                             }
                                             for x in 0..width {
+                                                if o + 4 > bytes.len() {
+                                                    return Err(anyhow::anyhow!(
+                                                        "data length out ouf bounds"
+                                                    ));
+                                                }
                                                 let mut attr = u16::from_le_bytes(
                                                     bytes[o..(o + 2)].try_into().unwrap(),
                                                 )
@@ -720,6 +725,12 @@ impl OutputFormat for IcyDraw {
                                                 }
 
                                                 let (ch, fg, bg, font_page) = if is_short {
+                                                    if o + 3 > bytes.len() {
+                                                        return Err(anyhow::anyhow!(
+                                                            "data length out ouf bounds"
+                                                        ));
+                                                    }
+
                                                     let ch = bytes[o] as u32;
                                                     o += 1;
                                                     let fg = bytes[o] as u32;
@@ -728,6 +739,12 @@ impl OutputFormat for IcyDraw {
                                                     o += 1;
                                                     (ch, fg, bg, font_page)
                                                 } else {
+                                                    if o + 12 >= bytes.len() {
+                                                        return Err(anyhow::anyhow!(
+                                                            "data length out ouf bounds"
+                                                        ));
+                                                    }
+
                                                     let ch = u32::from_le_bytes(
                                                         bytes[o..(o + 4)].try_into().unwrap(),
                                                     )
@@ -867,82 +884,84 @@ mod tests {
 
     use super::IcyDraw;
     /*
-    fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-        entry
-            .file_name()
-            .to_str()
-            .map_or(false, |s| s.starts_with('.'))
-    }
+        fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+            entry
+                .file_name()
+                .to_str()
+                .map_or(false, |s| s.starts_with('.'))
+        }
 
-        #[test]
-        fn test_roundtrip() {
-            let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
-            let mut num = 0;
+            #[test]
+            fn test_roundtrip() {
+                let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
+                let mut num = 0;
 
-            for entry in walker.filter_entry(|e| !is_hidden(e)) {
-                let entry = entry.unwrap();
-                let path = entry.path();
+                for entry in walker.filter_entry(|e| !is_hidden(e)) {
+                    let entry = entry.unwrap();
+                    let path = entry.path();
 
-                if path.is_dir() {
-                    continue;
-                }
-                let extension = path.extension();
-                if extension.is_none() {
-                    continue;
-                }
-                let extension = extension.unwrap().to_str();
-                if extension.is_none() {
-                    continue;
-                }
-                let extension = extension.unwrap().to_lowercase();
+                    if path.is_dir() {
+                        continue;
+                    }
+                    let extension = path.extension();
+                    if extension.is_none() {
+                        continue;
+                    }
+                    let extension = extension.unwrap().to_str();
+                    if extension.is_none() {
+                        continue;
+                    }
+                    let extension = extension.unwrap().to_lowercase();
 
-                let mut found = false;
-                for format in &*FORMATS {
-                    if format.get_file_extension() == extension
-                        || format.get_alt_extensions().contains(&extension)
-                    {
-                        found = true;
+                    let mut found = false;
+                    for format in &*crate::FORMATS {
+                        if format.get_file_extension() == extension
+                            || format.get_alt_extensions().contains(&extension)
+                        {
+                            found = true;
+                        }
+                    }
+                    if !found {
+                        continue;
+                    }
+                    num += 1;/*
+                    if num < 53430 {
+                        println!("skipping {num}:{path:?}");
+                        continue;
+                    }*/
+                    println!("testing {num}:{path:?}");
+                    if let Ok(mut buf) = Buffer::load_buffer(path, true) {
+                        let draw = IcyDraw::default();
+                        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+                        let mut buf2 = draw
+                            .load_buffer(Path::new("test.icy"), &bytes, None)
+                            .unwrap();
+                        compare_buffers(&mut buf, &mut buf2);
                     }
                 }
-                if !found {
-                    continue;
-                }
-                num += 1;
-                if num < 53430 {
-                    println!("skipping {num}:{path:?}");
-                    continue;
-                }
-                println!("testing {num}:{path:?}");
-                if let Ok(mut buf) = Buffer::load_buffer(path, true) {
-                    let draw = IcyDraw::default();
-                    let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-                    let mut buf2 = draw
-                        .load_buffer(Path::new("test.icy"), &bytes, None)
-                        .unwrap();
-                    compare_buffers(&mut buf, &mut buf2);
-                }
             }
-        }
+    */
 
-        #[test]
-        fn test_single() {
-            // .into()
-            let mut buf = Buffer::load_buffer(
-                Path::new("../sixteencolors-archive/1996/moz9604a/SHD-SOFT.ANS"),
-                true,
-            )
-            .unwrap();
-            let draw = IcyDraw::default();
-            let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-            println!("SAVED!");
-            let mut buf2 = draw
-                .load_buffer(Path::new("test.icy"), &bytes, None)
-                .unwrap();
-            println!("{buf}");
-            println!("------------");
-            println!("{buf2}");
-            compare_buffers(&mut buf, &mut buf2);
-        }
+    /*
+         #[test]
+         fn test_single() {
+             // .into()
+             let mut buf = Buffer::load_buffer(
+                 Path::new("../sixteencolors-archive/1996/moz9604a/SHD-SOFT.ANS"),
+                 true,
+             )
+             .unwrap();
+             let draw = IcyDraw::default();
+             let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+             println!("SAVED!");
+             let mut buf2 = draw
+                 .load_buffer(Path::new("test.icy"), &bytes, None)
+                 .unwrap();
+             println!("{buf}");
+             println!("------------");
+             println!("{buf2}");
+             compare_buffers(&mut buf, &mut buf2);
+         }
     */
     #[test]
     fn test_empty_buffer() {
