@@ -165,6 +165,10 @@ impl Palette {
         self.colors[index].clone()
     }
 
+    pub fn are_colors_equal(&self, other: &Palette) -> bool {
+        self.colors == other.colors        
+    }
+
     pub fn get_rgb(&self, index: usize) -> (u8, u8, u8) {
         if index >= self.colors.len() {
             (0, 0, 0)
