@@ -158,13 +158,20 @@ impl Palette {
         }
     }
 
-    pub fn get_color(&self, index: usize) -> &Color {
-        &self.colors[index]
+    pub fn get_color(&self, index: usize) -> Color {
+        if index >= self.colors.len() {
+            return Color::new(0, 0, 0);
+        }
+        self.colors[index].clone()
     }
 
     pub fn get_rgb(&self, index: usize) -> (u8, u8, u8) {
-        let c = &self.colors[index];
-        (c.r, c.g, c.b)
+        if index >= self.colors.len() {
+            (0, 0, 0)
+        } else {
+            let c = &self.colors[index];
+            (c.r, c.g, c.b)
+        }
     }
 
     pub fn color_iter(&self) -> impl Iterator<Item = &Color> {
@@ -318,6 +325,206 @@ impl Palette {
             author,
             colors,
         })
+    }
+
+    pub fn new() -> Self {
+        Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors: DOS_DEFAULT_PALETTE.to_vec(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.colors.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.colors.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.colors.clear();
+    }
+
+    pub fn fill_to_16(&mut self) {
+        if self.colors.len() < DOS_DEFAULT_PALETTE.len() {
+            (self.colors.len()..DOS_DEFAULT_PALETTE.len()).for_each(|i| {
+                self.colors.push(DOS_DEFAULT_PALETTE[i].clone());
+            });
+        }
+    }
+
+    pub fn is_default(&self) -> bool {
+        if self.colors.len() != DOS_DEFAULT_PALETTE.len() {
+            return false;
+        }
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..DOS_DEFAULT_PALETTE.len() {
+            if self.colors[i] != DOS_DEFAULT_PALETTE[i] {
+                return false;
+            }
+        }
+        true
+    }
+
+    pub fn set_color_rgb(&mut self, number: usize, r: u8, g: u8, b: u8) {
+        if self.colors.len() <= number {
+            self.colors.resize(number + 1, Color::default());
+        }
+        self.colors[number] = Color {
+            name: None,
+            r,
+            g,
+            b,
+        };
+    }
+
+    pub fn set_color_hsl(&mut self, number: usize, h: f32, s: f32, l: f32) {
+        if self.colors.len() <= number {
+            self.colors.resize(number + 1, Color::default());
+        }
+
+        let (r, g, b) = if l == 0.0 {
+            (0, 0, 0)
+        } else if s == 0.0 {
+            let l = (l * 255.0) as u8;
+            (l, l, l)
+        } else {
+            let temp2 = if l <= 0.5 {
+                l * (1.0 + s)
+            } else {
+                l + s - (l * s)
+            };
+            let temp1 = 2.0 * l - temp2;
+            (
+                convert_vector(temp2, temp1, h + 1.0 / 3.0),
+                convert_vector(temp2, temp1, h),
+                convert_vector(temp2, temp1, h - 1.0 / 3.0),
+            )
+        };
+
+        self.colors[number] = Color {
+            name: None,
+            r,
+            g,
+            b,
+        };
+    }
+
+    pub fn insert_color(&mut self, color: Color) -> u32 {
+        for i in 0..self.colors.len() {
+            let col = self.colors[i].clone();
+            if col == color {
+                return i as u32;
+            }
+        }
+        self.colors.push(color);
+        (self.colors.len() - 1) as u32
+    }
+
+    pub fn insert_color_rgb(&mut self, r: u8, g: u8, b: u8) -> u32 {
+        self.insert_color(Color::new(r, g, b))
+    }
+
+    pub fn from(pal: &[u8]) -> Self {
+        let mut colors = Vec::new();
+        let mut o = 0;
+        while o < pal.len() {
+            colors.push(Color {
+                name: None,
+                r: pal[o] << 2 | pal[o] >> 4,
+                g: pal[o + 1] << 2 | pal[o + 1] >> 4,
+                b: pal[o + 2] << 2 | pal[o + 2] >> 4,
+            });
+            o += 3;
+        }
+
+        Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors,
+        }
+    }
+
+    pub fn cycle_ega_colors(&self) -> Palette {
+        let mut colors = self.colors.clone();
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..EGA_COLOR_OFFSETS.len() {
+            let offset = EGA_COLOR_OFFSETS[i];
+            if i == offset {
+                continue;
+            }
+            colors.swap(i, offset);
+        }
+        Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors,
+        }
+    }
+
+    pub fn to_ega_palette(&self) -> Vec<u8> {
+        let mut ega_colors;
+
+        if self.colors.len() == 64 {
+            //assume ega palette
+            ega_colors = self.colors.clone();
+            #[allow(clippy::needless_range_loop)]
+            for i in 0..EGA_COLOR_OFFSETS.len() {
+                let offset = EGA_COLOR_OFFSETS[i];
+                if i == offset {
+                    continue;
+                }
+                ega_colors.swap(i, offset);
+            }
+        } else {
+            // just store the first 16 colors to the standard EGA palette
+            ega_colors = EGA_PALETTE.to_vec();
+            for i in 0..16 {
+                if i >= self.colors.len() {
+                    break;
+                }
+                ega_colors[EGA_COLOR_OFFSETS[i]] = self.colors[i].clone();
+            }
+        }
+        let mut res = Vec::with_capacity(3 * 64);
+        for col in ega_colors {
+            res.push(col.r >> 2 | col.r << 4);
+            res.push(col.g >> 2 | col.g << 4);
+            res.push(col.b >> 2 | col.b << 4);
+        }
+        res
+    }
+
+    pub fn to_16color_vec(&self) -> Vec<u8> {
+        let mut res = Vec::with_capacity(3 * 16);
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..16 {
+            let col = if i < self.colors.len() {
+                self.colors[i].clone()
+            } else {
+                DOS_DEFAULT_PALETTE[i].clone()
+            };
+
+            res.push(col.r >> 2 | col.r << 4);
+            res.push(col.g >> 2 | col.g << 4);
+            res.push(col.b >> 2 | col.b << 4);
+        }
+        res
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut res = vec![0; 3 * self.colors.len()];
+        for col in &self.colors {
+            res.push(col.r >> 2 | col.r << 4);
+            res.push(col.g >> 2 | col.g << 4);
+            res.push(col.b >> 2 | col.b << 4);
+        }
+        res
     }
 }
 
@@ -3414,208 +3621,6 @@ pub const VIEWDATA_PALETTE: [Color; 16] = [
         b: 0xFF,
     }, // white
 ];
-
-impl Palette {
-    pub fn new() -> Self {
-        Palette {
-            title: String::new(),
-            description: String::new(),
-            author: String::new(),
-            colors: DOS_DEFAULT_PALETTE.to_vec(),
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.colors.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.colors.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.colors.clear();
-    }
-
-    pub fn fill_to_16(&mut self) {
-        if self.colors.len() < DOS_DEFAULT_PALETTE.len() {
-            (self.colors.len()..DOS_DEFAULT_PALETTE.len()).for_each(|i| {
-                self.colors.push(DOS_DEFAULT_PALETTE[i].clone());
-            });
-        }
-    }
-
-    pub fn is_default(&self) -> bool {
-        if self.colors.len() != DOS_DEFAULT_PALETTE.len() {
-            return false;
-        }
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..DOS_DEFAULT_PALETTE.len() {
-            if self.colors[i] != DOS_DEFAULT_PALETTE[i] {
-                return false;
-            }
-        }
-        true
-    }
-
-    pub fn set_color_rgb(&mut self, number: usize, r: u8, g: u8, b: u8) {
-        if self.colors.len() <= number {
-            self.colors.resize(number + 1, Color::default());
-        }
-        self.colors[number] = Color {
-            name: None,
-            r,
-            g,
-            b,
-        };
-    }
-
-    pub fn set_color_hsl(&mut self, number: usize, h: f32, s: f32, l: f32) {
-        if self.colors.len() <= number {
-            self.colors.resize(number + 1, Color::default());
-        }
-
-        let (r, g, b) = if l == 0.0 {
-            (0, 0, 0)
-        } else if s == 0.0 {
-            let l = (l * 255.0) as u8;
-            (l, l, l)
-        } else {
-            let temp2 = if l <= 0.5 {
-                l * (1.0 + s)
-            } else {
-                l + s - (l * s)
-            };
-            let temp1 = 2.0 * l - temp2;
-            (
-                convert_vector(temp2, temp1, h + 1.0 / 3.0),
-                convert_vector(temp2, temp1, h),
-                convert_vector(temp2, temp1, h - 1.0 / 3.0),
-            )
-        };
-
-        self.colors[number] = Color {
-            name: None,
-            r,
-            g,
-            b,
-        };
-    }
-
-    pub fn insert_color(&mut self, color: Color) -> u32 {
-        for i in 0..self.colors.len() {
-            let col = self.colors[i].clone();
-            if col == color {
-                return i as u32;
-            }
-        }
-        self.colors.push(color);
-        (self.colors.len() - 1) as u32
-    }
-
-    pub fn insert_color_rgb(&mut self, r: u8, g: u8, b: u8) -> u32 {
-        self.insert_color(Color::new(r, g, b))
-    }
-
-    pub fn from(pal: &[u8]) -> Self {
-        let mut colors = Vec::new();
-        let mut o = 0;
-        while o < pal.len() {
-            colors.push(Color {
-                name: None,
-                r: pal[o] << 2 | pal[o] >> 4,
-                g: pal[o + 1] << 2 | pal[o + 1] >> 4,
-                b: pal[o + 2] << 2 | pal[o + 2] >> 4,
-            });
-            o += 3;
-        }
-
-        Palette {
-            title: String::new(),
-            description: String::new(),
-            author: String::new(),
-            colors,
-        }
-    }
-
-    pub fn cycle_ega_colors(&self) -> Palette {
-        let mut colors = self.colors.clone();
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..EGA_COLOR_OFFSETS.len() {
-            let offset = EGA_COLOR_OFFSETS[i];
-            if i == offset {
-                continue;
-            }
-            colors.swap(i, offset);
-        }
-        Palette {
-            title: String::new(),
-            description: String::new(),
-            author: String::new(),
-            colors,
-        }
-    }
-
-    pub fn to_ega_palette(&self) -> Vec<u8> {
-        let mut ega_colors;
-
-        if self.colors.len() == 64 {
-            //assume ega palette
-            ega_colors = self.colors.clone();
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..EGA_COLOR_OFFSETS.len() {
-                let offset = EGA_COLOR_OFFSETS[i];
-                if i == offset {
-                    continue;
-                }
-                ega_colors.swap(i, offset);
-            }
-        } else {
-            // just store the first 16 colors to the standard EGA palette
-            ega_colors = EGA_PALETTE.to_vec();
-            for i in 0..16 {
-                if i >= self.colors.len() {
-                    break;
-                }
-                ega_colors[EGA_COLOR_OFFSETS[i]] = self.colors[i].clone();
-            }
-        }
-        let mut res = Vec::with_capacity(3 * 64);
-        for col in ega_colors {
-            res.push(col.r >> 2 | col.r << 4);
-            res.push(col.g >> 2 | col.g << 4);
-            res.push(col.b >> 2 | col.b << 4);
-        }
-        res
-    }
-
-    pub fn to_16color_vec(&self) -> Vec<u8> {
-        let mut res = Vec::with_capacity(3 * 16);
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..16 {
-            let col = if i < self.colors.len() {
-                self.colors[i].clone()
-            } else {
-                DOS_DEFAULT_PALETTE[i].clone()
-            };
-
-            res.push(col.r >> 2 | col.r << 4);
-            res.push(col.g >> 2 | col.g << 4);
-            res.push(col.b >> 2 | col.b << 4);
-        }
-        res
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut res = vec![0; 3 * self.colors.len()];
-        for col in &self.colors {
-            res.push(col.r >> 2 | col.r << 4);
-            res.push(col.g >> 2 | col.g << 4);
-            res.push(col.b >> 2 | col.b << 4);
-        }
-        res
-    }
-}
 
 fn convert_vector(temp2: f32, temp1: f32, mut x: f32) -> u8 {
     if x < 0.0 {

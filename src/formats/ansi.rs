@@ -136,10 +136,7 @@ impl StringGenerator {
                 }
                 let mut cur_attr = ch.attribute;
                 // optimize color output for empty space lines.
-                let cur_bg_color = buf
-                    .palette
-                    .get_color(cur_attr.get_background() as usize)
-                    .clone();
+                let cur_bg_color = buf.palette.get_color(cur_attr.get_background() as usize);
                 if space_count > 0 && last_back_color == cur_bg_color {
                     cur_attr = ch.attribute;
                 }
@@ -154,10 +151,8 @@ impl StringGenerator {
 
                 if last_attr != cur_attr || first_char {
                     if self.options.modern_terminal_output {
-                        let cur_fore_color = buf
-                            .palette
-                            .get_color(cur_attr.get_foreground() as usize)
-                            .clone();
+                        let cur_fore_color =
+                            buf.palette.get_color(cur_attr.get_foreground() as usize);
                         if last_fore_color != cur_fore_color || first_char {
                             last_fore_color = cur_fore_color;
                             result.extend_from_slice(b"\x1b[38;2;");
@@ -170,10 +165,8 @@ impl StringGenerator {
                             result.push(b'm');
                             self.push_result(&mut result);
                         }
-                        let cur_back_color = buf
-                            .palette
-                            .get_color(cur_attr.get_background() as usize)
-                            .clone();
+                        let cur_back_color =
+                            buf.palette.get_color(cur_attr.get_background() as usize);
                         if last_back_color != cur_back_color || first_char {
                             last_back_color = cur_back_color;
                             result.extend_from_slice(b"\x1b[48;2;");
@@ -312,10 +305,8 @@ impl StringGenerator {
                         }
 
                         // color changes
-                        let cur_fore_color = buf
-                            .palette
-                            .get_color(cur_attr.get_foreground() as usize)
-                            .clone();
+                        let cur_fore_color =
+                            buf.palette.get_color(cur_attr.get_foreground() as usize);
                         if last_fore_color != cur_fore_color {
                             last_fore_color = cur_fore_color.clone();
                             let fg = cur_attr.get_foreground() as usize;
@@ -336,10 +327,8 @@ impl StringGenerator {
                                 write_24bit_fore_color = true;
                             }
                         }
-                        let cur_back_color = buf
-                            .palette
-                            .get_color(cur_attr.get_background() as usize)
-                            .clone();
+                        let cur_back_color =
+                            buf.palette.get_color(cur_attr.get_background() as usize);
                         if last_back_color != cur_back_color {
                             last_back_color = cur_back_color.clone();
                             let bg = cur_attr.get_background() as usize;
@@ -501,12 +490,12 @@ impl StringGenerator {
 
 fn get_extended_color(buf: &Buffer, color: usize) -> Option<usize> {
     let color = buf.palette.get_color(color);
-    (0..crate::XTERM_256_PALETTE.len()).find(|&i| color == &crate::XTERM_256_PALETTE[i].1)
+    (0..crate::XTERM_256_PALETTE.len()).find(|&i| color == crate::XTERM_256_PALETTE[i].1)
 }
 
 fn get_standard_color(buf: &Buffer, color: usize) -> Option<usize> {
     let color = buf.palette.get_color(color);
-    (0..8).find(|&i| color == &crate::DOS_DEFAULT_PALETTE[i])
+    (0..8).find(|&i| color == crate::DOS_DEFAULT_PALETTE[i])
 }
 
 fn push_int(result: &mut Vec<u8>, number: usize) {

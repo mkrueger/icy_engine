@@ -646,11 +646,11 @@ impl OutputFormat for IcyDraw {
                                                 o += 2;
 
                                                 let is_short =
-                                                    if (attr & attribute::SHORT_DATA) != 0 {
+                                                    if (attr & attribute::SHORT_DATA) == 0 {
+                                                        false
+                                                    } else {
                                                         attr &= !attribute::SHORT_DATA;
                                                         true
-                                                    } else {
-                                                        false
                                                     };
 
                                                 if attr == crate::attribute::INVISIBLE {
@@ -808,18 +808,17 @@ mod tests {
 
     use crate::{
         AttributedChar, Buffer, Color, Layer, OutputFormat, SaveOptions, TextAttribute, TextPane,
-        FORMATS,
     };
 
     use super::IcyDraw;
-
+    /*
     fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         entry
             .file_name()
             .to_str()
             .map_or(false, |s| s.starts_with('.'))
     }
-    /*
+
         #[test]
         fn test_roundtrip() {
             let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
