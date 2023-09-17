@@ -1,5 +1,5 @@
 #![allow(clippy::many_single_char_names)]
-use std::fmt::Display;
+use std::{fmt::Display, path::Path};
 
 use regex::Regex;
 
@@ -140,7 +140,7 @@ pub enum PaletteFormat {
     Ase,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Palette {
     pub title: String,
     pub description: String,
@@ -325,6 +325,90 @@ impl Palette {
             author,
             colors,
         })
+    }
+
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn import_palette(file_name: &Path, bytes: &[u8]) -> anyhow::Result<Self> {
+        let Some(ext) = file_name.extension() else {
+            return Err(anyhow::anyhow!("No file extension"));
+        };
+        let ascii_lowercase = &ext.to_ascii_lowercase();
+        let Some(ext) = ascii_lowercase.to_str() else {
+            return Err(anyhow::anyhow!("Error in string conversion."));
+        };
+
+        match ext {
+            "pal" => Palette::load_palette(&PaletteFormat::Pal, bytes),
+            "gpl" => Palette::load_palette(&PaletteFormat::Gpl, bytes),
+            "txt" => Palette::load_palette(&PaletteFormat::Txt, bytes),
+            "hex" => Palette::load_palette(&PaletteFormat::Hex, bytes),
+            _ => Err(anyhow::anyhow!("Unsupported file extension: {ext}")),
+        }
+    }
+
+    pub fn export_palette(&self, format: &PaletteFormat) -> Vec<u8> {
+        match format {
+            PaletteFormat::Hex => {
+                let mut res = String::new();
+                for c in &self.colors {
+                    res.push_str(format!("{:02x}{:02x}{:02x}\n", c.r, c.g, c.b).as_str());
+                }
+                return res.as_bytes().to_vec();
+            }
+            PaletteFormat::Pal => {
+                let mut res = String::new();
+                res.push_str("JASC-PAL\n");
+                res.push_str("0100\n");
+                res.push_str(format!("{}\n", self.colors.len()).as_str());
+
+                for c in &self.colors {
+                    res.push_str(format!("{} {} {}\n", c.r, c.g, c.b).as_str());
+                }
+
+                return res.as_bytes().to_vec();
+            }
+            PaletteFormat::Gpl => {
+                let mut res = String::new();
+                res.push_str("GIMP Palette\n");
+
+                res.push_str(format!("#Palette Name: {}\n", self.title).as_str());
+                res.push_str(format!("#Author: {}\n", self.author).as_str());
+                res.push_str(format!("#Description: {}\n", self.description).as_str());
+                res.push_str(format!("#Colors: {}\n", self.colors.len()).as_str());
+
+                for c in &self.colors {
+                    res.push_str(
+                        format!(
+                            "{:3} {:3} {:3} {:02x}{:02x}{:02x}\n",
+                            c.r, c.g, c.b, c.r, c.g, c.b
+                        )
+                        .as_str(),
+                    );
+                }
+
+                return res.as_bytes().to_vec();
+            }
+            PaletteFormat::Txt => {
+                let mut res = String::new();
+                res.push_str(";paint.net Palette File\n");
+
+                res.push_str(format!(";Palette Name: {}\n", self.title).as_str());
+                res.push_str(format!(";Author: {}\n", self.author).as_str());
+                res.push_str(format!(";Description: {}\n", self.description).as_str());
+                res.push_str(format!(";Colors: {}\n", self.colors.len()).as_str());
+
+                for c in &self.colors {
+                    res.push_str(format!("FF{:02x}{:02x}{:02x}\n", c.r, c.g, c.b,).as_str());
+                }
+
+                return res.as_bytes().to_vec();
+            }
+            PaletteFormat::Ase => todo!(),
+        }
     }
 
     pub fn new() -> Self {
