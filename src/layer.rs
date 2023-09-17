@@ -247,7 +247,6 @@ impl Layer {
         }
 
         let cur_line = &mut self.lines[pos.y as usize];
-
         cur_line.set_char(pos.x, attributed_char);
     }
 

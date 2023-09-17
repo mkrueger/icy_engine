@@ -81,13 +81,8 @@ impl TextAttribute {
             (attr >> 4) & 0b0111
         } as u32;
 
-        let mut bold = false;
-        let foreground_color = if buffer_type.use_extended_font() {
-            attr & 0b0111
-        } else {
-            bold = attr & 0b1000 != 0;
-            attr & 0b0111
-        } as u32;
+        let bold = attr & 0b1000 != 0;
+        let foreground_color = (attr & 0b0111) as u32;
 
         let mut attr = TextAttribute {
             foreground_color,
@@ -270,6 +265,10 @@ impl TextAttribute {
 
     pub fn set_font_page(&mut self, page: usize) {
         self.font_page = page;
+    }
+
+    pub fn with_font_page(&self, font_page: usize) -> TextAttribute {
+        TextAttribute { font_page, ..*self }
     }
 }
 

@@ -244,6 +244,7 @@ impl OutputFormat for IcyDraw {
                         };
 
                         result.extend(u16::to_le_bytes(attr));
+                        result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                         if !ch.is_visible() {
                             continue;
                         }
@@ -252,12 +253,10 @@ impl OutputFormat for IcyDraw {
                             result.push(ch.ch as u8);
                             result.push(ch.attribute.foreground_color as u8);
                             result.push(ch.attribute.background_color as u8);
-                            result.push(ch.attribute.font_page as u8);
                         } else {
                             result.extend(u32::to_le_bytes(ch.ch as u32));
                             result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
                             result.extend(u32::to_le_bytes(ch.attribute.background_color));
-                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                         }
                     }
                     y += 1;
@@ -279,14 +278,34 @@ impl OutputFormat for IcyDraw {
 
                         for x in 0..layer.get_width() {
                             let ch = layer.get_char((x, y));
-                            result.extend(u16::to_le_bytes(ch.attribute.attr));
+                            let mut attr = ch.attribute.attr;
+
+                            let is_short = if ch.is_visible()
+                                && ch.ch as u32 <= 255
+                                && ch.attribute.foreground_color <= 255
+                                && ch.attribute.background_color <= 255
+                                && ch.attribute.font_page <= 255
+                            {
+                                attr |= attribute::SHORT_DATA;
+                                true
+                            } else {
+                                false
+                            };
+
+                            result.extend(u16::to_le_bytes(attr));
+                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                             if !ch.is_visible() {
                                 continue;
                             }
-                            result.extend(u32::to_le_bytes(ch.ch as u32));
-                            result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
-                            result.extend(u32::to_le_bytes(ch.attribute.background_color));
-                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
+                            if is_short {
+                                result.push(ch.ch as u8);
+                                result.push(ch.attribute.foreground_color as u8);
+                                result.push(ch.attribute.background_color as u8);
+                            } else {
+                                result.extend(u32::to_le_bytes(ch.ch as u32));
+                                result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
+                                result.extend(u32::to_le_bytes(ch.attribute.background_color));
+                            }
                         }
                         y += 1;
                     }
@@ -467,37 +486,71 @@ impl OutputFormat for IcyDraw {
                                                         break;
                                                     }
                                                     for x in 0..layer.get_width() {
-                                                        let attr = u16::from_le_bytes(
+                                                        let mut attr = u16::from_le_bytes(
                                                             bytes[o..(o + 2)].try_into().unwrap(),
                                                         )
                                                             as u16;
                                                         o += 2;
-
-                                                        if attr == crate::attribute::INVISIBLE {
-                                                            // invisible is the default, no need to set it here.
-                                                            continue;
-                                                        }
-
-                                                        let ch = u32::from_le_bytes(
-                                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                                        )
-                                                            as u32;
-                                                        o += 4;
-                                                        let fg = u32::from_le_bytes(
-                                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                                        )
-                                                            as u32;
-                                                        o += 4;
-                                                        let bg = u32::from_le_bytes(
-                                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                                        )
-                                                            as u32;
-                                                        o += 4;
                                                         let font_page = u16::from_le_bytes(
                                                             bytes[o..(o + 2)].try_into().unwrap(),
                                                         )
                                                             as u16;
                                                         o += 2;
+
+                                                        let is_short = if (attr
+                                                            & attribute::SHORT_DATA)
+                                                            == 0
+                                                        {
+                                                            false
+                                                        } else {
+                                                            attr &= !attribute::SHORT_DATA;
+                                                            true
+                                                        };
+                                                        if attr == crate::attribute::INVISIBLE {
+                                                            layer.set_char(
+                                                                (x, y),
+                                                                crate::AttributedChar::invisible()
+                                                                    .with_font_page(
+                                                                        font_page as usize,
+                                                                    ),
+                                                            );
+                                                            continue;
+                                                        }
+
+                                                        let (ch, fg, bg, font_page) = if is_short {
+                                                            let ch = bytes[o] as u32;
+                                                            o += 1;
+                                                            let fg = bytes[o] as u32;
+                                                            o += 1;
+                                                            let bg = bytes[o] as u32;
+                                                            o += 1;
+                                                            (ch, fg, bg, font_page)
+                                                        } else {
+                                                            let ch = u32::from_le_bytes(
+                                                                bytes[o..(o + 4)]
+                                                                    .try_into()
+                                                                    .unwrap(),
+                                                            )
+                                                                as u32;
+                                                            o += 4;
+                                                            let fg = u32::from_le_bytes(
+                                                                bytes[o..(o + 4)]
+                                                                    .try_into()
+                                                                    .unwrap(),
+                                                            )
+                                                                as u32;
+                                                            o += 4;
+                                                            let bg = u32::from_le_bytes(
+                                                                bytes[o..(o + 4)]
+                                                                    .try_into()
+                                                                    .unwrap(),
+                                                            )
+                                                                as u32;
+                                                            o += 4;
+
+                                                            (ch, fg, bg, font_page)
+                                                        };
+
                                                         layer.set_char(
                                                             (x, y),
                                                             crate::AttributedChar {
@@ -644,7 +697,11 @@ impl OutputFormat for IcyDraw {
                                                 )
                                                     as u16;
                                                 o += 2;
-
+                                                let font_page = u16::from_le_bytes(
+                                                    bytes[o..(o + 2)].try_into().unwrap(),
+                                                )
+                                                    as u16;
+                                                o += 2;
                                                 let is_short =
                                                     if (attr & attribute::SHORT_DATA) == 0 {
                                                         false
@@ -654,7 +711,11 @@ impl OutputFormat for IcyDraw {
                                                     };
 
                                                 if attr == crate::attribute::INVISIBLE {
-                                                    // invisible is the default, no need to set it here.
+                                                    layer.set_char(
+                                                        (x, y),
+                                                        crate::AttributedChar::invisible()
+                                                            .with_font_page(font_page as usize),
+                                                    );
                                                     continue;
                                                 }
 
@@ -664,8 +725,6 @@ impl OutputFormat for IcyDraw {
                                                     let fg = bytes[o] as u32;
                                                     o += 1;
                                                     let bg = bytes[o] as u32;
-                                                    o += 1;
-                                                    let font_page = bytes[o] as u16;
                                                     o += 1;
                                                     (ch, fg, bg, font_page)
                                                 } else {
@@ -684,11 +743,7 @@ impl OutputFormat for IcyDraw {
                                                     )
                                                         as u32;
                                                     o += 4;
-                                                    let font_page = u16::from_le_bytes(
-                                                        bytes[o..(o + 2)].try_into().unwrap(),
-                                                    )
-                                                        as u16;
-                                                    o += 2;
+
                                                     (ch, fg, bg, font_page)
                                                 };
 

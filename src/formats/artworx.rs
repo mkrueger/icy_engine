@@ -103,12 +103,15 @@ impl OutputFormat for Artworx {
                     return Ok(result);
                 }
                 result.layers[0].set_height(pos.y + 1);
+                let mut attribute = TextAttribute::from_u8(data[o + 1], result.buffer_type);
+                if attribute.is_bold() {
+                    attribute.set_foreground(attribute.foreground_color + 8);
+                    attribute.set_is_bold(false);
+                }
+
                 result.layers[0].set_char(
                     pos,
-                    AttributedChar::new(
-                        char::from_u32(data[o] as u32).unwrap(),
-                        TextAttribute::from_u8(data[o + 1], result.buffer_type),
-                    ),
+                    AttributedChar::new(char::from_u32(data[o] as u32).unwrap(), attribute),
                 );
                 pos.x += 1;
                 o += 2;

@@ -152,12 +152,15 @@ impl OutputFormat for IceDraw {
             }
             while rle_count > 0 {
                 result.layers[0].set_height(pos.y + 1);
+                let mut attribute = TextAttribute::from_u8(attr, result.buffer_type);
+                if attribute.is_bold() {
+                    attribute.set_foreground(attribute.foreground_color + 8);
+                    attribute.set_is_bold(false);
+                }
+
                 result.layers[0].set_char(
                     pos,
-                    AttributedChar::new(
-                        char::from_u32(char_code as u32).unwrap(),
-                        TextAttribute::from_u8(attr, result.buffer_type),
-                    ),
+                    AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute),
                 );
                 advance_pos(x1, x2, &mut pos);
                 rle_count -= 1;

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::{
     cmp::max,
     fs::File,
@@ -167,7 +167,7 @@ impl Buffer {
                 }
             }
         }
-        result.font_count = self.font_count();
+        result.font_count = analyze_font_usage(self).len();
         result.use_extended_colors = self.palette.len() > 16;
 
         result
@@ -186,6 +186,17 @@ impl Buffer {
         }
         self.sauce_data = Some(sauce);
     }
+}
+
+pub fn analyze_font_usage(buf: &Buffer) -> Vec<usize> {
+    let mut hash_set = HashSet::new();
+    for y in 0..buf.get_height() {
+        for x in 0..buf.get_width() {
+            let ch = buf.get_char((x, y));
+            hash_set.insert(ch.get_font_page());
+        }
+    }
+    hash_set.into_iter().collect()
 }
 
 #[derive(Default)]
@@ -718,7 +729,7 @@ impl TextPane for Buffer {
 
         let mut ch_opt = None;
         let mut attr_opt = None;
-
+        let mut font_page = 0;
         for i in (0..self.layers.len()).rev() {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
@@ -733,13 +744,18 @@ impl TextPane for Buffer {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
+            font_page = ch.get_font_page();
             match cur_layer.mode {
                 crate::Mode::Normal => {
                     if ch.is_visible() {
                         return merge(ch, ch_opt, attr_opt);
                     }
                     if !cur_layer.has_alpha_channel {
-                        return merge(AttributedChar::default(), ch_opt, attr_opt);
+                        return merge(
+                            AttributedChar::default().with_font_page(font_page),
+                            ch_opt,
+                            attr_opt,
+                        );
                     }
                 }
                 crate::Mode::Chars => {
@@ -755,11 +771,13 @@ impl TextPane for Buffer {
             }
         }
 
-        if self.is_terminal_buffer {
+        let mut ch = if self.is_terminal_buffer {
             AttributedChar::default()
         } else {
             AttributedChar::invisible()
-        }
+        };
+        ch.attribute.set_font_page(font_page);
+        ch
     }
 
     fn get_line_length(&self, line: i32) -> i32 {

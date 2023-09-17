@@ -45,6 +45,13 @@ impl AttributedChar {
     pub fn set_font_page(&mut self, page: usize) {
         self.attribute.set_font_page(page);
     }
+
+    pub(crate) fn with_font_page(&self, font_page: usize) -> AttributedChar {
+        AttributedChar {
+            ch: self.ch,
+            attribute: self.attribute.with_font_page(font_page),
+        }
+    }
 }
 
 impl PartialEq for AttributedChar {
