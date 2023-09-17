@@ -188,7 +188,8 @@ impl OutputFormat for IcyDraw {
 
             if matches!(layer.role, crate::Role::Image) {
                 let sixel = &layer.sixels[0];
-                let len = 16 + sixel.picture_data.len() as u64;
+                let header_size = 16;
+                let len = header_size + sixel.picture_data.len() as u64;
 
                 let mut bytes_written = MAX.min(len);
                 result.extend(u64::to_le_bytes(bytes_written));
@@ -197,7 +198,7 @@ impl OutputFormat for IcyDraw {
                 result.extend(i32::to_le_bytes(sixel.get_height()));
                 result.extend(i32::to_le_bytes(sixel.vertical_scale));
                 result.extend(i32::to_le_bytes(sixel.horizontal_scale));
-                bytes_written -= 16;
+                bytes_written -= header_size;
                 result.extend(&sixel.picture_data[0..bytes_written as usize]);
                 let layer_data = general_purpose::STANDARD.encode(&result);
                 if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
@@ -205,11 +206,14 @@ impl OutputFormat for IcyDraw {
                 }
 
                 let mut chunk = 1;
+                let len = sixel.picture_data.len() as u64;
                 while len > bytes_written {
                     let next_bytes = MAX.min(len - bytes_written);
-                    let layer_data = general_purpose::STANDARD
-                        .encode(&sixel.picture_data[bytes_written as usize..next_bytes as usize]);
-                    bytes_written = next_bytes;
+                    let layer_data = general_purpose::STANDARD.encode(
+                        &sixel.picture_data[bytes_written as usize
+                            ..(bytes_written as usize + next_bytes as usize)],
+                    );
+                    bytes_written += next_bytes;
                     if let Err(err) =
                         encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data)
                     {
