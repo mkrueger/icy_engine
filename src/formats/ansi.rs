@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
-    parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat, TextPane, DOS_DEFAULT_PALETTE,
+    parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat, TextPane, DOS_DEFAULT_PALETTE, analyze_font_usage,
 };
 use crate::{Position, TextAttribute};
 
@@ -103,6 +103,15 @@ impl StringGenerator {
         let mut first_char = true;
         let mut cur_font_page = 0;
         self.last_line_break = 0;
+
+        let used_fonts = analyze_font_usage(buf);
+        for font_slot in used_fonts {
+            if font_slot >= 100 {
+                if let Some(font) =  buf.get_font(font_slot) {
+                    result.extend_from_slice(&font.encode_as_ansi(font_slot));
+                }
+            }
+        }
 
         while pos.y < height {
             let mut line_length =
