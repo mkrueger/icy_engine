@@ -108,7 +108,7 @@ impl StringGenerator {
         for font_slot in used_fonts {
             if font_slot >= 100 {
                 if let Some(font) =  buf.get_font(font_slot) {
-                    result.extend_from_slice(&font.encode_as_ansi(font_slot));
+                    result.extend_from_slice(font.encode_as_ansi(font_slot).as_bytes());
                 }
             }
         }

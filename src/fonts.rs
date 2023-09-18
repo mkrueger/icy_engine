@@ -323,16 +323,11 @@ impl BitFont {
         font
     }
 
-    pub fn encode_as_ansi(&self, font_slot: usize) -> Vec<u8> {
-        let mut res = Vec::new();
-        res.extend(b"\x1BPCTerm:Font:");
-        res.extend(font_slot.to_string().as_bytes());
-        res.push(b':');
+    pub fn encode_as_ansi(&self, font_slot: usize) -> String {
         let mut font_data = Vec::new();
         self.convert_to_u8_data(&mut font_data);
-        res.extend(general_purpose::STANDARD.encode(font_data).as_bytes());
-        res.extend(b"\x1B\\");
-        res
+        let data = general_purpose::STANDARD.encode(font_data);
+        format!("\x1BPCTerm:Font:{font_slot}:{data}\x1B\\")
     
     }
 }
