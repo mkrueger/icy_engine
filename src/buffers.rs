@@ -381,7 +381,6 @@ impl Buffer {
     pub fn set_size(&mut self, size: impl Into<Size>) {
         let size = size.into();
         self.terminal_state.set_size(size);
-
     }
 
     pub fn set_width(&mut self, width: i32) {

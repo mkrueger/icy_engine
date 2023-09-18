@@ -328,7 +328,6 @@ impl BitFont {
         self.convert_to_u8_data(&mut font_data);
         let data = general_purpose::STANDARD.encode(font_data);
         format!("\x1BPCTerm:Font:{font_slot}:{data}\x1B\\")
-    
     }
 }
 

@@ -2,7 +2,8 @@ use std::path::Path;
 
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
-    parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat, TextPane, DOS_DEFAULT_PALETTE, analyze_font_usage,
+    analyze_font_usage, parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat, TextPane,
+    DOS_DEFAULT_PALETTE,
 };
 use crate::{Position, TextAttribute};
 
@@ -107,7 +108,7 @@ impl StringGenerator {
         let used_fonts = analyze_font_usage(buf);
         for font_slot in used_fonts {
             if font_slot >= 100 {
-                if let Some(font) =  buf.get_font(font_slot) {
+                if let Some(font) = buf.get_font(font_slot) {
                     result.extend_from_slice(font.encode_as_ansi(font_slot).as_bytes());
                 }
             }

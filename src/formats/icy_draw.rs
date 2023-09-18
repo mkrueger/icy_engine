@@ -4,8 +4,8 @@ use base64::{engine::general_purpose, Engine};
 use regex::Regex;
 
 use crate::{
-    attribute, BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Position,
-    SauceData, SauceFileType, SaveOptions, Sixel, Size, TextPane,
+    attribute, BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Palette,
+    Position, SauceData, SauceFileType, SaveOptions, Sixel, Size, TextPane,
 };
 
 mod constants {
@@ -92,26 +92,7 @@ impl OutputFormat for IcyDraw {
         }
 
         if !buf.palette.is_default() {
-            let mut pal_data: Vec<u8> = Vec::new();
-            pal_data.extend(u32::to_le_bytes(buf.palette.len() as u32));
-            write_utf8_encoded_string(&mut pal_data, &buf.palette.title);
-            write_utf8_encoded_string(&mut pal_data, &buf.palette.author);
-            write_utf8_encoded_string(&mut pal_data, &buf.palette.description);
-
-            for col in buf.palette.color_iter() {
-                let rgb = col.clone().get_rgb();
-                if let Some(name) = &col.name {
-                    write_utf8_encoded_string(&mut pal_data, name);
-                } else {
-                    write_utf8_encoded_string(&mut pal_data, "");
-                }
-
-                pal_data.push(rgb.0);
-                pal_data.push(rgb.1);
-                pal_data.push(rgb.2);
-                pal_data.push(0xFF); // so far only solid colors are supported
-            }
-
+            let pal_data = buf.palette.export_palette(&crate::PaletteFormat::Ice);
             let palette_data = general_purpose::STANDARD.encode(&pal_data);
             if let Err(err) = encoder.add_ztxt_chunk("PALETTE".to_string(), palette_data) {
                 return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
@@ -421,37 +402,8 @@ impl OutputFormat for IcyDraw {
                                 }
 
                                 "PALETTE" => {
-                                    result.palette.clear();
-                                    let mut colors =
-                                        u32::from_le_bytes(bytes[0..4].try_into().unwrap());
-                                    let mut o: usize = 4;
-
-                                    let (title, size) = read_utf8_encoded_string(&bytes[o..]);
-                                    o += size;
-                                    result.palette.title = title;
-                                    let (author, size) = read_utf8_encoded_string(&bytes[o..]);
-                                    o += size;
-                                    result.palette.author = author;
-                                    let (description, size) = read_utf8_encoded_string(&bytes[o..]);
-                                    o += size;
-                                    result.palette.description = description;
-
-                                    while colors > 0 {
-                                        let (name, size) = read_utf8_encoded_string(&bytes[o..]);
-                                        o += size;
-                                        let red = bytes[o];
-                                        o += 1;
-                                        let green = bytes[o];
-                                        o += 1;
-                                        let blue = bytes[o];
-                                        o += 2; // skip alpha
-                                        let mut c = Color::new(red, green, blue);
-                                        if !name.is_empty() {
-                                            c.name = Some(name);
-                                        }
-                                        result.palette.push(c);
-                                        colors -= 1;
-                                    }
+                                    result.palette =
+                                        Palette::load_palette(&crate::PaletteFormat::Ice, &bytes)?;
                                 }
 
                                 "SAUCE" => {

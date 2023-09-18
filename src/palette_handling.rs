@@ -133,6 +133,7 @@ impl From<Color> for [f32; 3] {
 }
 
 pub enum PaletteFormat {
+    Ice,
     Hex,
     Pal,
     Gpl,
@@ -202,7 +203,7 @@ impl Palette {
     pub fn load_palette(format: &PaletteFormat, bytes: &[u8]) -> anyhow::Result<Self> {
         let mut colors = Vec::new();
         let mut title = String::new();
-        let author = String::new();
+        let mut author = String::new();
         let mut description = String::new();
         match format {
             PaletteFormat::Hex => match String::from_utf8(bytes.to_vec()) {
@@ -290,6 +291,65 @@ impl Palette {
                 }
                 Err(err) => return Err(anyhow::anyhow!("Invalid input: {err}")),
             },
+            PaletteFormat::Ice => match String::from_utf8(bytes.to_vec()) {
+                Ok(data) => {
+                    let color_regex =
+                        Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
+                    let palette_name_regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*")?;
+                    let author_regex = Regex::new(r"\s*#Author:\s*(.*)\s*")?;
+                    let description_regex = Regex::new(r"\s*#Description:\s*(.*)\s*")?;
+                    let color_name_regex = Regex::new(r"\s*#Name:\s*(.*)\s*")?;
+                    let mut next_color_name = String::new();
+                    for (i, line) in data.lines().enumerate() {
+                        match i {
+                            0 => {
+                                if line != "ICE Palette" {
+                                    return Err(anyhow::anyhow!(
+                                        "Only ICE Palette supported: {line}"
+                                    ));
+                                }
+                            }
+                            _ => {
+                                if line.starts_with('#') {
+                                    if let Some(cap) = palette_name_regex.captures(line) {
+                                        if let Some(name) = cap.get(1) {
+                                            title = name.as_str().to_string();
+                                        }
+                                    }
+                                    if let Some(cap) = description_regex.captures(line) {
+                                        if let Some(name) = cap.get(1) {
+                                            description = name.as_str().to_string();
+                                        }
+                                    }
+                                    if let Some(cap) = author_regex.captures(line) {
+                                        if let Some(name) = cap.get(1) {
+                                            author = name.as_str().to_string();
+                                        }
+                                    }
+                                    if let Some(cap) = color_name_regex.captures(line) {
+                                        if let Some(name) = cap.get(1) {
+                                            next_color_name = name.as_str().to_string();
+                                        }
+                                    }
+                                } else if let Some(cap) = color_regex.captures(line) {
+                                    let (_, [r, g, b]) = cap.extract();
+                                    let r = u32::from_str_radix(r, 16)?;
+                                    let g = u32::from_str_radix(g, 16)?;
+                                    let b = u32::from_str_radix(b, 16)?;
+                                    let mut col = Color::new(r as u8, g as u8, b as u8);
+                                    if !next_color_name.is_empty() {
+                                        col.name = Some(next_color_name.clone());
+                                        next_color_name.clear();
+                                    }
+                                    colors.push(col);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(err) => return Err(anyhow::anyhow!("Invalid input: {err}")),
+            },
+
             PaletteFormat::Txt => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
                     let color_regex = Regex::new(
@@ -394,6 +454,24 @@ impl Palette {
                     );
                 }
 
+                return res.as_bytes().to_vec();
+            }
+
+            PaletteFormat::Ice => {
+                let mut res = String::new();
+                res.push_str("ICE Palette\n");
+
+                res.push_str(format!("#Palette Name: {}\n", self.title).as_str());
+                res.push_str(format!("#Author: {}\n", self.author).as_str());
+                res.push_str(format!("#Description: {}\n", self.description).as_str());
+                res.push_str(format!("#Colors: {}\n", self.colors.len()).as_str());
+
+                for c in &self.colors {
+                    if let Some(name) = c.name.as_ref() {
+                        res.push_str(format!("#Name: {name}\n").as_str());
+                    }
+                    res.push_str(format!("{:02x}{:02x}{:02x}\n", c.r, c.g, c.b).as_str());
+                }
                 return res.as_bytes().to_vec();
             }
             PaletteFormat::Txt => {
