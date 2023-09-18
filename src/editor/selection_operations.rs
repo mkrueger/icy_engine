@@ -98,11 +98,11 @@ impl EditState {
         if let Some(selection) = self.selection_opt {
             match selection.add_type {
                 AddType::Default | AddType::Add => {
-                    self.selection_mask
-                        .remove_rectangle(selection.as_rectangle());
+                    self.selection_mask.add_rectangle(selection.as_rectangle());
                 }
                 AddType::Subtract => {
-                    self.selection_mask.add_rectangle(selection.as_rectangle());
+                    self.selection_mask
+                        .remove_rectangle(selection.as_rectangle());
                 }
             }
         }
