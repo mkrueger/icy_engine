@@ -18,8 +18,8 @@ mod selection_operations;
 pub use selection_operations::*;
 
 use crate::{
-    ansi, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection,
-    SelectionMask, Shape, TextPane,
+    ansi, overlay_mask::OverlayMask, AttributedChar, Buffer, BufferParser, Caret, EngineResult,
+    Layer, Position, Selection, SelectionMask, Shape, TextPane,
 };
 
 pub struct EditState {
@@ -27,6 +27,7 @@ pub struct EditState {
     caret: Caret,
     selection_opt: Option<Selection>,
     selection_mask: SelectionMask,
+    tool_overlay_mask: OverlayMask,
     parser: Box<dyn BufferParser>,
 
     current_layer: usize,
@@ -92,6 +93,8 @@ impl Default for EditState {
         let buffer = Buffer::default();
         let mut selection_mask = SelectionMask::default();
         selection_mask.set_size(buffer.get_size());
+        let mut tool_overlay_mask = OverlayMask::default();
+        tool_overlay_mask.set_size(buffer.get_size());
 
         Self {
             parser: Box::<ansi::Parser>::default(),
@@ -104,6 +107,7 @@ impl Default for EditState {
             outline_style: 0,
             mirror_mode: false,
             selection_mask,
+            tool_overlay_mask,
             is_palette_dirty: false,
         }
     }
@@ -113,10 +117,13 @@ impl EditState {
     pub fn from_buffer(buffer: Buffer) -> Self {
         let mut selection_mask = SelectionMask::default();
         selection_mask.set_size(buffer.get_size());
+        let mut tool_overlay_mask = OverlayMask::default();
+        tool_overlay_mask.set_size(buffer.get_size());
 
         Self {
             buffer,
             selection_mask,
+            tool_overlay_mask,
             ..Default::default()
         }
     }
@@ -131,7 +138,20 @@ impl EditState {
 
     pub fn set_buffer(&mut self, buffer: Buffer) {
         self.buffer = buffer;
+        self.set_mask_size();
+    }
+
+    pub(crate) fn set_mask_size(&mut self) {
         self.selection_mask.set_size(self.buffer.get_size());
+        self.tool_overlay_mask.set_size(self.buffer.get_size());
+    }
+
+    pub fn get_tool_overlay_mask(&self) -> &OverlayMask {
+        &self.tool_overlay_mask
+    }
+
+    pub fn get_tool_overlay_mask_mut(&mut self) -> &mut OverlayMask {
+        &mut self.tool_overlay_mask
     }
 
     pub fn get_buffer(&self) -> &Buffer {

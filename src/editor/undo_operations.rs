@@ -536,13 +536,13 @@ impl UndoOperation for ResizeBuffer {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.orig_size);
-        edit_state.selection_mask.set_size(self.orig_size);
+        edit_state.set_mask_size();
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.size);
-        edit_state.selection_mask.set_size(self.size);
+        edit_state.set_mask_size();
         Ok(())
     }
 }
@@ -622,14 +622,14 @@ impl UndoOperation for Crop {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.orig_size);
-        edit_state.selection_mask.set_size(self.orig_size);
+        edit_state.set_mask_size();
         mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.get_buffer_mut().set_size(self.size);
-        edit_state.selection_mask.set_size(self.size);
+        edit_state.set_mask_size();
         mem::swap(&mut edit_state.get_buffer_mut().layers, &mut self.layers);
         Ok(())
     }
