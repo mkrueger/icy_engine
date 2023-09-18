@@ -729,7 +729,7 @@ impl TextPane for Buffer {
 
         let mut ch_opt = None;
         let mut attr_opt = None;
-        let mut font_page = 0;
+        let mut default_font_page = 0;
         for i in (0..self.layers.len()).rev() {
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
@@ -744,7 +744,7 @@ impl TextPane for Buffer {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
-            font_page = ch.get_font_page();
+            default_font_page = cur_layer.default_font_page;
             match cur_layer.mode {
                 crate::Mode::Normal => {
                     if ch.is_visible() {
@@ -752,7 +752,7 @@ impl TextPane for Buffer {
                     }
                     if !cur_layer.has_alpha_channel {
                         return merge(
-                            AttributedChar::default().with_font_page(font_page),
+                            AttributedChar::default().with_font_page(default_font_page),
                             ch_opt,
                             attr_opt,
                         );
@@ -776,7 +776,7 @@ impl TextPane for Buffer {
         } else {
             AttributedChar::invisible()
         };
-        ch.attribute.set_font_page(font_page);
+        ch.attribute.set_font_page(default_font_page);
         ch
     }
 

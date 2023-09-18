@@ -915,13 +915,14 @@ mod tests {
     };
 
     use super::IcyDraw;
+    /*
     fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         entry
             .file_name()
             .to_str()
             .map_or(false, |s| s.starts_with('.'))
     }
-    /*
+
                 #[test]
                 fn test_roundtrip() {
                     let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
@@ -993,6 +994,22 @@ mod tests {
              compare_buffers(&mut buf, &mut buf2);
          }
     */
+
+    #[test]
+    fn test_default_font_page() {
+        let mut buf = Buffer::default();
+        buf.layers[0].default_font_page = 12;
+        buf.layers.push(Layer::new("test", (80, 25)));
+        buf.layers[1].default_font_page = 1;
+
+        let draw = IcyDraw::default();
+        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+        let mut buf2 = draw
+            .load_buffer(Path::new("test.icy"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buf, &mut buf2);
+    }
+
     #[test]
     fn test_empty_buffer() {
         let mut buf = Buffer::default();
@@ -1293,6 +1310,11 @@ mod tests {
             assert_eq!(
                 buf_old.layers[layer].has_alpha_channel, buf_new.layers[layer].has_alpha_channel,
                 "layer {layer} has_alpha_channel differs"
+            );
+
+            assert_eq!(
+                buf_old.layers[layer].default_font_page, buf_new.layers[layer].default_font_page,
+                "layer {layer} default_font_page differs"
             );
 
             for line in 0..buf_old.layers[layer].lines.len() {
