@@ -185,11 +185,12 @@ impl OutputFormat for IcyDraw {
 
             result.extend(i32::to_le_bytes(layer.get_width()));
             result.extend(i32::to_le_bytes(layer.get_height()));
+            result.extend(u16::to_le_bytes(layer.default_font_page as u16));
 
             if matches!(layer.role, crate::Role::Image) {
                 let sixel = &layer.sixels[0];
-                let header_size = 16;
-                let len = header_size + sixel.picture_data.len() as u64;
+                let sixel_header_size = 16;
+                let len = sixel_header_size + sixel.picture_data.len() as u64;
 
                 let mut bytes_written = MAX.min(len);
                 result.extend(u64::to_le_bytes(bytes_written));
@@ -198,7 +199,7 @@ impl OutputFormat for IcyDraw {
                 result.extend(i32::to_le_bytes(sixel.get_height()));
                 result.extend(i32::to_le_bytes(sixel.vertical_scale));
                 result.extend(i32::to_le_bytes(sixel.horizontal_scale));
-                bytes_written -= header_size;
+                bytes_written -= sixel_header_size;
                 result.extend(&sixel.picture_data[0..bytes_written as usize]);
                 let layer_data = general_purpose::STANDARD.encode(&result);
                 if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
@@ -231,7 +232,8 @@ impl OutputFormat for IcyDraw {
                     if result.len() as u64 + layer.get_width() as u64 * 16 > MAX {
                         break;
                     }
-                    for x in 0..layer.get_width() {
+                    let real_length = get_invisible_line_length(layer, y);
+                    for x in 0..real_length {
                         let ch = layer.get_char((x, y));
                         let mut attr = ch.attribute.attr;
 
@@ -248,7 +250,6 @@ impl OutputFormat for IcyDraw {
                         };
 
                         result.extend(u16::to_le_bytes(attr));
-                        result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                         if !ch.is_visible() {
                             continue;
                         }
@@ -257,11 +258,16 @@ impl OutputFormat for IcyDraw {
                             result.push(ch.ch as u8);
                             result.push(ch.attribute.foreground_color as u8);
                             result.push(ch.attribute.background_color as u8);
+                            result.push(ch.attribute.font_page as u8);
                         } else {
                             result.extend(u32::to_le_bytes(ch.ch as u32));
                             result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
                             result.extend(u32::to_le_bytes(ch.attribute.background_color));
+                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                         }
+                    }
+                    if layer.get_width() > real_length {
+                        result.extend(u16::to_le_bytes(attribute::INVISIBLE_SHORT));
                     }
                     y += 1;
                 }
@@ -279,8 +285,9 @@ impl OutputFormat for IcyDraw {
                         if result.len() as u64 + layer.get_width() as u64 * 16 > MAX {
                             break;
                         }
+                        let real_length = get_invisible_line_length(layer, y);
 
-                        for x in 0..layer.get_width() {
+                        for x in 0..real_length {
                             let ch = layer.get_char((x, y));
                             let mut attr = ch.attribute.attr;
 
@@ -297,7 +304,6 @@ impl OutputFormat for IcyDraw {
                             };
 
                             result.extend(u16::to_le_bytes(attr));
-                            result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                             if !ch.is_visible() {
                                 continue;
                             }
@@ -305,11 +311,16 @@ impl OutputFormat for IcyDraw {
                                 result.push(ch.ch as u8);
                                 result.push(ch.attribute.foreground_color as u8);
                                 result.push(ch.attribute.background_color as u8);
+                                result.push(ch.attribute.font_page as u8);
                             } else {
                                 result.extend(u32::to_le_bytes(ch.ch as u32));
                                 result.extend(u32::to_le_bytes(ch.attribute.foreground_color));
                                 result.extend(u32::to_le_bytes(ch.attribute.background_color));
+                                result.extend(u16::to_le_bytes(ch.attribute.font_page as u16));
                             }
+                        }
+                        if layer.get_width() > real_length {
+                            result.extend(u16::to_le_bytes(attribute::INVISIBLE_SHORT));
                         }
                         y += 1;
                     }
@@ -495,12 +506,11 @@ impl OutputFormat for IcyDraw {
                                                         )
                                                             as u16;
                                                         o += 2;
-                                                        let font_page = u16::from_le_bytes(
-                                                            bytes[o..(o + 2)].try_into().unwrap(),
-                                                        )
-                                                            as u16;
-                                                        o += 2;
-
+                                                        if attr == crate::attribute::INVISIBLE_SHORT
+                                                        {
+                                                            // end of line
+                                                            break;
+                                                        }
                                                         let is_short = if (attr
                                                             & attribute::SHORT_DATA)
                                                             == 0
@@ -511,13 +521,7 @@ impl OutputFormat for IcyDraw {
                                                             true
                                                         };
                                                         if attr == crate::attribute::INVISIBLE {
-                                                            layer.set_char(
-                                                                (x, y),
-                                                                crate::AttributedChar::invisible()
-                                                                    .with_font_page(
-                                                                        font_page as usize,
-                                                                    ),
-                                                            );
+                                                            // default char
                                                             continue;
                                                         }
 
@@ -527,6 +531,8 @@ impl OutputFormat for IcyDraw {
                                                             let fg = bytes[o] as u32;
                                                             o += 1;
                                                             let bg = bytes[o] as u32;
+                                                            o += 1;
+                                                            let font_page = bytes[o] as u16;
                                                             o += 1;
                                                             (ch, fg, bg, font_page)
                                                         } else {
@@ -551,7 +557,13 @@ impl OutputFormat for IcyDraw {
                                                             )
                                                                 as u32;
                                                             o += 4;
-
+                                                            let font_page = u16::from_le_bytes(
+                                                                bytes[o..(o + 2)]
+                                                                    .try_into()
+                                                                    .unwrap(),
+                                                            )
+                                                                as u16;
+                                                            o += 2;
                                                             (ch, fg, bg, font_page)
                                                         };
 
@@ -647,6 +659,11 @@ impl OutputFormat for IcyDraw {
                                             as i32;
                                     o += 4;
                                     layer.set_size((width, height));
+                                    let default_font_page =
+                                        u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap())
+                                            as u16;
+                                    o += 2;
+                                    layer.default_font_page = default_font_page as usize;
 
                                     let length =
                                         u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap())
@@ -696,7 +713,7 @@ impl OutputFormat for IcyDraw {
                                                 break;
                                             }
                                             for x in 0..width {
-                                                if o + 4 > bytes.len() {
+                                                if o + 2 > bytes.len() {
                                                     return Err(anyhow::anyhow!(
                                                         "data length out ouf bounds"
                                                     ));
@@ -706,11 +723,11 @@ impl OutputFormat for IcyDraw {
                                                 )
                                                     as u16;
                                                 o += 2;
-                                                let font_page = u16::from_le_bytes(
-                                                    bytes[o..(o + 2)].try_into().unwrap(),
-                                                )
-                                                    as u16;
-                                                o += 2;
+                                                if attr == crate::attribute::INVISIBLE_SHORT {
+                                                    // end of line
+                                                    break;
+                                                }
+
                                                 let is_short =
                                                     if (attr & attribute::SHORT_DATA) == 0 {
                                                         false
@@ -720,11 +737,7 @@ impl OutputFormat for IcyDraw {
                                                     };
 
                                                 if attr == crate::attribute::INVISIBLE {
-                                                    layer.set_char(
-                                                        (x, y),
-                                                        crate::AttributedChar::invisible()
-                                                            .with_font_page(font_page as usize),
-                                                    );
+                                                    // default char
                                                     continue;
                                                 }
 
@@ -741,9 +754,11 @@ impl OutputFormat for IcyDraw {
                                                     o += 1;
                                                     let bg = bytes[o] as u32;
                                                     o += 1;
+                                                    let font_page = bytes[o] as u16;
+                                                    o += 1;
                                                     (ch, fg, bg, font_page)
                                                 } else {
-                                                    if o + 12 >= bytes.len() {
+                                                    if o + 14 > bytes.len() {
                                                         return Err(anyhow::anyhow!(
                                                             "data length out ouf bounds"
                                                         ));
@@ -765,6 +780,11 @@ impl OutputFormat for IcyDraw {
                                                         as u32;
                                                     o += 4;
 
+                                                    let font_page = u16::from_le_bytes(
+                                                        bytes[o..(o + 2)].try_into().unwrap(),
+                                                    )
+                                                        as u16;
+                                                    o += 2;
                                                     (ch, fg, bg, font_page)
                                                 };
 
@@ -817,6 +837,14 @@ impl OutputFormat for IcyDraw {
 
         Ok(result)
     }
+}
+
+fn get_invisible_line_length(layer: &Layer, y: i32) -> i32 {
+    let mut length = layer.get_width();
+    while length > 0 && !layer.get_char((length - 1, y)).is_visible() {
+        length -= 1;
+    }
+    length
 }
 
 fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
@@ -887,65 +915,63 @@ mod tests {
     };
 
     use super::IcyDraw;
+    fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+        entry
+            .file_name()
+            .to_str()
+            .map_or(false, |s| s.starts_with('.'))
+    }
     /*
-        fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-            entry
-                .file_name()
-                .to_str()
-                .map_or(false, |s| s.starts_with('.'))
-        }
+                #[test]
+                fn test_roundtrip() {
+                    let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
+                    let mut num = 0;
 
-            #[test]
-            fn test_roundtrip() {
-                let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
-                let mut num = 0;
+                    for entry in walker.filter_entry(|e| !is_hidden(e)) {
+                        let entry = entry.unwrap();
+                        let path = entry.path();
 
-                for entry in walker.filter_entry(|e| !is_hidden(e)) {
-                    let entry = entry.unwrap();
-                    let path = entry.path();
+                        if path.is_dir() {
+                            continue;
+                        }
+                        let extension = path.extension();
+                        if extension.is_none() {
+                            continue;
+                        }
+                        let extension = extension.unwrap().to_str();
+                        if extension.is_none() {
+                            continue;
+                        }
+                        let extension = extension.unwrap().to_lowercase();
 
-                    if path.is_dir() {
-                        continue;
-                    }
-                    let extension = path.extension();
-                    if extension.is_none() {
-                        continue;
-                    }
-                    let extension = extension.unwrap().to_str();
-                    if extension.is_none() {
-                        continue;
-                    }
-                    let extension = extension.unwrap().to_lowercase();
-
-                    let mut found = false;
-                    for format in &*crate::FORMATS {
-                        if format.get_file_extension() == extension
-                            || format.get_alt_extensions().contains(&extension)
-                        {
-                            found = true;
+                        let mut found = false;
+                        for format in &*crate::FORMATS {
+                            if format.get_file_extension() == extension
+                                || format.get_alt_extensions().contains(&extension)
+                            {
+                                found = true;
+                            }
+                        }
+                        if !found {
+                            continue;
+                        }
+                        num += 1;/*
+                        if num < 53430 {
+                            println!("skipping {num}:{path:?}");
+                            continue;
+                        }*/
+    println!("testing {num}:{path:?}");
+                        if let Ok(mut buf) = Buffer::load_buffer(path, true) {
+                            let draw = IcyDraw::default();
+                            let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
+                            let mut buf2 = draw
+                                .load_buffer(Path::new("test.icy"), &bytes, None)
+                                .unwrap();
+                            compare_buffers(&mut buf, &mut buf2);
                         }
                     }
-                    if !found {
-                        continue;
-                    }
-                    num += 1;/*
-                    if num < 53430 {
-                        println!("skipping {num}:{path:?}");
-                        continue;
-                    }*/
-                    println!("testing {num}:{path:?}");
-                    if let Ok(mut buf) = Buffer::load_buffer(path, true) {
-                        let draw = IcyDraw::default();
-                        let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-                        let mut buf2 = draw
-                            .load_buffer(Path::new("test.icy"), &bytes, None)
-                            .unwrap();
-                        compare_buffers(&mut buf, &mut buf2);
-                    }
                 }
-            }
     */
-
     /*
          #[test]
          fn test_single() {

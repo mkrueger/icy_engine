@@ -39,6 +39,10 @@ pub struct Layer {
     pub is_alpha_channel_locked: bool,
     pub has_alpha_channel: bool,
 
+    // Font page "default" chars are generated with
+    // (needed for font mapping)
+    pub default_font_page: usize,
+
     pub color: Option<Color>,
 
     pub mode: Mode,
@@ -136,7 +140,7 @@ impl TextPane for Layer {
     fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
-            return AttributedChar::invisible();
+            return AttributedChar::invisible().with_font_page(self.default_font_page);
         }
         let y = pos.y;
         if y < self.lines.len() as i32 {
@@ -145,7 +149,7 @@ impl TextPane for Layer {
                 return cur_line.chars[pos.x as usize];
             }
         }
-        AttributedChar::invisible()
+        AttributedChar::invisible().with_font_page(self.default_font_page)
     }
 
     fn get_line_count(&self) -> i32 {

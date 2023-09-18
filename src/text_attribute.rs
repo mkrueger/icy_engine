@@ -18,6 +18,9 @@ pub mod attribute {
     /// This is a special attribute that is used to indicate that the character data
     /// can be represented as u8. For loading & saving only.
     pub const SHORT_DATA: u16 = 0b0100_0000_0000_0000;
+
+    // Flag for loading indicating end of line
+    pub const INVISIBLE_SHORT: u16 = 0b1100_0000_0000_0000;
 }
 
 #[derive(Clone, Copy)]
