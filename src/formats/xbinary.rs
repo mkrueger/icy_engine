@@ -60,6 +60,10 @@ impl OutputFormat for XBin {
             return Err(anyhow::anyhow!("File needs 1st font to be 256 chars long."));
         }
 
+        if fonts.len() > 2 {
+            return Err(anyhow::anyhow!("Only up to 2 fonts are supported by this format."));
+        }
+
         if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
             return Err(SavingError::InvalidXBinFont.into());
         }
@@ -72,6 +76,7 @@ impl OutputFormat for XBin {
         if !buf.palette.is_default() {
             flags |= FLAG_PALETTE;
         }
+
         if options.compression_level != CompressionLevel::Off {
             flags |= FLAG_COMPRESS;
         }
@@ -80,7 +85,7 @@ impl OutputFormat for XBin {
             flags |= FLAG_NON_BLINK_MODE;
         }
 
-        if buf.buffer_type.use_extended_font() {
+        if fonts.len() == 2 {
             flags |= FLAG_512CHAR_MODE;
         }
 
@@ -112,15 +117,15 @@ impl OutputFormat for XBin {
             }
         }
         match options.compression_level {
-            CompressionLevel::Medium => compress_greedy(&mut result, buf, buf.buffer_type, &fonts),
-            CompressionLevel::High => compress_backtrack(&mut result, buf, buf.buffer_type, &fonts),
+            CompressionLevel::Medium => compress_greedy(&mut result, buf, &fonts),
+            CompressionLevel::High => compress_backtrack(&mut result, buf, &fonts),
             CompressionLevel::Off => {
                 for y in 0..buf.get_line_count() {
                     for x in 0..buf.get_width() {
                         let ch = buf.get_char((x, y));
 
                         result.push(ch.ch as u8);
-                        result.push(encode_attr(ch, buf.buffer_type, &fonts));
+                        result.push(encode_attr(ch, &fonts));
                     }
                 }
             }
@@ -174,19 +179,11 @@ impl OutputFormat for XBin {
         let use_ice = (flags & FLAG_NON_BLINK_MODE) == FLAG_NON_BLINK_MODE;
         let extended_char_mode = (flags & FLAG_512CHAR_MODE) == FLAG_512CHAR_MODE;
 
-        if extended_char_mode {
-            result.buffer_type = if use_ice {
-                BufferType::ExtendedFontAndIce
-            } else {
-                BufferType::ExtendedFont
-            };
+        result.buffer_type = if use_ice {
+            BufferType::LegacyIce
         } else {
-            result.buffer_type = if use_ice {
-                BufferType::LegacyIce
-            } else {
-                BufferType::LegacyDos
-            };
-        }
+            BufferType::LegacyDos
+        };
 
         if has_custom_palette {
             result.palette = Palette::from(&data[o..(o + 48)]);
@@ -209,9 +206,9 @@ impl OutputFormat for XBin {
             }
         }
         if is_compressed {
-            read_data_compressed(&mut result, &data[o..])?;
+            read_data_compressed(&mut result, &data[o..], extended_char_mode)?;
         } else {
-            read_data_uncompressed(&mut result, &data[o..])?;
+            read_data_uncompressed(&mut result, &data[o..], extended_char_mode)?;
         }
         crate::crop_loaded_file(&mut result);
 
@@ -228,7 +225,7 @@ fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     true
 }
 
-fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
+fn read_data_compressed(result: &mut Buffer, bytes: &[u8], extended_char_mode: bool) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
@@ -249,7 +246,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                     let attribute = bytes[o + 1];
                     o += 2;
                     result.layers[0]
-                        .set_char(pos, decode_char(char_code, attribute, result.buffer_type));
+                        .set_char(pos, decode_char(char_code, attribute, extended_char_mode));
 
                     if !advance_pos(result, &mut pos) {
                         return Err(LoadingError::OutOfBounds.into());
@@ -266,7 +263,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                     }
 
                     result.layers[0]
-                        .set_char(pos, decode_char(char_code, bytes[o], result.buffer_type));
+                        .set_char(pos, decode_char(char_code, bytes[o], extended_char_mode));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
                         return Err(LoadingError::OutOfBounds.into());
@@ -282,7 +279,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                         break;
                     }
                     result.layers[0]
-                        .set_char(pos, decode_char(bytes[o], attribute, result.buffer_type));
+                        .set_char(pos, decode_char(bytes[o], attribute, extended_char_mode));
                     o += 1;
                     if !advance_pos(result, &mut pos) {
                         return Err(LoadingError::OutOfBounds.into());
@@ -298,7 +295,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
                 }
                 let attr = bytes[o];
                 o += 1;
-                let rep_ch = decode_char(char_code, attr, result.buffer_type);
+                let rep_ch = decode_char(char_code, attr, extended_char_mode);
 
                 for _ in 0..repeat_counter {
                     result.layers[0].set_char(pos, rep_ch);
@@ -313,10 +310,10 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
     Ok(true)
 }
 
-fn decode_char(char_code: u8, attr: u8, buffer_type: BufferType) -> AttributedChar {
-    let mut attribute = TextAttribute::from_u8(attr, buffer_type);
+fn decode_char(char_code: u8, attr: u8, extended_char_mode: bool) -> AttributedChar {
+    let mut attribute = TextAttribute::from_u8(attr, BufferType::LegacyDos);
     if attribute.is_bold() {
-        if buffer_type.use_extended_font() {
+        if extended_char_mode {
             attribute.set_font_page(1);
         } else {
             attribute.set_foreground(attribute.foreground_color + 8);
@@ -326,20 +323,20 @@ fn decode_char(char_code: u8, attr: u8, buffer_type: BufferType) -> AttributedCh
     AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)
 }
 
-fn encode_attr(ch: AttributedChar, buffer_type: BufferType, fonts: &[usize]) -> u8 {
-    if buffer_type.use_extended_font() {
-        (ch.attribute.as_u8(buffer_type) & 0b_1111_0111)
+fn encode_attr(ch: AttributedChar, fonts: &[usize]) -> u8 {
+    if fonts.len() == 2 {
+        (ch.attribute.as_u8(BufferType::LegacyDos) & 0b_1111_0111)
             | if ch.attribute.font_page == fonts[1] {
                 0b1000
             } else {
                 0
             }
     } else {
-        ch.attribute.as_u8(buffer_type)
+        ch.attribute.as_u8(BufferType::LegacyDos)
     }
 }
 
-fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
+fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], extended_char_mode: bool) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
@@ -349,7 +346,7 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<boo
             log::error!("Invalid XBin. Read char block beyond EOF.");
             return Ok(true);
         }
-        result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], result.buffer_type));
+        result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], extended_char_mode));
         o += 2;
         if !advance_pos(result, &mut pos) {
             return Err(LoadingError::OutOfBounds.into());
@@ -362,7 +359,6 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<boo
 fn compress_greedy(
     outputdata: &mut Vec<u8>,
     buffer: &Buffer,
-    buffer_type: BufferType,
     fonts: &[usize],
 ) {
     let mut run_mode = Compression::Off;
@@ -432,10 +428,10 @@ fn compress_greedy(
             match run_mode {
                 Compression::Off => {
                     run_buf.push(cur.ch as u8);
-                    run_buf.push(encode_attr(cur, buffer_type, fonts));
+                    run_buf.push(encode_attr(cur, fonts));
                 }
                 Compression::Char => {
-                    run_buf.push(encode_attr(cur, buffer_type, fonts));
+                    run_buf.push(encode_attr(cur, fonts));
                 }
                 Compression::Attr => {
                     run_buf.push(cur.ch as u8);
@@ -461,11 +457,11 @@ fn compress_greedy(
             }
 
             if let Compression::Attr = run_mode {
-                run_buf.push(encode_attr(cur, buffer_type, fonts));
+                run_buf.push(encode_attr(cur, fonts));
                 run_buf.push(cur.ch as u8);
             } else {
                 run_buf.push(cur.ch as u8);
-                run_buf.push(encode_attr(cur, buffer_type, fonts));
+                run_buf.push(encode_attr(cur, fonts));
             }
 
             run_ch = cur;
@@ -582,7 +578,6 @@ fn count_length(
 fn compress_backtrack(
     outputdata: &mut Vec<u8>,
     buffer: &Buffer,
-    buffer_type: BufferType,
     fonts: &[usize],
 ) {
     let mut run_mode = Compression::Off;
@@ -685,10 +680,10 @@ fn compress_backtrack(
             match run_mode {
                 Compression::Off => {
                     run_buf.push(cur.ch as u8);
-                    run_buf.push(encode_attr(cur, buffer_type, fonts));
+                    run_buf.push(encode_attr(cur, fonts));
                 }
                 Compression::Char => {
-                    run_buf.push(encode_attr(cur, buffer_type, fonts));
+                    run_buf.push(encode_attr(cur, fonts));
                 }
                 Compression::Attr => {
                     run_buf.push(cur.ch as u8);
@@ -714,11 +709,11 @@ fn compress_backtrack(
             }
 
             if let Compression::Attr = run_mode {
-                run_buf.push(encode_attr(cur, buffer_type, fonts));
+                run_buf.push(encode_attr(cur, fonts));
                 run_buf.push(cur.ch as u8);
             } else {
                 run_buf.push(cur.ch as u8);
-                run_buf.push(encode_attr(cur, buffer_type, fonts));
+                run_buf.push(encode_attr(cur, fonts));
             }
 
             run_ch = cur;

@@ -94,10 +94,14 @@ impl OutputFormat for PCBoard {
             }
         };
          */
+        let (text, is_unicode) = crate::convert_ansi_to_utf8(data);
+        if is_unicode {
+            result.buffer_type = crate::BufferType::Unicode;
+        }
         parse_with_parser(
             &mut result,
             &mut parsers::pcboard::Parser::default(),
-            data,
+            &text,
             true,
         )?;
         Ok(result)

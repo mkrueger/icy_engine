@@ -69,8 +69,11 @@ impl OutputFormat for Ansi {
         }
         let mut parser = parsers::ansi::Parser::default();
         parser.bs_is_ctrl_char = false;
-
-        parse_with_parser(&mut result, &mut parser, data, true)?;
+        let (text, is_unicode) = crate::convert_ansi_to_utf8(data);
+        if is_unicode {
+            result.buffer_type = crate::BufferType::Unicode;
+        }
+        parse_with_parser(&mut result, &mut parser, &text, true)?;
         Ok(result)
     }
 }
@@ -85,8 +88,15 @@ pub struct StringGenerator {
 impl StringGenerator {
     pub fn new(options: SaveOptions) -> Self {
         let max_output_line_length = options.output_line_length.unwrap_or(usize::MAX);
+        let mut output =  Vec::new();
+
+        if options.modern_terminal_output {
+            // write UTF-8 BOM as unicode indicator.
+            output.extend([0xEF, 0xBB, 0xBF]);
+        }
+
         Self {
-            output: Vec::new(),
+            output,
             options,
             last_line_break: 0,
             max_output_line_length,

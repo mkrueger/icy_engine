@@ -146,7 +146,7 @@ lazy_static::lazy_static! {
 pub fn parse_with_parser(
     result: &mut Buffer,
     interpreter: &mut dyn BufferParser,
-    bytes: &[u8],
+    text: &str,
     skip_errors: bool,
 ) -> EngineResult<()> {
     result.layers[0].lines.clear();
@@ -155,12 +155,10 @@ pub fn parse_with_parser(
         caret.set_ice_mode(sauce.use_ice);
     }
 
-    for b in bytes {
-        if let Some(ch) = char::from_u32(*b as u32) {
-            let res = interpreter.print_char(result, 0, &mut caret, ch);
-            if !skip_errors && res.is_err() {
-                res?;
-            }
+    for ch in text.chars() {
+        let res = interpreter.print_char(result, 0, &mut caret, ch);
+        if !skip_errors && res.is_err() {
+            res?;
         }
     }
 
@@ -375,4 +373,20 @@ mod tests {
         let data = b"\x1B[0;1;33;45mA";
         test_ansi(data);
     }
+}
+
+pub fn convert_ansi_to_utf8(data: &[u8]) -> (String, bool) {
+    if data.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        if let Ok(result) = String::from_utf8(data.to_vec()) {
+            return (result, true);
+        }
+    }
+
+    // interpret CP437
+    let mut result = String::new();
+    for ch in data {
+        let ch = *ch as char;
+        result.push(ch);
+    }
+    (result, false)
 }

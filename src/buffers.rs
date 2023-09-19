@@ -19,48 +19,29 @@ use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
 pub enum BufferType {
     /// 16 fg colors, 8 bg colors, blink
     LegacyDos,
-    // 16 fg + bg colors, no blink
+    /// 16 fg + bg colors, no blink
     LegacyIce,
-    // 256 Colors, has blink
-    ExtendedColors,
-    /// 7 fg colors, 7 bg colors, blink + extended font
-    ExtendedFont,
-    /// 7 fg colors, 16 bg colors + extended font
-    ExtendedFontAndIce, // 0-7 fg, 0-15 bg + extended font
-    // free colors, blink + extended font
+    /// free colors, blink
     NoLimits,
+    /// Like no limits but with unicode font
+    Unicode
 }
 
 impl BufferType {
-    pub fn use_extended_font(self) -> bool {
-        self == BufferType::ExtendedFont || self == BufferType::ExtendedFontAndIce
-    }
-
     pub fn use_ice_colors(self) -> bool {
-        self == BufferType::LegacyIce || self == BufferType::ExtendedFontAndIce
-    }
-
-    pub fn has_extended_colors(self) -> bool {
-        self == BufferType::ExtendedColors || self == BufferType::NoLimits
+        self == BufferType::LegacyIce
     }
 
     pub fn has_rgb_colors(self) -> bool {
-        self == BufferType::NoLimits
-    }
-
-    pub fn has_high_fg_colors(self) -> bool {
-        self != BufferType::ExtendedFontAndIce && self != BufferType::ExtendedFont
+        self == BufferType::NoLimits || self == BufferType::Unicode
     }
 
     pub fn has_high_bg_colors(self) -> bool {
-        self != BufferType::LegacyDos && self != BufferType::ExtendedFont
+        self != BufferType::LegacyDos
     }
 
     pub fn has_blink(self) -> bool {
-        self == BufferType::LegacyDos
-            || self == BufferType::ExtendedColors
-            || self == BufferType::ExtendedFont
-            || self == BufferType::NoLimits
+        self != BufferType::LegacyIce
     }
 
     pub fn from_byte(b: u8) -> Self {
@@ -68,9 +49,7 @@ impl BufferType {
             0 => BufferType::NoLimits,
             1 => BufferType::LegacyDos,
             2 => BufferType::LegacyIce,
-            3 => BufferType::ExtendedColors,
-            4 => BufferType::ExtendedFont,
-            5 => BufferType::ExtendedFontAndIce,
+            3 => BufferType::Unicode,
             _ => todo!(),
         }
     }
@@ -80,9 +59,7 @@ impl BufferType {
             BufferType::NoLimits => 0,
             BufferType::LegacyDos => 1,
             BufferType::LegacyIce => 2,
-            BufferType::ExtendedColors => 3,
-            BufferType::ExtendedFont => 4,
-            BufferType::ExtendedFontAndIce => 5,
+            BufferType::Unicode => 3,
         }
     }
 }

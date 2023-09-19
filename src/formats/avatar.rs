@@ -133,10 +133,14 @@ impl OutputFormat for Avatar {
         if let Some(sauce) = sauce_opt {
             result.set_sauce(sauce);
         }
+        let (text, is_unicode) = crate::convert_ansi_to_utf8(data);
+        if is_unicode {
+            result.buffer_type = crate::BufferType::Unicode;
+        }
         parse_with_parser(
             &mut result,
             &mut parsers::avatar::Parser::default(),
-            data,
+            &text,
             true,
         )?;
         Ok(result)
