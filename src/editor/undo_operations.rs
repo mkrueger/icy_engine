@@ -1281,10 +1281,6 @@ impl UndoOperation for SwitchPalettte {
         fl!(crate::LANGUAGE_LOADER, "undo-switch_palette")
     }
 
-    fn changes_data(&self) -> bool {
-        false
-    }
-
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         mem::swap(&mut edit_state.get_buffer_mut().palette, &mut self.pal);
         edit_state.is_palette_dirty = true;
