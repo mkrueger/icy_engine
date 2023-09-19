@@ -37,6 +37,15 @@ impl UndoOperation for AtomicUndo {
         self.description.clone()
     }
 
+    fn changes_data(&self) -> bool {
+        for op in self.stack.lock().unwrap().iter() {
+            if op.changes_data() {
+                return true;
+            }
+        }
+        false
+    }
+
     fn get_operation_type(&self) -> OperationType {
         self.operation_type
     }
