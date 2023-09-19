@@ -24,7 +24,7 @@ pub enum BufferType {
     /// free colors, blink
     NoLimits,
     /// Like no limits but with unicode font
-    Unicode
+    Unicode,
 }
 
 impl BufferType {

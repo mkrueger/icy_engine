@@ -88,7 +88,7 @@ pub struct StringGenerator {
 impl StringGenerator {
     pub fn new(options: SaveOptions) -> Self {
         let max_output_line_length = options.output_line_length.unwrap_or(usize::MAX);
-        let mut output =  Vec::new();
+        let mut output = Vec::new();
 
         if options.modern_terminal_output {
             // write UTF-8 BOM as unicode indicator.

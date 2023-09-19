@@ -3,7 +3,8 @@
 use i18n_embed_fl::fl;
 
 use crate::{
-    AttributedChar, EngineResult, Layer, Palette, Position, Rectangle, Sixel, Size, TextPane,
+    AttributedChar, EngineResult, Layer, Palette, Position, Rectangle, SauceData, Sixel, Size,
+    TextPane,
 };
 
 use super::{
@@ -295,6 +296,11 @@ impl EditState {
 
     pub fn switch_to_palette(&mut self, pal: Palette) -> EngineResult<()> {
         let op = super::undo_operations::SwitchPalettte::new(pal);
+        self.push_undo(Box::new(op))
+    }
+
+    pub fn update_sauce_data(&mut self, sauce: Option<SauceData>) -> EngineResult<()> {
+        let op = super::undo_operations::SetSauceData::new(sauce);
         self.push_undo(Box::new(op))
     }
 }

@@ -6,7 +6,7 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AddType, AttributedChar, EngineResult, Layer, Line, Palette, Position, Selection,
+    AddType, AttributedChar, EngineResult, Layer, Line, Palette, Position, SauceData, Selection,
     SelectionMask, Size, TextPane,
 };
 
@@ -1299,6 +1299,33 @@ impl UndoOperation for SwitchPalettte {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         mem::swap(&mut edit_state.get_buffer_mut().palette, &mut self.pal);
         edit_state.is_palette_dirty = true;
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SetSauceData {
+    data: Option<SauceData>,
+}
+
+impl SetSauceData {
+    pub fn new(data: Option<SauceData>) -> Self {
+        Self { data }
+    }
+}
+
+impl UndoOperation for SetSauceData {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-change_sauce")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        mem::swap(&mut edit_state.get_buffer_mut().sauce_data, &mut self.data);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        mem::swap(&mut edit_state.get_buffer_mut().sauce_data, &mut self.data);
         Ok(())
     }
 }

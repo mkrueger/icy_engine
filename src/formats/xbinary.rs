@@ -61,7 +61,9 @@ impl OutputFormat for XBin {
         }
 
         if fonts.len() > 2 {
-            return Err(anyhow::anyhow!("Only up to 2 fonts are supported by this format."));
+            return Err(anyhow::anyhow!(
+                "Only up to 2 fonts are supported by this format."
+            ));
         }
 
         if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
@@ -225,7 +227,11 @@ fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     true
 }
 
-fn read_data_compressed(result: &mut Buffer, bytes: &[u8], extended_char_mode: bool) -> EngineResult<bool> {
+fn read_data_compressed(
+    result: &mut Buffer,
+    bytes: &[u8],
+    extended_char_mode: bool,
+) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
@@ -336,7 +342,11 @@ fn encode_attr(ch: AttributedChar, fonts: &[usize]) -> u8 {
     }
 }
 
-fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], extended_char_mode: bool) -> EngineResult<bool> {
+fn read_data_uncompressed(
+    result: &mut Buffer,
+    bytes: &[u8],
+    extended_char_mode: bool,
+) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
@@ -356,11 +366,7 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8], extended_char_mode:
     Ok(true)
 }
 
-fn compress_greedy(
-    outputdata: &mut Vec<u8>,
-    buffer: &Buffer,
-    fonts: &[usize],
-) {
+fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
     let mut run_mode = Compression::Off;
     let mut run_count = 0;
     let mut run_buf = Vec::new();
@@ -575,11 +581,7 @@ fn count_length(
     count
 }
 
-fn compress_backtrack(
-    outputdata: &mut Vec<u8>,
-    buffer: &Buffer,
-    fonts: &[usize],
-) {
+fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
     let mut run_mode = Compression::Off;
     let mut run_count = 0;
     let mut run_buf = Vec::new();
