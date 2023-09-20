@@ -162,6 +162,7 @@ impl Buffer {
             self.layers[0].set_size(size);
         }
         self.sauce_data = Some(sauce);
+        self.is_font_table_dirty = true;
     }
 }
 
