@@ -148,7 +148,7 @@ impl OutputFormat for XBin {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        result.set_sauce(sauce_opt);
+        result.set_sauce(sauce_opt, true);
 
         if data.len() < XBIN_HEADER_SIZE {
             return Err(LoadingError::FileTooShort.into());

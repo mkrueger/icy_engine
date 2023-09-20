@@ -137,7 +137,7 @@ impl OutputFormat for TundraDraw {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        result.set_sauce(sauce_opt);
+        result.set_sauce(sauce_opt, true);
         if data.len() < 1 + TUNDRA_HEADER.len() {
             return Err(LoadingError::FileTooShort.into());
         }

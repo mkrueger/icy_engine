@@ -81,7 +81,7 @@ impl OutputFormat for PCBoard {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        result.set_sauce(sauce_opt);
+        result.set_sauce(sauce_opt, true);
 
         /*
                 let mut interpreter: Box<dyn BufferParser> = match interpreter {

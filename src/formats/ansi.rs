@@ -64,7 +64,7 @@ impl OutputFormat for Ansi {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        result.set_sauce(sauce_opt);
+        result.set_sauce(sauce_opt, true);
         let mut parser = parsers::ansi::Parser::default();
         parser.bs_is_ctrl_char = false;
         let (text, is_unicode) = crate::convert_ansi_to_utf8(data);

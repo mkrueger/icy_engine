@@ -1326,12 +1326,12 @@ impl UndoOperation for SetSauceData {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.data = edit_state.get_buffer_mut().set_sauce(self.data.take());
+        self.data = edit_state.get_buffer_mut().set_sauce(self.data.take(), false);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.data = edit_state.get_buffer_mut().set_sauce(self.data.take());
+        self.data = edit_state.get_buffer_mut().set_sauce(self.data.take(), false);
         Ok(())
     }
 }

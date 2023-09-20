@@ -154,20 +154,22 @@ impl Buffer {
         &self.sauce_data
     }
 
-    pub fn set_sauce(&mut self, sauce_opt: Option<SauceData>) -> Option<SauceData> {
-        if let Some(sauce) = &sauce_opt {
-            let mut size = sauce.buffer_size;
-            // check limits, some files have wrong sauce data, even if 0 is specified
-            // some files specify the pixel size there and don't have line breaks in the file
-            if size.width == 0 || size.width > 1000 {
-                size.width = 80;
+    pub fn set_sauce(&mut self, sauce_opt: Option<SauceData>, resize_to_sauce: bool) -> Option<SauceData> {
+        if resize_to_sauce {
+            if let Some(sauce) = &sauce_opt {
+                let mut size = sauce.buffer_size;
+                // check limits, some files have wrong sauce data, even if 0 is specified
+                // some files specify the pixel size there and don't have line breaks in the file
+                if size.width == 0 || size.width > 1000 {
+                    size.width = 80;
+                }
+                self.set_size(size);
+                if !self.layers.is_empty() {
+                    self.layers[0].set_size(size);
+                }
             }
-            self.set_size(size);
-            if !self.layers.is_empty() {
-                self.layers[0].set_size(size);
-            }
-            self.is_font_table_dirty = true;
         }
+        self.is_font_table_dirty = true;
         let result = self.sauce_data.take();
         self.sauce_data = sauce_opt;
         result

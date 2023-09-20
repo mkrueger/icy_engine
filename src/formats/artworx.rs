@@ -68,7 +68,7 @@ impl OutputFormat for Artworx {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        result.set_sauce(sauce_opt);
+        result.set_sauce(sauce_opt, true);
         result.set_width(80);
         result.buffer_type = BufferType::LegacyIce;
         let file_size = data.len();

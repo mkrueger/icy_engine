@@ -409,7 +409,7 @@ impl OutputFormat for IcyDraw {
 
                                 "SAUCE" => {
                                     let sauce = SauceData::extract(&bytes).unwrap();
-                                    result.set_sauce(Some(sauce));
+                                    result.set_sauce(Some(sauce), false);
                                 }
                                 text => {
                                     if let Some(font_slot) = text.strip_prefix("FONT_") {
