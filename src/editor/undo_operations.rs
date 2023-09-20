@@ -680,6 +680,9 @@ impl UndoOperation for DeleteRow {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
+            if layer.lines.len() < self.line as usize + 1 {
+                layer.lines.resize(self.line as usize + 1, Line::default());
+            }
             self.deleted_row = layer.lines.remove(self.line as usize);
             layer.set_height(layer.get_height() - 1);
             Ok(())
@@ -693,7 +696,7 @@ impl UndoOperation for DeleteRow {
 pub struct InsertRow {
     layer: usize,
     line: i32,
-    deleted_row: Line,
+    inserted_row: Line,
 }
 
 impl InsertRow {
@@ -701,7 +704,7 @@ impl InsertRow {
         Self {
             layer,
             line,
-            deleted_row: Line::default(),
+            inserted_row: Line::default(),
         }
     }
 }
@@ -713,7 +716,7 @@ impl UndoOperation for InsertRow {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
-            self.deleted_row = layer.lines.remove(self.line as usize);
+            self.inserted_row = layer.lines.remove(self.line as usize);
             layer.set_height(layer.get_height() - 1);
             Ok(())
         } else {
@@ -723,9 +726,12 @@ impl UndoOperation for InsertRow {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
-            let mut deleted_row = Line::default();
-            mem::swap(&mut self.deleted_row, &mut deleted_row);
-            layer.lines.insert(self.line as usize, deleted_row);
+            let mut insert_row = Line::default();
+            mem::swap(&mut self.inserted_row, &mut insert_row);
+            if layer.lines.len() < self.line as usize + 1 {
+                layer.lines.resize(self.line as usize + 1, Line::default());
+            }
+            layer.lines.insert(self.line as usize, insert_row);
             layer.set_height(layer.get_height() + 1);
             Ok(())
         } else {
