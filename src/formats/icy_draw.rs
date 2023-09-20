@@ -160,6 +160,7 @@ impl OutputFormat for IcyDraw {
                 flags |= constants::layer::ALPHA_LOCKED;
             }
             result.extend(u32::to_le_bytes(flags));
+            result.push(layer.transparency);
 
             result.extend(i32::to_le_bytes(layer.get_offset().x));
             result.extend(i32::to_le_bytes(layer.get_offset().y));
@@ -592,6 +593,10 @@ impl OutputFormat for IcyDraw {
                                     let flags =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
                                     o += 4;
+
+                                    layer.transparency = bytes[o];
+                                    o += 1;
+
                                     let x_offset: i32 =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
                                             as i32;

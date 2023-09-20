@@ -82,10 +82,12 @@ Keyword: 'LAYER_{SLOT}'
 |             |        |Bit 3   : position_locked
 |             |        |Bit 4   : has_alhpa_channel
 |             |        |Bit 5   : is_alpha_locked
+|Transparency |1       |U8     | Alpha channel of that layer
 |X            |4       |LE_I32 |
 |Y            |4       |LE_I32 |
 |Width        |4       |LE_U32 |
 |Height       |4       |LE_U32 |
+|FontPage     |2       |LE_U16 | Font page for default chars (it's char 32=' ' but may've different display depending on FP - makes sense when replacing slot 0->100 for example)
 |DataLen      |8       |LE_U64 | Length of Data
 |Data         |*       |*      | Buffer Data
 

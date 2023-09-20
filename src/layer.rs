@@ -39,6 +39,8 @@ pub struct Layer {
     pub is_alpha_channel_locked: bool,
     pub has_alpha_channel: bool,
 
+    pub transparency: u8,
+
     // Font page "default" chars are generated with
     // (needed for font mapping)
     pub default_font_page: usize,
