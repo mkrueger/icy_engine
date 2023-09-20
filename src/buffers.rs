@@ -46,11 +46,11 @@ impl BufferType {
 
     pub fn from_byte(b: u8) -> Self {
         match b {
-            0 => BufferType::NoLimits,
+            // 0 => BufferType::NoLimits,
             1 => BufferType::LegacyDos,
             2 => BufferType::LegacyIce,
             3 => BufferType::Unicode,
-            _ => todo!(),
+            _ => BufferType::NoLimits,
         }
     }
 
