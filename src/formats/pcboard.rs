@@ -81,9 +81,7 @@ impl OutputFormat for PCBoard {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        if let Some(sauce) = sauce_opt {
-            result.set_sauce(sauce);
-        }
+        result.set_sauce(sauce_opt);
 
         /*
                 let mut interpreter: Box<dyn BufferParser> = match interpreter {
@@ -113,7 +111,7 @@ pub fn get_save_sauce_default_pcb(buf: &Buffer) -> (bool, String) {
         return (true, "width != 80".to_string());
     }
 
-    if buf.sauce_data.is_some() {
+    if buf.has_sauce() {
         return (true, String::new());
     }
 

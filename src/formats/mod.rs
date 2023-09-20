@@ -151,7 +151,7 @@ pub fn parse_with_parser(
 ) -> EngineResult<()> {
     result.layers[0].lines.clear();
     let mut caret = Caret::default();
-    if let Some(sauce) = &result.sauce_data {
+    if let Some(sauce) = &result.get_sauce() {
         caret.set_ice_mode(sauce.use_ice);
     }
 

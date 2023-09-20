@@ -447,7 +447,7 @@ impl Buffer {
         vec.push(0x1A); // EOF Char.
         let file_size = vec.len() as u32;
         let mut comment_len = 0;
-        if let Some(data) = &self.sauce_data {
+        if let Some(data) = self.get_sauce() {
             if !data.comments.is_empty() {
                 if data.comments.len() > 255 {
                     return Err(SauceError::CommentLimitExceeded(data.comments.len()).into());
@@ -463,7 +463,7 @@ impl Buffer {
         vec.push(b'0');
         vec.push(b'0');
 
-        if let Some(data) = &self.sauce_data {
+        if let Some(data) = self.get_sauce() {
             data.title.append_to(vec);
             data.author.append_to(vec);
             data.group.append_to(vec);
@@ -504,7 +504,7 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
                 if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
-                if let Some(sauce_data) = &self.sauce_data {
+                if let Some(sauce_data) = self.get_sauce() {
                     if sauce_data.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_LEGACY; }
                     if sauce_data.use_letter_spacing { t_flags |= ANSI_LETTER_SPACING_9PX; }
                 }

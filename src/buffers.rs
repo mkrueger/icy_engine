@@ -71,7 +71,7 @@ pub struct Buffer {
     pub buffer_type: BufferType,
     pub is_terminal_buffer: bool,
 
-    pub sauce_data: Option<SauceData>,
+    sauce_data: Option<SauceData>,
 
     pub palette: Palette,
     pub overlay_layer: Option<Layer>,
@@ -150,19 +150,31 @@ impl Buffer {
         result
     }
 
-    pub fn set_sauce(&mut self, sauce: SauceData) {
-        let mut size = sauce.buffer_size;
-        // check limits, some files have wrong sauce data, even if 0 is specified
-        // some files specify the pixel size there and don't have line breaks in the file
-        if size.width == 0 || size.width > 1000 {
-            size.width = 80;
+    pub fn get_sauce(&self) -> &Option<SauceData> {
+        &self.sauce_data
+    }
+
+    pub fn set_sauce(&mut self, sauce_opt: Option<SauceData>) -> Option<SauceData> {
+        if let Some(sauce) = &sauce_opt {
+            let mut size = sauce.buffer_size;
+            // check limits, some files have wrong sauce data, even if 0 is specified
+            // some files specify the pixel size there and don't have line breaks in the file
+            if size.width == 0 || size.width > 1000 {
+                size.width = 80;
+            }
+            self.set_size(size);
+            if !self.layers.is_empty() {
+                self.layers[0].set_size(size);
+            }
+            self.is_font_table_dirty = true;
         }
-        self.set_size(size);
-        if !self.layers.is_empty() {
-            self.layers[0].set_size(size);
-        }
-        self.sauce_data = Some(sauce);
-        self.is_font_table_dirty = true;
+        let result = self.sauce_data.take();
+        self.sauce_data = sauce_opt;
+        result
+    }
+
+    pub fn has_sauce(&self) -> bool {
+        self.sauce_data.is_some()
     }
 }
 
@@ -359,14 +371,23 @@ impl Buffer {
     pub fn set_size(&mut self, size: impl Into<Size>) {
         let size = size.into();
         self.terminal_state.set_size(size);
+        if let Some(sauce) = &mut self.sauce_data {
+            sauce.buffer_size = self.terminal_state.get_size();
+        }
     }
 
     pub fn set_width(&mut self, width: i32) {
         self.terminal_state.set_width(width);
+        if let Some(sauce) = &mut self.sauce_data {
+            sauce.buffer_size = self.terminal_state.get_size();
+        }
     }
 
     pub fn set_height(&mut self, height: i32) {
         self.terminal_state.set_height(height);
+        if let Some(sauce) = &mut self.sauce_data {
+            sauce.buffer_size = self.terminal_state.get_size();
+        }
     }
 
     /// Returns the clear of this [`Buffer`].

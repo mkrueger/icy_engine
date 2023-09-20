@@ -148,9 +148,7 @@ impl OutputFormat for XBin {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        if let Some(sauce) = sauce_opt {
-            result.set_sauce(sauce);
-        }
+        result.set_sauce(sauce_opt);
 
         if data.len() < XBIN_HEADER_SIZE {
             return Err(LoadingError::FileTooShort.into());
@@ -730,5 +728,5 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
 }
 
 pub fn get_save_sauce_default_xb(buf: &Buffer) -> (bool, String) {
-    (buf.sauce_data.is_some(), String::new())
+    (buf.has_sauce(), String::new())
 }

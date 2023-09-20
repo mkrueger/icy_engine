@@ -44,9 +44,7 @@ impl OutputFormat for Bin {
         let mut result = Buffer::new((160, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        if let Some(sauce) = sauce_opt {
-            result.set_sauce(sauce);
-        }
+        result.set_sauce(sauce_opt);
         let mut o = 0;
         let mut pos = Position::default();
         loop {
@@ -88,7 +86,7 @@ pub fn get_save_sauce_default_binary(buf: &Buffer) -> (bool, String) {
         return (true, "width != 160".to_string());
     }
 
-    if buf.sauce_data.is_some() {
+    if buf.has_sauce() {
         return (true, String::new());
     }
 

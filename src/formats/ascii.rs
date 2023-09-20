@@ -61,9 +61,7 @@ impl OutputFormat for Ascii {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
-        if let Some(sauce) = sauce_opt {
-            result.set_sauce(sauce);
-        }
+        result.set_sauce(sauce_opt);
         let (text, is_unicode) = crate::convert_ansi_to_utf8(data);
         if is_unicode {
             result.buffer_type = crate::BufferType::Unicode;
@@ -83,7 +81,7 @@ pub fn get_save_sauce_default_asc(buf: &Buffer) -> (bool, String) {
         return (true, "width != 80".to_string());
     }
 
-    if buf.sauce_data.is_some() {
+    if buf.has_sauce() {
         return (true, String::new());
     }
 

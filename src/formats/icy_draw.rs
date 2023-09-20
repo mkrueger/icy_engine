@@ -82,7 +82,7 @@ impl OutputFormat for IcyDraw {
             }
         }
 
-        if buf.sauce_data.is_some() {
+        if buf.has_sauce() {
             let mut sauce_vec: Vec<u8> = Vec::new();
             buf.write_sauce_info(SauceFileType::Ansi, &mut sauce_vec)?;
             let sauce_data = general_purpose::STANDARD.encode(&sauce_vec);
@@ -409,7 +409,7 @@ impl OutputFormat for IcyDraw {
 
                                 "SAUCE" => {
                                     let sauce = SauceData::extract(&bytes).unwrap();
-                                    result.set_sauce(sauce);
+                                    result.set_sauce(Some(sauce));
                                 }
                                 text => {
                                     if let Some(font_slot) = text.strip_prefix("FONT_") {
