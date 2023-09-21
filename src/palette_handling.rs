@@ -383,9 +383,9 @@ impl Palette {
                         } else if let Some(cap) = color_regex.captures(line) {
                             let (_, [_a, r, g, b]) = cap.extract();
 
-                            let r = u32::from_str_radix(r, 16).unwrap();
-                            let g = u32::from_str_radix(g, 16).unwrap();
-                            let b = u32::from_str_radix(b, 16).unwrap();
+                            let r = u32::from_str_radix(r, 16)?;
+                            let g = u32::from_str_radix(g, 16)?;
+                            let b = u32::from_str_radix(b, 16)?;
                             colors.push(Color::new(r as u8, g as u8, b as u8));
                         }
                     }

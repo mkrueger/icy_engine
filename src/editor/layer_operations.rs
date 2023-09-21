@@ -77,7 +77,10 @@ impl EditState {
     ///
     /// This function will return an error if .
     pub fn anchor_layer(&mut self) -> EngineResult<()> {
-        let role = self.get_cur_layer().unwrap().role;
+        let Some(cur_layer) = self.get_cur_layer() else {
+            return Err(super::EditorError::CurrentLayerInvalid.into());
+        };
+        let role = cur_layer.role;
         if !matches!(role, Role::PastePreview) {
             return Ok(());
         }
@@ -100,10 +103,10 @@ impl EditState {
     ///
     /// This function will return an error if .
     pub fn merge_layer_down(&mut self, layer: usize) -> EngineResult<()> {
-        if layer == 0 || layer >= self.buffer.layers.len() {
-            return Ok(());
-        }
-        let role = self.get_cur_layer().unwrap().role;
+        let Some(cur_layer) = self.get_cur_layer() else {
+            return Err(super::EditorError::CurrentLayerInvalid.into());
+        };
+        let role = cur_layer.role;
         if matches!(role, Role::PasteImage) {
             return Ok(());
         }

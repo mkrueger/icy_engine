@@ -107,8 +107,8 @@ impl SixelParser {
                             return Err(ParserError::InvalidColorInSixelSequence.into());
                         }
 
-                        match self.parsed_numbers.get(1).unwrap() {
-                            2 => {
+                        match self.parsed_numbers.get(1) {
+                            Some(2) => {
                                 self.current_sixel_palette.set_color_rgb(
                                     self.current_sixel_color as usize,
                                     (self.parsed_numbers[2] * 255 / 100) as u8,
@@ -116,7 +116,7 @@ impl SixelParser {
                                     (self.parsed_numbers[4] * 255 / 100) as u8,
                                 );
                             }
-                            1 => {
+                            Some(1) => {
                                 self.current_sixel_palette.set_color_hsl(
                                     self.current_sixel_color as usize,
                                     self.parsed_numbers[2] as f32 * 360.0
@@ -125,8 +125,11 @@ impl SixelParser {
                                     self.parsed_numbers[3] as f32 / 100.0,
                                 );
                             }
-                            n => {
+                            Some(n) => {
                                 return Err(ParserError::UnsupportedSixelColorformat(*n).into());
+                            }
+                            None => {
+                                return Err(ParserError::InvalidColorInSixelSequence.into());
                             }
                         }
                     }
