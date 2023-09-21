@@ -183,16 +183,10 @@ impl BitFont {
     }
 
     fn load_plain_font(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
-        let size = match data.len() / 256 {
-            8 => Size::new(8, 8),
-            14 => Size::new(8, 14),
-            16 => Size::new(8, 16),
-            19 => Size::new(8, 19),
-            _ => {
-                return Err(FontError::UnknownFontFormat(data.len()).into());
-            }
-        };
-
+        if data.len() % 256 != 0 {
+            return Err(FontError::UnknownFontFormat(data.len()).into());
+        }
+        let size = Size::new(8, (data.len() / 256) as i32);
         let mut r: BitFont = BitFont {
             name: font_name.into(),
             path_opt: None,

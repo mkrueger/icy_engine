@@ -154,7 +154,11 @@ impl Buffer {
         &self.sauce_data
     }
 
-    pub fn set_sauce(&mut self, sauce_opt: Option<SauceData>, resize_to_sauce: bool) -> Option<SauceData> {
+    pub fn set_sauce(
+        &mut self,
+        sauce_opt: Option<SauceData>,
+        resize_to_sauce: bool,
+    ) -> Option<SauceData> {
         if resize_to_sauce {
             if let Some(sauce) = &sauce_opt {
                 let mut size = sauce.buffer_size;
