@@ -66,7 +66,7 @@ impl IceMode {
     }
 
     pub fn has_high_bg_colors(self) -> bool {
-        matches!(self, IceMode::Blink)
+        !matches!(self, IceMode::Blink)
     }
 }
 

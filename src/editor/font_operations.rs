@@ -150,6 +150,11 @@ impl EditState {
         match mode {
             IceMode::Unlimited => { /* no conversion needed */ }
             IceMode::Blink => {
+                if self.caret.attribute.get_background() > 7 {
+                    self.caret.attribute.set_is_blinking(true);
+                    self.caret.attribute.set_background(self.caret.attribute.get_background() - 8);
+                }
+
                 for layer in &mut new_layers {
                     for line in &mut layer.lines {
                         for ch in &mut line.chars {
@@ -163,6 +168,13 @@ impl EditState {
                 }
             }
             IceMode::Ice => {
+                if self.caret.attribute.is_blinking() {
+                    self.caret.attribute.set_is_blinking(false);
+                    if self.caret.attribute.get_background() < 8 {
+                        self.caret.attribute.set_background(self.caret.attribute.get_background() + 8);
+                    }
+                }
+
                 for layer in &mut new_layers {
                     for line in &mut layer.lines {
                         for ch in &mut line.chars {
