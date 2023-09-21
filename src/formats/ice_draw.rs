@@ -152,6 +152,7 @@ impl OutputFormat for IceDraw {
             }
             while rle_count > 0 {
                 result.layers[0].set_height(pos.y + 1);
+                result.set_height(pos.y + 1);
                 let mut attribute = TextAttribute::from_u8(attr, result.ice_mode);
                 if attribute.is_bold() {
                     attribute.set_foreground(attribute.foreground_color + 8);
@@ -166,7 +167,6 @@ impl OutputFormat for IceDraw {
                 rle_count -= 1;
             }
         }
-        result.layers[0].clear();
         result.set_font(0, BitFont::from_basic(8, 16, &data[o..(o + FONT_SIZE)]));
         o += FONT_SIZE;
 
