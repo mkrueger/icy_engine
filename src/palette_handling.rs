@@ -593,7 +593,7 @@ impl Palette {
     pub fn insert_color(&mut self, color: Color) -> u32 {
         for i in 0..self.colors.len() {
             let col = self.colors[i].clone();
-            if col == color {
+            if col.r == color.r && col.g == color.g && col.b == color.b {
                 return i as u32;
             }
         }

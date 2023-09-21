@@ -322,7 +322,7 @@ fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool>
 
 fn decode_char(result: &Buffer, char_code: u8, attr: u8) -> AttributedChar {
     let mut attribute = TextAttribute::from_u8(attr, result.ice_mode);
-    if attribute.get_foreground() >= 7 && matches!(result.font_mode, FontMode::Dual) {
+    if attribute.get_foreground() > 7 && matches!(result.font_mode, FontMode::Dual) {
         attribute.set_font_page(1);
         attribute.set_foreground(attribute.foreground_color - 8);
     }

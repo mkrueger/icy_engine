@@ -1,4 +1,4 @@
-use std::{io, path::Path};
+use std::{collections::HashSet, io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
@@ -35,10 +35,11 @@ impl OutputFormat for TundraDraw {
     }
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
-        let mut result: Vec<u8> = vec![TUNDRA_VER]; // version
+        let mut result = vec![TUNDRA_VER]; // version
         result.extend(TUNDRA_HEADER);
         let mut attr = TextAttribute::from_u8(0, buf.ice_mode);
         let mut skip_pos = None;
+        let mut colors = HashSet::new();
         for y in 0..buf.get_height() {
             for x in 0..buf.get_width() {
                 let pos = Position::new(x, y);
@@ -49,6 +50,7 @@ impl OutputFormat for TundraDraw {
                     }
                     continue;
                 }
+                /*
                 if ch.is_transparent() && attr.get_background() == 0 {
                     if skip_pos.is_none() {
                         skip_pos = Some(pos);
@@ -62,43 +64,16 @@ impl OutputFormat for TundraDraw {
                     if skip_len <= TND_GOTO_BLOCK_LEN {
                         result.resize(result.len() + skip_len as usize, 0);
                     } else {
-                        result.push(1);
+                        result.push(TUNDRA_POSITION);
                         result.extend(i32::to_be_bytes(pos.y));
                         result.extend(i32::to_be_bytes(pos.x));
                     }
                     skip_pos = None;
-                }
-                if attr != ch.attribute {
-                    let mut cmd = 0;
-                    if attr.get_foreground() != ch.attribute.get_foreground() {
-                        cmd |= TUNDRA_COLOR_FOREGROUND;
-                    }
-                    if attr.get_background() != ch.attribute.get_background() {
-                        cmd |= TUNDRA_COLOR_BACKGROUND;
-                    }
+                }*/
 
-                    result.push(cmd);
-                    result.push(ch.ch as u8);
-                    if attr.get_foreground() != ch.attribute.get_foreground() {
-                        let rgb = buf.palette.get_rgb(ch.attribute.get_foreground() as usize);
-                        result.push(0);
-                        result.push(rgb.0);
-                        result.push(rgb.1);
-                        result.push(rgb.2);
-                    }
-                    if attr.get_background() != ch.attribute.get_background() {
-                        let rgb = buf.palette.get_rgb(ch.attribute.get_background() as usize);
-                        result.push(0);
-                        result.push(rgb.0);
-                        result.push(rgb.1);
-                        result.push(rgb.2);
-                    }
-                    attr = ch.attribute;
-                    continue;
-                }
                 if ch.ch as u16 >= 1 && ch.ch as u16 <= 6 {
-                    // fake color change
-                    result.push(2);
+                    // fake color change to represent control characters
+                    result.push(TUNDRA_COLOR_FOREGROUND);
                     result.push(ch.ch as u8);
 
                     let rgb = buf.palette.get_rgb(attr.get_foreground() as usize);
@@ -106,6 +81,45 @@ impl OutputFormat for TundraDraw {
                     result.push(rgb.0);
                     result.push(rgb.1);
                     result.push(rgb.2);
+                    continue;
+                }
+
+                if attr != ch.attribute {
+                    let mut cmd = 0;
+                    let write_foreground = attr.get_foreground() != ch.attribute.get_foreground()
+                        || attr.is_bold() != ch.attribute.is_bold();
+                    if write_foreground {
+                        cmd |= TUNDRA_COLOR_FOREGROUND;
+                    }
+                    let write_background = attr.get_background() != ch.attribute.get_background();
+                    if write_background {
+                        cmd |= TUNDRA_COLOR_BACKGROUND;
+                    }
+
+                    result.push(cmd);
+                    result.push(ch.ch as u8);
+                    if write_foreground {
+                        let mut fg = ch.attribute.get_foreground() as usize;
+                        if ch.attribute.is_bold() {
+                            fg += 8;
+                        }
+                        colors.insert(fg);
+                        let rgb = buf.palette.get_rgb(fg);
+                        result.push(0);
+                        result.push(rgb.0);
+                        result.push(rgb.1);
+                        result.push(rgb.2);
+                    }
+                    if write_background {
+                        colors.insert(ch.attribute.get_background() as usize);
+
+                        let rgb = buf.palette.get_rgb(ch.attribute.get_background() as usize);
+                        result.push(0);
+                        result.push(rgb.0);
+                        result.push(rgb.1);
+                        result.push(rgb.2);
+                    }
+                    attr = ch.attribute;
                     continue;
                 }
                 result.push(ch.ch as u8);
@@ -121,6 +135,7 @@ impl OutputFormat for TundraDraw {
                 (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width()) + 1;
             result.resize(result.len() + skip_len as usize, 0);
         }
+        println!("colors: {:?}", colors.len());
 
         if options.save_sauce {
             buf.write_sauce_info(crate::SauceFileType::TundraDraw, &mut result)?;
@@ -157,7 +172,7 @@ impl OutputFormat for TundraDraw {
         result.ice_mode = IceMode::Ice;
 
         let mut pos = Position::default();
-        let mut attr = TextAttribute::from_u8(0, result.ice_mode);
+        let mut attr = TextAttribute::default();
 
         while o < data.len() {
             let mut cmd = data[o];
@@ -212,9 +227,9 @@ impl OutputFormat for TundraDraw {
             );
             advance_pos(&result, &mut pos);
         }
-        crate::crop_loaded_file(&mut result);
-        result.palette.fill_to_16();
+        result.set_size(result.layers[0].get_size());
 
+        println!("loaded {} colors", result.palette.len());
         Ok(result)
     }
 }
