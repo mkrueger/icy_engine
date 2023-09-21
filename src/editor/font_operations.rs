@@ -9,8 +9,7 @@ impl EditState {
         let op = super::undo_operations::SwitchToFontPage::new(self.caret.get_font_page(), page);
         self.push_undo(Box::new(op))
     }
-
-    pub fn switch_to_ansi_font(&mut self, page: usize) -> EngineResult<()> {
+    pub fn add_ansi_font(&mut self, page: usize) -> EngineResult<()> {
         match self.get_buffer().font_mode {
             crate::FontMode::Unlimited => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
@@ -21,6 +20,14 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
+            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
+                Err(anyhow::anyhow!("Not supported for this buffer type."))
+            }
+        }
+    }
+
+    pub fn set_ansi_font(&mut self, page: usize) -> EngineResult<()> {
+        match self.get_buffer().font_mode {
             crate::FontMode::Sauce => Err(anyhow::anyhow!("Not supported for sauce buffers.")),
             crate::FontMode::Single => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
@@ -31,7 +38,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Dual => {
+            crate::FontMode::Unlimited | crate::FontMode::Dual => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
                 let op = super::undo_operations::SetFont::new(
                     self.caret.get_font_page(),
@@ -43,7 +50,7 @@ impl EditState {
         }
     }
 
-    pub fn switch_to_sauce_font(&mut self, name: &str) -> EngineResult<()> {
+    pub fn add_sauce_font(&mut self, name: &str) -> EngineResult<()> {
         match self.get_buffer().font_mode {
             crate::FontMode::Unlimited => {
                 let mut page = 100;
@@ -62,6 +69,14 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
+            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
+                Err(anyhow::anyhow!("Not supported for this buffer type."))
+            }
+        }
+    }
+
+    pub fn set_sauce_font(&mut self, name: &str) -> EngineResult<()> {
+        match self.get_buffer().font_mode {
             crate::FontMode::Sauce | crate::FontMode::Single => {
                 let new_font = BitFont::from_sauce_name(name)?;
                 let op = super::undo_operations::SetFont::new(
@@ -71,7 +86,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Dual => {
+            crate::FontMode::Unlimited | crate::FontMode::Dual => {
                 let new_font = BitFont::from_sauce_name(name)?;
                 let op = super::undo_operations::SetFont::new(
                     self.caret.get_font_page(),
@@ -83,7 +98,7 @@ impl EditState {
         }
     }
 
-    pub fn set_font(&mut self, new_font: BitFont) -> EngineResult<()> {
+    pub fn add_font(&mut self, new_font: BitFont) -> EngineResult<()> {
         match self.get_buffer().font_mode {
             crate::FontMode::Unlimited => {
                 let mut page = 100;
@@ -101,6 +116,14 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
+            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
+                Err(anyhow::anyhow!("Not supported for this buffer type."))
+            }
+        }
+    }
+
+    pub fn set_font(&mut self, new_font: BitFont) -> EngineResult<()> {
+        match self.get_buffer().font_mode {
             crate::FontMode::Sauce => Err(anyhow::anyhow!("Not supported for sauce buffers.")),
             crate::FontMode::Single => {
                 let op = super::undo_operations::SetFont::new(
@@ -110,7 +133,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Dual => {
+            crate::FontMode::Unlimited | crate::FontMode::Dual => {
                 let op = super::undo_operations::SetFont::new(
                     self.caret.get_font_page(),
                     self.get_buffer().get_font(0).unwrap().clone(),
