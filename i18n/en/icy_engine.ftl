@@ -37,6 +37,9 @@ undo-set_selection=Selection
 undo-inverse_selection=Inverse selection
 undo-switch_palette=Set Palette
 undo-change_sauce=Change SAUCE
+undo-switch_font_page=Set font page
+undo-switch_palette_mode=Switch Palette Mode
+undo-switch_ice_mode=Switch ICE Mode
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

@@ -16,6 +16,8 @@ mod area_operations;
 pub use area_operations::*;
 mod selection_operations;
 pub use selection_operations::*;
+mod font_operations;
+pub use font_operations::*;
 
 use crate::{
     ansi, overlay_mask::OverlayMask, AttributedChar, Buffer, BufferParser, Caret, EngineResult,
@@ -38,6 +40,7 @@ pub struct EditState {
     redo_stack: Vec<Box<dyn UndoOperation>>,
 
     pub is_palette_dirty: bool,
+    pub is_buffer_dirty: bool,
 }
 
 pub struct AtomicUndoGuard {
@@ -109,6 +112,7 @@ impl Default for EditState {
             selection_mask,
             tool_overlay_mask,
             is_palette_dirty: false,
+            is_buffer_dirty: false,
         }
     }
 }

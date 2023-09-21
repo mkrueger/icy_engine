@@ -128,7 +128,7 @@ impl FontMode {
     }
 
     pub fn has_high_fg_colors(self) -> bool {
-        matches!(self, FontMode::Dual)
+        !matches!(self, FontMode::Dual)
     }
 }
 
@@ -702,7 +702,6 @@ impl Buffer {
             for x in 0..rect.get_width() {
                 let ch = self.get_char((x + rect.start.x, y + rect.start.y));
                 let font = self.get_font(ch.get_font_page()).unwrap();
-                let font_size = font.size;
 
                 let fg = if ch.attribute.is_bold() && ch.attribute.get_foreground() < 8 {
                     ch.attribute.get_foreground() + 8
@@ -714,8 +713,9 @@ impl Buffer {
                 let (b_r, b_g, b_b) = self.palette.get_rgb(ch.attribute.get_background() as usize);
 
                 if let Some(glyph) = font.get_glyph(ch.ch) {
-                    for cy in 0..font_size.height {
-                        for cx in 0..font_size.width {
+                    let cur_font_size = font.size;
+                    for cy in 0..cur_font_size.height.min(font_size.height) {
+                        for cx in 0..cur_font_size.width.min(font_size.width) {
                             let offset = ((x * font_size.width + cx) * 4
                                 + (y * font_size.height + cy) * line_bytes)
                                 as usize;

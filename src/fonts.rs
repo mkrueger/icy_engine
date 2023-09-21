@@ -700,10 +700,10 @@ macro_rules! sauce_fonts {
             /// # Errors
             ///
             /// This function will return an error if .
-            pub fn name(sauce_name: &str) -> EngineResult<Self> {
+            pub fn from_sauce_name(sauce_name: &str) -> EngineResult<Self> {
                 match sauce_name {
                     $(
-                        stringify!($name) => {BitFont::from_bytes($name, $i)}
+                        $name => {BitFont::from_bytes($name, $i)}
                     )*
                     _ => Err(ParserError::UnsupportedSauceFont(sauce_name.to_string()).into()),
                 }

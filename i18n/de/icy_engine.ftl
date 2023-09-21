@@ -37,6 +37,9 @@ undo-set_selection=Auswahl
 undo-inverse_selection=Invertieren
 undo-switch_palette=Palette ändern
 undo-change_sauce=SAUCE ändern
+undo-switch_font_page=Schrift ändern
+undo-switch_palette_mode=Palettenmodus ändern
+undo-switch_ice_mode=ICE-Modus ändern
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

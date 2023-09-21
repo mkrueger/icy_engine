@@ -170,6 +170,17 @@ impl Palette {
         self.colors == other.colors
     }
 
+    pub fn resize(&mut self, size: usize) {
+        if size >= self.colors.len() {
+            self.fill_to_16();
+            self.colors.resize(size, Color::default());
+        }
+
+        if size < self.colors.len() {
+            self.colors.resize(size, Color::default());
+        }
+    }
+
     pub fn get_rgb(&self, index: usize) -> (u8, u8, u8) {
         if index >= self.colors.len() {
             (0, 0, 0)

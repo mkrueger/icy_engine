@@ -71,6 +71,7 @@ impl OutputFormat for Artworx {
         result.set_sauce(sauce_opt, true);
         result.set_width(80);
         result.buffer_type = BufferType::CP437;
+        result.palette_mode = crate::PaletteMode::Free16;
         result.ice_mode = IceMode::Ice;
         result.font_mode = FontMode::Single;
         let file_size = data.len();

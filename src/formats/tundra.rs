@@ -2,8 +2,8 @@ use std::{io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, LoadingError, OutputFormat,
-    Position, TextPane,
+    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode, LoadingError,
+    OutputFormat, PaletteMode, Position, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
@@ -153,6 +153,8 @@ impl OutputFormat for TundraDraw {
         result.palette.clear();
         result.palette.insert_color_rgb(0, 0, 0);
         result.buffer_type = BufferType::CP437;
+        result.palette_mode = PaletteMode::RGB;
+        result.ice_mode = IceMode::Ice;
 
         let mut pos = Position::default();
         let mut attr = TextAttribute::from_u8(0, result.ice_mode);

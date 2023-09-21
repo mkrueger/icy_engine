@@ -6,8 +6,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AddType, AttributedChar, EngineResult, Layer, Line, Palette, Position, SauceData, Selection,
-    SelectionMask, Size, TextPane,
+    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode,
+    Position, SauceData, Selection, SelectionMask, Size, TextPane,
 };
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
@@ -1336,6 +1336,194 @@ impl UndoOperation for SetSauceData {
         self.data = edit_state
             .get_buffer_mut()
             .set_sauce(self.data.take(), false);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SwitchToFontPage {
+    old: usize,
+    new: usize,
+}
+
+impl SwitchToFontPage {
+    pub fn new(old: usize, new: usize) -> Self {
+        Self { old, new }
+    }
+}
+
+impl UndoOperation for SwitchToFontPage {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-switch_font_page")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.caret.set_font_page(self.old);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.caret.set_font_page(self.new);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SetFont {
+    font_page: usize,
+    old: BitFont,
+    new: BitFont,
+}
+
+impl SetFont {
+    pub fn new(font_page: usize, old: BitFont, new: BitFont) -> Self {
+        Self {
+            font_page,
+            old,
+            new,
+        }
+    }
+}
+
+impl UndoOperation for SetFont {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-switch_font_page")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state
+            .get_buffer_mut()
+            .set_font(self.font_page, self.old.clone());
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state
+            .get_buffer_mut()
+            .set_font(self.font_page, self.new.clone());
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct AddFont {
+    old_font_page: usize,
+    new_font_page: usize,
+    font: BitFont,
+}
+
+impl AddFont {
+    pub fn new(old_font_page: usize, new_font_page: usize, font: BitFont) -> Self {
+        Self {
+            old_font_page,
+            new_font_page,
+            font,
+        }
+    }
+}
+
+impl UndoOperation for AddFont {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-switch_font_page")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.remove_font(self.new_font_page);
+        edit_state.caret.set_font_page(self.old_font_page);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state
+            .buffer
+            .set_font(self.new_font_page, self.font.clone());
+        edit_state.caret.set_font_page(self.new_font_page);
+        Ok(())
+    }
+}
+
+pub struct SwitchPalette {
+    old_mode: PaletteMode,
+    old_palette: Palette,
+    new_mode: PaletteMode,
+    new_palette: Palette,
+}
+
+impl SwitchPalette {
+    pub fn new(
+        old_mode: PaletteMode,
+        old_palette: Palette,
+        new_mode: PaletteMode,
+        new_palette: Palette,
+    ) -> Self {
+        Self {
+            old_mode,
+            old_palette,
+            new_mode,
+            new_palette,
+        }
+    }
+}
+
+impl UndoOperation for SwitchPalette {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-switch_palette_mode")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.palette = self.old_palette.clone();
+        edit_state.buffer.palette_mode = self.old_mode;
+        edit_state.is_palette_dirty = true;
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.palette = self.new_palette.clone();
+        edit_state.buffer.palette_mode = self.new_mode;
+        edit_state.is_palette_dirty = true;
+        Ok(())
+    }
+}
+
+pub struct SetIceMode {
+    old_mode: IceMode,
+    old_layers: Vec<Layer>,
+    new_mode: IceMode,
+    new_layers: Vec<Layer>,
+}
+
+impl SetIceMode {
+    pub fn new(
+        old_mode: IceMode,
+        old_layers: Vec<Layer>,
+        new_mode: IceMode,
+        new_layers: Vec<Layer>,
+    ) -> Self {
+        Self {
+            old_mode,
+            old_layers,
+            new_mode,
+            new_layers,
+        }
+    }
+}
+
+impl UndoOperation for SetIceMode {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-switch_ice_mode")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers = self.old_layers.clone();
+        edit_state.buffer.ice_mode = self.old_mode;
+        edit_state.is_buffer_dirty = true;
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers = self.new_layers.clone();
+        edit_state.buffer.ice_mode = self.new_mode;
+        edit_state.is_buffer_dirty = true;
         Ok(())
     }
 }
