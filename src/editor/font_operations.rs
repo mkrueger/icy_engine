@@ -152,7 +152,9 @@ impl EditState {
             IceMode::Blink => {
                 if self.caret.attribute.get_background() > 7 {
                     self.caret.attribute.set_is_blinking(true);
-                    self.caret.attribute.set_background(self.caret.attribute.get_background() - 8);
+                    self.caret
+                        .attribute
+                        .set_background(self.caret.attribute.get_background() - 8);
                 }
 
                 for layer in &mut new_layers {
@@ -171,7 +173,9 @@ impl EditState {
                 if self.caret.attribute.is_blinking() {
                     self.caret.attribute.set_is_blinking(false);
                     if self.caret.attribute.get_background() < 8 {
-                        self.caret.attribute.set_background(self.caret.attribute.get_background() + 8);
+                        self.caret
+                            .attribute
+                            .set_background(self.caret.attribute.get_background() + 8);
                     }
                 }
 

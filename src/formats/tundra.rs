@@ -247,7 +247,7 @@ fn to_u32(bytes: &[u8]) -> i32 {
     bytes[3] as i32 | (bytes[2] as i32) << 8 | (bytes[1] as i32) << 16 | (bytes[0] as i32) << 24
 }
 
-const TND_GOTO_BLOCK_LEN: i32 = 1 + 2 * 4;
+// const TND_GOTO_BLOCK_LEN: i32 = 1 + 2 * 4;
 
 pub fn get_save_sauce_default_tnd(buf: &Buffer) -> (bool, String) {
     if buf.get_width() != 80 {
