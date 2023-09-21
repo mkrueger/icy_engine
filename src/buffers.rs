@@ -83,6 +83,7 @@ impl IceMode {
 pub enum PaletteMode {
     RGB,
     Fixed16,
+    /// Extended font mode in XB + Blink limits to 8 colors
     Free8,
     Free16,
 }
@@ -110,10 +111,15 @@ impl PaletteMode {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FontMode {
+    /// Multiple fonts in the same document are possible without limit.
     Unlimited,
+    /// Single font only sauce fonts apply
     Sauce,
+    /// Single font all fonts are possible
     Single,
-    Dual,
+    /// Used to limit the the font pages
+    /// For example 2 fonts for XB enhanced font mode.
+    FixedSize,
 }
 
 impl FontMode {
@@ -122,7 +128,7 @@ impl FontMode {
             //  0 => FontMode::Unlimited,
             1 => FontMode::Sauce,
             2 => FontMode::Single,
-            3 => FontMode::Dual,
+            3 => FontMode::FixedSize,
             _ => FontMode::Unlimited,
         }
     }
@@ -132,12 +138,12 @@ impl FontMode {
             FontMode::Unlimited => 0,
             FontMode::Sauce => 1,
             FontMode::Single => 2,
-            FontMode::Dual => 3,
+            FontMode::FixedSize => 3,
         }
     }
 
     pub fn has_high_fg_colors(self) -> bool {
-        !matches!(self, FontMode::Dual)
+        !matches!(self, FontMode::FixedSize)
     }
 }
 

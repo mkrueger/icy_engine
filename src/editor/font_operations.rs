@@ -20,7 +20,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
+            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::FixedSize => {
                 Err(anyhow::anyhow!("Not supported for this buffer type."))
             }
         }
@@ -38,7 +38,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Unlimited | crate::FontMode::Dual => {
+            crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
                 let op = super::undo_operations::SetFont::new(
                     self.caret.get_font_page(),
@@ -61,7 +61,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Unlimited | crate::FontMode::Dual => {
+            crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let new_font = BitFont::from_sauce_name(name)?;
                 let op = super::undo_operations::SetFont::new(
                     self.caret.get_font_page(),
@@ -91,7 +91,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
+            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::FixedSize => {
                 Err(anyhow::anyhow!("Not supported for this buffer type."))
             }
         }
@@ -108,7 +108,7 @@ impl EditState {
                 );
                 self.push_undo(Box::new(op))
             }
-            crate::FontMode::Unlimited | crate::FontMode::Dual => {
+            crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let op = super::undo_operations::SetFont::new(
                     self.caret.get_font_page(),
                     self.get_buffer().get_font(0).unwrap().clone(),
