@@ -46,7 +46,7 @@ impl OutputFormat for Artworx {
             return Err(SavingError::NoFontFound.into());
         }
 
-        for y in 0..buf.get_line_count() {
+        for y in 0..buf.get_height() {
             for x in 0..buf.get_width() {
                 let ch = buf.get_char((x, y));
                 result.push(ch.ch as u8);

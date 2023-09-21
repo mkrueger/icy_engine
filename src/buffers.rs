@@ -243,6 +243,12 @@ impl Buffer {
                 if !self.layers.is_empty() {
                     self.layers[0].set_size(size);
                 }
+
+                if let Some(font) = &sauce.font_opt {
+                    if let Ok(font) = BitFont::from_sauce_name(font) {
+                        self.set_font(0, font);
+                    }
+                }
                 if sauce.use_ice {
                     self.ice_mode = IceMode::Ice;
                 }

@@ -1,5 +1,7 @@
 #![allow(clippy::missing_errors_doc)]
 
+use std::mem;
+
 use i18n_embed_fl::fl;
 
 use crate::{
@@ -92,10 +94,55 @@ impl EditState {
         Ok(())
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     pub fn resize_buffer(&mut self, resize_layer: bool, size: impl Into<Size>) -> EngineResult<()> {
         if resize_layer {
-            let rect = Rectangle::from_min_size(Position::default(), size.into());
-            return self.crop_rect(rect);
+            let size = size.into();
+            let rect = Rectangle::from_min_size(Position::default(), size);
+            let old_size = self.get_buffer().get_size();
+            let mut old_layers = Vec::new();
+            mem::swap(&mut self.get_buffer_mut().layers, &mut old_layers);
+
+            self.get_buffer_mut().set_size(rect.size);
+            self.get_buffer_mut().layers.clear();
+
+            for old_layer in &old_layers {
+                let mut new_layer = old_layer.clone();
+                new_layer.lines.clear();
+                let new_rectangle = old_layer.get_rectangle().intersect(&rect);
+                if new_rectangle.is_empty() {
+                    continue;
+                }
+
+                new_layer.set_offset(new_rectangle.start - rect.start);
+                new_layer.set_size(new_rectangle.size);
+
+                for y in 0..new_rectangle.get_height() {
+                    for x in 0..new_rectangle.get_width() {
+                        let ch =
+                            old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
+                        new_layer.set_char((x, y), ch);
+                    }
+                }
+                self.get_buffer_mut().layers.push(new_layer);
+            }
+            if self.get_buffer_mut().layers[0].get_size() == old_size {
+                self.get_buffer_mut().layers[0].set_size(size);
+            }
+
+            let op = super::undo_operations::Crop::new(old_size, rect.get_size(), old_layers);
+            self.redo_stack.clear();
+            self.undo_stack.lock().unwrap().push(Box::new(op));
+
+            return Ok(());
         }
 
         let op = super::undo_operations::ResizeBuffer::new(self.get_buffer().get_size(), size);

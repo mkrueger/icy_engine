@@ -50,31 +50,6 @@ impl EditState {
         }
     }
 
-    pub fn add_sauce_font(&mut self, name: &str) -> EngineResult<()> {
-        match self.get_buffer().font_mode {
-            crate::FontMode::Unlimited => {
-                let mut page = 100;
-                for i in 100.. {
-                    if !self.get_buffer().has_font(i) {
-                        page = i;
-                        break;
-                    }
-                }
-
-                let new_font = BitFont::from_sauce_name(name)?;
-                let op = super::undo_operations::AddFont::new(
-                    self.caret.get_font_page(),
-                    page,
-                    new_font,
-                );
-                self.push_undo(Box::new(op))
-            }
-            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
-                Err(anyhow::anyhow!("Not supported for this buffer type."))
-            }
-        }
-    }
-
     pub fn set_sauce_font(&mut self, name: &str) -> EngineResult<()> {
         match self.get_buffer().font_mode {
             crate::FontMode::Sauce | crate::FontMode::Single => {

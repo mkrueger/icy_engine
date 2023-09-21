@@ -48,8 +48,8 @@ impl OutputFormat for XBin {
 
         result.push(buf.get_width() as u8);
         result.push((buf.get_width() >> 8) as u8);
-        result.push(buf.get_line_count() as u8);
-        result.push((buf.get_line_count() >> 8) as u8);
+        result.push(buf.get_height() as u8);
+        result.push((buf.get_height() >> 8) as u8);
 
         let mut flags = 0;
         let fonts = analyze_font_usage(buf);
@@ -122,7 +122,7 @@ impl OutputFormat for XBin {
             CompressionLevel::Medium => compress_greedy(&mut result, buf, &fonts),
             CompressionLevel::High => compress_backtrack(&mut result, buf, &fonts),
             CompressionLevel::Off => {
-                for y in 0..buf.get_line_count() {
+                for y in 0..buf.get_height() {
                     for x in 0..buf.get_width() {
                         let ch = buf.get_char((x, y));
 
@@ -368,7 +368,7 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = buffer.get_line_count() * buffer.get_width();
+    let len = buffer.get_height() * buffer.get_width();
     for x in 0..len {
         let cur = buffer.get_char(Position::from_index(buffer, x));
 
@@ -486,7 +486,7 @@ fn count_length(
     buffer: &Buffer,
     mut x: i32,
 ) -> usize {
-    let len = min(x + 256, (buffer.get_line_count() * buffer.get_width()) - 1);
+    let len = min(x + 256, (buffer.get_height() * buffer.get_width()) - 1);
     let mut count = 0;
     while x < len {
         let cur = buffer.get_char(Position::from_index(buffer, x));
@@ -583,7 +583,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
     let mut run_count = 0;
     let mut run_buf = Vec::new();
     let mut run_ch = AttributedChar::default();
-    let len = buffer.get_line_count() * buffer.get_width();
+    let len = buffer.get_height() * buffer.get_width();
     for x in 0..len {
         let cur = buffer.get_char(Position::from_index(buffer, x));
 

@@ -43,11 +43,11 @@ impl OutputFormat for IceDraw {
         result.push(w as u8);
         result.push((w >> 8) as u8);
 
-        let h = buf.get_line_count().saturating_sub(1);
+        let h = buf.get_height().saturating_sub(1);
         result.push(h as u8);
         result.push((h >> 8) as u8);
 
-        let len = buf.get_line_count() * buf.get_width();
+        let len = buf.get_height() * buf.get_width();
         let mut x = 0;
         while x < len {
             let ch = buf.get_char(Position::from_index(buf, x));

@@ -39,7 +39,7 @@ impl OutputFormat for TundraDraw {
         result.extend(TUNDRA_HEADER);
         let mut attr = TextAttribute::from_u8(0, buf.ice_mode);
         let mut skip_pos = None;
-        for y in 0..buf.get_line_count() {
+        for y in 0..buf.get_height() {
             for x in 0..buf.get_width() {
                 let pos = Position::new(x, y);
                 let ch = buf.get_char(pos);
@@ -114,7 +114,7 @@ impl OutputFormat for TundraDraw {
         if let Some(pos2) = skip_pos {
             let pos = Position::new(
                 buf.get_width().saturating_sub(1),
-                buf.get_line_count().saturating_sub(1),
+                buf.get_height().saturating_sub(1),
             );
 
             let skip_len =
@@ -165,7 +165,7 @@ impl OutputFormat for TundraDraw {
             if cmd == TUNDRA_POSITION {
                 pos.y = to_u32(&data[o..]);
                 if pos.y >= (u16::MAX) as i32 {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_line_count())).into());
+                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_height())).into());
                 }
                 o += 4;
                 pos.x = to_u32(&data[o..]);
