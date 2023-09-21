@@ -50,54 +50,6 @@ impl EditState {
         }
     }
 
-    pub fn add_sauce_font(&mut self, name: &str) -> EngineResult<()> {
-        match self.get_buffer().font_mode {
-            crate::FontMode::Unlimited => {
-                let mut page = 100;
-                for i in 100.. {
-                    if !self.get_buffer().has_font(i) {
-                        page = i;
-                        break;
-                    }
-                }
-
-                let new_font = BitFont::from_sauce_name(name)?;
-                let op = super::undo_operations::AddFont::new(
-                    self.caret.get_font_page(),
-                    page,
-                    new_font,
-                );
-                self.push_undo(Box::new(op))
-            }
-            crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::Dual => {
-                Err(anyhow::anyhow!("Not supported for this buffer type."))
-            }
-        }
-    }
-
-    pub fn set_sauce_font(&mut self, name: &str) -> EngineResult<()> {
-        match self.get_buffer().font_mode {
-            crate::FontMode::Sauce | crate::FontMode::Single => {
-                let new_font = BitFont::from_sauce_name(name)?;
-                let op = super::undo_operations::SetFont::new(
-                    0,
-                    self.get_buffer().get_font(0).unwrap().clone(),
-                    new_font,
-                );
-                self.push_undo(Box::new(op))
-            }
-            crate::FontMode::Unlimited | crate::FontMode::Dual => {
-                let new_font = BitFont::from_sauce_name(name)?;
-                let op = super::undo_operations::SetFont::new(
-                    self.caret.get_font_page(),
-                    self.get_buffer().get_font(0).unwrap().clone(),
-                    new_font,
-                );
-                self.push_undo(Box::new(op))
-            }
-        }
-    }
-
     pub fn add_font(&mut self, new_font: BitFont) -> EngineResult<()> {
         match self.get_buffer().font_mode {
             crate::FontMode::Unlimited => {
