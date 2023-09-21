@@ -11,6 +11,7 @@ pub enum ParserError {
     Description(&'static str),
     UnsupportedControlCode(u32),
     UnsupportedFont(usize),
+    UnsupportedSauceFont(String),
     UnexpectedSixelEnd(char),
     InvalidColorInSixelSequence,
     NumberMissingInSixelRepeat,
@@ -45,6 +46,7 @@ impl std::fmt::Display for ParserError {
                 write!(f, "unsupported custom ansi command: {}", *code)
             }
             ParserError::UnsupportedFont(code) => write!(f, "font {} not supported", *code),
+            ParserError::UnsupportedSauceFont(name) => write!(f, "font {name} not supported"),
             ParserError::UnexpectedSixelEnd(ch) => {
                 write!(f, "sixel sequence ended with <esc>{ch} expected '\\'")
             }

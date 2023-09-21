@@ -37,7 +37,7 @@ impl OutputFormat for TundraDraw {
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         let mut result: Vec<u8> = vec![TUNDRA_VER]; // version
         result.extend(TUNDRA_HEADER);
-        let mut attr = TextAttribute::from_u8(0, buf.buffer_type);
+        let mut attr = TextAttribute::from_u8(0, buf.ice_mode);
         let mut skip_pos = None;
         for y in 0..buf.get_line_count() {
             for x in 0..buf.get_width() {
@@ -152,10 +152,10 @@ impl OutputFormat for TundraDraw {
 
         result.palette.clear();
         result.palette.insert_color_rgb(0, 0, 0);
-        result.buffer_type = BufferType::NoLimits;
+        result.buffer_type = BufferType::CP437;
 
         let mut pos = Position::default();
-        let mut attr = TextAttribute::from_u8(0, result.buffer_type);
+        let mut attr = TextAttribute::from_u8(0, result.ice_mode);
 
         while o < data.len() {
             let mut cmd = data[o];

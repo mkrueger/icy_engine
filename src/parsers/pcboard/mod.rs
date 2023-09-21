@@ -38,7 +38,7 @@ impl BufferParser for Parser {
                     }
                     2 => {
                         self.pcb_value = (self.pcb_value << 4) + conv_ch(ch);
-                        caret.attribute = TextAttribute::from_u8(self.pcb_value, buf.buffer_type);
+                        caret.attribute = TextAttribute::from_u8(self.pcb_value, buf.ice_mode);
                     }
                     _ => {}
                 }

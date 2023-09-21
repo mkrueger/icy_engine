@@ -148,7 +148,7 @@ impl BufferParser for Parser {
                 }
             },
             AvtReadState::ReadColor => {
-                caret.attribute = TextAttribute::from_u8(ch as u8, buf.buffer_type);
+                caret.attribute = TextAttribute::from_u8(ch as u8, buf.ice_mode);
                 self.avt_state = AvtReadState::Chars;
                 Ok(CallbackAction::None)
             }

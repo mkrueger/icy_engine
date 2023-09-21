@@ -70,7 +70,7 @@ impl SaveOptions {
     pub fn new() -> Self {
         SaveOptions {
             screen_preparation: ScreenPreperation::None,
-            buffer_type: BufferType::NoLimits,
+            buffer_type: BufferType::CP437,
             modern_terminal_output: false,
             save_sauce: false,
             compression_level: CompressionLevel::High,

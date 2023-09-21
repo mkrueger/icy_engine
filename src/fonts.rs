@@ -683,6 +683,153 @@ fonts![
     (VIEWDATA, "Viewdata/saa5050.psf", "Viewdata", 6, 16),
 ];
 
+macro_rules! sauce_fonts {
+    ($( ($i:ident, $file:expr, $name: expr, $stretch:expr, $stretch_lga:expr) ),* $(,)? ) => {
+
+        $(
+            pub const $i: &[u8] = include_bytes!(concat!("../data/fonts/", $file));
+        )*
+
+        impl BitFont {
+            /// .
+            ///
+            /// # Panics
+            ///
+            /// Panics if .
+            ///
+            /// # Errors
+            ///
+            /// This function will return an error if .
+            pub fn name(sauce_name: &str) -> EngineResult<Self> {
+                match sauce_name {
+                    $(
+                        stringify!($name) => {BitFont::from_bytes($name, $i)}
+                    )*
+                    _ => Err(ParserError::UnsupportedSauceFont(sauce_name.to_string()).into()),
+                }
+            }
+        }
+
+        pub const SAUCE_FONT_NAMES: &[&str] = &[
+            $(
+                $name,
+            )*
+        ];
+    };
+}
+sauce_fonts![
+    // CP 437
+    (IBM_VGA_SAUCE, "Ansi/cp437_8x16.psf", "IBM VGA", 1.35, 1.20),
+    (
+        IBM_VGA50_SAUCE,
+        "Sauce/cp437/IBM_VGA50.psf",
+        "IBM VGA50",
+        1.35,
+        1.20
+    ),
+    (
+        IBM_VGA25G_SAUCE,
+        "Sauce/cp437/IBM_VGA25G.psf",
+        "IBM VGA25G",
+        0,
+        0
+    ),
+    (
+        IBM_EGA_SAUCE,
+        "Sauce/cp437/IBM_EGA.psf",
+        "IBM EGA",
+        1.3714,
+        0
+    ),
+    (
+        IBM_EGA43_SAUCE,
+        "Sauce/cp437/IBM_EGA43.F08",
+        "IBM EGA43",
+        1.3714,
+        0
+    ),
+    // Amiga
+    (
+        AMIGA_TOPAZ_1_SAUCE,
+        "Amiga/Topaz1.psf",
+        "Amiga Topaz 1",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_TOPAZ_1P_SAUCE,
+        "Amiga/Topaz1+.psf",
+        "Amiga Topaz 1+",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_TOPAZ_2_SAUCE,
+        "Amiga/Topaz2.psf",
+        "Amiga Topaz 2",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_TOPAZ_2P_SAUCE,
+        "Amiga/Topaz2+.psf",
+        "Amiga Topaz 2+",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_P0T_NOODLE_SAUCE,
+        "Amiga/P0T-NOoDLE.psf",
+        "Amiga P0T-NOoDLE",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_MICROKNIGHT_SAUCE,
+        "Amiga/MicroKnight.psf",
+        "Amiga MicroKnight",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_MICROKNIGHT_PLUS_SAUCE,
+        "Amiga/MicroKnight+.psf",
+        "Amiga MicroKnight+",
+        1.4,
+        0.0
+    ),
+    (
+        AMIGA_MOSOUL_SAUCE,
+        "Amiga/mOsOul.psf",
+        "Amiga mOsOul",
+        1.4,
+        0.0
+    ),
+    // C64
+    (
+        C64_UNSHIFTED_SAUCE,
+        "Commodore/C64_PETSCII_unshifted.psf",
+        "C64 PETSCII unshifted",
+        1.2,
+        0.0
+    ),
+    (
+        C64_SHIFTED_SAUCE,
+        "Commodore/C64_PETSCII_shifted.psf",
+        "C64 PETSCII shifted",
+        1.2,
+        0.0
+    ),
+    // Atari
+    (
+        ARMSCII_8_SAUCE,
+        "Ansi/ARMSCII-8_Character_set_8x16.f16",
+        "Atari ATASCII",
+        1.2,
+        0.0
+    ),
+];
+
 #[derive(Debug, Clone)]
 pub enum FontError {
     FontNotFound,

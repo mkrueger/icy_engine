@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, BitFont, Buffer, BufferType, EngineResult, LoadingError, OutputFormat, Palette,
+    AttributedChar, BitFont, Buffer, EngineResult, IceMode, LoadingError, OutputFormat, Palette,
     Position, SavingError, Size, TextPane,
 };
 
@@ -68,7 +68,7 @@ impl OutputFormat for IceDraw {
                 rle_count = 1;
             }
             result.push(ch.ch as u8);
-            result.push(ch.attribute.as_u8(BufferType::LegacyIce));
+            result.push(ch.attribute.as_u8());
 
             x += rle_count;
         }
@@ -127,7 +127,7 @@ impl OutputFormat for IceDraw {
         }
 
         result.set_width(x2 + 1);
-        result.buffer_type = BufferType::LegacyIce;
+        result.ice_mode = IceMode::Ice;
         let data_size = data.len() - FONT_SIZE - PALETTE_SIZE;
         let mut pos = Position::new(x1, y1);
 
@@ -152,7 +152,7 @@ impl OutputFormat for IceDraw {
             }
             while rle_count > 0 {
                 result.layers[0].set_height(pos.y + 1);
-                let mut attribute = TextAttribute::from_u8(attr, result.buffer_type);
+                let mut attribute = TextAttribute::from_u8(attr, result.ice_mode);
                 if attribute.is_bold() {
                     attribute.set_foreground(attribute.foreground_color + 8);
                     attribute.set_is_bold(false);

@@ -72,7 +72,11 @@ impl OutputFormat for IcyDraw {
                 (constants::ICD_VERSION >> 8) as u8,
             ];
             result.extend(u32::to_le_bytes(0)); // Type
-            result.extend(u16::to_le_bytes(buf.buffer_type.to_byte() as u16)); // Mode
+                                                // Modes
+            result.extend(u16::to_le_bytes(buf.buffer_type.to_byte() as u16));
+            result.push(buf.ice_mode.to_byte());
+            result.push(buf.palette_mode.to_byte());
+            result.push(buf.font_mode.to_byte());
 
             result.extend(u32::to_le_bytes(buf.get_width() as u32));
             result.extend(u32::to_le_bytes(buf.get_line_count() as u32));
@@ -381,16 +385,26 @@ impl OutputFormat for IcyDraw {
                                 }
                                 "ICED" => {
                                     let mut o: usize = 0;
-
                                     o += 2; // skip version
-
-                                    // TODO: read type ATM only 1 type is generated.
+                                            // TODO: read type ATM only 1 type is generated.
                                     o += 4; // skip type
-
-                                    let mode =
+                                    let buffer_type =
                                         u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap());
                                     o += 2;
-                                    result.buffer_type = crate::BufferType::from_byte(mode as u8);
+                                    result.buffer_type =
+                                        crate::BufferType::from_byte(buffer_type as u8);
+                                    let ice_mode = bytes[o];
+                                    o += 1;
+                                    result.ice_mode = crate::IceMode::from_byte(ice_mode as u8);
+
+                                    let palette_mode = bytes[o];
+                                    o += 1;
+                                    result.palette_mode =
+                                        crate::PaletteMode::from_byte(palette_mode as u8);
+
+                                    let font_mode = bytes[o];
+                                    o += 1;
+                                    result.font_mode = crate::FontMode::from_byte(font_mode as u8);
 
                                     let width: i32 =
                                         u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())

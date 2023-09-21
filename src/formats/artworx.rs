@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, LoadingError,
-    OutputFormat, Palette, SavingError, Size, TextPane,
+    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, FontMode, IceMode,
+    LoadingError, OutputFormat, Palette, SavingError, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -50,7 +50,7 @@ impl OutputFormat for Artworx {
             for x in 0..buf.get_width() {
                 let ch = buf.get_char((x, y));
                 result.push(ch.ch as u8);
-                result.push(ch.attribute.as_u8(BufferType::LegacyIce));
+                result.push(ch.attribute.as_u8());
             }
         }
         if options.save_sauce {
@@ -70,7 +70,9 @@ impl OutputFormat for Artworx {
         result.file_name = Some(file_name.into());
         result.set_sauce(sauce_opt, true);
         result.set_width(80);
-        result.buffer_type = BufferType::LegacyIce;
+        result.buffer_type = BufferType::CP437;
+        result.ice_mode = IceMode::Ice;
+        result.font_mode = FontMode::Single;
         let file_size = data.len();
         let mut o = 0;
         let mut pos = Position::default();
@@ -101,7 +103,7 @@ impl OutputFormat for Artworx {
                     return Ok(result);
                 }
                 result.layers[0].set_height(pos.y + 1);
-                let mut attribute = TextAttribute::from_u8(data[o + 1], result.buffer_type);
+                let mut attribute = TextAttribute::from_u8(data[o + 1], result.ice_mode);
                 if attribute.is_bold() {
                     attribute.set_foreground(attribute.foreground_color + 8);
                     attribute.set_is_bold(false);

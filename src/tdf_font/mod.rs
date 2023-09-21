@@ -2,9 +2,7 @@ use std::{error::Error, fs::File, io::Read, path::Path};
 
 use i18n_embed_fl::fl;
 
-use crate::{
-    editor::EditState, AttributedChar, BufferType, EngineResult, Position, Size, TextAttribute,
-};
+use crate::{editor::EditState, AttributedChar, EngineResult, Position, Size, TextAttribute};
 
 #[derive(Copy, Clone, Debug)]
 pub enum FontType {
@@ -76,7 +74,7 @@ impl FontGlyph {
                     FontType::Color => {
                         let ch = unsafe { char::from_u32_unchecked(ch as u32) };
                         let ch_attr =
-                            TextAttribute::from_u8(self.data[char_offset], BufferType::LegacyIce); // tdf fonts don't support ice mode by default
+                            TextAttribute::from_u8(self.data[char_offset], crate::IceMode::Ice); // tdf fonts don't support ice mode by default
                         char_offset += 1;
                         let ch = AttributedChar::new(ch, ch_attr);
                         if ch.is_transparent() {

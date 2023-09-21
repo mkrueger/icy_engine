@@ -78,7 +78,7 @@ impl OutputFormat for Avatar {
                 if first_char || ch.attribute != last_attr {
                     result.push(22);
                     result.push(1);
-                    result.push(ch.attribute.as_u8(buf.buffer_type));
+                    result.push(ch.attribute.as_u8());
                     last_attr = ch.attribute;
                 }
                 first_char = false;

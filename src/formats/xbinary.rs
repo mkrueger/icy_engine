@@ -1,8 +1,8 @@
 use std::{cmp::min, path::Path};
 
 use crate::{
-    analyze_font_usage, AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult,
-    LoadingError, OutputFormat, Palette, Position, SavingError, TextPane,
+    analyze_font_usage, AttributedChar, BitFont, Buffer, BufferFeatures, EngineResult, FontMode,
+    IceMode, LoadingError, OutputFormat, Palette, PaletteMode, Position, SavingError, TextPane,
 };
 
 use super::{CompressionLevel, SaveOptions, TextAttribute};
@@ -83,7 +83,7 @@ impl OutputFormat for XBin {
             flags |= FLAG_COMPRESS;
         }
 
-        if buf.buffer_type.use_ice_colors() {
+        if matches!(buf.ice_mode, IceMode::Ice) {
             flags |= FLAG_NON_BLINK_MODE;
         }
 
@@ -179,10 +179,20 @@ impl OutputFormat for XBin {
         let use_ice = (flags & FLAG_NON_BLINK_MODE) == FLAG_NON_BLINK_MODE;
         let extended_char_mode = (flags & FLAG_512CHAR_MODE) == FLAG_512CHAR_MODE;
 
-        result.buffer_type = if use_ice {
-            BufferType::LegacyIce
+        result.font_mode = if extended_char_mode {
+            FontMode::Dual
         } else {
-            BufferType::LegacyDos
+            FontMode::Single
+        };
+        result.palette_mode = if extended_char_mode {
+            PaletteMode::Free8
+        } else {
+            PaletteMode::Free16
+        };
+        result.ice_mode = if use_ice {
+            IceMode::Ice
+        } else {
+            IceMode::Blink
         };
 
         if has_custom_palette {
@@ -206,9 +216,9 @@ impl OutputFormat for XBin {
             }
         }
         if is_compressed {
-            read_data_compressed(&mut result, &data[o..], extended_char_mode)?;
+            read_data_compressed(&mut result, &data[o..])?;
         } else {
-            read_data_uncompressed(&mut result, &data[o..], extended_char_mode)?;
+            read_data_uncompressed(&mut result, &data[o..])?;
         }
         crate::crop_loaded_file(&mut result);
 
@@ -225,11 +235,7 @@ fn advance_pos(result: &Buffer, pos: &mut Position) -> bool {
     true
 }
 
-fn read_data_compressed(
-    result: &mut Buffer,
-    bytes: &[u8],
-    extended_char_mode: bool,
-) -> EngineResult<bool> {
+fn read_data_compressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
@@ -249,8 +255,8 @@ fn read_data_compressed(
                     let char_code = bytes[o];
                     let attribute = bytes[o + 1];
                     o += 2;
-                    result.layers[0]
-                        .set_char(pos, decode_char(char_code, attribute, extended_char_mode));
+                    let attributed_char = decode_char(result, char_code, attribute);
+                    result.layers[0].set_char(pos, attributed_char);
 
                     if !advance_pos(result, &mut pos) {
                         return Err(LoadingError::OutOfBounds.into());
@@ -266,8 +272,8 @@ fn read_data_compressed(
                         break;
                     }
 
-                    result.layers[0]
-                        .set_char(pos, decode_char(char_code, bytes[o], extended_char_mode));
+                    let attributed_char = decode_char(result, char_code, bytes[o]);
+                    result.layers[0].set_char(pos, attributed_char);
                     o += 1;
                     if !advance_pos(result, &mut pos) {
                         return Err(LoadingError::OutOfBounds.into());
@@ -282,8 +288,8 @@ fn read_data_compressed(
                         log::error!("Invalid XBin. Read attribute compression block beyond EOF.");
                         break;
                     }
-                    result.layers[0]
-                        .set_char(pos, decode_char(bytes[o], attribute, extended_char_mode));
+                    let attributed_char = decode_char(result, bytes[o], attribute);
+                    result.layers[0].set_char(pos, attributed_char);
                     o += 1;
                     if !advance_pos(result, &mut pos) {
                         return Err(LoadingError::OutOfBounds.into());
@@ -299,7 +305,7 @@ fn read_data_compressed(
                 }
                 let attr = bytes[o];
                 o += 1;
-                let rep_ch = decode_char(char_code, attr, extended_char_mode);
+                let rep_ch = decode_char(result, char_code, attr);
 
                 for _ in 0..repeat_counter {
                     result.layers[0].set_char(pos, rep_ch);
@@ -314,37 +320,29 @@ fn read_data_compressed(
     Ok(true)
 }
 
-fn decode_char(char_code: u8, attr: u8, extended_char_mode: bool) -> AttributedChar {
-    let mut attribute = TextAttribute::from_u8(attr, BufferType::LegacyDos);
-    if attribute.is_bold() {
-        if extended_char_mode {
-            attribute.set_font_page(1);
-        } else {
-            attribute.set_foreground(attribute.foreground_color + 8);
-        }
-        attribute.set_is_bold(false);
+fn decode_char(result: &Buffer, char_code: u8, attr: u8) -> AttributedChar {
+    let mut attribute = TextAttribute::from_u8(attr, result.ice_mode);
+    if attribute.get_foreground() >= 7 && matches!(result.font_mode, FontMode::Dual) {
+        attribute.set_font_page(1);
+        attribute.set_foreground(attribute.foreground_color - 8);
     }
     AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)
 }
 
 fn encode_attr(ch: AttributedChar, fonts: &[usize]) -> u8 {
     if fonts.len() == 2 {
-        (ch.attribute.as_u8(BufferType::LegacyDos) & 0b_1111_0111)
+        (ch.attribute.as_u8() & 0b_1111_0111)
             | if ch.attribute.font_page == fonts[1] {
                 0b1000
             } else {
                 0
             }
     } else {
-        ch.attribute.as_u8(BufferType::LegacyDos)
+        ch.attribute.as_u8()
     }
 }
 
-fn read_data_uncompressed(
-    result: &mut Buffer,
-    bytes: &[u8],
-    extended_char_mode: bool,
-) -> EngineResult<bool> {
+fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<bool> {
     let mut pos = Position::default();
     let mut o = 0;
     while o < bytes.len() {
@@ -354,7 +352,8 @@ fn read_data_uncompressed(
             log::error!("Invalid XBin. Read char block beyond EOF.");
             return Ok(true);
         }
-        result.layers[0].set_char(pos, decode_char(bytes[o], bytes[o + 1], extended_char_mode));
+        let attributed_char = decode_char(result, bytes[o], bytes[o + 1]);
+        result.layers[0].set_char(pos, attributed_char);
         o += 2;
         if !advance_pos(result, &mut pos) {
             return Err(LoadingError::OutOfBounds.into());

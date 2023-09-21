@@ -1,4 +1,4 @@
-use crate::{ascii::CP437_TO_UNICODE, EngineResult, Size, TextPane};
+use crate::{ascii::CP437_TO_UNICODE, EngineResult, IceMode, Size, TextPane};
 
 use super::Buffer;
 
@@ -495,7 +495,7 @@ impl Buffer {
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
 
-                if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
+                if matches!(self.ice_mode, IceMode::Ice) { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
             },
             SauceFileType::Undefined | // map everything else just to ANSI
             SauceFileType::Ansi => {
@@ -503,7 +503,7 @@ impl Buffer {
                 file_type = SAUCE_FILE_TYPE_ANSI;
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
-                if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
+                if matches!(self.ice_mode, IceMode::Ice) { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
                 if let Some(sauce_data) = self.get_sauce() {
                     if sauce_data.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_LEGACY; }
                     if sauce_data.use_letter_spacing { t_flags |= ANSI_LETTER_SPACING_9PX; }
@@ -514,7 +514,7 @@ impl Buffer {
                 file_type = SAUCE_FILE_TYPE_ANSIMATION;
                 t_info1 = self.get_width();
                 t_info2 = self.get_height();
-                if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
+                if matches!(self.ice_mode, IceMode::Ice) { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
             },
             SauceFileType::PCBoard => {
                 data_type = SauceDataType::Character;
@@ -546,7 +546,7 @@ impl Buffer {
                     return Err(SauceError::BinFileWidthLimitExceeded(w).into());
                 }
                 file_type = w as u8;
-                if self.buffer_type.use_ice_colors() { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
+                if matches!(self.ice_mode, IceMode::Ice) { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
             },
             SauceFileType::XBin => {
                 data_type = SauceDataType::XBin;

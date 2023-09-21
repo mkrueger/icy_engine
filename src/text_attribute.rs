@@ -1,4 +1,4 @@
-use super::BufferType;
+use crate::IceMode;
 
 pub mod attribute {
     pub const NONE: u16 = 0;
@@ -58,7 +58,7 @@ impl std::fmt::Display for TextAttribute {
         write!(
             f,
             "(Attr: {:X}, fg {}, bg {}, blink {})",
-            self.as_u8(BufferType::LegacyDos),
+            self.as_u8(),
             self.get_foreground(),
             self.get_background(),
             self.is_blinking()
@@ -75,17 +75,15 @@ impl TextAttribute {
         }
     }
 
-    pub fn from_u8(attr: u8, buffer_type: BufferType) -> Self {
+    pub fn from_u8(attr: u8, ice_mode: IceMode) -> Self {
         let mut blink = false;
-        let background_color = if buffer_type.use_ice_colors() {
+        let background_color = if let IceMode::Ice = ice_mode {
             attr >> 4
         } else {
             blink = attr & 0b1000_0000 != 0;
             (attr >> 4) & 0b0111
         } as u32;
-
-        let bold = attr & 0b1000 != 0;
-        let foreground_color = (attr & 0b0111) as u32;
+        let foreground_color = (attr & 0b1111) as u32;
 
         let mut attr = TextAttribute {
             foreground_color,
@@ -93,7 +91,6 @@ impl TextAttribute {
             ..Default::default()
         };
 
-        attr.set_is_bold(bold);
         attr.set_is_blinking(blink);
 
         attr
@@ -110,7 +107,7 @@ impl TextAttribute {
         res
     }
 
-    pub fn as_u8(self, _buffer_type: BufferType) -> u8 {
+    pub fn as_u8(self) -> u8 {
         let mut fg = self.foreground_color & 0b_0111;
 
         if self.is_bold() {

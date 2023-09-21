@@ -26,7 +26,7 @@ impl OutputFormat for Bin {
             for x in 0..buf.get_width() {
                 let ch = buf.get_char((x, y));
                 result.push(ch.ch as u8);
-                result.push(ch.attribute.as_u8(buf.buffer_type));
+                result.push(ch.attribute.as_u8());
             }
         }
         if options.save_sauce {
@@ -62,7 +62,7 @@ impl OutputFormat for Bin {
                 }
 
                 result.layers[0].set_height(pos.y + 1);
-                let mut attribute = TextAttribute::from_u8(data[o + 1], result.buffer_type);
+                let mut attribute = TextAttribute::from_u8(data[o + 1], result.ice_mode);
                 if attribute.is_bold() {
                     attribute.set_foreground(attribute.foreground_color + 8);
                     attribute.set_is_bold(false);

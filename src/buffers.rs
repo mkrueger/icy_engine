@@ -17,50 +17,118 @@ use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum BufferType {
-    /// 16 fg colors, 8 bg colors, blink
-    LegacyDos,
-    /// 16 fg + bg colors, no blink
-    LegacyIce,
-    /// free colors, blink
-    NoLimits,
-    /// Like no limits but with unicode font
     Unicode,
+    CP437,
 }
 
 impl BufferType {
-    pub fn use_ice_colors(self) -> bool {
-        self == BufferType::LegacyIce
-    }
-
-    pub fn has_rgb_colors(self) -> bool {
-        self == BufferType::NoLimits || self == BufferType::Unicode
-    }
-
-    pub fn has_high_bg_colors(self) -> bool {
-        self != BufferType::LegacyDos
-    }
-
-    pub fn has_blink(self) -> bool {
-        self != BufferType::LegacyIce
-    }
-
     pub fn from_byte(b: u8) -> Self {
         match b {
-            // 0 => BufferType::NoLimits,
-            1 => BufferType::LegacyDos,
-            2 => BufferType::LegacyIce,
-            3 => BufferType::Unicode,
-            _ => BufferType::NoLimits,
+            // 0 => BufferType::CP437,
+            1 => BufferType::CP437,
+            _ => BufferType::Unicode,
         }
     }
 
     pub fn to_byte(self) -> u8 {
         match self {
-            BufferType::NoLimits => 0,
-            BufferType::LegacyDos => 1,
-            BufferType::LegacyIce => 2,
-            BufferType::Unicode => 3,
+            BufferType::CP437 => 0,
+            BufferType::Unicode => 1,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum IceMode {
+    Unlimited,
+    Blink,
+    Ice,
+}
+
+impl IceMode {
+    pub fn from_byte(b: u8) -> Self {
+        match b {
+            0 => IceMode::Unlimited,
+            1 => IceMode::Blink,
+            _ => IceMode::Ice,
+        }
+    }
+
+    pub fn to_byte(self) -> u8 {
+        match self {
+            IceMode::Unlimited => 0,
+            IceMode::Blink => 1,
+            IceMode::Ice => 2,
+        }
+    }
+    pub fn has_blink(self) -> bool {
+        !matches!(self, IceMode::Ice)
+    }
+
+    pub fn has_high_bg_colors(self) -> bool {
+        matches!(self, IceMode::Blink)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PaletteMode {
+    RGB,
+    Fixed16,
+    Free8,
+    Free16,
+}
+
+impl PaletteMode {
+    pub fn from_byte(b: u8) -> Self {
+        match b {
+            // 0 => PaletteMode::RGB,
+            1 => PaletteMode::Fixed16,
+            2 => PaletteMode::Free8,
+            3 => PaletteMode::Free16,
+            _ => PaletteMode::RGB,
+        }
+    }
+
+    pub fn to_byte(self) -> u8 {
+        match self {
+            PaletteMode::RGB => 0,
+            PaletteMode::Fixed16 => 1,
+            PaletteMode::Free8 => 2,
+            PaletteMode::Free16 => 3,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FontMode {
+    Unlimited,
+    Sauce,
+    Single,
+    Dual,
+}
+
+impl FontMode {
+    pub fn from_byte(b: u8) -> Self {
+        match b {
+            //  0 => FontMode::Unlimited,
+            1 => FontMode::Sauce,
+            2 => FontMode::Single,
+            3 => FontMode::Dual,
+            _ => FontMode::Unlimited,
+        }
+    }
+
+    pub fn to_byte(self) -> u8 {
+        match self {
+            FontMode::Unlimited => 0,
+            FontMode::Sauce => 1,
+            FontMode::Single => 2,
+            FontMode::Dual => 3,
+        }
+    }
+
+    pub fn has_high_fg_colors(self) -> bool {
+        matches!(self, FontMode::Dual)
     }
 }
 
@@ -69,6 +137,10 @@ pub struct Buffer {
 
     pub terminal_state: TerminalState,
     pub buffer_type: BufferType,
+    pub ice_mode: IceMode,
+    pub palette_mode: PaletteMode,
+    pub font_mode: FontMode,
+
     pub is_terminal_buffer: bool,
 
     sauce_data: Option<SauceData>,
@@ -171,6 +243,9 @@ impl Buffer {
                 if !self.layers.is_empty() {
                     self.layers[0].set_size(size);
                 }
+                if sauce.use_ice {
+                    self.ice_mode = IceMode::Ice;
+                }
             }
         }
         self.is_font_table_dirty = true;
@@ -233,7 +308,11 @@ impl Buffer {
             terminal_state: TerminalState::from(size),
             sauce_data: None,
 
-            buffer_type: BufferType::NoLimits,
+            buffer_type: BufferType::CP437,
+            ice_mode: IceMode::Unlimited,
+            palette_mode: PaletteMode::Fixed16,
+            font_mode: FontMode::Sauce,
+
             is_terminal_buffer: false,
             palette: Palette::new(),
 
