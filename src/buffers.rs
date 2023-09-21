@@ -19,21 +19,30 @@ use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
 pub enum BufferType {
     Unicode,
     CP437,
+    Petscii,
+    Atascii,
+    Viewdata,
 }
 
 impl BufferType {
     pub fn from_byte(b: u8) -> Self {
         match b {
-            // 0 => BufferType::CP437,
+            // 0 => BufferType::Unicode,
             1 => BufferType::CP437,
+            2 => BufferType::Petscii,
+            3 => BufferType::Atascii,
+            4 => BufferType::Viewdata,
             _ => BufferType::Unicode,
         }
     }
 
     pub fn to_byte(self) -> u8 {
         match self {
-            BufferType::CP437 => 0,
-            BufferType::Unicode => 1,
+            BufferType::Unicode => 0,
+            BufferType::CP437 => 1,
+            BufferType::Petscii => 2,
+            BufferType::Atascii => 3,
+            BufferType::Viewdata => 4,
         }
     }
 }
