@@ -26,7 +26,7 @@ impl OutputFormat for Bin {
             for x in 0..buf.get_width() {
                 let ch = buf.get_char((x, y));
                 result.push(ch.ch as u8);
-                result.push(ch.attribute.as_u8());
+                result.push(ch.attribute.as_u8(buf.ice_mode));
             }
         }
         if options.save_sauce {

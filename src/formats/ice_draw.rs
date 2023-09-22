@@ -68,7 +68,7 @@ impl OutputFormat for IceDraw {
                 rle_count = 1;
             }
             result.push(ch.ch as u8);
-            result.push(ch.attribute.as_u8());
+            result.push(ch.attribute.as_u8(buf.ice_mode));
 
             x += rle_count;
         }

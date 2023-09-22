@@ -6,7 +6,7 @@ use crate::{
         ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
     },
     AttributedChar, CallbackAction, Caret, Color, OutputFormat, Position, SaveOptions,
-    TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE,
+    TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE, IceMode,
 };
 
 #[test]
@@ -18,31 +18,31 @@ fn test_ansi_sequence() {
 
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'F', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 
     let ch = buf.get_char(Position::new(1, 0));
     assert_eq!(b'o', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 
     let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(b'o', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 
     let ch = buf.get_char(Position::new(3, 0));
     assert_eq!(b'-', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 
     let ch = buf.get_char(Position::new(4, 0));
     assert_eq!(b'B', ch.ch as u8);
-    assert_eq!(15, ch.attribute.as_u8());
+    assert_eq!(15, ch.attribute.as_u8(IceMode::Blink));
 
     let ch = buf.get_char(Position::new(5, 0));
     assert_eq!(b'a', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 
     let ch = buf.get_char(Position::new(6, 0));
     assert_eq!(b'r', ch.ch as u8);
-    assert_eq!(5, ch.attribute.as_u8());
+    assert_eq!(5, ch.attribute.as_u8(IceMode::Blink));
 }
 
 #[test]
@@ -53,13 +53,13 @@ fn test_ansi_30() {
     );
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
-    assert_eq!(13, ch.attribute.as_u8());
+    assert_eq!(13, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(1, 0));
     assert_eq!(b'B', ch.ch as u8);
-    assert_eq!(8, ch.attribute.as_u8());
+    assert_eq!(8, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(b'C', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 }
 
 #[test]
@@ -70,25 +70,25 @@ fn test_bg_colorrsequence() {
     );
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!('1', ch.ch);
-    assert_eq!(8, ch.attribute.as_u8());
+    assert_eq!(8, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(1, 0));
     assert_eq!('2', ch.ch);
-    assert_eq!(1, ch.attribute.as_u8());
+    assert_eq!(1, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(2, 0));
     assert_eq!('3', ch.ch);
-    assert_eq!(6, ch.attribute.as_u8());
+    assert_eq!(6, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(3, 0));
     assert_eq!('4', ch.ch);
-    assert_eq!(14 + (4 << 4), ch.attribute.as_u8());
+    assert_eq!(14 + (4 << 4), ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(4, 0));
     assert_eq!('5', ch.ch);
-    assert_eq!(14, ch.attribute.as_u8());
+    assert_eq!(14, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(5, 0));
     assert_eq!('6', ch.ch);
-    assert_eq!(14 + (6 << 4), ch.attribute.as_u8());
+    assert_eq!(14 + (6 << 4), ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(6, 0));
     assert_eq!('7', ch.ch);
-    assert_eq!(14, ch.attribute.as_u8());
+    assert_eq!(14, ch.attribute.as_u8(IceMode::Blink));
 }
 #[test]
 fn test_char_missing_bug() {
@@ -99,13 +99,13 @@ fn test_char_missing_bug() {
 
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
-    assert_eq!(13, ch.attribute.as_u8());
+    assert_eq!(13, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(1, 0));
     assert_eq!(b'B', ch.ch as u8);
-    assert_eq!(8, ch.attribute.as_u8());
+    assert_eq!(8, ch.attribute.as_u8(IceMode::Blink));
     let ch = buf.get_char(Position::new(2, 0));
     assert_eq!(b'C', ch.ch as u8);
-    assert_eq!(7, ch.attribute.as_u8());
+    assert_eq!(7, ch.attribute.as_u8(IceMode::Blink));
 }
 
 #[test]

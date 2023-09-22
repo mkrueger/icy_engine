@@ -58,7 +58,7 @@ impl std::fmt::Display for TextAttribute {
         write!(
             f,
             "(Attr: {:X}, fg {}, bg {}, blink {})",
-            self.as_u8(),
+            self.as_u8(IceMode::Blink),
             self.get_foreground(),
             self.get_background(),
             self.is_blinking()
@@ -107,14 +107,20 @@ impl TextAttribute {
         res
     }
 
-    pub fn as_u8(self) -> u8 {
-        let mut fg = self.foreground_color & 0b_0111;
-
+    pub fn as_u8(self, ice_mode: IceMode) -> u8 {
+        let mut fg = self.foreground_color & 0b_1111;
         if self.is_bold() {
             fg |= 0b_1000;
         }
-
-        let bg = self.background_color & 0b_1111/*  | if self.is_blinking() { 0b_1000 } else { 0 }*/;
+        let bg = match ice_mode {
+            IceMode::Blink => {
+                self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 }
+            }
+            IceMode::Unlimited |
+            IceMode::Ice =>  {
+                self.background_color & 0b_1111
+            }
+        };
         (fg | bg << 4) as u8
     }
 

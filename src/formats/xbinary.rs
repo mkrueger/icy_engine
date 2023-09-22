@@ -127,7 +127,7 @@ impl OutputFormat for XBin {
                         let ch = buf.get_char((x, y));
 
                         result.push(ch.ch as u8);
-                        result.push(encode_attr(ch, &fonts));
+                        result.push(encode_attr(buf, ch, &fonts));
                     }
                 }
             }
@@ -329,16 +329,16 @@ fn decode_char(result: &Buffer, char_code: u8, attr: u8) -> AttributedChar {
     AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)
 }
 
-fn encode_attr(ch: AttributedChar, fonts: &[usize]) -> u8 {
+fn encode_attr(buf: &Buffer, ch: AttributedChar, fonts: &[usize]) -> u8 {
     if fonts.len() == 2 {
-        (ch.attribute.as_u8() & 0b_1111_0111)
+        (ch.attribute.as_u8(buf.ice_mode) & 0b_1111_0111)
             | if ch.attribute.font_page == fonts[1] {
                 0b1000
             } else {
                 0
             }
     } else {
-        ch.attribute.as_u8()
+        ch.attribute.as_u8(buf.ice_mode)
     }
 }
 
@@ -431,10 +431,10 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
             match run_mode {
                 Compression::Off => {
                     run_buf.push(cur.ch as u8);
-                    run_buf.push(encode_attr(cur, fonts));
+                    run_buf.push(encode_attr(buffer, cur, fonts));
                 }
                 Compression::Char => {
-                    run_buf.push(encode_attr(cur, fonts));
+                    run_buf.push(encode_attr(buffer, cur, fonts));
                 }
                 Compression::Attr => {
                     run_buf.push(cur.ch as u8);
@@ -460,11 +460,11 @@ fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
             }
 
             if let Compression::Attr = run_mode {
-                run_buf.push(encode_attr(cur, fonts));
+                run_buf.push(encode_attr(buffer, cur, fonts));
                 run_buf.push(cur.ch as u8);
             } else {
                 run_buf.push(cur.ch as u8);
-                run_buf.push(encode_attr(cur, fonts));
+                run_buf.push(encode_attr(buffer, cur, fonts));
             }
 
             run_ch = cur;
@@ -679,10 +679,10 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
             match run_mode {
                 Compression::Off => {
                     run_buf.push(cur.ch as u8);
-                    run_buf.push(encode_attr(cur, fonts));
+                    run_buf.push(encode_attr(buffer, cur, fonts));
                 }
                 Compression::Char => {
-                    run_buf.push(encode_attr(cur, fonts));
+                    run_buf.push(encode_attr(buffer, cur, fonts));
                 }
                 Compression::Attr => {
                     run_buf.push(cur.ch as u8);
@@ -708,11 +708,11 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
             }
 
             if let Compression::Attr = run_mode {
-                run_buf.push(encode_attr(cur, fonts));
+                run_buf.push(encode_attr(buffer, cur, fonts));
                 run_buf.push(cur.ch as u8);
             } else {
                 run_buf.push(cur.ch as u8);
-                run_buf.push(encode_attr(cur, fonts));
+                run_buf.push(encode_attr(buffer, cur, fonts));
             }
 
             run_ch = cur;
