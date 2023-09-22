@@ -10,7 +10,7 @@ use crate::{
 
 mod constants {
     pub const ICD_VERSION: u16 = 0;
-
+    pub const ICED_HEADER_SIZE: usize = 19;
     pub mod layer {
         pub const IS_VISIBLE: u32 = 0b0000_0001;
         pub const POS_LOCK: u32 = 0b0000_0010;
@@ -385,6 +385,12 @@ impl OutputFormat for IcyDraw {
                                 }
                                 "ICED" => {
                                     let mut o: usize = 0;
+                                    if bytes.len() != constants::ICED_HEADER_SIZE {
+                                        return Err(anyhow::anyhow!(
+                                            "unsupported header size {}",
+                                            bytes.len()
+                                        ));
+                                    }
                                     o += 2; // skip version
                                             // TODO: read type ATM only 1 type is generated.
                                     o += 4; // skip type
