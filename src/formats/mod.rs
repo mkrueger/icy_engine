@@ -255,6 +255,7 @@ pub enum SavingError {
     NoFontFound,
     Only8x16FontsSupported,
     InvalidXBinFont,
+    Only8BitCharactersSupported,
 }
 
 impl std::fmt::Display for SavingError {
@@ -263,7 +264,7 @@ impl std::fmt::Display for SavingError {
             SavingError::NoFontFound => write!(f, "No font found"),
             SavingError::Only8x16FontsSupported => write!(f, "Only 8x16 fonts are supported by this format."),
             SavingError::InvalidXBinFont => write!(f, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."),
-
+            SavingError::Only8BitCharactersSupported => write!(f, "Only 8 bit characters are supported by this format."),
         }
     }
 }

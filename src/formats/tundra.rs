@@ -3,7 +3,7 @@ use std::{collections::HashSet, io, path::Path};
 use super::{SaveOptions, TextAttribute};
 use crate::{
     AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode, LoadingError,
-    OutputFormat, PaletteMode, Position, TextPane,
+    OutputFormat, PaletteMode, Position, SavingError, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
@@ -44,6 +44,7 @@ impl OutputFormat for TundraDraw {
             for x in 0..buf.get_width() {
                 let pos = Position::new(x, y);
                 let ch = buf.get_char(pos);
+                let cur_attr = ch.attribute;
                 if !ch.is_visible() {
                     if skip_pos.is_none() {
                         skip_pos = Some(pos);
@@ -70,11 +71,15 @@ impl OutputFormat for TundraDraw {
                     }
                     skip_pos = None;
                 }*/
+                let ch = ch.ch as u32;
+                if ch > 255 {
+                    return Err(SavingError::Only8BitCharactersSupported.into());
+                }
 
-                if ch.ch as u16 >= 1 && ch.ch as u16 <= 6 {
+                if (1..=6).contains(&ch) {
                     // fake color change to represent control characters
                     result.push(TUNDRA_COLOR_FOREGROUND);
-                    result.push(ch.ch as u8);
+                    result.push(ch as u8);
 
                     let rgb = buf.palette.get_rgb(attr.get_foreground() as usize);
                     result.push(0);
@@ -84,23 +89,23 @@ impl OutputFormat for TundraDraw {
                     continue;
                 }
 
-                if attr != ch.attribute {
+                if attr != cur_attr {
                     let mut cmd = 0;
-                    let write_foreground = attr.get_foreground() != ch.attribute.get_foreground()
-                        || attr.is_bold() != ch.attribute.is_bold();
+                    let write_foreground = attr.get_foreground() != cur_attr.get_foreground()
+                        || attr.is_bold() != cur_attr.is_bold();
                     if write_foreground {
                         cmd |= TUNDRA_COLOR_FOREGROUND;
                     }
-                    let write_background = attr.get_background() != ch.attribute.get_background();
+                    let write_background = attr.get_background() != cur_attr.get_background();
                     if write_background {
                         cmd |= TUNDRA_COLOR_BACKGROUND;
                     }
 
                     result.push(cmd);
-                    result.push(ch.ch as u8);
+                    result.push(ch as u8);
                     if write_foreground {
-                        let mut fg = ch.attribute.get_foreground() as usize;
-                        if ch.attribute.is_bold() {
+                        let mut fg = cur_attr.get_foreground() as usize;
+                        if cur_attr.is_bold() {
                             fg += 8;
                         }
                         colors.insert(fg);
@@ -111,18 +116,18 @@ impl OutputFormat for TundraDraw {
                         result.push(rgb.2);
                     }
                     if write_background {
-                        colors.insert(ch.attribute.get_background() as usize);
+                        colors.insert(cur_attr.get_background() as usize);
 
-                        let rgb = buf.palette.get_rgb(ch.attribute.get_background() as usize);
+                        let rgb = buf.palette.get_rgb(cur_attr.get_background() as usize);
                         result.push(0);
                         result.push(rgb.0);
                         result.push(rgb.1);
                         result.push(rgb.2);
                     }
-                    attr = ch.attribute;
+                    attr = cur_attr;
                     continue;
                 }
-                result.push(ch.ch as u8);
+                result.push(ch as u8);
             }
         }
         if let Some(pos2) = skip_pos {

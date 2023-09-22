@@ -83,12 +83,16 @@ impl OutputFormat for IceDraw {
                     }
                 }
                 let attr = ch.attribute.as_u8(buf.ice_mode);
+                let ch = ch.ch as u32;
+                if ch > 255 {
+                    return Err(SavingError::Only8BitCharactersSupported.into());
+                }
 
                 // fake repeat
-                if ch.ch as u8 == 1 && attr == 0 && rle_count == 1 {
+                if ch == 1 && attr == 0 && rle_count == 1 {
                     result.extend([1, 0, 1, 0]);
                 }
-                result.push(ch.ch as u8);
+                result.push(ch as u8);
                 result.push(attr);
 
                 x += rle_count;

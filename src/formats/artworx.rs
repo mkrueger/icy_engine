@@ -62,7 +62,11 @@ impl OutputFormat for Artworx {
             for x in 0..buf.get_width() {
                 let ch = buf.get_char((x, y));
                 let attr = ch.attribute.as_u8(IceMode::Ice);
-                result.push(ch.ch as u8);
+                let ch = ch.ch as u32;
+                if ch > 255 {
+                    return Err(SavingError::Only8BitCharactersSupported.into());
+                }
+                result.push(ch as u8);
                 result.push(attr);
             }
         }

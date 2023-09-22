@@ -131,13 +131,18 @@ impl OutputFormat for XBin {
             }
         }
         if options.compress {
-            compress_backtrack(&mut result, buf, &fonts);
+            compress_backtrack(&mut result, buf, &fonts)?;
         } else {
             for y in 0..buf.get_height() {
                 for x in 0..buf.get_width() {
                     let ch = buf.get_char((x, y));
-                    result.push(ch.ch as u8);
-                    result.push(encode_attr(buf, ch, &fonts));
+                    let attr = encode_attr(buf, ch, &fonts);
+                    let ch = ch.ch as u32;
+                    if ch > 255 {
+                        return Err(SavingError::Only8BitCharactersSupported.into());
+                    }
+                    result.push(ch as u8);
+                    result.push(attr);
                 }
             }
         }
@@ -483,7 +488,11 @@ fn count_length(
     count
 }
 
-fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
+fn compress_backtrack(
+    outputdata: &mut Vec<u8>,
+    buffer: &Buffer,
+    fonts: &[usize],
+) -> EngineResult<()> {
     for y in 0..buffer.get_height() {
         let mut run_buf = Vec::new();
         let mut run_mode = Compression::Off;
@@ -604,17 +613,21 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
                 }
             }
 
+            let ch_code = cur.ch as u32;
+            if ch_code > 255 {
+                return Err(SavingError::Only8BitCharactersSupported.into());
+            }
             if run_count > 0 {
                 match run_mode {
                     Compression::Off => {
-                        run_buf.push(cur.ch as u8);
+                        run_buf.push(ch_code as u8);
                         run_buf.push(encode_attr(buffer, cur, fonts));
                     }
                     Compression::Char => {
                         run_buf.push(encode_attr(buffer, cur, fonts));
                     }
                     Compression::Attr => {
-                        run_buf.push(cur.ch as u8);
+                        run_buf.push(ch_code as u8);
                     }
                     Compression::Full => {
                         // nothing
@@ -635,12 +648,11 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
                 } else {
                     run_mode = Compression::Off;
                 }
-
                 if let Compression::Attr = run_mode {
                     run_buf.push(encode_attr(buffer, cur, fonts));
-                    run_buf.push(cur.ch as u8);
+                    run_buf.push(ch_code as u8);
                 } else {
-                    run_buf.push(cur.ch as u8);
+                    run_buf.push(ch_code as u8);
                     run_buf.push(encode_attr(buffer, cur, fonts));
                 }
 
@@ -654,6 +666,7 @@ fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]
             outputdata.extend(run_buf);
         }
     }
+    Ok(())
 }
 
 pub fn get_save_sauce_default_xb(buf: &Buffer) -> (bool, String) {
