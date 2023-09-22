@@ -19,6 +19,9 @@ use crate::{
 #[derive(Default)]
 pub(crate) struct Artworx {}
 
+const HEADER_LENGTH: usize = 1 + 3 * 64 + 4096;
+const VERSION: u8 = 1;
+
 impl OutputFormat for Artworx {
     fn get_file_extension(&self) -> &str {
         "adf"
@@ -33,10 +36,19 @@ impl OutputFormat for Artworx {
     }
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
+        if buf.ice_mode != IceMode::Ice {
+            return Err(anyhow::anyhow!(
+                "Only ice mode files are supported by this format."
+            ));
+        }
+        if buf.get_width() != 80 {
+            return Err(anyhow::anyhow!(
+                "Only width==80 files are supported by this format."
+            ));
+        }
         let mut result = vec![1]; // version
-
         result.extend(buf.palette.to_ega_palette());
-        if buf.get_font_dimensions() != Size::new(8, 16) {
+        if buf.get_font_dimensions().height != 16 {
             return Err(SavingError::Only8x16FontsSupported.into());
         }
 
@@ -77,12 +89,12 @@ impl OutputFormat for Artworx {
         let file_size = data.len();
         let mut o = 0;
         let mut pos = Position::default();
-        if file_size < 1 + 3 * 64 + 4096 {
+        if file_size < HEADER_LENGTH {
             return Err(LoadingError::FileTooShort.into());
         }
 
         let version = data[o];
-        if version != 1 {
+        if version != VERSION {
             return Err(LoadingError::UnsupportedADFVersion(version).into());
         }
         o += 1;
@@ -106,12 +118,7 @@ impl OutputFormat for Artworx {
                     return Ok(result);
                 }
                 result.layers[0].set_height(pos.y + 1);
-                let mut attribute = TextAttribute::from_u8(data[o + 1], result.ice_mode);
-                if attribute.is_bold() {
-                    attribute.set_foreground(attribute.foreground_color + 8);
-                    attribute.set_is_bold(false);
-                }
-
+                let attribute = TextAttribute::from_u8(data[o + 1], result.ice_mode);
                 result.layers[0].set_char(
                     pos,
                     AttributedChar::new(char::from_u32(data[o] as u32).unwrap(), attribute),
@@ -135,4 +142,59 @@ pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {
     }
 
     (false, String::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute, TextPane};
+
+    #[test]
+    pub fn test_ice() {
+        let mut buffer = create_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
+        );
+        test_artworx(buffer);
+    }
+
+    fn create_buffer() -> Buffer {
+        let mut buffer = Buffer::new((80, 25));
+        for y in 0..buffer.get_height() {
+            for x in 0..buffer.get_width() {
+                buffer.layers[0]
+                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+            }
+        }
+        buffer
+    }
+
+    fn test_artworx(mut buffer: Buffer) -> Buffer {
+        let xb = super::Artworx::default();
+        let mut opt = crate::SaveOptions::default();
+        opt.compress = false;
+        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
+        let mut buffer2 = xb
+            .load_buffer(std::path::Path::new("test.adf"), &bytes, None)
+            .unwrap();
+        compare_buffers(
+            &mut buffer,
+            &mut buffer2,
+            crate::CompareOptions {
+                compare_palette: false,
+            },
+        );
+        buffer2
+    }
 }

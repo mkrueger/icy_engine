@@ -779,14 +779,14 @@ mod tests {
         let mut buffer2 = xb
             .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buffer, &mut buffer2);
+        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
 
         opt.compress = true;
         let bytes = xb.to_bytes(&buffer, &opt).unwrap();
         let mut buffer2 = xb
             .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buffer, &mut buffer2);
+        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
 
         buffer2
     }

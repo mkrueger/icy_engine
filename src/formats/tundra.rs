@@ -258,3 +258,58 @@ pub fn get_save_sauce_default_tnd(buf: &Buffer) -> (bool, String) {
 
     (false, String::new())
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute, TextPane};
+
+    #[test]
+    pub fn test_ice() {
+        let mut buffer = create_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
+        );
+        test_tundra(buffer);
+    }
+
+    fn create_buffer() -> Buffer {
+        let mut buffer = Buffer::new((80, 25));
+        for y in 0..buffer.get_height() {
+            for x in 0..buffer.get_width() {
+                buffer.layers[0]
+                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+            }
+        }
+        buffer
+    }
+
+    fn test_tundra(mut buffer: Buffer) -> Buffer {
+        let xb = super::TundraDraw::default();
+        let mut opt = crate::SaveOptions::default();
+        opt.compress = false;
+        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
+        let mut buffer2 = xb
+            .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
+            .unwrap();
+        compare_buffers(
+            &mut buffer,
+            &mut buffer2,
+            crate::CompareOptions {
+                compare_palette: false,
+            },
+        );
+        buffer2
+    }
+}

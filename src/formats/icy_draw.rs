@@ -983,7 +983,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -997,7 +997,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1025,7 +1025,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1049,7 +1049,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1073,7 +1073,7 @@ mod tests {
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1097,7 +1097,7 @@ mod tests {
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1116,7 +1116,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1142,7 +1142,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1175,7 +1175,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1194,7 +1194,7 @@ mod tests {
         let mut buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1211,7 +1211,7 @@ mod tests {
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
         buf2.layers[0].is_visible = true;
         buf2.layers[1].is_visible = true;
     }
@@ -1234,7 +1234,7 @@ mod tests {
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2);
+        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
         buf2.layers[0].is_visible = true;
         buf2.layers[1].is_visible = true;
     }

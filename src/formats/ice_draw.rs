@@ -11,6 +11,8 @@ use crate::{
 const HEADER_SIZE: usize = 4 + 4 * 2;
 
 const IDF_V1_3_HEADER: &[u8] = b"\x041.3";
+// TODO: Find source for 1.4 - 1.3 is the only one I could find now, has been too long since I wrote this code.
+//       and I cant see differences from 1.3 in my implementation.
 const IDF_V1_4_HEADER: &[u8] = b"\x041.4";
 
 const FONT_SIZE: usize = 4096;
@@ -29,8 +31,19 @@ impl OutputFormat for IceDraw {
     }
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
-        let mut result = IDF_V1_4_HEADER.to_vec();
+        if buf.ice_mode != IceMode::Ice {
+            return Err(anyhow::anyhow!(
+                "Only ice mode files are supported by this format."
+            ));
+        }
 
+        if buf.get_height() > 200 {
+            return Err(anyhow::anyhow!(
+                "Only up do 200 lines are supported by this format."
+            ));
+        }
+
+        let mut result = IDF_V1_4_HEADER.to_vec();
         // x1
         result.push(0);
         result.push(0);
@@ -52,20 +65,22 @@ impl OutputFormat for IceDraw {
             while x < buf.get_width() {
                 let ch = buf.get_char((x, y));
                 let mut rle_count = 1;
-                while x + rle_count < buf.get_width() && rle_count < (u16::MAX) as i32 {
-                    if ch != buf.get_char((x + rle_count, y)) {
-                        break;
+                if options.compress {
+                    while x + rle_count < buf.get_width() && rle_count < (u16::MAX) as i32 {
+                        if ch != buf.get_char((x + rle_count, y)) {
+                            break;
+                        }
+                        rle_count += 1;
                     }
-                    rle_count += 1;
-                }
-                if rle_count > 3 || ch.ch == '\x01' {
-                    result.push(1);
-                    result.push(0);
+                    if rle_count > 3 || ch.ch == '\x01' {
+                        result.push(1);
+                        result.push(0);
 
-                    result.push(rle_count as u8);
-                    result.push((rle_count >> 8) as u8);
-                } else {
-                    rle_count = 1;
+                        result.push(rle_count as u8);
+                        result.push((rle_count >> 8) as u8);
+                    } else {
+                        rle_count = 1;
+                    }
                 }
                 result.push(ch.ch as u8);
                 result.push(ch.attribute.as_u8(buf.ice_mode));
@@ -99,6 +114,7 @@ impl OutputFormat for IceDraw {
         _sauce_opt: Option<crate::SauceData>,
     ) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
+        result.ice_mode = IceMode::Ice;
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
 
@@ -127,8 +143,7 @@ impl OutputFormat for IceDraw {
             ));
         }
 
-        result.set_width(x2 + 1);
-        result.ice_mode = IceMode::Ice;
+        result.set_width(x2 - x1 + 1);
         let data_size = data.len() - FONT_SIZE - PALETTE_SIZE;
         let mut pos = Position::new(x1, y1);
 
@@ -154,12 +169,7 @@ impl OutputFormat for IceDraw {
             while rle_count > 0 {
                 result.layers[0].set_height(pos.y + 1);
                 result.set_height(pos.y + 1);
-                let mut attribute = TextAttribute::from_u8(attr, result.ice_mode);
-                if attribute.is_bold() {
-                    attribute.set_foreground(attribute.foreground_color + 8);
-                    attribute.set_is_bold(false);
-                }
-
+                let attribute = TextAttribute::from_u8(attr, result.ice_mode);
                 result.layers[0].set_char(
                     pos,
                     AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute),
@@ -174,9 +184,6 @@ impl OutputFormat for IceDraw {
         o += FONT_SIZE;
 
         result.palette = Palette::from(&data[o..(o + PALETTE_SIZE)]);
-
-        crate::crop_loaded_file(&mut result);
-
         Ok(result)
     }
 }
@@ -200,4 +207,59 @@ fn advance_pos(x1: i32, x2: i32, pos: &mut Position) -> bool {
         pos.y += 1;
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute, TextPane};
+
+    #[test]
+    pub fn test_ice() {
+        let mut buffer = create_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
+        );
+        test_ice_draw(buffer);
+    }
+
+    fn create_buffer() -> Buffer {
+        let mut buffer = Buffer::new((80, 25));
+        for y in 0..buffer.get_height() {
+            for x in 0..buffer.get_width() {
+                buffer.layers[0]
+                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+            }
+        }
+        buffer
+    }
+
+    fn test_ice_draw(mut buffer: Buffer) -> Buffer {
+        let xb = super::IceDraw::default();
+        let mut opt = crate::SaveOptions::default();
+        opt.compress = false;
+        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
+        let mut buffer2 = xb
+            .load_buffer(std::path::Path::new("test.idf"), &bytes, None)
+            .unwrap();
+        compare_buffers(
+            &mut buffer,
+            &mut buffer2,
+            crate::CompareOptions {
+                compare_palette: false,
+            },
+        );
+        buffer2
+    }
 }

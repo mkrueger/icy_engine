@@ -386,7 +386,24 @@ fn crop2_loaded_file(result: &mut Buffer) {
 }
 
 #[cfg(test)]
-pub(crate) fn compare_buffers(buf_old: &mut Buffer, buf_new: &mut Buffer) {
+#[derive(Clone, Copy)]
+pub struct CompareOptions {
+    pub compare_palette: bool,
+}
+
+#[cfg(test)]
+impl CompareOptions {
+    pub const ALL: CompareOptions = CompareOptions {
+        compare_palette: true,
+    };
+}
+
+#[cfg(test)]
+pub(crate) fn compare_buffers(
+    buf_old: &mut Buffer,
+    buf_new: &mut Buffer,
+    compare_options: CompareOptions,
+) {
     use crate::AttributedChar;
 
     assert_eq!(buf_old.layers.len(), buf_new.layers.len());
@@ -402,10 +419,18 @@ pub(crate) fn compare_buffers(buf_old: &mut Buffer, buf_new: &mut Buffer) {
     crop2_loaded_file(buf_old);
     crop2_loaded_file(buf_new);
 
-    assert_eq!(
-        buf_old.palette.export_palette(&crate::PaletteFormat::Hex),
-        buf_new.palette.export_palette(&crate::PaletteFormat::Hex)
-    );
+    if compare_options.compare_palette {
+        assert_eq!(
+            buf_old.palette.len(),
+            buf_new.palette.len(),
+            "palette color count differs"
+        );
+
+        assert_eq!(
+            buf_old.palette.export_palette(&crate::PaletteFormat::Hex),
+            buf_new.palette.export_palette(&crate::PaletteFormat::Hex)
+        );
+    }
 
     assert_eq!(buf_old.font_count(), buf_new.font_count());
 
