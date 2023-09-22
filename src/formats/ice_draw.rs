@@ -82,8 +82,14 @@ impl OutputFormat for IceDraw {
                         rle_count = 1;
                     }
                 }
+                let attr = ch.attribute.as_u8(buf.ice_mode);
+
+                // fake repeat
+                if ch.ch as u8 == 1 && attr == 0 && rle_count == 1 {
+                    result.extend([1, 0, 1, 0]);
+                }
                 result.push(ch.ch as u8);
-                result.push(ch.attribute.as_u8(buf.ice_mode));
+                result.push(attr);
 
                 x += rle_count;
             }
@@ -230,6 +236,24 @@ mod tests {
                 'B',
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
+        );
+        test_ice_draw(buffer);
+    }
+
+    #[test]
+    pub fn test_repeat_char() {
+        let mut buffer = create_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new('\x01', TextAttribute::from_u8(0, crate::IceMode::Ice)),
         );
         test_ice_draw(buffer);
     }

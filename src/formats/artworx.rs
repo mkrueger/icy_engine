@@ -3,7 +3,7 @@ use std::path::Path;
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
     guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult,
-    FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError, Size, TextPane,
+    FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -61,8 +61,9 @@ impl OutputFormat for Artworx {
         for y in 0..buf.get_height() {
             for x in 0..buf.get_width() {
                 let ch = buf.get_char((x, y));
+                let attr = ch.attribute.as_u8(IceMode::Ice);
                 result.push(ch.ch as u8);
-                result.push(ch.attribute.as_u8(IceMode::Ice));
+                result.push(attr);
             }
         }
         if options.save_sauce {
