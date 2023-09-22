@@ -1445,22 +1445,31 @@ impl UndoOperation for AddFont {
 pub struct SwitchPalette {
     old_mode: PaletteMode,
     old_palette: Palette,
+    old_layers: Vec<Layer>,
+
     new_mode: PaletteMode,
     new_palette: Palette,
+    new_layers: Vec<Layer>,
 }
 
 impl SwitchPalette {
     pub fn new(
         old_mode: PaletteMode,
         old_palette: Palette,
+        old_layers: Vec<Layer>,
+
         new_mode: PaletteMode,
         new_palette: Palette,
+        new_layers: Vec<Layer>,
     ) -> Self {
         Self {
             old_mode,
             old_palette,
+            old_layers,
+
             new_mode,
             new_palette,
+            new_layers,
         }
     }
 }
@@ -1473,6 +1482,7 @@ impl UndoOperation for SwitchPalette {
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.palette = self.old_palette.clone();
         edit_state.buffer.palette_mode = self.old_mode;
+        edit_state.buffer.layers = self.old_layers.clone();
         edit_state.is_palette_dirty = true;
         Ok(())
     }
@@ -1480,6 +1490,7 @@ impl UndoOperation for SwitchPalette {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.palette = self.new_palette.clone();
         edit_state.buffer.palette_mode = self.new_mode;
+        edit_state.buffer.layers = self.new_layers.clone();
         edit_state.is_palette_dirty = true;
         Ok(())
     }

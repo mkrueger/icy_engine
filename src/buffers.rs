@@ -335,7 +335,7 @@ impl Buffer {
             font_mode: FontMode::Sauce,
 
             is_terminal_buffer: false,
-            palette: Palette::new(),
+            palette: Palette::dos_default(),
 
             font_table,
             is_font_table_dirty: false,

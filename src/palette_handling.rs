@@ -171,7 +171,7 @@ impl Palette {
     }
 
     pub fn resize(&mut self, size: usize) {
-        if size >= self.colors.len() {
+        if size > self.colors.len() {
             self.fill_to_16();
             self.colors.resize(size, Color::default());
         }
@@ -504,9 +504,19 @@ impl Palette {
         }
     }
 
+    /// Create a new empty palette
     pub fn new() -> Self {
         Palette {
             title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors: vec![],
+        }
+    }
+
+    pub fn dos_default() -> Self {
+        Palette {
+            title: "Dos default".to_string(),
             description: String::new(),
             author: String::new(),
             colors: DOS_DEFAULT_PALETTE.to_vec(),
@@ -3821,6 +3831,11 @@ fn convert_vector(temp2: f32, temp1: f32, mut x: f32) -> u8 {
 
 impl Default for Palette {
     fn default() -> Self {
-        Self::new()
+        Palette {
+            title: String::new(),
+            description: String::new(),
+            author: String::new(),
+            colors: DOS_DEFAULT_PALETTE.to_vec(),
+        }
     }
 }
