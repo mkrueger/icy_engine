@@ -143,13 +143,13 @@ fn test_ansi(data: &[u8]) {
     // more gentle output.
     let b: Vec<u8> = converted
         .iter()
-        .map(|&x| if x == 27 { b'x' } else { x })
+        .map(|&x| if x == 27 { b'^' } else { x })
         .collect();
     let converted = String::from_utf8_lossy(b.as_slice());
 
     let b: Vec<u8> = data
         .iter()
-        .map(|&x| if x == 27 { b'x' } else { x })
+        .map(|&x| if x == 27 { b'^' } else { x })
         .collect();
     let expected = String::from_utf8_lossy(b.as_slice());
 
@@ -228,7 +228,7 @@ fn test_bgcolor_change() {
 
 #[test]
 fn test_bgcolor_change2() {
-    let data = b"\x1B[0m\x1B[69C\x1B[44m           ";
+    let data = b"\x1B[0;44m\x1B[69C           ";
     test_ansi(data);
 }
 
