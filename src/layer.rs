@@ -54,8 +54,6 @@ pub struct Layer {
     size: Size,
     pub lines: Vec<Line>,
 
-    pub forced_output_attribute: Option<TextAttribute>,
-
     pub sixels: Vec<Sixel>,
     pub(crate) hyperlinks: Vec<HyperLink>,
 }
@@ -95,50 +93,6 @@ impl HyperLink {
 }
 
 impl TextPane for Layer {
-    /* fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
-        let pos = pos.into();
-        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
-            return AttributedChar::invisible();
-        }
-
-        let y = pos.y;
-        if y < self.lines.len() as i32 {
-            let cur_line = &self.lines[y as usize];
-
-            if pos.x < cur_line.chars.len() as i32 {
-                let ch = cur_line.chars[pos.x as usize];
-                if !self.has_alpha_channel && !ch.is_visible() {
-                    if let Some(attr) = self.forced_output_attribute {
-                        return AttributedChar {
-                            ch: ' ',
-                            attribute: attr,
-                        };
-                    }
-                    return AttributedChar::default();
-                }
-                if let Some(attr) = self.forced_output_attribute {
-                    return AttributedChar {
-                        ch: ch.ch,
-                        attribute: attr,
-                    };
-                }
-                return ch;
-            }
-        }
-
-        if self.has_alpha_channel {
-            AttributedChar::invisible()
-        } else {
-            if let Some(attr) = self.forced_output_attribute {
-                return AttributedChar {
-                    ch: ' ',
-                    attribute: attr,
-                };
-            }
-            AttributedChar::default()
-        }
-    }*/
-
     fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
         if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {

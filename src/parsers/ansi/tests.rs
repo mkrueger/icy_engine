@@ -5,8 +5,8 @@ use crate::{
     parsers::{
         ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
     },
-    AttributedChar, CallbackAction, Caret, Color, OutputFormat, Position, SaveOptions,
-    TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE, IceMode,
+    AttributedChar, CallbackAction, Caret, Color, IceMode, OutputFormat, Position, SaveOptions,
+    TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE,
 };
 
 #[test]
@@ -219,12 +219,12 @@ fn test_first_char_color() {
     let data = b"\x1B[0;1;33;45mA";
     test_ansi(data);
 }
-/*
+
 #[test]
 fn test_bgcolor_change() {
-    let data = b"\x1B[0mA\x1B[44m \x1B[40m ";
+    let data = b"\x1B[0mA\x1B[44m \x1B[42m ";
     test_ansi(data);
-} */
+}
 
 #[test]
 fn test_bgcolor_change2() {
@@ -232,19 +232,6 @@ fn test_bgcolor_change2() {
     test_ansi(data);
 }
 
-/*
-#[test]
-fn test_emptylastline_roundtrip() {
-    let mut vec = Vec::new();
-    vec.resize(80, b'-');
-    vec.resize(80 * 2, b' ');
-    let (buf, _) = create_buffer(&mut Ansiansi::Parsernew(), &vec);
-    assert_eq!(2, buf.get_buffer_height());
-    let vec2 = buf.to_bytes("ans", &SaveOptions::new()).unwrap();
-    let (buf2, _) = create_buffer(&mut Ansiansi::Parsernew(), &vec2);
-    assert_eq!(2, buf2.get_buffer_height());
-}
-*/
 #[test]
 fn test_linebreak_bug() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"XX");

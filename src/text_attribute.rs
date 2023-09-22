@@ -116,10 +116,7 @@ impl TextAttribute {
             IceMode::Blink => {
                 self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 }
             }
-            IceMode::Unlimited |
-            IceMode::Ice =>  {
-                self.background_color & 0b_1111
-            }
+            IceMode::Unlimited | IceMode::Ice => self.background_color & 0b_1111,
         };
         (fg | bg << 4) as u8
     }
