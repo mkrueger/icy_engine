@@ -101,23 +101,17 @@ impl BitFont {
         self.name == DEFAULT_FONT_NAME
     }
 
-    pub fn set_glyphs_from_u8_data(&mut self, data: &[u8]) {
-        for ch in 0..self.length {
-            let o = (ch * self.size.height) as usize;
-            let glyph = Glyph {
-                data: data[o..(o + self.size.height as usize)].into(),
-            };
-            self.glyphs
-                .insert(unsafe { char::from_u32_unchecked(ch as u32) }, glyph);
-        }
-    }
-
-    pub fn convert_to_u8_data(&self, data: &mut Vec<u8>) {
+    pub fn convert_to_u8_data(&self) -> Vec<u8> {
+        let mut result = Vec::new();
         for ch in 0..self.length {
             if let Some(glyph) = self.get_glyph(unsafe { char::from_u32_unchecked(ch as u32) }) {
-                data.extend_from_slice(&glyph.data);
+                result.extend_from_slice(&glyph.data);
+            } else {
+                log::error!("Glyph not found for char: {}", ch);
+                result.extend_from_slice(vec![0; self.size.height as usize].as_slice());
             }
         }
+        result
     }
 
     pub fn get_glyph(&self, ch: char) -> Option<&Glyph> {
@@ -129,30 +123,25 @@ impl BitFont {
     }
 
     pub fn create_8(name: impl Into<String>, width: u8, height: u8, data: &[u8]) -> Self {
-        let mut r = BitFont {
+        Self {
             name: name.into(),
             path_opt: None,
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
-            glyphs: HashMap::new(),
-        };
-        r.set_glyphs_from_u8_data(data);
-
-        r
+            glyphs: glyphs_from_u8_data(height as usize, data),
+        }
     }
 
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self {
-        let mut r = BitFont {
+        Self {
             name: String::new(),
             path_opt: None,
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
-            glyphs: HashMap::new(),
-        };
-        r.set_glyphs_from_u8_data(data);
-        r
+            glyphs: glyphs_from_u8_data(height as usize, data),
+        }
     }
 
     const PSF1_MAGIC: u16 = 0x0436;
@@ -170,33 +159,30 @@ impl BitFont {
             256
         };
 
-        let mut r = BitFont {
+        Self {
             name: font_name.into(),
             path_opt: None,
             size: (8, charsize).into(),
             length,
             font_type: BitFontType::BuiltIn,
-            glyphs: HashMap::new(),
-        };
-        r.set_glyphs_from_u8_data(&data[4..]);
-        r
+            glyphs: glyphs_from_u8_data(charsize as usize, &data[4..]),
+        }
     }
 
     fn load_plain_font(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
         if data.len() % 256 != 0 {
             return Err(FontError::UnknownFontFormat(data.len()).into());
         }
-        let size = Size::new(8, (data.len() / 256) as i32);
-        let mut r: BitFont = BitFont {
+        let char_height = data.len() / 256;
+        let size = Size::new(8, char_height as i32);
+        Ok(Self {
             name: font_name.into(),
             path_opt: None,
             size,
             length: 256,
             font_type: BitFontType::BuiltIn,
-            glyphs: HashMap::new(),
-        };
-        r.set_glyphs_from_u8_data(data);
-        Ok(r)
+            glyphs: glyphs_from_u8_data(char_height, data),
+        })
     }
 
     const PSF2_MAGIC: u32 = 0x864a_b572;
@@ -227,15 +213,14 @@ impl BitFont {
         let height = u32::from_le_bytes(data[24..28].try_into().unwrap()) as usize;
         let width = u32::from_le_bytes(data[28..32].try_into().unwrap()) as usize;
 
-        let mut r = BitFont {
+        let r = BitFont {
             name: font_name.into(),
             path_opt: None,
             size: (width, height).into(),
             length,
             font_type: BitFontType::BuiltIn,
-            glyphs: HashMap::new(),
+            glyphs: glyphs_from_u8_data(height, &data[headersize..]),
         };
-        r.set_glyphs_from_u8_data(&data[headersize..]);
         Ok(r)
     }
 
@@ -318,8 +303,7 @@ impl BitFont {
     }
 
     pub fn encode_as_ansi(&self, font_slot: usize) -> String {
-        let mut font_data = Vec::new();
-        self.convert_to_u8_data(&mut font_data);
+        let font_data = self.convert_to_u8_data();
         let data = general_purpose::STANDARD.encode(font_data);
         format!("\x1BPCTerm:Font:{font_slot}:{data}\x1B\\")
     }
@@ -358,6 +342,20 @@ macro_rules! fonts {
             )*
         ];
     };
+}
+fn glyphs_from_u8_data(font_height: usize, mut data: &[u8]) -> HashMap<char, Glyph> {
+    let mut glyphs = HashMap::new();
+    let mut ch = 0;
+    while !data.is_empty() {
+        let glyph = Glyph {
+            data: data[..font_height].into(),
+        };
+        glyphs.insert(unsafe { char::from_u32_unchecked(ch as u32) }, glyph);
+
+        data = &data[font_height..];
+        ch += 1;
+    }
+    glyphs
 }
 
 const DEFAULT_FONT_NAME: &str = "Codepage 437 English";

@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, BitFont, Buffer, EngineResult, IceMode, LoadingError, OutputFormat, Palette,
-    Position, SavingError, Size, TextPane,
+    guess_font_name, AttributedChar, BitFont, Buffer, EngineResult, IceMode, LoadingError,
+    OutputFormat, Palette, Position, SavingError, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -47,30 +47,31 @@ impl OutputFormat for IceDraw {
         result.push(h as u8);
         result.push((h >> 8) as u8);
 
-        let len = buf.get_height() * buf.get_width();
-        let mut x = 0;
-        while x < len {
-            let ch = buf.get_char(Position::from_index(buf, x));
-            let mut rle_count = 1;
-            while x + rle_count < len && rle_count < (u16::MAX) as i32 {
-                if ch != buf.get_char(Position::from_index(buf, x + rle_count)) {
-                    break;
+        for y in 0..buf.get_height() {
+            let mut x = 0;
+            while x < buf.get_width() {
+                let ch = buf.get_char((x, y));
+                let mut rle_count = 1;
+                while x + rle_count < buf.get_width() && rle_count < (u16::MAX) as i32 {
+                    if ch != buf.get_char((x + rle_count, y)) {
+                        break;
+                    }
+                    rle_count += 1;
                 }
-                rle_count += 1;
-            }
-            if rle_count > 3 || ch.ch == '\x01' {
-                result.push(1);
-                result.push(0);
+                if rle_count > 3 || ch.ch == '\x01' {
+                    result.push(1);
+                    result.push(0);
 
-                result.push(rle_count as u8);
-                result.push((rle_count >> 8) as u8);
-            } else {
-                rle_count = 1;
-            }
-            result.push(ch.ch as u8);
-            result.push(ch.attribute.as_u8(buf.ice_mode));
+                    result.push(rle_count as u8);
+                    result.push((rle_count >> 8) as u8);
+                } else {
+                    rle_count = 1;
+                }
+                result.push(ch.ch as u8);
+                result.push(ch.attribute.as_u8(buf.ice_mode));
 
-            x += rle_count;
+                x += rle_count;
+            }
         }
 
         // font
@@ -78,7 +79,7 @@ impl OutputFormat for IceDraw {
             return Err(SavingError::Only8x16FontsSupported.into());
         }
         if let Some(font) = buf.get_font(0) {
-            font.convert_to_u8_data(&mut result);
+            result.extend(font.convert_to_u8_data());
         } else {
             return Err(SavingError::NoFontFound.into());
         }
@@ -167,7 +168,9 @@ impl OutputFormat for IceDraw {
                 rle_count -= 1;
             }
         }
-        result.set_font(0, BitFont::from_basic(8, 16, &data[o..(o + FONT_SIZE)]));
+        let mut font = BitFont::from_basic(8, 16, &data[o..(o + FONT_SIZE)]);
+        font.name = guess_font_name(&font);
+        result.set_font(0, font);
         o += FONT_SIZE;
 
         result.palette = Palette::from(&data[o..(o + PALETTE_SIZE)]);

@@ -33,8 +33,8 @@ pub use tundra::*;
 mod icy_draw;
 
 use crate::{
-    Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role, Size,
-    TextPane,
+    BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role,
+    Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES,
 };
 
 use super::{Position, TextAttribute};
@@ -47,21 +47,13 @@ pub enum ScreenPreperation {
     Home,
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
-pub enum CompressionLevel {
-    #[default]
-    Off,
-    Medium,
-    High,
-}
-
 #[derive(Clone, Debug)]
 pub struct SaveOptions {
     pub screen_preparation: ScreenPreperation,
     pub buffer_type: BufferType,
     pub modern_terminal_output: bool,
     pub save_sauce: bool,
-    pub compression_level: CompressionLevel,
+    pub compress: bool,
     pub output_line_length: Option<usize>,
     pub preserve_invisible_chars: bool,
 }
@@ -73,7 +65,7 @@ impl SaveOptions {
             buffer_type: BufferType::CP437,
             modern_terminal_output: false,
             save_sauce: false,
-            compression_level: CompressionLevel::High,
+            compress: true,
             output_line_length: None,
             preserve_invisible_chars: false,
         }
@@ -375,6 +367,148 @@ mod tests {
     }
 }
 
+#[cfg(test)]
+fn crop2_loaded_file(result: &mut Buffer) {
+    for l in 0..result.layers.len() {
+        if let Some(line) = result.layers[l].lines.last_mut() {
+            while !line.chars.is_empty() && !line.chars.last().unwrap().is_visible() {
+                line.chars.pop();
+            }
+        }
+
+        if !result.layers[l].lines.is_empty()
+            && result.layers[l].lines.last().unwrap().chars.is_empty()
+        {
+            result.layers[l].lines.pop();
+            crop2_loaded_file(result);
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn compare_buffers(buf_old: &mut Buffer, buf_new: &mut Buffer) {
+    use crate::AttributedChar;
+
+    assert_eq!(buf_old.layers.len(), buf_new.layers.len());
+    let ic = AttributedChar::invisible();
+    assert_eq!(
+        buf_old.get_size(),
+        buf_new.get_size(),
+        "size differs: {} != {}",
+        buf_old.get_size(),
+        buf_new.get_size()
+    );
+
+    crop2_loaded_file(buf_old);
+    crop2_loaded_file(buf_new);
+
+    assert_eq!(
+        buf_old.palette.export_palette(&crate::PaletteFormat::Hex),
+        buf_new.palette.export_palette(&crate::PaletteFormat::Hex)
+    );
+
+    assert_eq!(buf_old.font_count(), buf_new.font_count());
+
+    for (i, old_fnt) in buf_old.font_iter() {
+        let new_fnt = buf_new.get_font(*i).unwrap();
+
+        for (ch, glyph) in &old_fnt.glyphs {
+            let new_glyph = new_fnt.glyphs.get(ch).unwrap();
+            assert_eq!(
+                glyph, new_glyph,
+                "glyphs differ font: {i}, char: {ch} (0x{:02X})",
+                *ch as u32
+            );
+        }
+    }
+
+    for layer in 0..buf_old.layers.len() {
+        /*      assert_eq!(
+            buf_old.layers[layer].lines.len(),
+            buf_new.layers[layer].lines.len(),
+            "layer {layer} line count differs"
+        );*/
+        assert_eq!(
+            buf_old.layers[layer].get_offset(),
+            buf_new.layers[layer].get_offset(),
+            "layer {layer} offset differs"
+        );
+        assert_eq!(
+            buf_old.layers[layer].get_size(),
+            buf_new.layers[layer].get_size(),
+            "layer {layer} size differs"
+        );
+        assert_eq!(
+            buf_old.layers[layer].is_visible, buf_new.layers[layer].is_visible,
+            "layer {layer} is_visible differs"
+        );
+        assert_eq!(
+            buf_old.layers[layer].has_alpha_channel, buf_new.layers[layer].has_alpha_channel,
+            "layer {layer} has_alpha_channel differs"
+        );
+
+        assert_eq!(
+            buf_old.layers[layer].default_font_page, buf_new.layers[layer].default_font_page,
+            "layer {layer} default_font_page differs"
+        );
+
+        for line in 0..buf_old.layers[layer].lines.len() {
+            for i in 0..buf_old.layers[layer].get_width() as usize {
+                let mut ch = *buf_old.layers[layer].lines[line]
+                    .chars
+                    .get(i)
+                    .unwrap_or(&ic);
+                let mut ch2 = *buf_new.layers[layer].lines[line]
+                    .chars
+                    .get(i)
+                    .unwrap_or(&ic);
+                assert_eq!(
+                    buf_old
+                        .palette
+                        .get_color(ch.attribute.get_foreground() as usize),
+                    buf_new
+                        .palette
+                        .get_color(ch2.attribute.get_foreground() as usize),
+                    "fg differs at layer: {layer}, line: {line}, char: {i} (old:{}={}, new:{}={})",
+                    ch.attribute.get_foreground(),
+                    buf_old
+                        .palette
+                        .get_color(ch.attribute.get_foreground() as usize),
+                    ch2.attribute.get_foreground(),
+                    buf_new
+                        .palette
+                        .get_color(ch2.attribute.get_foreground() as usize)
+                );
+                assert_eq!(
+                    buf_old
+                        .palette
+                        .get_color(ch.attribute.get_background() as usize),
+                    buf_new
+                        .palette
+                        .get_color(ch2.attribute.get_background() as usize),
+                    "bg differs at layer: {layer}, line: {line}, char: {i} (old:{}={}, new:{}={})",
+                    ch.attribute.get_background(),
+                    buf_old
+                        .palette
+                        .get_color(ch.attribute.get_background() as usize),
+                    ch2.attribute.get_background(),
+                    buf_new
+                        .palette
+                        .get_color(ch2.attribute.get_background() as usize)
+                );
+
+                ch.attribute.set_foreground(0);
+                ch.attribute.set_background(0);
+
+                ch2.attribute.set_foreground(0);
+                ch2.attribute.set_background(0);
+
+                assert_eq!(ch, ch2, "layer: {layer}, line: {line}, char: {i}");
+            }
+        }
+    }
+}
+
 pub fn convert_ansi_to_utf8(data: &[u8]) -> (String, bool) {
     if data.starts_with(&[0xEF, 0xBB, 0xBF]) {
         if let Ok(result) = String::from_utf8(data.to_vec()) {
@@ -389,4 +523,24 @@ pub fn convert_ansi_to_utf8(data: &[u8]) -> (String, bool) {
         result.push(ch);
     }
     (result, false)
+}
+
+pub fn guess_font_name(font: &BitFont) -> String {
+    for i in 0..ANSI_FONTS {
+        if let Ok(ansi_font) = BitFont::from_ansi_font_page(i) {
+            if ansi_font.glyphs == font.glyphs {
+                return ansi_font.name.clone();
+            }
+        }
+    }
+
+    for name in SAUCE_FONT_NAMES {
+        if let Ok(sauce_font) = BitFont::from_sauce_name(name) {
+            if sauce_font.glyphs == font.glyphs {
+                return sauce_font.name.clone();
+            }
+        }
+    }
+
+    format!("Unknown {}x{} font", font.size.width, font.size.height)
 }

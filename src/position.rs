@@ -4,10 +4,6 @@ use std::{
     ops::{Add, AddAssign, Sub, SubAssign},
 };
 
-use crate::TextPane;
-
-use super::Buffer;
-
 #[derive(Copy, Clone, Debug, Eq)]
 pub struct Position {
     pub x: i32,
@@ -30,13 +26,6 @@ impl std::fmt::Display for Position {
 impl Position {
     pub fn new(x: i32, y: i32) -> Self {
         Position { x, y }
-    }
-
-    pub fn from_index(buf: &Buffer, i: i32) -> Self {
-        Position {
-            x: i % buf.get_width(),
-            y: i / buf.get_width(),
-        }
     }
 
     pub fn with_y(self, y: i32) -> Position {

@@ -127,10 +127,7 @@ impl EditState {
             PaletteMode::RGB => old_palette.clone(),
             PaletteMode::Fixed16 => Palette::from_colors(DOS_DEFAULT_PALETTE.to_vec()),
             PaletteMode::Free8 => get_palette(&old_layers, &old_palette, 8),
-            PaletteMode::Free16 => {
-                println!("get free 16 palette");
-                get_palette(&old_layers, &old_palette, 16)
-            }
+            PaletteMode::Free16 => get_palette(&old_layers, &old_palette, 16),
         };
         self.adjust_layer_colors(&old_palette, &new_palette);
         let new_layers = self.get_buffer().layers.clone();

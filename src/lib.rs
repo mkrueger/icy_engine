@@ -8,7 +8,8 @@
     clippy::cast_precision_loss,
     clippy::must_use_candidate,
     clippy::struct_excessive_bools,
-    clippy::return_self_not_must_use
+    clippy::return_self_not_must_use,
+    clippy::field_reassign_with_default
 )]
 mod text_attribute;
 use std::{

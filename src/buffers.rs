@@ -288,7 +288,9 @@ pub fn analyze_font_usage(buf: &Buffer) -> Vec<usize> {
             hash_set.insert(ch.get_font_page());
         }
     }
-    hash_set.into_iter().collect()
+    let mut v: Vec<usize> = hash_set.into_iter().collect();
+    v.sort_unstable();
+    v
 }
 
 #[derive(Default)]

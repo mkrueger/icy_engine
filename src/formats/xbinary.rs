@@ -1,13 +1,15 @@
-use std::{cmp::min, path::Path};
+use std::path::Path;
 
 use crate::{
-    analyze_font_usage, AttributedChar, BitFont, Buffer, BufferFeatures, EngineResult, FontMode,
-    IceMode, LoadingError, OutputFormat, Palette, PaletteMode, Position, SavingError, TextPane,
+    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures,
+    EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette, PaletteMode, Position,
+    SavingError, TextPane,
 };
 
-use super::{CompressionLevel, SaveOptions, TextAttribute};
+use super::{SaveOptions, TextAttribute};
 
 const XBIN_HEADER_SIZE: usize = 11;
+const XBIN_PALETTE_LENGTH: usize = 3 * 16;
 
 const FLAG_PALETTE: u8 = 0b_0000_0001;
 const FLAG_FONT: u8 = 0b_0000_0010;
@@ -71,7 +73,7 @@ impl OutputFormat for XBin {
         }
 
         result.push(font.size.height as u8);
-        if !font.is_default() || buf.has_fonts() {
+        if !font.is_default() || !buf.has_fonts() || fonts.len() > 1 {
             flags |= FLAG_FONT;
         }
 
@@ -79,7 +81,7 @@ impl OutputFormat for XBin {
             flags |= FLAG_PALETTE;
         }
 
-        if options.compression_level != CompressionLevel::Off {
+        if options.compress {
             flags |= FLAG_COMPRESS;
         }
 
@@ -94,10 +96,19 @@ impl OutputFormat for XBin {
         result.push(flags);
 
         if (flags & FLAG_PALETTE) == FLAG_PALETTE {
-            result.extend(buf.palette.to_16color_vec());
+            let palette_data = buf.palette.to_16color_vec();
+            if palette_data.len() != XBIN_PALETTE_LENGTH {
+                return Err(anyhow::anyhow!("Invalid palette len."));
+            }
+            result.extend(palette_data);
         }
         if flags & FLAG_FONT == FLAG_FONT {
-            font.convert_to_u8_data(&mut result);
+            let font_data = font.convert_to_u8_data();
+            let font_len = font_data.len();
+            if font_len != 256 * font.size.height as usize {
+                return Err(anyhow::anyhow!("Invalid font len."));
+            }
+            result.extend(font_data);
             if flags & FLAG_512CHAR_MODE == FLAG_512CHAR_MODE {
                 if fonts.len() != 2 {
                     return Err(anyhow::anyhow!("File needs 2 fonts for this save mode."));
@@ -106,29 +117,27 @@ impl OutputFormat for XBin {
                     if ext_font.length != 256 {
                         return Err(anyhow::anyhow!("File needs 2nd font to be 256 chars long."));
                     }
-                    if ext_font.size.height != font.size.height {
+
+                    let ext_font_data = ext_font.convert_to_u8_data();
+                    if ext_font_data.len() != font_len {
                         return Err(anyhow::anyhow!(
                             "File needs 2nd font to be same height as 1st font."
                         ));
                     }
-                    println!("store {} font.", ext_font.name);
-                    ext_font.convert_to_u8_data(&mut result);
+                    result.extend(ext_font_data);
+                } else {
+                    return Err(anyhow::anyhow!("Can't get second font."));
                 }
-            } else if fonts.len() > 1 {
-                return Err(anyhow::anyhow!("File contains too many fonts."));
             }
         }
-        match options.compression_level {
-            CompressionLevel::Medium => compress_greedy(&mut result, buf, &fonts),
-            CompressionLevel::High => compress_backtrack(&mut result, buf, &fonts),
-            CompressionLevel::Off => {
-                for y in 0..buf.get_height() {
-                    for x in 0..buf.get_width() {
-                        let ch = buf.get_char((x, y));
-
-                        result.push(ch.ch as u8);
-                        result.push(encode_attr(buf, ch, &fonts));
-                    }
+        if options.compress {
+            compress_backtrack(&mut result, buf, &fonts);
+        } else {
+            for y in 0..buf.get_height() {
+                for x in 0..buf.get_width() {
+                    let ch = buf.get_char((x, y));
+                    result.push(ch.ch as u8);
+                    result.push(encode_attr(buf, ch, &fonts));
                 }
             }
         }
@@ -162,13 +171,26 @@ impl OutputFormat for XBin {
         // let eof_char = bytes[o];
         o += 1;
         let width = data[o] as i32 + ((data[o + 1] as i32) << 8);
+        if !(1..=4096).contains(&width) {
+            return Err(anyhow::anyhow!(
+                "Invalid XBin. Width out of range: {width} (1-4096)."
+            ));
+        }
         result.set_width(width);
         o += 2;
         let height = data[o] as i32 + ((data[o + 1] as i32) << 8);
         result.set_height(height);
         result.layers[0].set_size((width, height));
         o += 2;
-        let font_size = data[o];
+        let mut font_size = data[o];
+        if font_size == 0 {
+            font_size = 16;
+        }
+        if font_size > 32 {
+            return Err(anyhow::anyhow!(
+                "Invalid XBin. Font height too large: {font_size} (32 max)."
+            ));
+        }
         o += 1;
         let flags = data[o];
         o += 1;
@@ -196,22 +218,20 @@ impl OutputFormat for XBin {
         };
 
         if has_custom_palette {
-            result.palette = Palette::from(&data[o..(o + 48)]);
-            o += 48;
+            result.palette = Palette::from(&data[o..(o + XBIN_PALETTE_LENGTH)]);
+            o += XBIN_PALETTE_LENGTH;
         }
         if has_custom_font {
             let font_length = font_size as usize * 256;
             result.clear_font_table();
-            result.set_font(
-                0,
-                BitFont::create_8("", 8, font_size, &data[o..(o + font_length)]),
-            );
+            let mut font = BitFont::create_8("", 8, font_size, &data[o..(o + font_length)]);
+            font.name = guess_font_name(&font);
+            result.set_font(0, font);
             o += font_length;
             if extended_char_mode {
-                result.set_font(
-                    1,
-                    BitFont::create_8("", 8, font_size, &data[o..(o + font_length)]),
-                );
+                let mut font = BitFont::create_8("", 8, font_size, &data[o..(o + font_length)]);
+                font.name = guess_font_name(&font);
+                result.set_font(1, font);
                 o += font_length;
             }
         }
@@ -363,134 +383,19 @@ fn read_data_uncompressed(result: &mut Buffer, bytes: &[u8]) -> EngineResult<boo
     Ok(true)
 }
 
-fn compress_greedy(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
-    let mut run_mode = Compression::Off;
-    let mut run_count = 0;
-    let mut run_buf = Vec::new();
-    let mut run_ch = AttributedChar::default();
-    let len = buffer.get_height() * buffer.get_width();
-    for x in 0..len {
-        let cur = buffer.get_char(Position::from_index(buffer, x));
-
-        let next = if x + 1 < len {
-            buffer.get_char(Position::from_index(buffer, x + 1))
-        } else {
-            AttributedChar::default()
-        };
-
-        if run_count > 0 {
-            let mut end_run = false;
-            if run_count >= 64 {
-                end_run = true;
-            } else if run_count > 0 {
-                match run_mode {
-                    Compression::Off => {
-                        if x + 2 < len && cur == next {
-                            end_run = true;
-                        } else if x + 2 < len {
-                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                            end_run = cur.ch == next.ch && cur.ch == next2.ch
-                                || cur.attribute == next.attribute
-                                    && cur.attribute == next2.attribute;
-                        }
-                    }
-                    Compression::Char => {
-                        if cur.ch != run_ch.ch || cur.get_font_page() != run_ch.get_font_page() {
-                            end_run = true;
-                        } else if x + 3 < len {
-                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                            let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
-                            end_run = cur == next && cur == next2 && cur == next3;
-                        }
-                    }
-                    Compression::Attr => {
-                        if cur.attribute != run_ch.attribute
-                            || cur.get_font_page() != run_ch.get_font_page()
-                        {
-                            end_run = true;
-                        } else if x + 3 < len {
-                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                            let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
-                            end_run = cur == next && cur == next2 && cur == next3;
-                        }
-                    }
-                    Compression::Full => {
-                        end_run = cur != run_ch;
-                    }
-                }
-            }
-
-            if end_run {
-                outputdata.push((run_mode as u8) | (run_count - 1));
-                outputdata.extend(&run_buf);
-                run_count = 0;
-            }
-        }
-
-        if run_count > 0 {
-            match run_mode {
-                Compression::Off => {
-                    run_buf.push(cur.ch as u8);
-                    run_buf.push(encode_attr(buffer, cur, fonts));
-                }
-                Compression::Char => {
-                    run_buf.push(encode_attr(buffer, cur, fonts));
-                }
-                Compression::Attr => {
-                    run_buf.push(cur.ch as u8);
-                }
-                Compression::Full => {
-                    // nothing
-                }
-            }
-        } else {
-            run_buf.clear();
-            if x + 1 < len {
-                if cur == next {
-                    run_mode = Compression::Full;
-                } else if cur.ch == next.ch {
-                    run_mode = Compression::Char;
-                } else if cur.attribute == next.attribute {
-                    run_mode = Compression::Attr;
-                } else {
-                    run_mode = Compression::Off;
-                }
-            } else {
-                run_mode = Compression::Off;
-            }
-
-            if let Compression::Attr = run_mode {
-                run_buf.push(encode_attr(buffer, cur, fonts));
-                run_buf.push(cur.ch as u8);
-            } else {
-                run_buf.push(cur.ch as u8);
-                run_buf.push(encode_attr(buffer, cur, fonts));
-            }
-
-            run_ch = cur;
-        }
-        run_count += 1;
-    }
-
-    if run_count > 0 {
-        outputdata.push((run_mode as u8) | (run_count - 1));
-        outputdata.extend(run_buf);
-    }
-}
-
 fn count_length(
     mut run_mode: Compression,
     mut run_ch: AttributedChar,
     mut end_run: Option<bool>,
     mut run_count: u8,
     buffer: &Buffer,
+    y: i32,
     mut x: i32,
 ) -> usize {
-    let len = min(x + 256, (buffer.get_height() * buffer.get_width()) - 1);
     let mut count = 0;
-    while x < len {
-        let cur = buffer.get_char(Position::from_index(buffer, x));
-        let next = buffer.get_char(Position::from_index(buffer, x + 1));
+    while x < buffer.get_width() {
+        let cur = buffer.get_char((x, y));
+        let next = buffer.get_char((x + 1, y));
 
         if run_count > 0 {
             if end_run.is_none() {
@@ -499,10 +404,10 @@ fn count_length(
                 } else if run_count > 0 {
                     match run_mode {
                         Compression::Off => {
-                            if x + 2 < len && cur == next {
+                            if x + 2 < buffer.get_width() && cur == next {
                                 end_run = Some(true);
-                            } else if x + 2 < len {
-                                let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
+                            } else if x + 2 < buffer.get_width() {
+                                let next2 = buffer.get_char((x + 2, y));
                                 end_run = Some(
                                     cur.ch == next.ch && cur.ch == next2.ch
                                         || cur.attribute == next.attribute
@@ -513,18 +418,18 @@ fn count_length(
                         Compression::Char => {
                             if cur.ch != run_ch.ch {
                                 end_run = Some(true);
-                            } else if x + 3 < len {
-                                let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                                let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
+                            } else if x + 3 < buffer.get_width() {
+                                let next2 = buffer.get_char((x + 2, y));
+                                let next3 = buffer.get_char((x + 3, y));
                                 end_run = Some(cur == next && cur == next2 && cur == next3);
                             }
                         }
                         Compression::Attr => {
                             if cur.attribute != run_ch.attribute {
                                 end_run = Some(true);
-                            } else if x + 3 < len {
-                                let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                                let next3 = buffer.get_char(Position::from_index(buffer, x + 3));
+                            } else if x + 3 < buffer.get_width() {
+                                let next2 = buffer.get_char((x + 2, y));
+                                let next3 = buffer.get_char((x + 3, y));
                                 end_run = Some(cur == next && cur == next2 && cur == next3);
                             }
                         }
@@ -555,7 +460,7 @@ fn count_length(
                 }
             }
         } else {
-            if x + 1 < len {
+            if x + 1 < buffer.get_width() {
                 if cur == next {
                     run_mode = Compression::Full;
                 } else if cur.ch == next.ch {
@@ -579,153 +484,310 @@ fn count_length(
 }
 
 fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) {
-    let mut run_mode = Compression::Off;
-    let mut run_count = 0;
-    let mut run_buf = Vec::new();
-    let mut run_ch = AttributedChar::default();
-    let len = buffer.get_height() * buffer.get_width();
-    for x in 0..len {
-        let cur = buffer.get_char(Position::from_index(buffer, x));
+    for y in 0..buffer.get_height() {
+        let mut run_buf = Vec::new();
+        let mut run_mode = Compression::Off;
+        let mut run_count = 0;
+        let mut run_ch = AttributedChar::default();
 
-        let next = if x + 1 < len {
-            buffer.get_char(Position::from_index(buffer, x + 1))
-        } else {
-            AttributedChar::default()
-        };
+        for x in 0..buffer.get_width() {
+            let cur = buffer.get_char((x, y));
 
-        if run_count > 0 {
-            let mut end_run = false;
-            if run_count >= 64 {
-                end_run = true;
-            } else if run_count > 0 {
+            let next = if x + 1 < buffer.get_width() {
+                buffer.get_char((x + 1, y))
+            } else {
+                AttributedChar::default()
+            };
+
+            if run_count > 0 {
+                let mut end_run = false;
+                if run_count >= 64 {
+                    end_run = true;
+                } else if run_count > 0 {
+                    match run_mode {
+                        Compression::Off => {
+                            if x + 2 < buffer.get_width()
+                                && (cur.ch == next.ch || cur.attribute == next.attribute)
+                            {
+                                let l1 = count_length(
+                                    run_mode,
+                                    run_ch,
+                                    Some(true),
+                                    run_count,
+                                    buffer,
+                                    y,
+                                    x,
+                                );
+                                let l2 = count_length(
+                                    run_mode,
+                                    run_ch,
+                                    Some(false),
+                                    run_count,
+                                    buffer,
+                                    y,
+                                    x,
+                                );
+                                end_run = l1 < l2;
+                            }
+                        }
+                        Compression::Char => {
+                            if cur.ch != run_ch.ch || cur.get_font_page() != run_ch.get_font_page()
+                            {
+                                end_run = true;
+                            } else if x + 4 < buffer.get_width() {
+                                let next2 = buffer.get_char((x + 2, y));
+                                if cur.attribute == next.attribute
+                                    && cur.attribute == next2.attribute
+                                {
+                                    let l1 = count_length(
+                                        run_mode,
+                                        run_ch,
+                                        Some(true),
+                                        run_count,
+                                        buffer,
+                                        y,
+                                        x,
+                                    );
+                                    let l2 = count_length(
+                                        run_mode,
+                                        run_ch,
+                                        Some(false),
+                                        run_count,
+                                        buffer,
+                                        y,
+                                        x,
+                                    );
+                                    end_run = l1 < l2;
+                                }
+                            }
+                        }
+                        Compression::Attr => {
+                            if cur.attribute != run_ch.attribute
+                                || cur.get_font_page() != run_ch.get_font_page()
+                            {
+                                end_run = true;
+                            } else if x + 3 < buffer.get_width() {
+                                let next2 = buffer.get_char((x + 2, y));
+                                if cur.ch == next.ch && cur.ch == next2.ch {
+                                    let l1 = count_length(
+                                        run_mode,
+                                        run_ch,
+                                        Some(true),
+                                        run_count,
+                                        buffer,
+                                        y,
+                                        x,
+                                    );
+                                    let l2 = count_length(
+                                        run_mode,
+                                        run_ch,
+                                        Some(false),
+                                        run_count,
+                                        buffer,
+                                        y,
+                                        x,
+                                    );
+                                    end_run = l1 < l2;
+                                }
+                            }
+                        }
+                        Compression::Full => {
+                            end_run = cur != run_ch;
+                        }
+                    }
+                }
+
+                if end_run {
+                    outputdata.push((run_mode as u8) | (run_count - 1));
+                    outputdata.extend(&run_buf);
+                    run_count = 0;
+                }
+            }
+
+            if run_count > 0 {
                 match run_mode {
                     Compression::Off => {
-                        if x + 2 < len && (cur.ch == next.ch || cur.attribute == next.attribute) {
-                            let l1 =
-                                count_length(run_mode, run_ch, Some(true), run_count, buffer, x);
-                            let l2 =
-                                count_length(run_mode, run_ch, Some(false), run_count, buffer, x);
-                            end_run = l1 < l2;
-                        }
+                        run_buf.push(cur.ch as u8);
+                        run_buf.push(encode_attr(buffer, cur, fonts));
                     }
                     Compression::Char => {
-                        if cur.ch != run_ch.ch || cur.get_font_page() != run_ch.get_font_page() {
-                            end_run = true;
-                        } else if x + 4 < len {
-                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                            if cur.attribute == next.attribute && cur.attribute == next2.attribute {
-                                let l1 = count_length(
-                                    run_mode,
-                                    run_ch,
-                                    Some(true),
-                                    run_count,
-                                    buffer,
-                                    x,
-                                );
-                                let l2 = count_length(
-                                    run_mode,
-                                    run_ch,
-                                    Some(false),
-                                    run_count,
-                                    buffer,
-                                    x,
-                                );
-                                end_run = l1 < l2;
-                            }
-                        }
+                        run_buf.push(encode_attr(buffer, cur, fonts));
                     }
                     Compression::Attr => {
-                        if cur.attribute != run_ch.attribute
-                            || cur.get_font_page() != run_ch.get_font_page()
-                        {
-                            end_run = true;
-                        } else if x + 3 < len {
-                            let next2 = buffer.get_char(Position::from_index(buffer, x + 2));
-                            if cur.ch == next.ch && cur.ch == next2.ch {
-                                let l1 = count_length(
-                                    run_mode,
-                                    run_ch,
-                                    Some(true),
-                                    run_count,
-                                    buffer,
-                                    x,
-                                );
-                                let l2 = count_length(
-                                    run_mode,
-                                    run_ch,
-                                    Some(false),
-                                    run_count,
-                                    buffer,
-                                    x,
-                                );
-                                end_run = l1 < l2;
-                            }
-                        }
+                        run_buf.push(cur.ch as u8);
                     }
                     Compression::Full => {
-                        end_run = cur != run_ch;
+                        // nothing
                     }
                 }
-            }
-
-            if end_run {
-                outputdata.push((run_mode as u8) | (run_count - 1));
-                outputdata.extend(&run_buf);
-                run_count = 0;
-            }
-        }
-
-        if run_count > 0 {
-            match run_mode {
-                Compression::Off => {
-                    run_buf.push(cur.ch as u8);
-                    run_buf.push(encode_attr(buffer, cur, fonts));
-                }
-                Compression::Char => {
-                    run_buf.push(encode_attr(buffer, cur, fonts));
-                }
-                Compression::Attr => {
-                    run_buf.push(cur.ch as u8);
-                }
-                Compression::Full => {
-                    // nothing
-                }
-            }
-        } else {
-            run_buf.clear();
-            if x + 1 < len {
-                if cur == next {
-                    run_mode = Compression::Full;
-                } else if cur.ch == next.ch {
-                    run_mode = Compression::Char;
-                } else if cur.attribute == next.attribute {
-                    run_mode = Compression::Attr;
+            } else {
+                run_buf.clear();
+                if x + 1 < buffer.get_width() {
+                    if cur == next {
+                        run_mode = Compression::Full;
+                    } else if cur.ch == next.ch {
+                        run_mode = Compression::Char;
+                    } else if cur.attribute == next.attribute {
+                        run_mode = Compression::Attr;
+                    } else {
+                        run_mode = Compression::Off;
+                    }
                 } else {
                     run_mode = Compression::Off;
                 }
-            } else {
-                run_mode = Compression::Off;
-            }
 
-            if let Compression::Attr = run_mode {
-                run_buf.push(encode_attr(buffer, cur, fonts));
-                run_buf.push(cur.ch as u8);
-            } else {
-                run_buf.push(cur.ch as u8);
-                run_buf.push(encode_attr(buffer, cur, fonts));
-            }
+                if let Compression::Attr = run_mode {
+                    run_buf.push(encode_attr(buffer, cur, fonts));
+                    run_buf.push(cur.ch as u8);
+                } else {
+                    run_buf.push(cur.ch as u8);
+                    run_buf.push(encode_attr(buffer, cur, fonts));
+                }
 
-            run_ch = cur;
+                run_ch = cur;
+            }
+            run_count += 1;
         }
-        run_count += 1;
-    }
 
-    if run_count > 0 {
-        outputdata.push((run_mode as u8) | (run_count - 1));
-        outputdata.extend(run_buf);
+        if run_count > 0 {
+            outputdata.push((run_mode as u8) | (run_count - 1));
+            outputdata.extend(run_buf);
+        }
     }
 }
 
 pub fn get_save_sauce_default_xb(buf: &Buffer) -> (bool, String) {
     (buf.has_sauce(), String::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        compare_buffers, AttributedChar, BitFont, Buffer, OutputFormat, TextAttribute, TextPane,
+    };
+
+    #[test]
+    pub fn test_blink() {
+        let mut buffer = create_xb_buffer();
+        buffer.ice_mode = crate::IceMode::Blink;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1000_1000, crate::IceMode::Blink),
+            ),
+        );
+        let res = test_xbin(buffer);
+        let ch = res.layers[0].get_char((1, 0));
+
+        assert_eq!(ch.attribute.get_foreground(), 0b1000);
+        assert_eq!(ch.attribute.get_background(), 0b0000);
+        assert!(ch.attribute.is_blinking());
+    }
+
+    #[test]
+    pub fn test_ice() {
+        let mut buffer = create_xb_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
+        );
+        let res = test_xbin(buffer);
+        let ch = res.layers[0].get_char((1, 0));
+
+        assert_eq!(ch.attribute.get_foreground(), 0b1111);
+        assert_eq!(ch.attribute.get_background(), 0b1100);
+    }
+
+    #[test]
+    pub fn test_extended_font_ice() {
+        let mut buffer = create_xb_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.set_font(1, BitFont::from_ansi_font_page(42).unwrap());
+        let mut attr = TextAttribute::from_u8(0b1111_0111, crate::IceMode::Ice);
+        attr.set_font_page(0);
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', attr));
+        attr.set_font_page(1);
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', attr));
+        let res = test_xbin(buffer);
+
+        let ch = res.layers[0].get_char((1, 0));
+
+        assert_eq!(ch.attribute.get_foreground(), 0b0111);
+        assert_eq!(ch.attribute.get_background(), 0b1111);
+        assert_eq!(ch.attribute.get_font_page(), 1);
+    }
+
+    #[test]
+    pub fn test_extended_font_blink() {
+        let mut buffer = create_xb_buffer();
+        buffer.ice_mode = crate::IceMode::Blink;
+        buffer.set_font(1, BitFont::from_ansi_font_page(42).unwrap());
+        let mut attr = TextAttribute::from_u8(0b1111_0111, crate::IceMode::Blink);
+        attr.set_font_page(0);
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', attr));
+        attr.set_font_page(1);
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', attr));
+
+        let mut opt = crate::SaveOptions::default();
+        opt.compress = false;
+
+        let res = test_xbin(buffer);
+
+        let ch = res.layers[0].get_char((1, 0));
+
+        assert_eq!(ch.attribute.get_foreground(), 0b0111);
+        assert_eq!(ch.attribute.get_background(), 0b0111);
+        assert_eq!(ch.attribute.get_font_page(), 1);
+        assert!(ch.attribute.is_blinking());
+    }
+
+    fn create_xb_buffer() -> Buffer {
+        let mut buffer = Buffer::new((80, 25));
+        for y in 0..buffer.get_height() {
+            for x in 0..buffer.get_width() {
+                buffer.layers[0]
+                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+            }
+        }
+        buffer
+    }
+
+    fn test_xbin(mut buffer: Buffer) -> Buffer {
+        let xb = super::XBin::default();
+        let mut opt = crate::SaveOptions::default();
+        opt.compress = false;
+        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
+        let mut buffer2 = xb
+            .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buffer, &mut buffer2);
+
+        opt.compress = true;
+        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
+        let mut buffer2 = xb
+            .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
+            .unwrap();
+        compare_buffers(&mut buffer, &mut buffer2);
+
+        buffer2
+    }
 }

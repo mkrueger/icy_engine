@@ -135,7 +135,6 @@ impl OutputFormat for TundraDraw {
                 (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width()) + 1;
             result.resize(result.len() + skip_len as usize, 0);
         }
-        println!("colors: {:?}", colors.len());
 
         if options.save_sauce {
             buf.write_sauce_info(crate::SauceFileType::TundraDraw, &mut result)?;
@@ -229,7 +228,6 @@ impl OutputFormat for TundraDraw {
         }
         result.set_size(result.layers[0].get_size());
 
-        println!("loaded {} colors", result.palette.len());
         Ok(result)
     }
 }

@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult, FontMode, IceMode,
-    LoadingError, OutputFormat, Palette, SavingError, Size, TextPane,
+    guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult,
+    FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -41,7 +41,7 @@ impl OutputFormat for Artworx {
         }
 
         if let Some(font) = buf.get_font(0) {
-            font.convert_to_u8_data(&mut result);
+            result.extend(font.convert_to_u8_data());
         } else {
             return Err(SavingError::NoFontFound.into());
         }
@@ -94,7 +94,9 @@ impl OutputFormat for Artworx {
 
         let font_size = 4096;
         result.clear_font_table();
-        result.set_font(0, BitFont::from_basic(8, 16, &data[o..(o + font_size)]));
+        let mut font = BitFont::from_basic(8, 16, &data[o..(o + font_size)]);
+        font.name = guess_font_name(&font);
+        result.set_font(0, font);
         o += font_size;
 
         loop {

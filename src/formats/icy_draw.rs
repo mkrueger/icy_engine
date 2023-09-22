@@ -104,17 +104,15 @@ impl OutputFormat for IcyDraw {
         }
 
         for (k, v) in buf.font_iter() {
-            if k >= &100 {
-                let mut font_data: Vec<u8> = Vec::new();
-                write_utf8_encoded_string(&mut font_data, &v.name);
-                font_data.extend(v.to_psf2_bytes().unwrap());
+            let mut font_data: Vec<u8> = Vec::new();
+            write_utf8_encoded_string(&mut font_data, &v.name);
+            font_data.extend(v.to_psf2_bytes().unwrap());
 
-                if let Err(err) = encoder.add_ztxt_chunk(
-                    format!("FONT_{k}"),
-                    general_purpose::STANDARD.encode(&font_data),
-                ) {
-                    return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
-                }
+            if let Err(err) = encoder.add_ztxt_chunk(
+                format!("FONT_{k}"),
+                general_purpose::STANDARD.encode(&font_data),
+            ) {
+                return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
             }
         }
 
@@ -888,7 +886,8 @@ mod tests {
     use std::path::Path;
 
     use crate::{
-        AttributedChar, Buffer, Color, Layer, OutputFormat, SaveOptions, TextAttribute, TextPane,
+        compare_buffers, AttributedChar, Buffer, Color, Layer, OutputFormat, SaveOptions,
+        TextAttribute, TextPane,
     };
 
     use super::IcyDraw;
@@ -1238,91 +1237,5 @@ mod tests {
         compare_buffers(&mut buf, &mut buf2);
         buf2.layers[0].is_visible = true;
         buf2.layers[1].is_visible = true;
-    }
-
-    fn crop2_loaded_file(result: &mut Buffer) {
-        for l in 0..result.layers.len() {
-            if let Some(line) = result.layers[l].lines.last_mut() {
-                while !line.chars.is_empty() && !line.chars.last().unwrap().is_visible() {
-                    line.chars.pop();
-                }
-            }
-
-            if !result.layers[l].lines.is_empty()
-                && result.layers[l].lines.last().unwrap().chars.is_empty()
-            {
-                result.layers[l].lines.pop();
-                crop2_loaded_file(result);
-            }
-        }
-    }
-
-    fn compare_buffers(buf_old: &mut Buffer, buf_new: &mut Buffer) {
-        assert_eq!(buf_old.layers.len(), buf_new.layers.len());
-        let ic = AttributedChar::invisible();
-        assert_eq!(
-            buf_old.get_size(),
-            buf_new.get_size(),
-            "size differs: {} != {}",
-            buf_old.get_size(),
-            buf_new.get_size()
-        );
-
-        crop2_loaded_file(buf_old);
-        crop2_loaded_file(buf_new);
-
-        for layer in 0..buf_old.layers.len() {
-            assert_eq!(
-                buf_old.layers[layer].lines.len(),
-                buf_new.layers[layer].lines.len(),
-                "layer {layer} line count differs"
-            );
-            assert_eq!(
-                buf_old.layers[layer].get_offset(),
-                buf_new.layers[layer].get_offset(),
-                "layer {layer} offset differs"
-            );
-            assert_eq!(
-                buf_old.layers[layer].get_size(),
-                buf_new.layers[layer].get_size(),
-                "layer {layer} size differs"
-            );
-            assert_eq!(
-                buf_old.layers[layer].is_visible, buf_new.layers[layer].is_visible,
-                "layer {layer} is_visible differs"
-            );
-            assert_eq!(
-                buf_old.layers[layer].has_alpha_channel, buf_new.layers[layer].has_alpha_channel,
-                "layer {layer} has_alpha_channel differs"
-            );
-
-            assert_eq!(
-                buf_old.layers[layer].default_font_page, buf_new.layers[layer].default_font_page,
-                "layer {layer} default_font_page differs"
-            );
-
-            for line in 0..buf_old.layers[layer].lines.len() {
-                for i in 0..buf_old.layers[layer].get_width() as usize {
-                    let mut ch = *buf_old.layers[layer].lines[line]
-                        .chars
-                        .get(i)
-                        .unwrap_or(&ic);
-                    let mut ch2 = *buf_new.layers[layer].lines[line]
-                        .chars
-                        .get(i)
-                        .unwrap_or(&ic);
-                    assert_eq!(buf_old.palette.get_color(ch.attribute.get_foreground() as usize), buf_new.palette.get_color(ch2.attribute.get_foreground() as usize), "fg differs at layer: {layer}, line: {line}, char: {i} (old:{}={}, new:{}={})", ch.attribute.get_foreground(), buf_old.palette.get_color(ch.attribute.get_foreground() as usize), ch2.attribute.get_foreground(), buf_new.palette.get_color(ch2.attribute.get_foreground() as usize));
-                    assert_eq!(buf_old.palette.get_color(ch.attribute.get_background() as usize), buf_new.palette.get_color(ch2.attribute.get_background() as usize), "bg differs at layer: {layer}, line: {line}, char: {i} (old:{}={}, new:{}={})", ch.attribute.get_background(), buf_old.palette.get_color(ch.attribute.get_background() as usize), ch2.attribute.get_background(), buf_new.palette.get_color(ch2.attribute.get_background() as usize));
-
-                    ch.attribute.set_foreground(0);
-                    ch.attribute.set_background(0);
-
-                    ch2.attribute.set_foreground(0);
-                    ch2.attribute.set_background(0);
-
-                    assert_eq!(ch, ch2, "layer: {layer}, line: {line}, char: {i}");
-                }
-            }
-        }
     }
 }
