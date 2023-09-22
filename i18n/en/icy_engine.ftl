@@ -47,3 +47,5 @@ layer-background-name=Background
 layer-pasted-name=Floating selection
 layer-anchor=Anchor layer
 layer-new-sixel_layer_name=Sixel layer { $number }
+
+unknown-font-name=Unknown { $width }x{ $height } font

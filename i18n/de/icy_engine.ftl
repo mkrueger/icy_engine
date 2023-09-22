@@ -47,3 +47,5 @@ layer-background-name=Hintergrund
 layer-pasted-name=Schwebende Auswahl
 layer-anchor=Ebene verankern
 layer-new-sixel_layer_name=Sixelebene { $number }
+
+unknown-font-name=Unbekannter { $width }x{ $height } Font

@@ -568,5 +568,10 @@ pub fn guess_font_name(font: &BitFont) -> String {
         }
     }
 
-    format!("Unknown {}x{} font", font.size.width, font.size.height)
+    fl!(
+        crate::LANGUAGE_LOADER,
+        "unknown-font-name",
+        width = font.size.width,
+        height = font.size.height
+    )
 }
