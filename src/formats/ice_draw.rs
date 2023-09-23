@@ -3,7 +3,7 @@ use std::path::Path;
 use super::{SaveOptions, TextAttribute};
 use crate::{
     guess_font_name, AttributedChar, BitFont, Buffer, EngineResult, IceMode, LoadingError,
-    OutputFormat, Palette, Position, SavingError, Size, TextPane,
+    OutputFormat, Palette, Position, SavingError, Size, TextPane, analyze_font_usage,
 };
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -41,6 +41,15 @@ impl OutputFormat for IceDraw {
             return Err(anyhow::anyhow!(
                 "Only up do 200 lines are supported by this format."
             ));
+        }
+        let fonts = analyze_font_usage(buf);
+        if fonts.len() > 1 {
+            return Err(anyhow::anyhow!(
+                "Only single font files are supported by this format."
+            ));
+        }
+        if buf.palette.len() != 16 {
+            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
         }
 
         let mut result = IDF_V1_4_HEADER.to_vec();
@@ -103,7 +112,7 @@ impl OutputFormat for IceDraw {
         if buf.get_font_dimensions() != Size::new(8, 16) {
             return Err(SavingError::Only8x16FontsSupported.into());
         }
-        if let Some(font) = buf.get_font(0) {
+        if let Some(font) = buf.get_font(fonts[0]) {
             result.extend(font.convert_to_u8_data());
         } else {
             return Err(SavingError::NoFontFound.into());

@@ -3,7 +3,7 @@ use std::{collections::HashSet, io, path::Path};
 use super::{SaveOptions, TextAttribute};
 use crate::{
     AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode, LoadingError,
-    OutputFormat, PaletteMode, Position, SavingError, TextPane,
+    OutputFormat, PaletteMode, Position, SavingError, TextPane, analyze_font_usage,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
@@ -40,6 +40,14 @@ impl OutputFormat for TundraDraw {
         let mut attr = TextAttribute::from_u8(0, buf.ice_mode);
         let mut skip_pos = None;
         let mut colors = HashSet::new();
+
+        let fonts = analyze_font_usage(buf);
+        if fonts.len() > 1 {
+            return Err(anyhow::anyhow!(
+                "Only single font files are supported by this format."
+            ));
+        }
+
         for y in 0..buf.get_height() {
             for x in 0..buf.get_width() {
                 let pos = Position::new(x, y);

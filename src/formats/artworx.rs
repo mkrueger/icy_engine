@@ -3,7 +3,7 @@ use std::path::Path;
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
     guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult,
-    FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError, TextPane,
+    FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError, TextPane, analyze_font_usage,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -46,13 +46,21 @@ impl OutputFormat for Artworx {
                 "Only width==80 files are supported by this format."
             ));
         }
+
+        let fonts = analyze_font_usage(buf);
+        if fonts.len() > 1 {
+            return Err(anyhow::anyhow!(
+                "Only single font files are supported by this format."
+            ));
+        }
+
         let mut result = vec![1]; // version
         result.extend(buf.palette.to_ega_palette());
         if buf.get_font_dimensions().height != 16 {
             return Err(SavingError::Only8x16FontsSupported.into());
         }
 
-        if let Some(font) = buf.get_font(0) {
+        if let Some(font) = buf.get_font(fonts[0]) {
             result.extend(font.convert_to_u8_data());
         } else {
             return Err(SavingError::NoFontFound.into());
