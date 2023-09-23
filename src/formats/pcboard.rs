@@ -27,14 +27,15 @@ impl OutputFormat for PCBoard {
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         if buf.palette.len() != 16 {
-            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
+            return Err(anyhow::anyhow!(
+                "Only 16 color palettes are supported by this format."
+            ));
         }
         let mut result = Vec::new();
         let mut last_attr = TextAttribute::default();
         let mut pos = Position::default();
         let height = buf.get_line_count();
         let mut first_char = true;
-
 
         match options.screen_preparation {
             super::ScreenPreperation::None | super::ScreenPreperation::Home => {} // home not supported

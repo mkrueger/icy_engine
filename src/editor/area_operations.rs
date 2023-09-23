@@ -1,6 +1,6 @@
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
-use std::mem;
+use std::{collections::HashMap, mem};
 
 use i18n_embed_fl::fl;
 
@@ -15,6 +15,80 @@ fn get_area(sel: Option<Selection>, layer: Rectangle) -> Rectangle {
     } else {
         layer - layer.start
     }
+}
+
+lazy_static::lazy_static! {
+    static ref FLIP_X_TABLE: HashMap<u8, u8> = HashMap::from([
+        (40, 41),
+        (41, 40),
+        (47, 92),
+        (60, 62),
+        (62, 60),
+        (91, 93),
+        (92, 47),
+        (93, 91),
+        (123, 125),
+        (125, 123),
+        (169, 170),
+        (170, 169),
+        (174, 175),
+        (175, 174),
+        (180, 195),
+        (181, 198),
+        (182, 199),
+        (183, 214),
+        (185, 204),
+        (187, 201),
+        (188, 200),
+        (189, 211),
+        (195, 180),
+        (198, 181),
+        (190, 212),
+        (191, 218),
+        (192, 217),
+        (199, 182),
+        (200, 188),
+        (201, 187),
+        (204, 185),
+        (211, 189),
+        (214, 183),
+        (212, 190),
+        (217, 192),
+        (218, 191),
+        (221, 222),
+        (222, 221),
+        (242, 243),
+        (243, 242)
+    ]);
+
+    static ref FLIP_Y_TABLE: HashMap<u8, u8> = HashMap::from([
+        (183, 189),
+        (184, 190),
+        (187, 188),
+        (188, 187),
+        (189, 183),
+        (190, 184),
+        (191, 217),
+        (192, 218),
+        (193, 194),
+        (194, 193),
+        (200, 201),
+        (201, 200),
+        (202, 203),
+        (203, 202),
+        (207, 209),
+        (208, 210),
+        (209, 207),
+        (210, 208),
+        (211, 214),
+        (212, 213),
+        (213, 212),
+        (214, 211),
+        (217, 191),
+        (218, 192),
+        (220, 223),
+        (223, 220),
+    ]);
 }
 impl EditState {
     pub fn justify_left(&mut self) -> EngineResult<()> {
@@ -164,7 +238,13 @@ impl EditState {
                 for x in 0..=max {
                     let pos1 = Position::new(area.left() + x, y);
                     let pos2 = Position::new(area.right() - x - 1, y);
-                    layer.swap_char(pos1, pos2);
+
+                    let pos1ch = layer.get_char(pos1);
+                    let pos1ch = map_char(pos1ch, &FLIP_X_TABLE);
+                    let pos2ch = layer.get_char(pos2);
+                    let pos2ch = map_char(pos2ch, &FLIP_X_TABLE);
+                    layer.set_char(pos1, pos2ch);
+                    layer.set_char(pos2, pos1ch);
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
@@ -194,7 +274,12 @@ impl EditState {
                 for y in 0..=max {
                     let pos1 = Position::new(x, area.top() + y);
                     let pos2 = Position::new(x, area.bottom() - 1 - y);
-                    layer.swap_char(pos1, pos2);
+                    let pos1ch = layer.get_char(pos1);
+                    let pos1ch = map_char(pos1ch, &FLIP_Y_TABLE);
+                    let pos2ch = layer.get_char(pos2);
+                    let pos2ch = map_char(pos2ch, &FLIP_Y_TABLE);
+                    layer.set_char(pos1, pos2ch);
+                    layer.set_char(pos2, pos1ch);
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
@@ -479,6 +564,18 @@ impl EditState {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
+}
+
+pub fn map_char<S: ::std::hash::BuildHasher>(
+    mut ch: AttributedChar,
+    table: &HashMap<u8, u8, S>,
+) -> AttributedChar {
+    if ch.get_font_page() == 0 {
+        if let Some(repl) = table.get(&(ch.ch as u8)) {
+            ch.ch = *repl as char;
+        }
+    }
+    ch
 }
 
 #[cfg(test)]

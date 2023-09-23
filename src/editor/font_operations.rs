@@ -1,6 +1,9 @@
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
-use crate::{BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode, DOS_DEFAULT_PALETTE};
+use crate::{
+    AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode, TextAttribute,
+    DOS_DEFAULT_PALETTE,
+};
 
 use super::EditState;
 
@@ -176,10 +179,8 @@ impl EditState {
                 for layer in &mut new_layers {
                     for line in &mut layer.lines {
                         for ch in &mut line.chars {
-                            let bg = ch.attribute.get_background();
-                            if bg > 7 && bg < 16 {
-                                ch.attribute.set_is_blinking(true);
-                                ch.attribute.set_background(bg - 8);
+                            if (7..16).contains(&ch.attribute.get_background()) {
+                                *ch = remove_ice_color(*ch);
                             }
                         }
                     }
@@ -213,6 +214,74 @@ impl EditState {
         let op = super::undo_operations::SetIceMode::new(old_mode, old_layers, mode, new_layers);
         self.push_undo(Box::new(op))
     }
+}
+
+fn remove_ice_color(ch: crate::AttributedChar) -> crate::AttributedChar {
+    let fg = ch.attribute.get_foreground();
+    let bg = ch.attribute.get_background();
+    let mut attr = ch.attribute;
+
+    if fg == bg {
+        attr.set_background(0);
+        return AttributedChar::new(219 as char, attr);
+    }
+    match ch.ch as u32 {
+        0 | 32 | 255 => {
+            attr.set_foreground(attr.get_background());
+            attr.set_background(0);
+            return AttributedChar::new(219 as char, attr);
+        }
+        219 => {
+            attr.set_background(0);
+            return AttributedChar::new(219 as char, attr);
+        }
+        _ => {}
+    }
+    if fg < 8 {
+        match ch.ch as u32 {
+            176 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+
+                return AttributedChar::new(178 as char, attr);
+            }
+            177 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+                return AttributedChar::new(177 as char, attr);
+            }
+            178 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+                return AttributedChar::new(176 as char, attr);
+            }
+            220 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+                return AttributedChar::new(223 as char, attr);
+            }
+            221 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+                return AttributedChar::new(222 as char, attr);
+            }
+            222 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+                return AttributedChar::new(221 as char, attr);
+            }
+            223 => {
+                attr.set_foreground(ch.attribute.get_background());
+                attr.set_background(ch.attribute.get_foreground());
+                return AttributedChar::new(220 as char, attr);
+            }
+            _ => {}
+        }
+    }
+    attr.set_is_blinking(true);
+    attr.set_background(bg - 8);
+
+    return AttributedChar::new(ch.ch, attr);
 }
 
 fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize) -> Palette {

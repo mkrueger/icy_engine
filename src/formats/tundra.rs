@@ -2,8 +2,8 @@ use std::{collections::HashSet, io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode, LoadingError,
-    OutputFormat, PaletteMode, Position, SavingError, TextPane, analyze_font_usage,
+    analyze_font_usage, AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode,
+    LoadingError, OutputFormat, PaletteMode, Position, SavingError, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA

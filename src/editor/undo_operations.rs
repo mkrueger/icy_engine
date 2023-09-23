@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     mem,
     sync::{Arc, Mutex},
 };
@@ -10,7 +11,7 @@ use crate::{
     Position, SauceData, Selection, SelectionMask, Size, TextPane,
 };
 
-use super::{EditState, EditorError, OperationType, UndoOperation};
+use super::{map_char, EditState, EditorError, OperationType, UndoOperation};
 
 pub(crate) struct AtomicUndo {
     description: String,
@@ -929,6 +930,17 @@ pub struct RotateLayer {
     layer: usize,
 }
 
+lazy_static::lazy_static! {
+    static ref ROTATE_TABLE: HashMap<u8, u8> = HashMap::from([
+        (220, 221),
+        (221, 223),
+        (222, 220),
+        (187, 188),
+        (221, 223),
+        (223, 222),
+    ]);
+}
+
 impl RotateLayer {
     pub fn new(layer: usize) -> Self {
         Self { layer }
@@ -953,6 +965,7 @@ impl UndoOperation for RotateLayer {
 
             for (y, line) in lines.into_iter().enumerate() {
                 for (x, ch) in line.chars.into_iter().enumerate() {
+                    let ch = map_char(ch, &ROTATE_TABLE);
                     layer.set_char((y, x), ch);
                 }
             }

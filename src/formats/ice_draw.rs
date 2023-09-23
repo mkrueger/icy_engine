@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    guess_font_name, AttributedChar, BitFont, Buffer, EngineResult, IceMode, LoadingError,
-    OutputFormat, Palette, Position, SavingError, Size, TextPane, analyze_font_usage,
+    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, EngineResult, IceMode,
+    LoadingError, OutputFormat, Palette, Position, SavingError, Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -49,7 +49,9 @@ impl OutputFormat for IceDraw {
             ));
         }
         if buf.palette.len() != 16 {
-            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
+            return Err(anyhow::anyhow!(
+                "Only 16 color palettes are supported by this format."
+            ));
         }
 
         let mut result = IDF_V1_4_HEADER.to_vec();

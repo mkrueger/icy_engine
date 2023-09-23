@@ -2,8 +2,9 @@ use std::path::Path;
 
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
-    guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, EngineResult,
-    FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError, TextPane, analyze_font_usage,
+    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures,
+    BufferType, EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError,
+    TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
