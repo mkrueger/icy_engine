@@ -17,79 +17,6 @@ fn get_area(sel: Option<Selection>, layer: Rectangle) -> Rectangle {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref FLIP_X_TABLE: HashMap<u8, u8> = HashMap::from([
-        (40, 41),
-        (41, 40),
-        (47, 92),
-        (60, 62),
-        (62, 60),
-        (91, 93),
-        (92, 47),
-        (93, 91),
-        (123, 125),
-        (125, 123),
-        (169, 170),
-        (170, 169),
-        (174, 175),
-        (175, 174),
-        (180, 195),
-        (181, 198),
-        (182, 199),
-        (183, 214),
-        (185, 204),
-        (187, 201),
-        (188, 200),
-        (189, 211),
-        (195, 180),
-        (198, 181),
-        (190, 212),
-        (191, 218),
-        (192, 217),
-        (199, 182),
-        (200, 188),
-        (201, 187),
-        (204, 185),
-        (211, 189),
-        (214, 183),
-        (212, 190),
-        (217, 192),
-        (218, 191),
-        (221, 222),
-        (222, 221),
-        (242, 243),
-        (243, 242)
-    ]);
-
-    static ref FLIP_Y_TABLE: HashMap<u8, u8> = HashMap::from([
-        (183, 189),
-        (184, 190),
-        (187, 188),
-        (188, 187),
-        (189, 183),
-        (190, 184),
-        (191, 217),
-        (192, 218),
-        (193, 194),
-        (194, 193),
-        (200, 201),
-        (201, 200),
-        (202, 203),
-        (203, 202),
-        (207, 209),
-        (208, 210),
-        (209, 207),
-        (210, 208),
-        (211, 214),
-        (212, 213),
-        (213, 212),
-        (214, 211),
-        (217, 191),
-        (218, 192),
-        (220, 223),
-        (223, 220),
-    ]);
-}
 impl EditState {
     pub fn justify_left(&mut self) -> EngineResult<()> {
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-justify-left"));
@@ -229,20 +156,28 @@ impl EditState {
     pub fn flip_x(&mut self) -> EngineResult<()> {
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-flip-x"));
         let sel = self.get_selection();
+        let mut flip_tables = HashMap::new();
+
+        self.buffer.font_iter().for_each(|(page, font)| {
+            flip_tables.insert(*page, generate_flipx_table(font));
+        });
+
         if let Some(layer) = self.get_cur_layer_mut() {
             let area = get_area(sel, layer.get_rectangle());
             let old_layer = Layer::from_layer(layer, area);
             let max = area.get_width() / 2;
 
             for y in area.y_range() {
-                for x in 0..=max {
+                for x in 0..max {
                     let pos1 = Position::new(area.left() + x, y);
                     let pos2 = Position::new(area.right() - x - 1, y);
 
                     let pos1ch = layer.get_char(pos1);
-                    let pos1ch = map_char(pos1ch, &FLIP_X_TABLE);
+                    let pos1ch =
+                        map_char(pos1ch, flip_tables.get(&pos1ch.get_font_page()).unwrap());
                     let pos2ch = layer.get_char(pos2);
-                    let pos2ch = map_char(pos2ch, &FLIP_X_TABLE);
+                    let pos2ch =
+                        map_char(pos2ch, flip_tables.get(&pos2ch.get_font_page()).unwrap());
                     layer.set_char(pos1, pos2ch);
                     layer.set_char(pos2, pos1ch);
                 }
@@ -265,19 +200,28 @@ impl EditState {
     pub fn flip_y(&mut self) -> EngineResult<()> {
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-flip-x"));
         let sel = self.get_selection();
+
+        let mut flip_tables = HashMap::new();
+
+        self.buffer.font_iter().for_each(|(page, font)| {
+            flip_tables.insert(*page, generate_flipy_table(font));
+        });
+
         if let Some(layer) = self.get_cur_layer_mut() {
             let area = get_area(sel, layer.get_rectangle());
             let old_layer = Layer::from_layer(layer, area);
             let max = area.get_height() / 2;
 
             for x in area.x_range() {
-                for y in 0..=max {
+                for y in 0..max {
                     let pos1 = Position::new(x, area.top() + y);
                     let pos2 = Position::new(x, area.bottom() - 1 - y);
                     let pos1ch = layer.get_char(pos1);
-                    let pos1ch = map_char(pos1ch, &FLIP_Y_TABLE);
+                    let pos1ch =
+                        map_char(pos1ch, flip_tables.get(&pos1ch.get_font_page()).unwrap());
                     let pos2ch = layer.get_char(pos2);
-                    let pos2ch = map_char(pos2ch, &FLIP_Y_TABLE);
+                    let pos2ch =
+                        map_char(pos2ch, flip_tables.get(&pos2ch.get_font_page()).unwrap());
                     layer.set_char(pos1, pos2ch);
                     layer.set_char(pos2, pos1ch);
                 }
@@ -566,13 +510,167 @@ impl EditState {
     }
 }
 
+fn generate_flipy_table(font: &crate::BitFont) -> HashMap<char, char> {
+    let mut flip_table = HashMap::new();
+
+    for (ch, cur_glyph) in &font.glyphs {
+        let flipped_glyhps = generate_flipy_variants(cur_glyph);
+        let Some(flipped_glyhps) = flipped_glyhps else {
+            continue;
+        };
+
+        for (ch2, cmp_glyph) in &font.glyphs {
+            if ch == ch2 {
+                continue;
+            }
+            let cmp_glyphs = generate_y_variants(cmp_glyph);
+            /*
+            if *ch as u8 == 212 && *ch2 as u8 == 213 {
+                println!(">>>>>>>>>>> 220");
+                for x in &flipped_glyhps {
+                    println!("{x}");
+                }
+                println!(">>>>>>>>>>> 223");
+                for x in &cmp_glyphs {
+                    println!("{x}");
+                }
+            }*/
+
+            for cmp_glyph in cmp_glyphs {
+                if flipped_glyhps.iter().any(|g| g.data == cmp_glyph.data) {
+                    flip_table.insert(*ch, *ch2);
+                    break;
+                }
+            }
+        }
+    }
+    check_bidirect(&mut flip_table);
+    flip_table
+}
+
+fn check_bidirect(flip_table: &mut HashMap<char, char>) {
+    for (ch, ch2) in &flip_table.clone() {
+        if !flip_table.contains_key(ch2) {
+            flip_table.remove(ch);
+        }
+    }
+}
+
+fn generate_flipx_table(font: &crate::BitFont) -> HashMap<char, char> {
+    let mut flip_table = HashMap::new();
+
+    flip_table.insert('\\', '/');
+    flip_table.insert('/', '\\');
+
+    for (ch, cur_glyph) in &font.glyphs {
+        let flipped_glyhps = generate_flipx_variants(cur_glyph, font.size.width);
+        let Some(flipped_glyhps) = flipped_glyhps else {
+            continue;
+        };
+
+        for (ch2, cmp_glyph) in &font.glyphs {
+            if ch == ch2 {
+                continue;
+            }
+            let cmp_glyphs = generate_x_variants(cmp_glyph, font.size.width);
+
+            for cmp_glyph in cmp_glyphs {
+                if flipped_glyhps.iter().any(|g| g.data == cmp_glyph.data) {
+                    flip_table.insert(*ch, *ch2);
+                    break;
+                }
+            }
+        }
+    }
+    check_bidirect(&mut flip_table);
+    flip_table
+}
+
+fn generate_flipx_variants(cur_glyph: &crate::Glyph, font_width: i32) -> Option<Vec<crate::Glyph>> {
+    let mut flipped_glyph = cur_glyph.clone();
+    let w = 8 - font_width;
+
+    for i in 0..flipped_glyph.data.len() {
+        flipped_glyph.data[i] = flipped_glyph.data[i].reverse_bits() << w;
+    }
+    if cur_glyph.data == flipped_glyph.data {
+        return None;
+    }
+    Some(generate_x_variants(&flipped_glyph, font_width))
+}
+
+fn generate_x_variants(flipped_glyph: &crate::Glyph, _font_width: i32) -> Vec<crate::Glyph> {
+    let mut cmp_glyhps = vec![flipped_glyph.clone()];
+
+    let mut left_glyph = cmp_glyhps[0].clone();
+    for i in 0..left_glyph.data.len() {
+        left_glyph.data[i] <<= 1;
+    }
+    let mut left_by2_glyph = left_glyph.clone();
+    for i in 0..left_glyph.data.len() {
+        left_by2_glyph.data[i] <<= 1;
+    }
+    cmp_glyhps.push(left_glyph);
+    cmp_glyhps.push(left_by2_glyph);
+
+    let mut right_glyph = cmp_glyhps[0].clone();
+    for i in 0..right_glyph.data.len() {
+        right_glyph.data[i] >>= 1;
+    }
+    let mut right_by2_glyph = right_glyph.clone();
+    for i in 0..right_glyph.data.len() {
+        right_by2_glyph.data[i] >>= 1;
+    }
+    cmp_glyhps.push(right_glyph);
+    cmp_glyhps.push(right_by2_glyph);
+
+    cmp_glyhps
+}
+
+fn generate_flipy_variants(cur_glyph: &crate::Glyph) -> Option<Vec<crate::Glyph>> {
+    let mut flipped_glyph = cur_glyph.clone();
+    flipped_glyph.data = cur_glyph.data.iter().rev().copied().collect();
+    if cur_glyph.data == flipped_glyph.data {
+        return None;
+    }
+    Some(generate_y_variants(&flipped_glyph))
+}
+
+fn generate_y_variants(flipped_glyph: &crate::Glyph) -> Vec<crate::Glyph> {
+    let mut cmp_glyhps = vec![flipped_glyph.clone()];
+
+    let mut up_glyph = cmp_glyhps[0].clone();
+    up_glyph.data.remove(0);
+    up_glyph.data.push(*up_glyph.data.last().unwrap());
+
+    let mut up_by2_glyph = up_glyph.clone();
+    up_by2_glyph.data.remove(0);
+    up_by2_glyph.data.push(*up_by2_glyph.data.last().unwrap());
+
+    cmp_glyhps.push(up_glyph);
+    cmp_glyhps.push(up_by2_glyph);
+
+    let mut down_glyph = cmp_glyhps[0].clone();
+    down_glyph.data.insert(0, down_glyph.data[0]);
+    down_glyph.data.pop();
+
+    let mut down_by2_glyph = cmp_glyhps[0].clone();
+    down_by2_glyph.data.insert(0, down_by2_glyph.data[0]);
+    down_by2_glyph.data.pop();
+
+    cmp_glyhps.push(down_glyph);
+    cmp_glyhps.push(down_by2_glyph);
+
+    cmp_glyhps
+}
+
 pub fn map_char<S: ::std::hash::BuildHasher>(
     mut ch: AttributedChar,
-    table: &HashMap<u8, u8, S>,
+    table: &HashMap<char, char, S>,
 ) -> AttributedChar {
     if ch.get_font_page() == 0 {
-        if let Some(repl) = table.get(&(ch.ch as u8)) {
-            ch.ch = *repl as char;
+        if let Some(repl) = table.get(&(ch.ch)) {
+            ch.ch = *repl;
         }
     }
     ch
@@ -580,10 +678,134 @@ pub fn map_char<S: ::std::hash::BuildHasher>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::{
         editor::{EditState, UndoState},
-        Layer, Position, Rectangle, Size, TextPane,
+        BitFont, Layer, Position, Rectangle, Size, TextPane,
     };
+
+    use super::{generate_flipx_table, generate_flipy_table};
+
+    #[test]
+    fn test_generate_flipx_table() {
+        let table = generate_flipx_table(&BitFont::default());
+        let cp437_table = HashMap::from([
+            (40 as char, 41 as char),
+            (41 as char, 40 as char),
+            (47 as char, 92 as char),
+            (92 as char, 47 as char),
+            (60 as char, 62 as char),
+            (62 as char, 60 as char),
+            (91 as char, 93 as char),
+            (93 as char, 91 as char),
+            (123 as char, 125 as char),
+            (125 as char, 123 as char),
+            (169 as char, 170 as char),
+            (170 as char, 169 as char),
+            (174 as char, 175 as char),
+            (175 as char, 174 as char),
+            (180 as char, 195 as char),
+            (195 as char, 180 as char),
+            (181 as char, 198 as char),
+            (198 as char, 181 as char),
+            (182 as char, 199 as char),
+            (199 as char, 182 as char),
+            (183 as char, 214 as char),
+            (214 as char, 183 as char),
+            (185 as char, 204 as char),
+            (204 as char, 185 as char),
+            (187 as char, 201 as char),
+            (201 as char, 187 as char),
+            (188 as char, 200 as char),
+            (200 as char, 188 as char),
+            (189 as char, 211 as char),
+            (211 as char, 189 as char),
+            (190 as char, 212 as char),
+            (212 as char, 190 as char),
+            (191 as char, 218 as char),
+            (218 as char, 191 as char),
+            (192 as char, 217 as char),
+            (217 as char, 192 as char),
+            (221 as char, 222 as char),
+            (222 as char, 221 as char),
+            (242 as char, 243 as char),
+            (243 as char, 242 as char),
+            (27 as char, 26 as char),
+            (26 as char, 27 as char),
+            ('p', 'q'),
+            ('q', 'p'),
+            (186 as char, 199 as char),
+            (199 as char, 186 as char),
+            (17 as char, 16 as char),
+            (16 as char, 17 as char),
+            (213 as char, 184 as char),
+            (184 as char, 213 as char),
+        ]);
+
+        for k in table.keys() {
+            assert!(
+                cp437_table.contains_key(k),
+                "invalid key in flip table {}",
+                *k as u32
+            );
+        }
+        for k in cp437_table.keys() {
+            assert!(table.contains_key(k), "missing key {}", *k as u32);
+        }
+    }
+
+    #[test]
+    fn test_generate_flipy_table() {
+        let table = generate_flipy_table(&BitFont::default());
+        let cp437_table = HashMap::from([
+            (183 as char, 189 as char),
+            (189 as char, 183 as char),
+            (184 as char, 190 as char),
+            (190 as char, 184 as char),
+            (187 as char, 188 as char),
+            (188 as char, 187 as char),
+            (191 as char, 217 as char),
+            (217 as char, 191 as char),
+            (192 as char, 218 as char),
+            (218 as char, 192 as char),
+            (193 as char, 194 as char),
+            (194 as char, 193 as char),
+            (200 as char, 201 as char),
+            (201 as char, 200 as char),
+            (202 as char, 203 as char),
+            (203 as char, 202 as char),
+            (207 as char, 209 as char),
+            (209 as char, 207 as char),
+            (208 as char, 210 as char),
+            (210 as char, 208 as char),
+            (211 as char, 214 as char),
+            (214 as char, 211 as char),
+            (212 as char, 213 as char),
+            (213 as char, 212 as char),
+            (220 as char, 223 as char),
+            (223 as char, 220 as char),
+            (24 as char, 25 as char),
+            (25 as char, 24 as char),
+            (30 as char, 31 as char),
+            (31 as char, 30 as char),
+            (33 as char, 173 as char),
+            (173 as char, 33 as char),
+        ]);
+        /*   for (k, v) in &table {
+            println!("{k}({}) -> {v}({})", *k as u32, *v as u32);
+        }*/
+        for k in table.keys() {
+            assert!(
+                cp437_table.contains_key(k),
+                "invalid key in flip table {}",
+                *k as u32
+            );
+        }
+        for k in cp437_table.keys() {
+            assert!(table.contains_key(k), "missing key {}", *k as u32);
+        }
+    }
 
     #[test]
     fn test_delete_selection() {
@@ -718,6 +940,7 @@ mod tests {
             }
         }
     }
+
     #[test]
     fn test_justify_right() {
         let mut state = EditState::default();

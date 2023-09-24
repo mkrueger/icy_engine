@@ -252,7 +252,7 @@ mod tests {
         for i in 0..3 {
             buffer.palette.set_color(
                 12 + i,
-                Color::new(4 + i as u8 * 5, i as u8, 8 + i as u8 * 8),
+                Color::new( i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8),
             );
         }
 
@@ -296,7 +296,7 @@ mod tests {
             &mut buffer,
             &mut buffer2,
             crate::CompareOptions {
-                compare_palette: false,
+                compare_palette: true,
             },
         );
         buffer2

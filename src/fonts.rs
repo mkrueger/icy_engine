@@ -27,7 +27,8 @@ pub struct Glyph {
 impl Display for Glyph {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut s = String::new();
-        for b in &self.data {
+        for (y, b) in self.data.iter().enumerate() {
+            s.push_str(&format!("{y:2}"));
             for i in 0..8 {
                 if *b & (128 >> i) == 0 {
                     s.push('-');

@@ -426,11 +426,16 @@ pub(crate) fn compare_buffers(
             buf_new.palette.len(),
             "palette color count differs"
         );
-
-        assert_eq!(
-            buf_old.palette.export_palette(&crate::PaletteFormat::Hex),
-            buf_new.palette.export_palette(&crate::PaletteFormat::Hex)
-        );
+        for i in 0..buf_old.palette.len() {
+            assert_eq!(
+                buf_old.palette.get_color(i),
+                buf_new.palette.get_color(i),
+                "palette color {} differs: {} <> {}",
+                i,
+                buf_old.palette.get_color(i),
+                buf_new.palette.get_color(i),
+            );
+        }
     }
 
     assert_eq!(buf_old.font_count(), buf_new.font_count());

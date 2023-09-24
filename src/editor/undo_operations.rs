@@ -11,7 +11,7 @@ use crate::{
     Position, SauceData, Selection, SelectionMask, Size, TextPane,
 };
 
-use super::{map_char, EditState, EditorError, OperationType, UndoOperation};
+use super::{EditState, EditorError, OperationType, UndoOperation};
 
 pub(crate) struct AtomicUndo {
     description: String,
@@ -932,12 +932,73 @@ pub struct RotateLayer {
 
 lazy_static::lazy_static! {
     static ref ROTATE_TABLE: HashMap<u8, u8> = HashMap::from([
+        // block
         (220, 221),
         (221, 223),
-        (222, 220),
-        (187, 188),
-        (221, 223),
         (223, 222),
+        (222, 220),
+
+        // single line
+        (179, 196),
+        (196, 179),
+
+        // single line corner
+        (191, 217),
+        (217, 192),
+        (192, 218),
+        (218, 191),
+
+        // single side
+        (180, 193),
+        (193, 195),
+        (195, 194),
+        (194, 180),
+
+        // double line
+        (186, 205),
+        (205, 186),
+
+        // double line corner
+        (187, 188),
+        (188, 200),
+        (188, 200),
+        (200, 187),
+
+        // double line side
+        (185, 202),
+        (202, 204),
+        (204, 203),
+        (203, 185),
+
+        // double line to single line side
+        (184, 189),
+        (189, 212),
+        (212, 214),
+        (214, 184),
+
+        // double line to single line corner
+        (183, 190),
+        (190, 211),
+        (211, 213),
+        (213, 183),
+
+        // single line to double line side
+        (182, 207),
+        (207, 199),
+        (199, 209),
+        (209, 182),
+
+         // single line to double line corner
+         (183, 190),
+         (190, 211),
+         (211, 213),
+         (213, 183),
+
+
+        // single line to double crossing
+        (215, 216),
+        (216, 215),
+
     ]);
 }
 
@@ -965,7 +1026,7 @@ impl UndoOperation for RotateLayer {
 
             for (y, line) in lines.into_iter().enumerate() {
                 for (x, ch) in line.chars.into_iter().enumerate() {
-                    let ch = map_char(ch, &ROTATE_TABLE);
+                    //                    let ch = map_char(ch, &ROTATE_TABLE);
                     layer.set_char((y, x), ch);
                 }
             }

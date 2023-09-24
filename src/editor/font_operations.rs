@@ -1,7 +1,7 @@
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
 use crate::{
-    AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode, TextAttribute,
+    AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode,
     DOS_DEFAULT_PALETTE,
 };
 
@@ -281,7 +281,7 @@ fn remove_ice_color(ch: crate::AttributedChar) -> crate::AttributedChar {
     attr.set_is_blinking(true);
     attr.set_background(bg - 8);
 
-    return AttributedChar::new(ch.ch, attr);
+    AttributedChar::new(ch.ch, attr)
 }
 
 fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize) -> Palette {
