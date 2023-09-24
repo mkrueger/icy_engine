@@ -4,7 +4,7 @@ use super::{Position, SaveOptions, TextAttribute};
 use crate::{
     analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures,
     BufferType, Color, EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette,
-    PaletteFormat, SavingError, TextPane, EGA_PALETTE,
+    SavingError, TextPane, EGA_PALETTE,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -252,7 +252,7 @@ mod tests {
         for i in 0..3 {
             buffer.palette.set_color(
                 12 + i,
-                Color::new( i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8),
+                Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8),
             );
         }
 

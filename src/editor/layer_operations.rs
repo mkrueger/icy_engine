@@ -1,7 +1,9 @@
 #![allow(clippy::missing_errors_doc)]
+use std::collections::HashMap;
+
 use i18n_embed_fl::fl;
 
-use crate::{EngineResult, Layer, Position, Role, Size, TextPane};
+use crate::{AttributedChar, EngineResult, Layer, Position, Role, Size, TextPane};
 
 use super::{undo_operations, EditState};
 
@@ -231,8 +233,26 @@ impl EditState {
     }
 
     pub fn rotate_layer(&mut self) -> EngineResult<()> {
-        let op = super::undo_operations::RotateLayer::new(self.current_layer);
-        self.push_undo(Box::new(op))
+        let current_layer = self.current_layer;
+        if let Some(layer) = self.get_buffer_mut().layers.get_mut(current_layer) {
+            let size = layer.get_size();
+            let mut new_layer = Layer::new("", (size.height, size.width));
+            for y in 0..size.width {
+                for x in 0..size.height {
+                    let ch = layer.get_char((y, size.height - 1 - x));
+                    let ch = map_char_u8(ch, &ROTATE_TABLE);
+                    new_layer.set_char((x, y), ch);
+                }
+            }
+            let op = super::undo_operations::RotateLayer::new(
+                current_layer,
+                layer.lines.clone(),
+                new_layer.lines.clone(),
+            );
+            self.push_undo(Box::new(op))
+        } else {
+            Err(super::EditorError::InvalidLayer(current_layer).into())
+        }
     }
 
     /// Returns the make layer transparent of this [`EditState`].
@@ -274,6 +294,94 @@ impl EditState {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
     }
+}
+
+pub fn map_char_u8<S: ::std::hash::BuildHasher>(
+    mut ch: AttributedChar,
+    table: &HashMap<u8, u8, S>,
+) -> AttributedChar {
+    if let Some(repl) = table.get(&(ch.ch as u8)) {
+        ch.ch = *repl as char;
+    }
+    ch
+}
+
+lazy_static::lazy_static! {
+    static ref ROTATE_TABLE: HashMap<u8, u8> = HashMap::from([
+        // block
+        (220, 221),
+        (221, 223),
+        (223, 222),
+        (222, 220),
+
+        // single line
+        (179, 196),
+        (196, 179),
+
+        // single line corner
+        (191, 217),
+        (217, 192),
+        (192, 218),
+        (218, 191),
+
+        // single side
+        (180, 193),
+        (193, 195),
+        (195, 194),
+        (194, 180),
+
+        // double line
+        (186, 205),
+        (205, 186),
+
+        // double line corner
+        (187, 188),
+        (188, 200),
+        (200, 201),
+        (201, 187),
+
+        // double line side
+        (185, 202),
+        (202, 204),
+        (204, 203),
+        (203, 185),
+
+        // double line to single line corner
+        (184, 189),
+        (189, 212),
+        (212, 214),
+        (214, 184),
+
+         // double line to single line side
+         (181, 208),
+         (208, 198),
+         (198, 210),
+         (210, 181),
+
+        // double line to single line corner
+        (183, 190),
+        (190, 211),
+        (211, 213),
+        (213, 183),
+
+        // single line to double line side
+        (182, 207),
+        (207, 199),
+        (199, 209),
+        (209, 182),
+
+         // single line to double line corner
+         (183, 190),
+         (190, 211),
+         (211, 213),
+         (213, 183),
+
+
+        // single line to double crossing
+        (215, 216),
+        (216, 215),
+
+    ]);
 }
 
 #[cfg(test)]

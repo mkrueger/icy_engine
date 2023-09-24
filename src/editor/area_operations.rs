@@ -668,10 +668,8 @@ pub fn map_char<S: ::std::hash::BuildHasher>(
     mut ch: AttributedChar,
     table: &HashMap<char, char, S>,
 ) -> AttributedChar {
-    if ch.get_font_page() == 0 {
-        if let Some(repl) = table.get(&(ch.ch)) {
-            ch.ch = *repl;
-        }
+    if let Some(repl) = table.get(&(ch.ch)) {
+        ch.ch = *repl;
     }
     ch
 }
