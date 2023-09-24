@@ -3,6 +3,8 @@ use std::{fmt::Display, path::Path};
 
 use regex::Regex;
 
+use crate::update_crc32;
+
 #[derive(Debug, Clone, Default)]
 pub struct Color {
     pub name: Option<String>,
@@ -147,6 +149,9 @@ pub struct Palette {
     pub description: String,
     pub author: String,
     colors: Vec<Color>,
+
+    old_hash_idx: usize,
+    hash: u32,
 }
 
 impl Palette {
@@ -156,6 +161,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors,
+            old_hash_idx: 0,
+            hash: 0,
         }
     }
 
@@ -399,6 +406,8 @@ impl Palette {
             description,
             author,
             colors,
+            old_hash_idx: 0,
+            hash: 0,
         })
     }
 
@@ -511,6 +520,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors: vec![],
+            old_hash_idx: 0,
+            hash: 0,
         }
     }
 
@@ -520,6 +531,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors: DOS_DEFAULT_PALETTE.to_vec(),
+            old_hash_idx: 0,
+            hash: 0,
         }
     }
 
@@ -633,6 +646,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors,
+            old_hash_idx: 0,
+            hash: 0,
         }
     }
 
@@ -667,6 +682,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors,
+            old_hash_idx: 0,
+            hash: 0,
         }
     }
 
@@ -678,6 +695,17 @@ impl Palette {
             res.push(col.b >> 2);
         }
         res
+    }
+
+    pub fn get_hash(&mut self) -> u32 {
+        for i in self.old_hash_idx..self.colors.len() {
+            let c = &self.colors[i];
+            self.hash = update_crc32(self.hash, c.r);
+            self.hash = update_crc32(self.hash, c.g);
+            self.hash = update_crc32(self.hash, c.b);
+        }
+        self.old_hash_idx = self.colors.len();
+        self.hash
     }
 }
 
@@ -3800,6 +3828,8 @@ impl Default for Palette {
             description: String::new(),
             author: String::new(),
             colors: DOS_DEFAULT_PALETTE.to_vec(),
+            old_hash_idx: 0,
+            hash: 0,
         }
     }
 }

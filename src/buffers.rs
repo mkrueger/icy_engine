@@ -448,6 +448,14 @@ impl Buffer {
         self.font_table.len()
     }
 
+    pub fn get_font_table(&self) -> HashMap<usize, BitFont> {
+        self.font_table.clone()
+    }
+
+    pub fn set_font_table(&mut self, font_table: HashMap<usize, BitFont>) {
+        self.font_table = font_table;
+    }
+
     pub fn append_font(&mut self, font: BitFont) -> usize {
         let mut i = 0;
         while self.font_table.contains_key(&i) {
