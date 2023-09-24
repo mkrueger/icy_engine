@@ -621,9 +621,9 @@ impl Palette {
         while o < pal.len() {
             colors.push(Color {
                 name: None,
-                r: pal[o] << 2 | pal[o] >> 4,
-                g: pal[o + 1] << 2 | pal[o + 1] >> 4,
-                b: pal[o + 2] << 2 | pal[o + 2] >> 4,
+                r: pal[o],
+                g: pal[o + 1],
+                b: pal[o + 2],
             });
             o += 3;
         }
@@ -636,16 +636,32 @@ impl Palette {
         }
     }
 
-    pub fn cycle_ega_colors(&self) -> Palette {
-        let mut colors = self.colors.clone();
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..EGA_COLOR_OFFSETS.len() {
-            let offset = EGA_COLOR_OFFSETS[i];
-            if i == offset {
-                continue;
-            }
-            colors.swap(i, offset);
+    pub fn as_vec(&self) -> Vec<u8> {
+        let mut res = Vec::with_capacity(3 * self.colors.len());
+        for col in &self.colors {
+            res.push(col.r);
+            res.push(col.g);
+            res.push(col.b);
         }
+        res
+    }
+
+    pub fn from_63(pal: &[u8]) -> Self {
+        let mut colors = Vec::new();
+        let mut o = 0;
+        while o < pal.len() {
+            let r = pal[o];
+            let g = pal[o + 1];
+            let b = pal[o + 2];
+            colors.push(Color {
+                name: None,
+                r: r << 2 | r >> 4,
+                g: g << 2 | g >> 4,
+                b: b << 2 | b >> 4,
+            });
+            o += 3;
+        }
+
         Palette {
             title: String::new(),
             description: String::new(),
@@ -654,68 +670,16 @@ impl Palette {
         }
     }
 
-    pub fn to_ega_palette(&self) -> Vec<u8> {
-        let mut ega_colors;
-
-        if self.colors.len() == 64 {
-            //assume ega palette
-            ega_colors = self.colors.clone();
-            #[allow(clippy::needless_range_loop)]
-            for i in 0..EGA_COLOR_OFFSETS.len() {
-                let offset = EGA_COLOR_OFFSETS[i];
-                if i == offset {
-                    continue;
-                }
-                ega_colors.swap(i, offset);
-            }
-        } else {
-            // just store the first 16 colors to the standard EGA palette
-            ega_colors = EGA_PALETTE.to_vec();
-            for i in 0..16 {
-                if i >= self.colors.len() {
-                    break;
-                }
-                ega_colors[EGA_COLOR_OFFSETS[i]] = self.colors[i].clone();
-            }
-        }
-        let mut res = Vec::with_capacity(3 * 64);
-        for col in ega_colors {
-            res.push(col.r >> 2 | col.r << 4);
-            res.push(col.g >> 2 | col.g << 4);
-            res.push(col.b >> 2 | col.b << 4);
-        }
-        res
-    }
-
-    pub fn to_16color_vec(&self) -> Vec<u8> {
-        let mut res = Vec::with_capacity(3 * 16);
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..16 {
-            let col = if i < self.colors.len() {
-                self.colors[i].clone()
-            } else {
-                DOS_DEFAULT_PALETTE[i].clone()
-            };
-
-            res.push(col.r >> 2 | col.r << 4);
-            res.push(col.g >> 2 | col.g << 4);
-            res.push(col.b >> 2 | col.b << 4);
-        }
-        res
-    }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut res = vec![0; 3 * self.colors.len()];
+    pub fn as_vec_63(&self) -> Vec<u8> {
+        let mut res = Vec::with_capacity(3 * self.colors.len());
         for col in &self.colors {
-            res.push(col.r >> 2 | col.r << 4);
-            res.push(col.g >> 2 | col.g << 4);
-            res.push(col.b >> 2 | col.b << 4);
+            res.push(col.r >> 2);
+            res.push(col.g >> 2);
+            res.push(col.b >> 2);
         }
         res
     }
 }
-
-static EGA_COLOR_OFFSETS: [usize; 16] = [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
 
 pub const DOS_DEFAULT_PALETTE: [Color; 16] = [
     Color {

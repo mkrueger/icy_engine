@@ -96,9 +96,15 @@ impl OutputFormat for XBin {
         result.push(flags);
 
         if (flags & FLAG_PALETTE) == FLAG_PALETTE {
-            let palette_data = buf.palette.to_16color_vec();
+            let mut pal = buf.palette.clone();
+            pal.fill_to_16();
+            let palette_data = pal.as_vec_63();
             if palette_data.len() != XBIN_PALETTE_LENGTH {
-                return Err(anyhow::anyhow!("Invalid palette len."));
+                return Err(anyhow::anyhow!(
+                    "Invalid palette data length was {} should be {}.",
+                    palette_data.len(),
+                    XBIN_PALETTE_LENGTH
+                ));
             }
             result.extend(palette_data);
         }
@@ -223,7 +229,7 @@ impl OutputFormat for XBin {
         };
 
         if has_custom_palette {
-            result.palette = Palette::from(&data[o..(o + XBIN_PALETTE_LENGTH)]);
+            result.palette = Palette::from_63(&data[o..(o + XBIN_PALETTE_LENGTH)]);
             o += XBIN_PALETTE_LENGTH;
         }
         if has_custom_font {
@@ -676,7 +682,8 @@ pub fn get_save_sauce_default_xb(buf: &Buffer) -> (bool, String) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        compare_buffers, AttributedChar, BitFont, Buffer, OutputFormat, TextAttribute, TextPane,
+        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
+        TextPane,
     };
 
     #[test]
@@ -709,6 +716,54 @@ mod tests {
     pub fn test_ice() {
         let mut buffer = create_xb_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
+        );
+        let res = test_xbin(buffer);
+        let ch = res.layers[0].get_char((1, 0));
+
+        assert_eq!(ch.attribute.get_foreground(), 0b1111);
+        assert_eq!(ch.attribute.get_background(), 0b1100);
+    }
+
+    #[test]
+    pub fn test_custom_palette() {
+        let mut buffer = create_xb_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
+        }
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
+        }
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
+        }
+        for i in 0..3 {
+            buffer.palette.set_color(
+                12 + i,
+                Color::new(5 + i as u8 * 5, i as u8, 8 + i as u8 * 8),
+            );
+        }
+
         buffer.layers[0].set_char(
             (0, 0),
             AttributedChar::new(

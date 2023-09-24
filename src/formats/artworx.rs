@@ -3,8 +3,8 @@ use std::path::Path;
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
     analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures,
-    BufferType, EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette, SavingError,
-    TextPane,
+    BufferType, Color, EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette,
+    PaletteFormat, SavingError, TextPane, EGA_PALETTE,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -47,6 +47,11 @@ impl OutputFormat for Artworx {
                 "Only width==80 files are supported by this format."
             ));
         }
+        if buf.palette.len() != 16 {
+            return Err(anyhow::anyhow!(
+                "Only 16 color palettes are supported by this format."
+            ));
+        }
 
         let fonts = analyze_font_usage(buf);
         if fonts.len() > 1 {
@@ -56,7 +61,7 @@ impl OutputFormat for Artworx {
         }
 
         let mut result = vec![1]; // version
-        result.extend(buf.palette.to_ega_palette());
+        result.extend(to_ega_data(&buf.palette));
         if buf.get_font_dimensions().height != 16 {
             return Err(SavingError::Only8x16FontsSupported.into());
         }
@@ -115,7 +120,7 @@ impl OutputFormat for Artworx {
 
         // convert EGA -> VGA colors.
         let palette_size = 3 * 64;
-        result.palette = Palette::from(&data[o..(o + palette_size)]).cycle_ega_colors();
+        result.palette = from_ega_data(&data[o..(o + palette_size)]);
         o += palette_size;
 
         let font_size = 4096;
@@ -146,6 +151,45 @@ impl OutputFormat for Artworx {
     }
 }
 
+static EGA_COLOR_OFFSETS: [usize; 16] = [0, 1, 2, 3, 4, 5, 20, 7, 56, 57, 58, 59, 60, 61, 62, 63];
+
+pub fn from_ega_data(pal: &[u8]) -> Palette {
+    let mut colors = Vec::new();
+    for i in EGA_COLOR_OFFSETS {
+        let o = 3 * i;
+
+        let r = pal[o];
+        let g = pal[o + 1];
+        let b = pal[o + 2];
+        colors.push(Color::new(
+            r << 2 | r >> 4,
+            g << 2 | g >> 4,
+            b << 2 | b >> 4,
+        ));
+    }
+
+    Palette::from_colors(colors)
+}
+
+pub fn to_ega_data(palette: &Palette) -> Vec<u8> {
+    // just store the first 16 colors to the standard EGA palette
+    let mut ega_colors = EGA_PALETTE.to_vec();
+    for i in 0..16 {
+        if i >= palette.len() {
+            break;
+        }
+        ega_colors[EGA_COLOR_OFFSETS[i]] = palette.get_color(i);
+    }
+    let mut res = Vec::with_capacity(3 * 64);
+    for col in ega_colors {
+        let (r, g, b) = col.get_rgb();
+        res.push(r >> 2);
+        res.push(g >> 2);
+        res.push(b >> 2);
+    }
+    res
+}
+
 pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {
     if buf.get_width() != 80 {
         return (true, "width != 80".to_string());
@@ -160,12 +204,58 @@ pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute, TextPane};
+    use crate::{
+        compare_buffers, AttributedChar, Buffer, Color, OutputFormat, TextAttribute, TextPane,
+    };
 
     #[test]
     pub fn test_ice() {
         let mut buffer = create_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
+        );
+        test_artworx(buffer);
+    }
+
+    #[test]
+    pub fn test_custom_palette() {
+        let mut buffer = create_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
+        }
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
+        }
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
+        }
+        for i in 0..3 {
+            buffer.palette.set_color(
+                12 + i,
+                Color::new(4 + i as u8 * 5, i as u8, 8 + i as u8 * 8),
+            );
+        }
+
         buffer.layers[0].set_char(
             (0, 0),
             AttributedChar::new(

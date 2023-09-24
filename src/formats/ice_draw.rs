@@ -121,7 +121,7 @@ impl OutputFormat for IceDraw {
         }
 
         // palette
-        result.extend(buf.palette.to_16color_vec());
+        result.extend(buf.palette.as_vec_63());
         if options.save_sauce {
             buf.write_sauce_info(crate::SauceFileType::Bin, &mut result)?;
         }
@@ -204,7 +204,7 @@ impl OutputFormat for IceDraw {
         result.set_font(0, font);
         o += FONT_SIZE;
 
-        result.palette = Palette::from(&data[o..(o + PALETTE_SIZE)]);
+        result.palette = Palette::from_63(&data[o..(o + PALETTE_SIZE)]);
         Ok(result)
     }
 }
@@ -232,7 +232,9 @@ fn advance_pos(x1: i32, x2: i32, pos: &mut Position) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute, TextPane};
+    use crate::{
+        compare_buffers, AttributedChar, Buffer, Color, OutputFormat, TextAttribute, TextPane,
+    };
 
     #[test]
     pub fn test_ice() {
@@ -269,6 +271,50 @@ mod tests {
         buffer.layers[0].set_char(
             (1, 0),
             AttributedChar::new('\x01', TextAttribute::from_u8(0, crate::IceMode::Ice)),
+        );
+        test_ice_draw(buffer);
+    }
+
+    #[test]
+    pub fn test_custom_palette() {
+        let mut buffer = create_buffer();
+        buffer.ice_mode = crate::IceMode::Ice;
+
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
+        }
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
+        }
+        for i in 0..4 {
+            buffer
+                .palette
+                .set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
+        }
+        for i in 0..3 {
+            buffer.palette.set_color(
+                12 + i,
+                Color::new(5 + i as u8 * 5, i as u8, 8 + i as u8 * 8),
+            );
+        }
+
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
+            ),
+        );
+        buffer.layers[0].set_char(
+            (1, 0),
+            AttributedChar::new(
+                'B',
+                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
+            ),
         );
         test_ice_draw(buffer);
     }
