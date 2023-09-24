@@ -187,6 +187,19 @@ pub fn parse_with_parser(
 
     // crop last empty line (if any)
     crop_loaded_file(result);
+    for y in 0..result.get_height() {
+        for x in 0..result.get_width() {
+            let mut ch = result.get_char((x, y));
+            if ch.attribute.is_bold() {
+                let fg = ch.attribute.get_foreground();
+                if fg < 8 {
+                    ch.attribute.set_foreground(fg + 8);
+                }
+                ch.attribute.set_is_bold(false);
+                result.layers[0].set_char((x, y), ch);
+            }
+        }
+    }
     Ok(())
 }
 
