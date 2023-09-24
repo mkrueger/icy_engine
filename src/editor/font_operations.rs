@@ -1,5 +1,7 @@
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
+use icy_sixel::quant::newColorMap;
+
 use crate::{
     AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode,
     DOS_DEFAULT_PALETTE,
@@ -132,9 +134,16 @@ impl EditState {
             PaletteMode::Free8 => get_palette(&old_layers, &old_palette, 8),
             PaletteMode::Free16 => get_palette(&old_layers, &old_palette, 16),
         };
-        self.adjust_layer_colors(&old_palette, &new_palette);
-        let new_layers = self.get_buffer().layers.clone();
 
+        let mut new_palette_table = Vec::new();
+        for i in 0..old_palette.len() {
+            let new_color = find_new_color(&old_palette, &new_palette, i as u32);
+            new_palette_table.push(new_color);
+        }
+
+        self.adjust_layer_colors(&new_palette_table);
+
+        let new_layers = self.get_buffer().layers.clone();
         let op = super::undo_operations::SwitchPalette::new(
             old_mode,
             old_palette,
@@ -146,16 +155,14 @@ impl EditState {
         self.push_undo(Box::new(op))
     }
 
-    fn adjust_layer_colors(&mut self, old_palette: &crate::Palette, new_palette: &crate::Palette) {
+    fn adjust_layer_colors(&mut self, table: &[u32]) {
         for layer in &mut self.get_buffer_mut().layers {
             for line in &mut layer.lines {
                 for ch in &mut line.chars {
                     let fg = ch.attribute.get_foreground();
-                    ch.attribute
-                        .set_foreground(find_new_color(old_palette, new_palette, fg));
+                    ch.attribute.set_foreground(table[fg as usize]);
                     let bg = ch.attribute.get_background();
-                    ch.attribute
-                        .set_background(find_new_color(old_palette, new_palette, bg));
+                    ch.attribute.set_background(table[bg as usize]);
                 }
             }
         }
@@ -289,6 +296,9 @@ fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize)
     for layer in old_layers {
         for line in &layer.lines {
             for ch in &line.chars {
+                if !ch.is_visible() {
+                    continue;
+                }
                 let fg = ch.attribute.get_foreground();
                 let bg = ch.attribute.get_background();
                 color_count[fg as usize] += 1;
@@ -296,9 +306,9 @@ fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize)
             }
         }
     }
-    let mut new_palette = Palette::new();
-    new_palette.insert_color(old_palette.get_color(0));
-    while new_palette.len() < palette_size {
+    let mut new_colors = Vec::new();
+    new_colors.push((0, old_palette.get_color(0)));
+    while new_colors.len() < palette_size {
         let mut max = -1;
         let mut idx = 0;
         (1..old_palette.len()).for_each(|i| {
@@ -310,8 +320,14 @@ fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize)
         if max < 0 {
             break;
         }
-        color_count[idx] = 0;
-        new_palette.insert_color(old_palette.get_color(idx));
+        color_count[idx] = -1;
+        new_colors.push((idx, old_palette.get_color(idx)));
+    }
+    new_colors.sort_by(|a, b| (a.0).partial_cmp(&b.0).unwrap());
+
+    let mut new_palette = Palette::new();
+    for (_, c) in new_colors {
+        new_palette.insert_color(c);
     }
     new_palette.resize(palette_size);
     new_palette
@@ -330,9 +346,8 @@ fn find_new_color(old_palette: &Palette, new_palette: &Palette, color: u32) -> u
         let r = r as i32;
         let g = g as i32;
         let b = b as i32;
-
         let new_delta = (o_r - r).abs() + (o_g - g).abs() + (o_b - b).abs();
-        if new_delta < delta {
+        if new_delta < delta || i == 0 {
             new_color = i;
             delta = new_delta;
         }
