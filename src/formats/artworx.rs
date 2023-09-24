@@ -205,7 +205,8 @@ pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {
 #[cfg(test)]
 mod tests {
     use crate::{
-        compare_buffers, AttributedChar, Buffer, Color, OutputFormat, TextAttribute, TextPane,
+        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
+        TextPane,
     };
 
     #[test]
@@ -273,6 +274,20 @@ mod tests {
         test_artworx(buffer);
     }
 
+    #[test]
+    pub fn test_custom_font() {
+        let mut buffer = create_buffer();
+        buffer.set_font(0, BitFont::from_ansi_font_page(42).unwrap());
+        buffer.ice_mode = crate::IceMode::Ice;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
+            ),
+        );
+        test_artworx(buffer);
+    }
     fn create_buffer() -> Buffer {
         let mut buffer = Buffer::new((80, 25));
         for y in 0..buffer.get_height() {

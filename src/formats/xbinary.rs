@@ -786,6 +786,21 @@ mod tests {
     }
 
     #[test]
+    pub fn test_custom_font() {
+        let mut buffer = create_xb_buffer();
+        buffer.set_font(0, BitFont::from_ansi_font_page(42).unwrap());
+        buffer.ice_mode = crate::IceMode::Blink;
+        buffer.layers[0].set_char(
+            (0, 0),
+            AttributedChar::new(
+                'A',
+                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
+            ),
+        );
+        test_xbin(buffer);
+    }
+
+    #[test]
     pub fn test_extended_font_ice() {
         let mut buffer = create_xb_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
