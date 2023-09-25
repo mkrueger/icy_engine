@@ -105,6 +105,9 @@ impl EditState {
     ///
     /// This function will return an error if .
     pub fn merge_layer_down(&mut self, layer: usize) -> EngineResult<()> {
+        if layer == 0 {
+            return Err(anyhow::anyhow!("Cannot merge down base layer"));
+        }
         let Some(cur_layer) = self.get_cur_layer() else {
             return Err(super::EditorError::CurrentLayerInvalid.into());
         };
