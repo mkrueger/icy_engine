@@ -56,11 +56,13 @@ pub struct SaveOptions {
     pub compress: bool,
     pub output_line_length: Option<usize>,
     pub preserve_invisible_chars: bool,
+    pub longer_terminal_output: bool,
 }
 
 impl SaveOptions {
     pub fn new() -> Self {
         SaveOptions {
+            longer_terminal_output: false,
             screen_preparation: ScreenPreperation::None,
             buffer_type: BufferType::CP437,
             modern_terminal_output: false,

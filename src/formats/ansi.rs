@@ -121,8 +121,14 @@ impl StringGenerator {
                 }
             }
         }
-
+        
         while pos.y < height {
+            if self.options.longer_terminal_output {
+                result.extend_from_slice(b"\x1b[s");
+                if pos.y > 0 {
+                    result.extend_from_slice(b"\x1b[u\n");
+                }
+            } 
             let mut line_length =
                 if self.options.modern_terminal_output || self.options.preserve_invisible_chars {
                     layer.get_width()
@@ -139,6 +145,7 @@ impl StringGenerator {
             }
 
             while pos.x < line_length {
+
                 let mut space_count = 0;
                 let mut ch = layer.get_char(pos);
                 // doesn't work well with unix terminal - background color needs to be painted.
@@ -439,13 +446,15 @@ impl StringGenerator {
             }
             // do not end with eol except for terminal support.
             self.last_line_break = self.output.len();
-            if self.options.modern_terminal_output {
-                result.extend_from_slice(b"\x1b[0m");
-                result.push(10);
-                first_char = true;
-            } else if pos.x < layer.get_width() && pos.y + 1 < height {
-                result.push(13);
-                result.push(10);
+            if !self.options.longer_terminal_output {
+                if self.options.modern_terminal_output {
+                    result.extend_from_slice(b"\x1b[0m");
+                    result.push(10);
+                    first_char = true;
+                } else if pos.x < layer.get_width() && pos.y + 1 < height {
+                    result.push(13);
+                    result.push(10);
+                }
             }
             self.push_result(&mut result);
             self.last_line_break = self.output.len();

@@ -2,11 +2,13 @@
 use std::{fmt::Display, path::Path};
 
 use regex::Regex;
+use serde::{Serialize, Deserialize};
 
 use crate::update_crc32;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Color {
+    #[serde(skip_serializing)]
     pub name: Option<String>,
     r: u8,
     g: u8,
@@ -24,7 +26,8 @@ impl Display for Color {
 }
 
 impl Color {
-    pub fn new(r: u8, g: u8, b: u8) -> Self {
+    #[inline(always)]
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Color {
             name: None,
             r,
@@ -32,7 +35,7 @@ impl Color {
             b,
         }
     }
-    pub fn get_rgb_f64(self) -> (f64, f64, f64) {
+    pub fn get_rgb_f64(&self) -> (f64, f64, f64) {
         (
             self.r as f64 / 255_f64,
             self.g as f64 / 255_f64,
@@ -40,7 +43,7 @@ impl Color {
         )
     }
 
-    pub fn get_rgb_f32(self) -> (f32, f32, f32) {
+    pub fn get_rgb_f32(&self) -> (f32, f32, f32) {
         (
             self.r as f32 / 255_f32,
             self.g as f32 / 255_f32,
@@ -48,7 +51,7 @@ impl Color {
         )
     }
 
-    pub fn get_rgb(self) -> (u8, u8, u8) {
+    pub fn get_rgb(&self) -> (u8, u8, u8) {
         (self.r, self.g, self.b)
     }
 }

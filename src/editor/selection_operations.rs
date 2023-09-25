@@ -153,5 +153,7 @@ impl EditState {
             );
             let _ = self.push_plain_undo(Box::new(op));
         }
+
+        self.is_buffer_dirty = true;
     }
 }
