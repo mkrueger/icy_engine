@@ -1,7 +1,5 @@
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
-use icy_sixel::quant::newColorMap;
-
 use crate::{
     AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode,
     DOS_DEFAULT_PALETTE,
@@ -186,7 +184,7 @@ impl EditState {
                 for layer in &mut new_layers {
                     for line in &mut layer.lines {
                         for ch in &mut line.chars {
-                            if (7..16).contains(&ch.attribute.get_background()) {
+                            if (8..16).contains(&ch.attribute.get_background()) {
                                 *ch = remove_ice_color(*ch);
                             }
                         }
