@@ -443,7 +443,7 @@ impl BufferParser for Parser {
                             )
                             .into());
                         }
-                                                match self.parsed_numbers.first() {
+                        match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Fast,
                             Some(6) => {
                                 //  buf.terminal_state.origin_mode = OriginMode::WithinMargins;
@@ -477,7 +477,7 @@ impl BufferParser for Parser {
                             )
                             .into());
                         }
-                                                match self.parsed_numbers.first() {
+                        match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
@@ -571,7 +571,7 @@ impl BufferParser for Parser {
                         }
                     }
                     _ => {
-                                                self.state = EngineState::Default;
+                        self.state = EngineState::Default;
                         // error in control sequence, terminate reading
                         return Err(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
@@ -1457,7 +1457,6 @@ impl Parser {
 fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) {
     buf.terminal_state.font_selection_state = FontSelectionState::Success;
     caret.set_font_page(slot);
-    log::info!("Set Font to {slot}");
 
     if caret.attribute.is_blinking() && caret.attribute.is_bold() {
         buf.terminal_state.high_intensity_blink_attribute_font_slot = slot;

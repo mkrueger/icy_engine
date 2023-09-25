@@ -108,7 +108,7 @@ impl StringGenerator {
         let mut last_back_color = DOS_DEFAULT_PALETTE[0].clone();
 
         let mut pos = Position::default();
-        let height = layer.get_line_count();
+        let height = layer.get_height();
         let mut first_char = true;
         let mut cur_font_page = 0;
         self.last_line_break = 0;
@@ -485,7 +485,7 @@ impl StringGenerator {
                     icy_sixel::MethodForRep::Auto,
                     icy_sixel::Quality::AUTO,
                 ) {
-                    Err(err) => eprintln!("{err}"),
+                    Err(err) => log::error!("{err}"),
                     Ok(data) => {
                         let p = layer.get_offset() + sixel.position;
                         self.output
