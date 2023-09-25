@@ -46,13 +46,7 @@ impl FontGlyph {
                             AttributedChar::new(' ', color)
                         } else {
                             AttributedChar::new(
-                                unsafe {
-                                    char::from_u32_unchecked(TheDrawFont::transform_outline(
-                                        outline_style,
-                                        ch,
-                                    )
-                                        as u32)
-                                },
+                                TheDrawFont::transform_outline(outline_style, ch) as char,
                                 color,
                             )
                         }
@@ -65,14 +59,11 @@ impl FontGlyph {
                         if ch == 0xF7 {
                             AttributedChar::new(' ', color)
                         } else {
-                            AttributedChar::new(
-                                unsafe { char::from_u32_unchecked(ch as u32) },
-                                color,
-                            )
+                            AttributedChar::new(ch as char, color)
                         }
                     }
                     FontType::Color => {
-                        let ch = unsafe { char::from_u32_unchecked(ch as u32) };
+                        let ch = ch as char;
                         let ch_attr =
                             TextAttribute::from_u8(self.data[char_offset], crate::IceMode::Ice); // tdf fonts don't support ice mode by default
                         char_offset += 1;

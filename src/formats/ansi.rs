@@ -121,14 +121,14 @@ impl StringGenerator {
                 }
             }
         }
-        
+
         while pos.y < height {
             if self.options.longer_terminal_output {
                 result.extend_from_slice(b"\x1b[s");
                 if pos.y > 0 {
                     result.extend_from_slice(b"\x1b[u\n");
                 }
-            } 
+            }
             let mut line_length =
                 if self.options.modern_terminal_output || self.options.preserve_invisible_chars {
                     layer.get_width()
@@ -145,7 +145,6 @@ impl StringGenerator {
             }
 
             while pos.x < line_length {
-
                 let mut space_count = 0;
                 let mut ch = layer.get_char(pos);
                 // doesn't work well with unix terminal - background color needs to be painted.

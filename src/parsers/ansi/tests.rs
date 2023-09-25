@@ -112,7 +112,7 @@ fn test_char_missing_bug() {
 fn test_caret_forward() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[70Ctest_me\x1B[2CF");
     let ch = buf.get_char(Position::new(79, 0));
-    assert_eq!('F', char::from_u32(ch.ch as u32).unwrap());
+    assert_eq!('F', ch.ch);
 }
 
 #[test]

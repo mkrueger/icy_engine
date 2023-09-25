@@ -68,10 +68,7 @@ impl OutputFormat for Bin {
                     attribute.set_is_bold(false);
                 }
 
-                result.layers[0].set_char(
-                    pos,
-                    AttributedChar::new(char::from_u32(data[o] as u32).unwrap(), attribute),
-                );
+                result.layers[0].set_char(pos, AttributedChar::new(data[o] as char, attribute));
                 pos.x += 1;
                 o += 2;
             }

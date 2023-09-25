@@ -2,7 +2,7 @@
 use std::{fmt::Display, path::Path};
 
 use regex::Regex;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::update_crc32;
 
@@ -26,7 +26,6 @@ impl Display for Color {
 }
 
 impl Color {
-    #[inline(always)]
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
         Color {
             name: None,
@@ -35,6 +34,7 @@ impl Color {
             b,
         }
     }
+
     pub fn get_rgb_f64(&self) -> (f64, f64, f64) {
         (
             self.r as f64 / 255_f64,

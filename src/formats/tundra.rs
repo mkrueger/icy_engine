@@ -233,10 +233,7 @@ impl OutputFormat for TundraDraw {
                 cmd = ch;
             }
             result.layers[0].set_height(pos.y + 1);
-            result.layers[0].set_char(
-                pos,
-                AttributedChar::new(char::from_u32(cmd as u32).unwrap(), attr),
-            );
+            result.layers[0].set_char(pos, AttributedChar::new(cmd as char, attr));
             advance_pos(&result, &mut pos);
         }
         result.set_size(result.layers[0].get_size());

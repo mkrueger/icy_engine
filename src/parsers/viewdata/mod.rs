@@ -179,12 +179,9 @@ impl Parser {
                     print_ch += 0xC0;
                 }
             }
-            self.held_graphics_character = unsafe { char::from_u32_unchecked(print_ch as u32) };
+            self.held_graphics_character = print_ch as char;
         }
-        let ach = AttributedChar::new(
-            unsafe { char::from_u32_unchecked(print_ch as u32) },
-            caret.attribute,
-        );
+        let ach = AttributedChar::new(print_ch as char, caret.attribute);
         self.print_char(buf, caret, ach);
 
         if self.got_esc {

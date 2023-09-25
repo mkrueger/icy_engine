@@ -419,9 +419,7 @@ fn update_buffer<T: BufferParser>(
     input: &[u8],
 ) {
     for b in input {
-        if let Some(ch) = char::from_u32(*b as u32) {
-            parser.print_char(buf, 0, caret, ch).unwrap(); // test code
-        }
+        parser.print_char(buf, 0, caret, *b as char).unwrap(); // test code
     }
 }
 
@@ -433,9 +431,7 @@ fn update_buffer_force<T: BufferParser>(
     input: &[u8],
 ) {
     for b in input {
-        if let Some(ch) = char::from_u32(*b as u32) {
-            let _ = parser.print_char(buf, 0, caret, ch); // test code
-        }
+        let _ = parser.print_char(buf, 0, caret, *b as char); // test code
     }
 }
 
@@ -457,9 +453,7 @@ fn get_action<T: BufferParser>(
 ) -> CallbackAction {
     let mut action = CallbackAction::None;
     for b in input {
-        if let Some(ch) = char::from_u32(*b as u32) {
-            action = parser.print_char(buf, 0, caret, ch).unwrap(); // test code
-        }
+        action = parser.print_char(buf, 0, caret, *b as char).unwrap(); // test code
     }
 
     action

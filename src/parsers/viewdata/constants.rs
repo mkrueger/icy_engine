@@ -1,8 +1,8 @@
 lazy_static::lazy_static! {
     pub(super) static ref UNICODE_TO_VIEWDATA: std::collections::HashMap<char,char> = {
         let mut res = std::collections::HashMap::new();
-        (0..256).for_each(|a| {
-            res.insert(VIEWDATA_TO_UNICODE[a], char::from_u32(a as u32).unwrap());
+        (0..=255).for_each(|a: u8| {
+            res.insert(VIEWDATA_TO_UNICODE[a as usize], a as char);
         });
         res
     };

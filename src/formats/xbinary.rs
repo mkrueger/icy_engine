@@ -357,7 +357,7 @@ fn decode_char(result: &Buffer, char_code: u8, attr: u8) -> AttributedChar {
         attribute.set_font_page(1);
         attribute.set_foreground(attribute.foreground_color - 8);
     }
-    AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute)
+    AttributedChar::new(char_code as char, attribute)
 }
 
 fn encode_attr(buf: &Buffer, ch: AttributedChar, fonts: &[usize]) -> u8 {

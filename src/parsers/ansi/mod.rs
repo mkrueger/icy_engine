@@ -276,7 +276,7 @@ impl BufferParser for Parser {
                         }
                         FF | BEL | BS | '\x7F' | '\x1B' => {
                             // non standard extension to print esc chars ESC ESC -> ESC
-                            self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
+                            self.last_char = ch;
                             let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                             buf.print_char(current_layer, caret, ch);
                             Ok(CallbackAction::None)
@@ -771,11 +771,7 @@ impl BufferParser for Parser {
                 }
             }
             EngineState::ReadCSISequence(is_start) => {
-                if let Some(ch) = char::from_u32(ch as u32) {
-                    self.current_escape_sequence.push(ch);
-                } else {
-                    return Err(ParserError::InvalidChar('\0').into());
-                }
+                self.current_escape_sequence.push(ch);
                 match ch {
                     'm' => return self.select_graphic_rendition(caret, buf),
                     'H' |    // Cursor Position
@@ -1421,7 +1417,7 @@ impl BufferParser for Parser {
                     } else if (ch == '\x00' || ch == '\u{00FF}') && self.bs_is_ctrl_char {
                         caret.reset_color_attribute();
                     } else {
-                        self.last_char = unsafe { char::from_u32_unchecked(ch as u32) };
+                        self.last_char = ch;
                         let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                         buf.print_char(current_layer, caret, ch);
                     }

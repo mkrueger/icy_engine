@@ -142,8 +142,7 @@ impl Parser {
                     state = HexMacroState::SecondHex(ch);
                 }
                 HexMacroState::SecondHex(first) => {
-                    let cc: char =
-                        unsafe { char::from_u32_unchecked(ch as u32) }.to_ascii_uppercase();
+                    let cc = ch.to_ascii_uppercase();
                     let second = HEX_TABLE.iter().position(|&x| x == cc as u8);
                     let first = HEX_TABLE.iter().position(|&x| x == *first as u8);
                     if let (Some(first), Some(second)) = (first, second) {

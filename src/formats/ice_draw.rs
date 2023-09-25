@@ -191,10 +191,7 @@ impl OutputFormat for IceDraw {
                 result.layers[0].set_height(pos.y + 1);
                 result.set_height(pos.y + 1);
                 let attribute = TextAttribute::from_u8(attr, result.ice_mode);
-                result.layers[0].set_char(
-                    pos,
-                    AttributedChar::new(char::from_u32(char_code as u32).unwrap(), attribute),
-                );
+                result.layers[0].set_char(pos, AttributedChar::new(char_code as char, attribute));
                 advance_pos(x1, x2, &mut pos);
                 rle_count -= 1;
             }

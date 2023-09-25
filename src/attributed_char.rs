@@ -66,7 +66,7 @@ impl std::fmt::Display for AttributedChar {
             f,
             "(Char: {}/0x{0:X} '{}', Attr: {}, Font: {})",
             self.ch as u32,
-            char::from_u32(self.ch as u32).unwrap(),
+            self.ch,
             self.attribute,
             self.get_font_page()
         )

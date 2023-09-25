@@ -138,10 +138,7 @@ impl OutputFormat for Artworx {
                 }
                 result.layers[0].set_height(pos.y + 1);
                 let attribute = TextAttribute::from_u8(data[o + 1], result.ice_mode);
-                result.layers[0].set_char(
-                    pos,
-                    AttributedChar::new(char::from_u32(data[o] as u32).unwrap(), attribute),
-                );
+                result.layers[0].set_char(pos, AttributedChar::new(data[o] as char, attribute));
                 pos.x += 1;
                 o += 2;
             }

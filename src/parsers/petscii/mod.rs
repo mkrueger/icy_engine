@@ -127,11 +127,7 @@ impl Parser {
             } // Set screen to normal (non reverse video) state
 
             _ => {
-                log::error!(
-                    "Unknown C128 escape code: 0x{:02X}/{:?} ",
-                    ch,
-                    char::from_u32(ch as u32)
-                );
+                log::error!("Unknown C128 escape code: 0x{:02X}/'{}'", ch, ch as char);
             }
         }
         Ok(CallbackAction::None)
@@ -172,11 +168,7 @@ const GREY3: u32 = 0x0f;
 impl BufferParser for Parser {
     fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
-            if let Some(out_ch) = char::from_u32(*tch as u32) {
-                out_ch
-            } else {
-                ch
-            }
+            *tch as char
         } else {
             ch
         }
@@ -184,11 +176,7 @@ impl BufferParser for Parser {
 
     fn convert_to_unicode(&self, ch: AttributedChar) -> char {
         if let Some(tch) = PETSCII_TO_UNICODE.get(&(ch.ch as u8)) {
-            if let Some(out_ch) = char::from_u32(*tch as u32) {
-                out_ch
-            } else {
-                ch.ch
-            }
+            *tch as char
         } else {
             ch.ch
         }
@@ -257,10 +245,7 @@ impl BufferParser for Parser {
                         return Err(ParserError::UnsupportedControlCode(ch as u32).into());
                     }
                 };
-                let mut ch = AttributedChar::new(
-                    char::from_u32(self.handle_reverse_mode(tch) as u32).unwrap(),
-                    caret.attribute,
-                );
+                let mut ch = AttributedChar::new(tch as char, caret.attribute);
                 ch.set_font_page(usize::from(self.shift_mode));
                 buf.print_char(current_layer, caret, ch);
             }
