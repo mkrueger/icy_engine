@@ -15,7 +15,7 @@ impl EditState {
         if self.selection_opt == selection {
             Ok(())
         } else {
-            self.push_undo(Box::new(undo_operations::SetSelection::new(
+            self.push_undo_action(Box::new(undo_operations::SetSelection::new(
                 self.selection_opt,
                 selection,
             )))
@@ -26,7 +26,7 @@ impl EditState {
         if self.is_something_selected() {
             let sel = self.selection_opt.take();
             let mask = self.selection_mask.clone();
-            self.push_undo(Box::new(undo_operations::SelectNothing::new(sel, mask)))
+            self.push_undo_action(Box::new(undo_operations::SelectNothing::new(sel, mask)))
         } else {
             Ok(())
         }
@@ -34,7 +34,7 @@ impl EditState {
 
     pub fn deselect(&mut self) -> EngineResult<()> {
         if let Some(sel) = self.selection_opt.take() {
-            self.push_undo(Box::new(undo_operations::Deselect::new(sel)))
+            self.push_undo_action(Box::new(undo_operations::Deselect::new(sel)))
         } else {
             Ok(())
         }
@@ -63,7 +63,7 @@ impl EditState {
 
     pub fn add_selection_to_mask(&mut self) -> EngineResult<()> {
         if let Some(selection) = self.selection_opt {
-            self.push_undo(Box::new(undo_operations::AddSelectionToMask::new(
+            self.push_undo_action(Box::new(undo_operations::AddSelectionToMask::new(
                 self.selection_mask.clone(),
                 selection,
             )))
@@ -114,17 +114,12 @@ impl EditState {
                 self.selection_mask.set_is_selected(pos, !is_selected);
             }
         }
-
-        self.redo_stack.clear();
-        self.undo_stack
-            .lock()
-            .unwrap()
-            .push(Box::new(undo_operations::InverseSelection::new(
-                old_selection,
-                old_mask,
-                self.selection_mask.clone(),
-            )));
-        Ok(())
+        let op = undo_operations::InverseSelection::new(
+            old_selection,
+            old_mask,
+            self.selection_mask.clone(),
+        );
+        self.push_plain_undo(Box::new(op))
     }
 
     /// .
@@ -151,15 +146,12 @@ impl EditState {
         }
 
         if old_mask != self.selection_mask {
-            self.redo_stack.clear();
-            self.undo_stack
-                .lock()
-                .unwrap()
-                .push(Box::new(undo_operations::SetSelectionMask::new(
-                    fl!(crate::LANGUAGE_LOADER, "undo-set_selection"),
-                    old_mask,
-                    self.selection_mask.clone(),
-                )));
+            let op = undo_operations::SetSelectionMask::new(
+                fl!(crate::LANGUAGE_LOADER, "undo-set_selection"),
+                old_mask,
+                self.selection_mask.clone(),
+            );
+            let _ = self.push_plain_undo(Box::new(op));
         }
     }
 }

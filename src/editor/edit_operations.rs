@@ -29,7 +29,7 @@ impl EditState {
             if self.mirror_mode {
                 let mirror_pos = Position::new(layer.get_width() - pos.x - 1, pos.y);
                 let mirror_old = layer.get_char(mirror_pos);
-                self.push_undo(Box::new(UndoSetChar {
+                self.push_undo_action(Box::new(UndoSetChar {
                     pos: mirror_pos,
                     layer: self.get_current_layer(),
                     old: mirror_old,
@@ -37,7 +37,7 @@ impl EditState {
                 }))?;
             }
 
-            self.push_undo(Box::new(UndoSetChar {
+            self.push_undo_action(Box::new(UndoSetChar {
                 pos,
                 layer: self.get_current_layer(),
                 old,
@@ -57,7 +57,7 @@ impl EditState {
         let pos2 = pos2.into();
         let layer = self.get_current_layer();
         let op = UndoSwapChar { layer, pos1, pos2 };
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     /// .
@@ -68,7 +68,7 @@ impl EditState {
     pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
         if let Some(layer) = Layer::from_clipboard_data(data) {
             let op = Paste::new(layer);
-            self.push_undo(Box::new(op))?;
+            self.push_undo_action(Box::new(op))?;
         }
         self.selection_opt = None;
         Ok(())
@@ -89,7 +89,7 @@ impl EditState {
         layer.sixels.push(sixel);
 
         let op = Paste::new(layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.selection_opt = None;
         Ok(())
     }
@@ -139,14 +139,12 @@ impl EditState {
             }
 
             let op = super::undo_operations::Crop::new(old_size, rect.get_size(), old_layers);
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
 
-            return Ok(());
+            return self.push_plain_undo(Box::new(op));
         }
 
         let op = super::undo_operations::ResizeBuffer::new(self.get_buffer().get_size(), size);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn center_line(&mut self) -> EngineResult<()> {
@@ -198,28 +196,28 @@ impl EditState {
         let y = self.get_caret().get_position().y;
         let layer = self.get_current_layer();
         let op = super::undo_operations::DeleteRow::new(layer, y);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn insert_row(&mut self) -> EngineResult<()> {
         let y = self.get_caret().get_position().y;
         let layer = self.get_current_layer();
         let op = super::undo_operations::InsertRow::new(layer, y);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn insert_column(&mut self) -> EngineResult<()> {
         let x = self.get_caret().get_position().x;
         let layer = self.get_current_layer();
         let op = super::undo_operations::InsertColumn::new(layer, x);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn delete_column(&mut self) -> EngineResult<()> {
         let x = self.get_caret().get_position().x;
         let layer = self.get_current_layer();
         let op = super::undo_operations::DeleteColumn::new(layer, x);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn erase_row(&mut self) -> EngineResult<()> {
@@ -318,7 +316,7 @@ impl EditState {
         op: Box<dyn UndoOperation>,
         operation_type: OperationType,
     ) -> EngineResult<()> {
-        self.push_undo(Box::new(ReversedUndo::new(
+        self.push_undo_action(Box::new(ReversedUndo::new(
             description.into(),
             op,
             operation_type,
@@ -343,12 +341,12 @@ impl EditState {
 
     pub fn switch_to_palette(&mut self, pal: Palette) -> EngineResult<()> {
         let op = super::undo_operations::SwitchPalettte::new(pal);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn update_sauce_data(&mut self, sauce: Option<SauceData>) -> EngineResult<()> {
         let op = super::undo_operations::SetSauceData::new(sauce);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 }
 

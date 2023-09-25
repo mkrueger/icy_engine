@@ -53,9 +53,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
@@ -100,9 +98,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
         }
@@ -145,9 +141,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
         }
@@ -189,9 +183,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
         }
@@ -233,9 +225,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
         }
@@ -275,10 +265,7 @@ impl EditState {
             self.get_buffer_mut().layers.push(new_layer);
         }
         let op = super::undo_operations::Crop::new(old_size, rect.get_size(), old_layers);
-        self.redo_stack.clear();
-        self.undo_stack.lock().unwrap().push(Box::new(op));
-
-        Ok(())
+        self.push_plain_undo(Box::new(op))
     }
 
     /// Returns the delete selection of this [`EditState`].
@@ -317,8 +304,7 @@ impl EditState {
             old_layer,
             new_layer,
         );
-        self.redo_stack.clear();
-        self.undo_stack.lock().unwrap().push(Box::new(op));
+        let _ = self.push_plain_undo(Box::new(op));
         self.clear_selection()
     }
 
@@ -333,7 +319,7 @@ impl EditState {
             if area.get_width() >= layer.get_width() {
                 let op =
                     super::undo_operations::UndoScrollWholeLayerUp::new(self.get_current_layer());
-                return self.push_undo(Box::new(op));
+                return self.push_undo_action(Box::new(op));
             }
 
             let old_layer = Layer::from_layer(layer, area);
@@ -375,9 +361,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
@@ -394,7 +378,7 @@ impl EditState {
             if area.get_width() >= layer.get_width() {
                 let op =
                     super::undo_operations::UndoScrollWholeLayerDown::new(self.get_current_layer());
-                return self.push_undo(Box::new(op));
+                return self.push_undo_action(Box::new(op));
             }
             let old_layer = Layer::from_layer(layer, area);
 
@@ -435,9 +419,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
@@ -468,9 +450,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
@@ -501,9 +481,7 @@ impl EditState {
                 old_layer,
                 new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }

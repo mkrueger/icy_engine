@@ -311,9 +311,19 @@ impl EditState {
             .clamp(0, self.buffer.layers.len().saturating_sub(1));
     }
 
-    fn push_undo(&mut self, mut op: Box<dyn UndoOperation>) -> EngineResult<()> {
+    fn push_undo_action(&mut self, mut op: Box<dyn UndoOperation>) -> EngineResult<()> {
         op.redo(self)?;
-        self.undo_stack.lock().unwrap().push(op);
+        self.push_plain_undo(op)
+    }
+
+    fn push_plain_undo(&mut self, op: Box<dyn UndoOperation>) -> EngineResult<()> {
+        if op.changes_data() {
+            self.is_buffer_dirty = true;
+        }
+        let Ok(mut stack) = self.undo_stack.lock() else {
+            return Err(anyhow::anyhow!("Failed to lock undo stack"));
+        };
+        stack.push(op);
         self.redo_stack.clear();
         Ok(())
     }
@@ -366,10 +376,12 @@ impl UndoState for EditState {
         let Some(mut op) = self.undo_stack.lock().unwrap().pop() else {
             return Ok(());
         };
+        if op.changes_data() {
+            self.is_buffer_dirty = true;
+        }
 
         let res = op.undo(self);
         self.redo_stack.push(op);
-
         res
     }
 
@@ -383,6 +395,9 @@ impl UndoState for EditState {
 
     fn redo(&mut self) -> EngineResult<()> {
         if let Some(mut op) = self.redo_stack.pop() {
+            if op.changes_data() {
+                self.is_buffer_dirty = true;
+            }
             let res = op.redo(self);
             self.undo_stack.lock().unwrap().push(op);
             return res;

@@ -1528,14 +1528,12 @@ impl UndoOperation for SetIceMode {
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.old_layers.clone();
         edit_state.buffer.ice_mode = self.old_mode;
-        edit_state.is_buffer_dirty = true;
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.new_layers.clone();
         edit_state.buffer.ice_mode = self.new_mode;
-        edit_state.is_buffer_dirty = true;
         Ok(())
     }
 }

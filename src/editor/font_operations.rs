@@ -10,7 +10,7 @@ use super::EditState;
 impl EditState {
     pub fn switch_to_font_page(&mut self, page: usize) -> EngineResult<()> {
         let op = super::undo_operations::SwitchToFontPage::new(self.caret.get_font_page(), page);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
     pub fn add_ansi_font(&mut self, page: usize) -> EngineResult<()> {
         match self.get_buffer().font_mode {
@@ -21,7 +21,7 @@ impl EditState {
                     page,
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
             crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::FixedSize => {
                 Err(anyhow::anyhow!("Not supported for this buffer type."))
@@ -39,7 +39,7 @@ impl EditState {
                     self.get_buffer().get_font(0).unwrap().clone(),
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
             crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
@@ -48,7 +48,7 @@ impl EditState {
                     self.get_buffer().get_font(0).unwrap().clone(),
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
         }
     }
@@ -62,7 +62,7 @@ impl EditState {
                     self.get_buffer().get_font(0).unwrap().clone(),
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
             crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let new_font = BitFont::from_sauce_name(name)?;
@@ -71,7 +71,7 @@ impl EditState {
                     self.get_buffer().get_font(0).unwrap().clone(),
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
         }
     }
@@ -92,7 +92,7 @@ impl EditState {
                     page,
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
             crate::FontMode::Sauce | crate::FontMode::Single | crate::FontMode::FixedSize => {
                 Err(anyhow::anyhow!("Not supported for this buffer type."))
@@ -109,7 +109,7 @@ impl EditState {
                     self.get_buffer().get_font(0).unwrap().clone(),
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
             crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let op = super::undo_operations::SetFont::new(
@@ -117,7 +117,7 @@ impl EditState {
                     self.get_buffer().get_font(0).unwrap().clone(),
                     new_font,
                 );
-                self.push_undo(Box::new(op))
+                self.push_undo_action(Box::new(op))
             }
         }
     }
@@ -150,7 +150,7 @@ impl EditState {
             new_palette,
             new_layers,
         );
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     fn adjust_layer_colors(&mut self, table: &[u32]) {
@@ -217,7 +217,7 @@ impl EditState {
             }
         };
         let op = super::undo_operations::SetIceMode::new(old_mode, old_layers, mode, new_layers);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 }
 

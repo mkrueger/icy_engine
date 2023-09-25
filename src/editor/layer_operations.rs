@@ -19,14 +19,14 @@ impl EditState {
         };
 
         let op = undo_operations::AddLayer::new(idx, new_layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.current_layer = idx;
         Ok(())
     }
 
     pub fn remove_layer(&mut self, layer: usize) -> EngineResult<()> {
         let op = undo_operations::RemoveLayer::new(layer);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn raise_layer(&mut self, layer: usize) -> EngineResult<()> {
@@ -34,7 +34,7 @@ impl EditState {
             return Ok(());
         }
         let op = undo_operations::RaiseLayer::new(layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.current_layer = layer + 1;
         Ok(())
     }
@@ -44,7 +44,7 @@ impl EditState {
             return Ok(());
         }
         let op = undo_operations::LowerLayer::new(layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.current_layer = layer - 1;
         Ok(())
     }
@@ -57,14 +57,14 @@ impl EditState {
             name = new_layer.title
         );
         let op = undo_operations::AddLayer::new(layer + 1, new_layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.current_layer = layer + 1;
         Ok(())
     }
 
     pub fn clear_layer(&mut self, layer: usize) -> EngineResult<()> {
         let op = undo_operations::ClearLayer::new(layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.current_layer = layer + 1;
         Ok(())
     }
@@ -92,7 +92,7 @@ impl EditState {
 
     pub fn add_floating_layer(&mut self) -> EngineResult<()> {
         let op = undo_operations::AddFloatingLayer::default();
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     /// .
@@ -160,14 +160,14 @@ impl EditState {
         }
 
         let op = undo_operations::MergeLayerDown::new(layer, merge_layer);
-        self.push_undo(Box::new(op))?;
+        self.push_undo_action(Box::new(op))?;
         self.clamp_current_layer();
         Ok(())
     }
 
     pub fn toggle_layer_visibility(&mut self, layer: usize) -> EngineResult<()> {
         let op = undo_operations::ToggleLayerVisibility::new(layer);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn move_layer(&mut self, to: Position) -> EngineResult<()> {
@@ -177,12 +177,12 @@ impl EditState {
         };
         cur_layer.set_preview_offset(None);
         let op = undo_operations::MoveLayer::new(i, cur_layer.get_offset(), to);
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     pub fn set_layer_size(&mut self, layer: usize, size: impl Into<Size>) -> EngineResult<()> {
         let op = undo_operations::SetLayerSize::new(layer, size.into());
-        self.push_undo(Box::new(op))
+        self.push_undo_action(Box::new(op))
     }
 
     /// Returns the stamp layer down of this [`EditState`].
@@ -227,9 +227,7 @@ impl EditState {
             old_layer,
             new_layer,
         );
-        self.redo_stack.clear();
-        self.undo_stack.lock().unwrap().push(Box::new(op));
-        Ok(())
+        self.push_plain_undo(Box::new(op))
     }
 
     pub fn rotate_layer(&mut self) -> EngineResult<()> {
@@ -249,7 +247,7 @@ impl EditState {
                 layer.lines.clone(),
                 new_layer.lines.clone(),
             );
-            self.push_undo(Box::new(op))
+            self.push_undo_action(Box::new(op))
         } else {
             Err(super::EditorError::InvalidLayer(current_layer).into())
         }
@@ -287,9 +285,7 @@ impl EditState {
             let op = super::undo_operations::UndoLayerChange::new(
                 layer_idx, area.start, old_layer, new_layer,
             );
-            self.redo_stack.clear();
-            self.undo_stack.lock().unwrap().push(Box::new(op));
-            Ok(())
+            self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
