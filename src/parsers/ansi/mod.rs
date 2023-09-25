@@ -226,6 +226,7 @@ impl BufferParser for Parser {
                         'c' => {
                             // RIS—Reset to Initial State see https://vt100.net/docs/vt510-rm/RIS.html
                             caret.ff(buf, current_layer);
+                            caret.reset();
                             buf.reset_terminal();
                             self.macros.clear();
                             Ok(CallbackAction::None)
@@ -442,7 +443,7 @@ impl BufferParser for Parser {
                             )
                             .into());
                         }
-                        match self.parsed_numbers.first() {
+                                                match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Fast,
                             Some(6) => {
                                 //  buf.terminal_state.origin_mode = OriginMode::WithinMargins;
@@ -476,7 +477,7 @@ impl BufferParser for Parser {
                             )
                             .into());
                         }
-                        match self.parsed_numbers.first() {
+                                                match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
@@ -570,7 +571,7 @@ impl BufferParser for Parser {
                         }
                     }
                     _ => {
-                        self.state = EngineState::Default;
+                                                self.state = EngineState::Default;
                         // error in control sequence, terminate reading
                         return Err(ParserError::UnsupportedEscapeSequence(
                             self.current_escape_sequence.clone(),
