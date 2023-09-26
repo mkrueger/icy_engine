@@ -269,7 +269,34 @@ impl StringGenerator {
                 result.extend_from_slice((y + 1).to_string().as_bytes());
                 result.push(b'H');
             }
-            while x < line.len() {
+
+            let len = if self.options.compress {
+                let mut last = line.len() as i32 - 1;
+                while last > 0 {
+                    if line[last as usize].ch != ' '
+                        && line[last as usize].ch != 0xFF as char
+                        && line[last as usize].ch != 0 as char
+                    {
+                        break;
+                    }
+                    if !line[last as usize].sgr.is_empty() || !line[last as usize].sgr_tc.is_empty()
+                    {
+                        break;
+                    }
+                    last -= 1;
+                }
+                let cur_len = last as usize + 1;
+                if cur_len >= line.len() - 1 {
+                    // don't compress if we have only one char, since eol are 2 chars
+                    line.len()
+                } else {
+                    cur_len
+                }
+            } else {
+                line.len()
+            };
+
+            while x < len {
                 let cell = &line[x];
                 if cur_font_page != cell.font_page {
                     cur_font_page = cell.font_page;
@@ -302,28 +329,70 @@ impl StringGenerator {
                     idx += 4;
                 }
 
-                if self.options.modern_terminal_output {
+                let cell_char = if self.options.modern_terminal_output {
                     if cell.ch == '\0' {
-                        result.push(b' ');
+                        vec![b' ']
                     } else {
                         let uni_ch = CP437_TO_UNICODE[cell.ch as usize].to_string();
-                        result.extend(uni_ch.as_bytes());
+                        uni_ch.as_bytes().to_vec()
                     }
                 } else if StringGenerator::CONTROL_CHARS.contains(cell.ch) {
-                    let mut ch = cell.ch as u8;
                     match self.options.control_char_handling {
-                        crate::ControlCharHandling::Ignore => {}
+                        crate::ControlCharHandling::Ignore => {
+                            vec![cell.ch as u8]
+                        }
                         crate::ControlCharHandling::IcyTerm => {
-                            result.push(b'\x1B');
+                            vec![b'\x1B', cell.ch as u8]
                         }
                         crate::ControlCharHandling::FilterOut => {
-                            ch = b' ';
+                            vec![b' ']
                         }
                     }
-                    result.push(ch);
                 } else {
-                    result.push(cell.ch as u8);
+                    vec![cell.ch as u8]
+                };
+
+                if self.options.compress {
+                    let mut rle = x + 1;
+                    while rle < len {
+                        if line[rle].ch != line[x].ch
+                            || !line[rle].sgr.is_empty()
+                            || !line[rle].sgr_tc.is_empty()
+                            || line[rle].font_page != line[x].font_page
+                        {
+                            break;
+                        }
+                        rle += 1;
+                    }
+                    // rle is always >= x + 1 but "x - 1" may overflow.
+                    rle -= 1;
+                    rle -= x;
+                    if rle > 4 {
+                        if line[x].ch == ' ' {
+                            let fmt = &format!("\x1B[{}C", rle + 1);
+                            let output = fmt.as_bytes();
+                            if output.len() < rle {
+                                self.push_result(&mut result);
+                                result.extend_from_slice(output);
+                                self.push_result(&mut result);
+                                x += rle + 1;
+                                continue;
+                            }
+                        }
+                        let fmt = &format!("\x1B[{rle}b");
+                        let output = fmt.as_bytes();
+                        if output.len() < rle {
+                            self.push_result(&mut result);
+                            result.extend_from_slice(&cell_char);
+                            result.extend_from_slice(output);
+                            self.push_result(&mut result);
+                            x += rle + 1;
+                            continue;
+                        }
+                    }
                 }
+
+                result.extend_from_slice(&cell_char);
                 self.push_result(&mut result);
 
                 x += 1;
