@@ -47,6 +47,14 @@ pub enum ScreenPreperation {
     Home,
 }
 
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
+pub enum ControlCharHandling {
+    #[default]
+    Ignore,
+    IcyTerm,
+    FilterOut,
+}
+
 #[derive(Clone, Debug)]
 pub struct SaveOptions {
     pub screen_preparation: ScreenPreperation,
@@ -57,6 +65,8 @@ pub struct SaveOptions {
     pub output_line_length: Option<usize>,
     pub preserve_invisible_chars: bool,
     pub longer_terminal_output: bool,
+
+    pub control_char_handling: ControlCharHandling,
 }
 
 impl SaveOptions {
@@ -70,6 +80,7 @@ impl SaveOptions {
             compress: true,
             output_line_length: None,
             preserve_invisible_chars: false,
+            control_char_handling: ControlCharHandling::Ignore,
         }
     }
 }

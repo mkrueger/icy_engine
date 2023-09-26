@@ -1,16 +1,14 @@
 use std::path::Path;
 
+use crate::ansi::constants::COLOR_OFFSETS;
 use crate::ascii::CP437_TO_UNICODE;
+use crate::TextAttribute;
 use crate::{
-    analyze_font_usage, parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat, TextPane,
-    DOS_DEFAULT_PALETTE,
+    analyze_font_usage, parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat,
+    Rectangle, TextPane, DOS_DEFAULT_PALETTE,
 };
-use crate::{Position, TextAttribute};
 
 use super::SaveOptions;
-
-const FG_TABLE: [&[u8; 2]; 8] = [b"30", b"34", b"32", b"36", b"31", b"35", b"33", b"37"];
-const BG_TABLE: [&[u8; 2]; 8] = [b"40", b"44", b"42", b"46", b"41", b"45", b"43", b"47"];
 
 #[derive(Default)]
 pub(crate) struct Ansi {}
@@ -76,11 +74,27 @@ impl OutputFormat for Ansi {
     }
 }
 
+struct CharCell {
+    ch: char,
+    sgr: Vec<u8>,
+    sgr_tc: Vec<u8>,
+    font_page: usize,
+}
+
 pub struct StringGenerator {
     output: Vec<u8>,
     options: SaveOptions,
     last_line_break: usize,
     max_output_line_length: usize,
+}
+
+#[derive(Debug)]
+struct AnsiState {
+    pub is_bold: bool,
+    pub is_blink: bool,
+
+    pub fg: u32,
+    pub bg: u32,
 }
 
 impl StringGenerator {
@@ -101,17 +115,138 @@ impl StringGenerator {
         }
     }
 
+    fn get_color(
+        buf: &Buffer,
+        attr: TextAttribute,
+        mut state: AnsiState,
+    ) -> (AnsiState, Vec<u8>, Vec<u8>) {
+        let mut sgr = Vec::new();
+        let mut sgr_tc = Vec::new();
+
+        let fg = attr.get_foreground();
+        let cur_fore_color = buf.palette.get_color(fg as usize);
+        let cur_fore_rgb = cur_fore_color.get_rgb();
+
+        let bg = attr.get_background();
+        let cur_back_color = buf.palette.get_color(bg as usize);
+        let cur_back_rgb = cur_back_color.get_rgb();
+
+        let mut fore_idx = DOS_DEFAULT_PALETTE
+            .iter()
+            .position(|c| c.get_rgb() == cur_fore_rgb);
+        let mut back_idx = DOS_DEFAULT_PALETTE
+            .iter()
+            .position(|c| c.get_rgb() == cur_back_rgb);
+
+        let mut is_bold = state.is_bold;
+        let mut is_blink = state.is_blink;
+
+        if let Some(idx) = fore_idx {
+            if idx < 8 {
+                is_bold = false;
+            } else if idx > 7 && idx < 16 {
+                is_bold = true;
+                fore_idx = Some(idx - 8);
+            }
+        }
+
+        if let Some(idx) = back_idx {
+            if idx < 8 {
+                is_blink = false;
+            } else if idx > 7 && idx < 16 {
+                is_blink = true;
+                back_idx = Some(idx - 8);
+            }
+        } else {
+            is_blink = attr.is_blinking();
+        }
+
+        if fore_idx.is_some() && !is_bold && state.is_bold
+            || back_idx.is_some() && !is_blink && state.is_blink
+        {
+            sgr.push(0);
+            state.fg = 7;
+            state.is_bold = false;
+            state.bg = 0;
+            state.is_blink = false;
+        }
+
+        if is_bold && !state.is_bold {
+            sgr.push(1);
+        }
+        if fg != state.fg {
+            if let Some(fg_idx) = fore_idx {
+                sgr.push(COLOR_OFFSETS[fg_idx] + 30);
+            } else {
+                sgr_tc.push(1);
+                sgr_tc.push(cur_fore_rgb.0);
+                sgr_tc.push(cur_fore_rgb.1);
+                sgr_tc.push(cur_fore_rgb.2);
+            }
+        }
+
+        if is_blink && !state.is_blink {
+            sgr.push(5);
+        }
+        if bg != state.bg {
+            if let Some(bg_idx) = back_idx {
+                sgr.push(COLOR_OFFSETS[bg_idx] + 40);
+            } else {
+                sgr_tc.push(0);
+                sgr_tc.push(cur_back_rgb.0);
+                sgr_tc.push(cur_back_rgb.1);
+                sgr_tc.push(cur_back_rgb.2);
+            }
+        }
+
+        (
+            AnsiState {
+                is_bold,
+                is_blink,
+                fg,
+                bg,
+            },
+            sgr,
+            sgr_tc,
+        )
+    }
+
+    fn generate_cells<T: TextPane>(buf: &Buffer, layer: &T, area: Rectangle) -> Vec<Vec<CharCell>> {
+        let mut result = Vec::new();
+        let mut state = AnsiState {
+            is_bold: false,
+            is_blink: false,
+            fg: 7,
+            bg: 0,
+        };
+        for y in area.y_range() {
+            let mut line = Vec::new();
+            for x in area.x_range() {
+                let ch = layer.get_char((x, y));
+
+                let (new_state, sgr, sgr_tc) = StringGenerator::get_color(buf, ch.attribute, state);
+                state = new_state;
+
+                line.push(CharCell {
+                    ch: ch.ch,
+                    sgr,
+                    sgr_tc,
+                    font_page: ch.get_font_page(),
+                });
+            }
+
+            result.push(line);
+        }
+        result
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn generate<T: TextPane>(&mut self, buf: &Buffer, layer: &T) {
         let mut result = Vec::new();
-        let mut last_attr = TextAttribute::default();
-        let mut last_fore_color = DOS_DEFAULT_PALETTE[7].clone();
-        let mut last_back_color = DOS_DEFAULT_PALETTE[0].clone();
-
-        let mut pos = Position::default();
-        let height = layer.get_height();
-        let mut first_char = true;
-        let mut cur_font_page = 0;
-        self.last_line_break = 0;
 
         let used_fonts = analyze_font_usage(buf);
         for font_slot in used_fonts {
@@ -121,356 +256,96 @@ impl StringGenerator {
                 }
             }
         }
+        if buf.ice_mode.has_high_bg_colors() {
+            result.extend_from_slice(b"\x1b[?33h");
+        }
+        let cells = StringGenerator::generate_cells(buf, layer, layer.get_rectangle());
+        let mut cur_font_page = 0;
 
-        while pos.y < height {
-            if self.options.longer_terminal_output {
-                result.extend_from_slice(b"\x1b[s");
-                if pos.y > 0 {
-                    result.extend_from_slice(b"\x1b[u\n");
-                }
+        for (y, line) in cells.iter().enumerate() {
+            let mut x = 0;
+            if self.options.longer_terminal_output && y > 0 {
+                result.extend_from_slice(b"\x1b[");
+                result.extend_from_slice((y + 1).to_string().as_bytes());
+                result.push(b'H');
             }
-            let mut line_length =
-                if self.options.modern_terminal_output || self.options.preserve_invisible_chars {
-                    layer.get_width()
-                } else {
-                    layer.get_line_length(pos.y)
-                };
-
-            while line_length > 0
-                && !layer
-                    .get_char(Position::new(line_length - 1, pos.y))
-                    .is_visible()
-            {
-                line_length -= 1;
-            }
-
-            while pos.x < line_length {
-                let mut space_count = 0;
-                let mut ch = layer.get_char(pos);
-                // doesn't work well with unix terminal - background color needs to be painted.
-                if !self.options.modern_terminal_output && !self.options.preserve_invisible_chars {
-                    while (ch.ch == ' ' || ch.ch == '\0')
-                        && ch.attribute.get_background() == 0
-                        && pos.x < line_length
-                    {
-                        space_count += 1;
-                        pos.x += 1;
-                        ch = layer.get_char(pos);
-                    }
-                }
-                let mut cur_attr = ch.attribute;
-                // optimize color output for empty space lines.
-                let cur_bg_color = buf.palette.get_color(cur_attr.get_background() as usize);
-                if space_count > 0 && last_back_color == cur_bg_color {
-                    cur_attr = ch.attribute;
-                }
-
-                if cur_font_page != cur_attr.get_font_page() {
-                    cur_font_page = cur_attr.get_font_page();
+            while x < line.len() {
+                let cell = &line[x];
+                if cur_font_page != cell.font_page {
+                    cur_font_page = cell.font_page;
                     result.extend_from_slice(b"\x1b[0;");
-                    push_int(&mut result, cur_font_page);
+                    result.extend_from_slice(cur_font_page.to_string().as_bytes());
                     result.extend_from_slice(b" D");
                     self.push_result(&mut result);
                 }
 
-                if last_attr != cur_attr || first_char {
-                    if self.options.modern_terminal_output {
-                        let cur_fore_color =
-                            buf.palette.get_color(cur_attr.get_foreground() as usize);
-                        if last_fore_color != cur_fore_color || first_char {
-                            last_fore_color = cur_fore_color;
-                            result.extend_from_slice(b"\x1b[38;2;");
-                            let (r, g, b) = last_fore_color.clone().get_rgb();
-                            result.extend_from_slice(r.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(g.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(b.to_string().as_bytes());
-                            result.push(b'm');
-                            self.push_result(&mut result);
-                        }
-                        let cur_back_color =
-                            buf.palette.get_color(cur_attr.get_background() as usize);
-                        if last_back_color != cur_back_color || first_char {
-                            last_back_color = cur_back_color;
-                            result.extend_from_slice(b"\x1b[48;2;");
-                            let (r, g, b) = last_back_color.clone().get_rgb();
-                            result.extend_from_slice(r.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(g.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(b.to_string().as_bytes());
-                            result.push(b'm');
-                            self.push_result(&mut result);
-                        }
-                    } else {
-                        let mut write_24bit_fore_color = false;
-                        let mut write_24bit_back_color = false;
-
-                        let mut wrote_part = false;
-                        let mut color_result = Vec::new();
-                        // handle bold change
-                        if (!last_attr.is_bold() || first_char) && cur_attr.is_bold() {
-                            // if blinking is turned off "0;" will be written which would reset the bold state here
-                            // bold state is set again after blink reset.
-                            if (!last_attr.is_blinking() && !first_char) || cur_attr.is_blinking() {
-                                color_result.push(b'1');
-                                wrote_part = true;
-                            }
-                        } else if (last_attr.is_bold() || first_char) && !cur_attr.is_bold() {
-                            color_result.push(b'0');
-                            last_attr = TextAttribute::default();
-                            last_fore_color = DOS_DEFAULT_PALETTE[7].clone();
-                            last_back_color = DOS_DEFAULT_PALETTE[0].clone();
-
-                            first_char = false; // attribute set.
-                            wrote_part = true;
-                        }
-
-                        // handle blink change
-                        if (!last_attr.is_blinking() || first_char) && cur_attr.is_blinking() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'5');
-                            wrote_part = true;
-                        } else if (last_attr.is_blinking() || first_char) && !cur_attr.is_blinking()
-                        {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'0');
-                            if cur_attr.is_bold() || first_char {
-                                color_result.extend_from_slice(b";1");
-                            }
-                            last_attr = TextAttribute::default();
-                            last_fore_color = DOS_DEFAULT_PALETTE[7].clone();
-                            last_back_color = DOS_DEFAULT_PALETTE[0].clone();
-
-                            wrote_part = true;
-                        }
-
-                        if !last_attr.is_faint() && cur_attr.is_faint() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'2');
-                            wrote_part = true;
-                        } else if last_attr.is_faint() && !cur_attr.is_faint() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.extend_from_slice(b"22");
-                            wrote_part = true;
-                        }
-
-                        if !last_attr.is_italic() && cur_attr.is_italic() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'3');
-                            wrote_part = true;
-                        } else if last_attr.is_italic() && !cur_attr.is_italic() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.extend_from_slice(b"23");
-                            wrote_part = true;
-                        }
-
-                        if !last_attr.is_underlined() && cur_attr.is_underlined() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'4');
-                            wrote_part = true;
-                        } else if last_attr.is_underlined() && !cur_attr.is_underlined() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.extend_from_slice(b"24");
-                            wrote_part = true;
-                        }
-
-                        if !last_attr.is_crossed_out() && cur_attr.is_crossed_out() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'9');
-                            wrote_part = true;
-                        } else if last_attr.is_crossed_out() && !cur_attr.is_crossed_out() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.extend_from_slice(b"29");
-                            wrote_part = true;
-                        }
-
-                        if !last_attr.is_double_underlined() && cur_attr.is_double_underlined() {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.extend_from_slice(b"21");
-                            wrote_part = true;
-                        } else if last_attr.is_double_underlined()
-                            && !cur_attr.is_double_underlined()
-                        {
-                            if wrote_part {
-                                color_result.push(b';');
-                            }
-                            color_result.push(b'0');
-                            if cur_attr.is_bold() || first_char {
-                                color_result.extend_from_slice(b";1");
-                            }
-                            //  last_attr = TextAttribute::default();
-                            last_fore_color = DOS_DEFAULT_PALETTE[7].clone();
-                            last_back_color = DOS_DEFAULT_PALETTE[0].clone();
-                            wrote_part = true;
-                        }
-
-                        // color changes
-                        let cur_fore_color =
-                            buf.palette.get_color(cur_attr.get_foreground() as usize);
-                        if last_fore_color != cur_fore_color {
-                            last_fore_color = cur_fore_color.clone();
-                            let fg = cur_attr.get_foreground() as usize;
-                            if let Some(col) = get_standard_color(buf, fg) {
-                                if wrote_part {
-                                    color_result.push(b';');
-                                }
-                                color_result.extend_from_slice(FG_TABLE[col]);
-                                wrote_part = true;
-                            } else if let Some(col) = get_extended_color(buf, fg) {
-                                if wrote_part {
-                                    color_result.push(b';');
-                                }
-                                color_result.extend_from_slice(b"38;5;");
-                                color_result.extend_from_slice(col.to_string().as_bytes());
-                                wrote_part = true;
-                            } else {
-                                write_24bit_fore_color = true;
-                            }
-                        }
-                        let cur_back_color =
-                            buf.palette.get_color(cur_attr.get_background() as usize);
-                        if last_back_color != cur_back_color {
-                            last_back_color = cur_back_color.clone();
-                            let bg = cur_attr.get_background() as usize;
-                            if let Some(col) = get_standard_color(buf, bg) {
-                                if wrote_part {
-                                    color_result.push(b';');
-                                }
-                                color_result.extend_from_slice(BG_TABLE[col]);
-                            } else if let Some(col) = get_extended_color(buf, bg) {
-                                if wrote_part {
-                                    color_result.push(b';');
-                                }
-                                color_result.extend_from_slice(b"48;5;");
-                                color_result.extend_from_slice(col.to_string().as_bytes());
-                            } else {
-                                write_24bit_back_color = true;
-                            }
-                        }
-                        if !color_result.is_empty() {
-                            result.extend_from_slice(b"\x1b[");
-                            result.extend_from_slice(&color_result);
-                            result.push(b'm');
-                        }
-                        self.push_result(&mut result);
-
-                        if write_24bit_fore_color {
-                            result.extend_from_slice(b"\x1b[1;");
-                            let (r, g, b) = cur_fore_color.get_rgb();
-                            result.extend_from_slice(r.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(g.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(b.to_string().as_bytes());
-                            result.push(b't');
-                            self.push_result(&mut result);
-                        }
-
-                        if write_24bit_back_color {
-                            result.extend_from_slice(b"\x1b[0;");
-                            let (r, g, b) = cur_back_color.get_rgb();
-                            result.extend_from_slice(r.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(g.to_string().as_bytes());
-                            result.push(b';');
-                            result.extend_from_slice(b.to_string().as_bytes());
-                            result.push(b't');
-                            self.push_result(&mut result);
-                        }
+                if !cell.sgr.is_empty() {
+                    result.extend_from_slice(b"\x1b[");
+                    for i in 0..cell.sgr.len() - 1 {
+                        result.extend_from_slice(cell.sgr[i].to_string().as_bytes());
+                        result.push(b';');
                     }
-                    last_attr = cur_attr;
+                    result.extend_from_slice(cell.sgr.last().unwrap().to_string().as_bytes());
+                    result.push(b'm');
+                    self.push_result(&mut result);
+                }
+                let mut idx = 0;
+                while idx < cell.sgr_tc.len() {
+                    result.extend_from_slice(b"\x1b[");
+                    for i in 0..3 {
+                        result.extend_from_slice(cell.sgr_tc[idx + i].to_string().as_bytes());
+                        result.push(b';');
+                    }
+                    result.extend_from_slice(cell.sgr_tc[idx + 3].to_string().as_bytes());
+                    result.push(b't');
+                    self.push_result(&mut result);
+                    idx += 4;
                 }
 
-                first_char = false;
-
-                if space_count > 0 {
-                    if space_count < 5 {
-                        result.resize(result.len() + space_count, b' ');
-                    } else {
-                        result.extend_from_slice(b"\x1b[");
-                        push_int(&mut result, space_count);
-                        result.push(b'C');
-                        self.push_result(&mut result);
-                    }
-                    continue;
-                }
                 if self.options.modern_terminal_output {
-                    if ch.ch == '\0' {
+                    if cell.ch == '\0' {
                         result.push(b' ');
                     } else {
-                        let uni_ch = CP437_TO_UNICODE[ch.ch as usize].to_string();
+                        let uni_ch = CP437_TO_UNICODE[cell.ch as usize].to_string();
                         result.extend(uni_ch.as_bytes());
                     }
-                } else if !ch.is_visible() && self.options.preserve_invisible_chars {
-                    result.extend_from_slice(b"\x1b[C");
-                } else if ch.ch == '\x1b' {
-                    result.extend(b"\x1b\x1b");
-                } else if ch.ch == '\x07' {
-                    result.extend(b"\x1b\x07");
-                } else if ch.ch == '\x08' {
-                    result.extend(b"\x1b\x08");
-                } else if ch.ch == '\x0C' {
-                    result.extend(b"\x1b\x0C");
-                } else if ch.ch == '\x7F' {
-                    result.extend(b"\x1b\x7F");
+                } else if StringGenerator::CONTROL_CHARS.contains(cell.ch) {
+                    let mut ch = cell.ch as u8;
+                    match self.options.control_char_handling {
+                        crate::ControlCharHandling::Ignore => {}
+                        crate::ControlCharHandling::IcyTerm => {
+                            result.push(b'\x1B');
+                        }
+                        crate::ControlCharHandling::FilterOut => {
+                            ch = b' ';
+                        }
+                    }
+                    result.push(ch);
                 } else {
-                    result.push(ch.ch as u8);
+                    result.push(cell.ch as u8);
                 }
                 self.push_result(&mut result);
-                pos.x += 1;
+
+                x += 1;
             }
-            // do not end with eol except for terminal support.
-            self.last_line_break = self.output.len();
+
             if !self.options.longer_terminal_output {
                 if self.options.modern_terminal_output {
                     result.extend_from_slice(b"\x1b[0m");
                     result.push(10);
-                    first_char = true;
-                } else if pos.x < layer.get_width() && pos.y + 1 < height {
+                } else if x < layer.get_width() as usize && y + 1 < layer.get_height() as usize {
                     result.push(13);
                     result.push(10);
                 }
             }
-            self.push_result(&mut result);
-            self.last_line_break = self.output.len();
+        }
 
-            pos.x = 0;
-            pos.y += 1;
+        if buf.ice_mode.has_high_bg_colors() {
+            result.extend_from_slice(b"\x1b[?33l");
         }
-        /*
-        for u in &self.output {
-            if *u == 27 {
-                print!("\\x1B");
-            } else {
-                print!("{}", unsafe { char::from_u32_unchecked(*u as u32)});
-            }
-        }
-        println!();*/
     }
+
+    const CONTROL_CHARS: &str = "\x1b\x07\x08\x09\x0C\x7F";
 
     pub fn add_sixels(&mut self, buf: &Buffer) {
         for layer in &buf.layers {
@@ -512,20 +387,6 @@ impl StringGenerator {
         self.output.append(result);
         result.clear();
     }
-}
-
-fn get_extended_color(buf: &Buffer, color: usize) -> Option<usize> {
-    let color = buf.palette.get_color(color);
-    (0..crate::XTERM_256_PALETTE.len()).find(|&i| color == crate::XTERM_256_PALETTE[i].1)
-}
-
-fn get_standard_color(buf: &Buffer, color: usize) -> Option<usize> {
-    let color = buf.palette.get_color(color);
-    (0..8).find(|&i| color == crate::DOS_DEFAULT_PALETTE[i])
-}
-
-fn push_int(result: &mut Vec<u8>, number: usize) {
-    result.extend_from_slice(number.to_string().as_bytes());
 }
 
 pub fn get_save_sauce_default_ans(buf: &Buffer) -> (bool, String) {

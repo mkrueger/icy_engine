@@ -275,7 +275,7 @@ impl BufferParser for Parser {
                             self.state = EngineState::Default;
                             Ok(CallbackAction::None)
                         }
-                        FF | BEL | BS | '\x7F' | '\x1B' => {
+                        FF | BEL | BS | '\x09' | '\x7F' | '\x1B' => {
                             // non standard extension to print esc chars ESC ESC -> ESC
                             self.last_char = ch;
                             let ch = AttributedChar::new(self.last_char, caret.get_attribute());
@@ -396,11 +396,9 @@ impl BufferParser for Parser {
                         self.macro_dcs.clear();
                         return Ok(CallbackAction::None);
                     }
-                    return Err(ParserError::UnsupportedDCSSequence(format!(
-                        "sequence: {} end char <ESC>{ch}",
-                        self.parse_string
-                    ))
-                    .into());
+                    return Err(
+                        ParserError::UnsupportedDCSSequence(format!("end char <ESC>{ch}")).into(),
+                    );
                 }
                 ReadSTState::Default(nesting_level) => match ch {
                     '\x1B' => {
