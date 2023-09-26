@@ -157,9 +157,8 @@ impl StringGenerator {
                 is_blink = true;
                 back_idx = Some(idx - 8);
             }
-        } else {
-            is_blink = attr.is_blinking();
         }
+        is_blink |= attr.is_blinking();
 
         if fore_idx.is_some() && !is_bold && state.is_bold
             || back_idx.is_some() && !is_blink && state.is_blink
@@ -173,7 +172,12 @@ impl StringGenerator {
 
         if is_bold && !state.is_bold {
             sgr.push(1);
+            state.fg += 8;
         }
+        if is_blink && !state.is_blink {
+            sgr.push(5);
+        }
+
         if fg != state.fg {
             if let Some(fg_idx) = fore_idx {
                 sgr.push(COLOR_OFFSETS[fg_idx] + 30);
@@ -183,10 +187,6 @@ impl StringGenerator {
                 sgr_tc.push(cur_fore_rgb.1);
                 sgr_tc.push(cur_fore_rgb.2);
             }
-        }
-
-        if is_blink && !state.is_blink {
-            sgr.push(5);
         }
         if bg != state.bg {
             if let Some(bg_idx) = back_idx {
@@ -376,28 +376,26 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if rle > 4 {
-                        if line[x].ch == ' ' {
-                            let fmt = &format!("\x1B[{}C", rle + 1);
-                            let output = fmt.as_bytes();
-                            if output.len() < rle {
-                                self.push_result(&mut result);
-                                result.extend_from_slice(output);
-                                self.push_result(&mut result);
-                                x += rle + 1;
-                                continue;
-                            }
-                        }
-                        let fmt = &format!("\x1B[{rle}b");
+                    if line[x].ch == ' ' {
+                        let fmt = &format!("\x1B[{}C", rle + 1);
                         let output = fmt.as_bytes();
-                        if output.len() < rle {
+                        if output.len() <= rle {
                             self.push_result(&mut result);
-                            result.extend_from_slice(&cell_char);
                             result.extend_from_slice(output);
                             self.push_result(&mut result);
                             x += rle + 1;
                             continue;
                         }
+                    }
+                    let fmt = &format!("\x1B[{rle}b");
+                    let output = fmt.as_bytes();
+                    if output.len() <= rle {
+                        self.push_result(&mut result);
+                        result.extend_from_slice(&cell_char);
+                        result.extend_from_slice(output);
+                        self.push_result(&mut result);
+                        x += rle + 1;
+                        continue;
                     }
                 }
 
@@ -475,4 +473,12 @@ pub fn get_save_sauce_default_ans(buf: &Buffer) -> (bool, String) {
     }
 
     (false, String::new())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
+        TextPane,
+    };
 }
