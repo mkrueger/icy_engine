@@ -371,12 +371,13 @@ impl BufferParser for Parser {
                         .into());
                     }
                     self.state = EngineState::RecordDCS(ReadSTState::Default(0));
-                    return self.invoke_macro_by_id(
+                    self.invoke_macro_by_id(
                         buf,
                         current_layer,
                         caret,
                         *self.parsed_numbers.first().unwrap(),
                     );
+                    return Ok(CallbackAction::None);
                 }
                 self.parse_string.push('\x1b');
                 self.parse_string.push('[');
@@ -1435,16 +1436,17 @@ impl Parser {
         current_layer: usize,
         caret: &mut Caret,
         id: i32,
-    ) -> EngineResult<CallbackAction> {
+    ) {
         let m = if let Some(m) = self.macros.get(&(id as usize)) {
             m.clone()
         } else {
-            return Ok(CallbackAction::None);
+            return;
         };
         for ch in m.chars() {
-            self.print_char(buf, current_layer, caret, ch)?;
+            if let Err(err) = self.print_char(buf, current_layer, caret, ch) {
+                log::error!("Error during macro invocation: {}", err);
+            }
         }
-        Ok(CallbackAction::None)
     }
 
     fn execute_aps_command(&self, _buf: &mut Buffer, _caret: &mut Caret) {

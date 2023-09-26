@@ -240,6 +240,18 @@ impl StringGenerator {
         result
     }
 
+    pub fn screen_prep(&mut self, buf: &Buffer) {
+        if buf.ice_mode.has_high_bg_colors() {
+            self.push_result(&mut b"\x1b[?33h".to_vec());
+        }
+    }
+
+    pub fn screen_end(&mut self, buf: &Buffer) {
+        if buf.ice_mode.has_high_bg_colors() {
+            self.push_result(&mut b"\x1b[?33l".to_vec());
+        }
+    }
+
     /// .
     ///
     /// # Panics
@@ -256,9 +268,6 @@ impl StringGenerator {
                 }
             }
         }
-        if buf.ice_mode.has_high_bg_colors() {
-            result.extend_from_slice(b"\x1b[?33h");
-        }
         let cells = StringGenerator::generate_cells(buf, layer, layer.get_rectangle());
         let mut cur_font_page = 0;
 
@@ -266,7 +275,7 @@ impl StringGenerator {
             let mut x = 0;
             if self.options.longer_terminal_output && y > 0 {
                 result.extend_from_slice(b"\x1b[");
-                result.extend_from_slice((y + 1).to_string().as_bytes());
+                result.extend_from_slice(y.to_string().as_bytes());
                 result.push(b'H');
             }
 
@@ -402,15 +411,13 @@ impl StringGenerator {
                 if self.options.modern_terminal_output {
                     result.extend_from_slice(b"\x1b[0m");
                     result.push(10);
+                    self.last_line_break = result.len();
                 } else if x < layer.get_width() as usize && y + 1 < layer.get_height() as usize {
                     result.push(13);
                     result.push(10);
+                    self.last_line_break = result.len();
                 }
             }
-        }
-
-        if buf.ice_mode.has_high_bg_colors() {
-            result.extend_from_slice(b"\x1b[?33l");
         }
     }
 

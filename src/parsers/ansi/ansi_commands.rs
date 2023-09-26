@@ -945,7 +945,7 @@ impl Parser {
     ) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if let Some(id) = self.parsed_numbers.first() {
-            return self.invoke_macro_by_id(buf, current_layer, caret, *id);
+            self.invoke_macro_by_id(buf, current_layer, caret, *id);
         }
         Ok(CallbackAction::None)
     }
