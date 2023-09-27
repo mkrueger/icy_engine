@@ -317,16 +317,18 @@ impl StringGenerator {
             let len = if self.options.compress {
                 let mut last = area.get_width() - 1;
                 let last_attr = layer.get_char((last, y)).attribute;
-                while last > area.left() {
-                    let c = layer.get_char((last, y));
+                if last_attr.background_color == 0 {
+                    while last > area.left() {
+                        let c = layer.get_char((last, y));
 
-                    if c.ch != ' ' && c.ch != 0xFF as char && c.ch != 0 as char {
-                        break;
+                        if c.ch != ' ' && c.ch != 0xFF as char && c.ch != 0 as char {
+                            break;
+                        }
+                        if c.attribute != last_attr {
+                            break;
+                        }
+                        last -= 1;
                     }
-                    if c.attribute != last_attr {
-                        break;
-                    }
-                    last -= 1;
                 }
                 let last = last + 1;
                 if last >= area.get_width() - 1 {
@@ -437,7 +439,7 @@ impl StringGenerator {
             let mut x = 0;
             if self.options.longer_terminal_output && y > 0 {
                 result.extend_from_slice(b"\x1b[");
-                result.extend_from_slice(y.to_string().as_bytes());
+                result.extend_from_slice((y + 1).to_string().as_bytes());
                 result.push(b'H');
             }
             /*
@@ -559,7 +561,6 @@ impl StringGenerator {
                     self.last_line_break = result.len();
                 } else if x < layer.get_width() as usize && y + 1 < layer.get_height() as usize {
                     if self.options.compress && x + 1 >= layer.get_width() as usize {
-                        println!("short eol!!!");
                         // if it's shorter to line break with 1 space, do that
                         result.push(b' ');
                     } else {
