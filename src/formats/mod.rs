@@ -318,7 +318,6 @@ mod tests {
         let converted = super::Ansi::default()
             .to_bytes(&buf, &SaveOptions::new())
             .unwrap();
-
         // more gentle output.
         let b: Vec<u8> = converted
             .iter()
@@ -340,7 +339,6 @@ mod tests {
         let data = b"A A  A   A    A\x1B[5CA\x1B[6CA\x1B[8CA";
         test_ansi(data);
     }
-
     #[test]
     fn test_fg_color_change() {
         let data = b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m \x1B[37m ";

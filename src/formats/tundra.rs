@@ -273,11 +273,11 @@ pub fn get_save_sauce_default_tnd(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute, TextPane};
+    use crate::{compare_buffers, AttributedChar, Buffer, OutputFormat, TextAttribute};
 
     #[test]
     pub fn test_ice() {
-        let mut buffer = create_buffer();
+        let mut buffer = Buffer::new((80, 25));
         buffer.ice_mode = crate::IceMode::Ice;
         buffer.layers[0].set_char(
             (0, 0),
@@ -294,12 +294,6 @@ mod tests {
             ),
         );
         test_tundra(&buffer);
-    }
-
-    fn create_buffer() -> Buffer {
-        let mut buffer = Buffer::new((80, 25));
-
-        buffer
     }
 
     fn test_tundra(buffer: &Buffer) -> Buffer {

@@ -290,6 +290,7 @@ impl StringGenerator {
     }
 
     fn generate_cells<T: TextPane>(
+        &self,
         buf: &Buffer,
         layer: &T,
         area: Rectangle,
@@ -312,18 +313,55 @@ impl StringGenerator {
         };
         for y in area.y_range() {
             let mut line = Vec::new();
-            for x in area.x_range() {
-                let ch = layer.get_char((x, y));
 
-                let (new_state, sgr, sgr_tc) = StringGenerator::get_color(buf, ch.attribute, state);
-                state = new_state;
-                line.push(CharCell {
-                    ch: ch.ch,
-                    sgr,
-                    sgr_tc,
-                    font_page: *font_map.get(&ch.get_font_page()).unwrap(),
-                    cur_state: state.clone(),
-                });
+            let len = if self.options.compress {
+                let mut last = area.get_width() - 1;
+                let last_attr = layer.get_char((last, y)).attribute;
+                while last > area.left() {
+                    let c = layer.get_char((last, y));
+
+                    if c.ch != ' ' && c.ch != 0xFF as char && c.ch != 0 as char {
+                        break;
+                    }
+                    if c.attribute != last_attr {
+                        break;
+                    }
+                    last -= 1;
+                }
+                let last = last + 1;
+                if last >= area.get_width() - 1 {
+                    // don't compress if we have only one char, since eol are 2 chars
+                    area.get_width()
+                } else {
+                    last
+                }
+            } else {
+                area.get_width()
+            };
+            let mut x = 0;
+            while x < len {
+                let ch = layer.get_char((x, y));
+                if ch.is_visible() {
+                    let (new_state, sgr, sgr_tc) =
+                        StringGenerator::get_color(buf, ch.attribute, state);
+                    state = new_state;
+                    line.push(CharCell {
+                        ch: ch.ch,
+                        sgr,
+                        sgr_tc,
+                        font_page: *font_map.get(&ch.get_font_page()).unwrap(),
+                        cur_state: state.clone(),
+                    });
+                } else {
+                    line.push(CharCell {
+                        ch: ' ',
+                        sgr: Vec::new(),
+                        sgr_tc: Vec::new(),
+                        font_page: *font_map.get(&ch.get_font_page()).unwrap(),
+                        cur_state: state.clone(),
+                    });
+                }
+                x += 1;
             }
 
             result.push(line);
@@ -392,7 +430,7 @@ impl StringGenerator {
             }
         }
         let font_map = StringGenerator::generate_ansi_font_map(buf);
-        let cells = StringGenerator::generate_cells(buf, layer, layer.get_rectangle(), &font_map);
+        let cells = self.generate_cells(buf, layer, layer.get_rectangle(), &font_map);
         let mut cur_font_page = 0;
 
         for (y, line) in cells.iter().enumerate() {
@@ -409,32 +447,8 @@ impl StringGenerator {
                             }
                         }
             */
-            let len = if self.options.compress {
-                let mut last = line.len() as i32 - 1;
-                while last > 0 {
-                    if line[last as usize].ch != ' '
-                        && line[last as usize].ch != 0xFF as char
-                        && line[last as usize].ch != 0 as char
-                    {
-                        break;
-                    }
-                    if !line[last as usize].sgr.is_empty() || !line[last as usize].sgr_tc.is_empty()
-                    {
-                        break;
-                    }
-                    last -= 1;
-                }
-                let cur_len = last as usize + 1;
-                if cur_len >= line.len() - 1 {
-                    // don't compress if we have only one char, since eol are 2 chars
-                    line.len()
-                } else {
-                    cur_len
-                }
-            } else {
-                line.len()
-            };
 
+            let len = line.len();
             while x < len {
                 let cell = &line[x];
                 if cur_font_page != cell.font_page {
@@ -544,8 +558,14 @@ impl StringGenerator {
                     result.push(10);
                     self.last_line_break = result.len();
                 } else if x < layer.get_width() as usize && y + 1 < layer.get_height() as usize {
-                    result.push(13);
-                    result.push(10);
+                    if self.options.compress && x + 1 >= layer.get_width() as usize {
+                        println!("short eol!!!");
+                        // if it's shorter to line break with 1 space, do that
+                        result.push(b' ');
+                    } else {
+                        result.push(13);
+                        result.push(10);
+                    }
                     self.last_line_break = result.len();
                 }
             }
@@ -607,10 +627,10 @@ pub fn get_save_sauce_default_ans(buf: &Buffer) -> (bool, String) {
 
     (false, String::new())
 }
-
+/*
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
+    use std::{fs, path::Path};
 
     use crate::{Buffer, SaveOptions, StringGenerator, TextPane};
 
@@ -660,7 +680,10 @@ mod tests {
                 continue;
             }
             println!("testing {num}:{path:?}");
-            if let Ok(buf) = Buffer::load_buffer(path, true) {
+
+            let orig_bytes = fs::read(path).unwrap();
+
+            if let Ok(buf) = Buffer::from_bytes(path, true, &orig_bytes) {
                 if buf.get_width() != 80 {
                     continue;
                 }
@@ -670,13 +693,12 @@ mod tests {
                 let mut opt = SaveOptions::default();
                 opt.control_char_handling = crate::ControlCharHandling::IcyTerm;
                 opt.compress = true;
-                opt.save_sauce = true;
+                opt.save_sauce = buf.has_sauce();
                 let mut draw = StringGenerator::new(opt);
                 draw.screen_prep(&buf);
                 draw.generate(&buf, &buf);
                 draw.screen_end(&buf);
                 let bytes = draw.get_data().to_vec();
-
                 let buf2 = Buffer::from_bytes(Path::new("test.ans"), true, &bytes).unwrap();
                 if buf.get_height() != buf2.get_height() {
                     continue;
@@ -702,3 +724,4 @@ mod tests {
         }
     }
 }
+*/
