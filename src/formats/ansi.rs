@@ -506,7 +506,10 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if line[x].ch == ' ' && line[x].cur_state.bg_idx == 0 {
+                    if line[x].ch == ' '
+                        && line[x].cur_state.bg_idx == 0
+                        && !line[x].cur_state.is_blink
+                    {
                         let fmt = &format!("\x1B[{}C", rle + 1);
                         let output = fmt.as_bytes();
                         if output.len() <= rle {
@@ -666,7 +669,7 @@ mod tests {
                 }
                 let mut opt = SaveOptions::default();
                 opt.control_char_handling = crate::ControlCharHandling::IcyTerm;
-                opt.compress = false;
+                opt.compress = true;
                 opt.save_sauce = true;
                 let mut draw = StringGenerator::new(opt);
                 draw.screen_prep(&buf);

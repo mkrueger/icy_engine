@@ -1310,7 +1310,7 @@ impl BufferParser for Parser {
                         } else {
                             1
                         };
-                        let ch = AttributedChar::new(self.last_char, caret.attribute);
+                        let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                         (0..num).for_each(|_| buf.print_char(current_layer, caret, ch));
                     }
                     'g' => {
