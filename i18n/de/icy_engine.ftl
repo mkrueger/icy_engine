@@ -40,6 +40,8 @@ undo-change_sauce=SAUCE ändern
 undo-switch_font_page=Schrift ändern
 undo-switch_palette_mode=Palettenmodus ändern
 undo-switch_ice_mode=ICE-Modus ändern
+undo-replace_font=Font ersetzen
+undo-remove_font=Font löschen
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

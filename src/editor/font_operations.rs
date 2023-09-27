@@ -1,7 +1,9 @@
 #![allow(clippy::missing_errors_doc, clippy::missing_panics_doc)]
 
+use i18n_embed_fl::fl;
+
 use crate::{
-    AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode,
+    AttributedChar, BitFont, EngineResult, IceMode, Layer, Palette, PaletteMode, TextPane,
     DOS_DEFAULT_PALETTE,
 };
 
@@ -217,6 +219,42 @@ impl EditState {
             }
         };
         let op = super::undo_operations::SetIceMode::new(old_mode, old_layers, mode, new_layers);
+        self.push_undo_action(Box::new(op))
+    }
+
+    pub fn replace_font_usage(&mut self, from: usize, to: usize) -> EngineResult<()> {
+        let old_layers = self.get_buffer().layers.clone();
+        let old_font_page = self.get_caret().get_font_page();
+        if old_font_page == from {
+            self.get_caret_mut().set_font_page(to);
+        }
+        for layer in &mut self.get_buffer_mut().layers {
+            if layer.default_font_page == from {
+                layer.default_font_page = to;
+            }
+            for y in 0..layer.get_height() {
+                for x in 0..layer.get_width() {
+                    let mut ch = layer.get_char((x, y));
+                    if ch.attribute.get_font_page() == from {
+                        ch.attribute.set_font_page(to);
+                        layer.set_char((x, y), ch);
+                    }
+                }
+            }
+        }
+        let op = super::undo_operations::ReplaceFontUsage::new(
+            old_font_page,
+            old_layers,
+            self.get_caret().get_font_page(),
+            self.get_buffer_mut().layers.clone(),
+        );
+        self.push_undo_action(Box::new(op))
+    }
+
+    pub fn remove_font(&mut self, font: usize) -> EngineResult<()> {
+        let _ = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-remove_font"));
+        let _ = self.replace_font_usage(font, 0);
+        let op = super::undo_operations::RemoveFont::new(font);
         self.push_undo_action(Box::new(op))
     }
 }

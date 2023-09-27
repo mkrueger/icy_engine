@@ -1537,3 +1537,86 @@ impl UndoOperation for SetIceMode {
         Ok(())
     }
 }
+
+pub struct ReplaceFontUsage {
+    old_caret_page: usize,
+    old_layers: Vec<Layer>,
+    new_caret_page: usize,
+    new_layers: Vec<Layer>,
+}
+
+impl ReplaceFontUsage {
+    pub fn new(
+        old_caret_page: usize,
+        old_layers: Vec<Layer>,
+        new_caret_page: usize,
+        new_layers: Vec<Layer>,
+    ) -> Self {
+        Self {
+            old_caret_page,
+            old_layers,
+            new_caret_page,
+            new_layers,
+        }
+    }
+}
+
+impl UndoOperation for ReplaceFontUsage {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-replace_font")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers = self.old_layers.clone();
+        edit_state
+            .get_caret_mut()
+            .set_font_page(self.old_caret_page);
+        Ok(())
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        edit_state.buffer.layers = self.new_layers.clone();
+        edit_state
+            .get_caret_mut()
+            .set_font_page(self.new_caret_page);
+        Ok(())
+    }
+}
+
+pub struct RemoveFont {
+    font_slot: usize,
+    font: Option<BitFont>,
+}
+
+impl RemoveFont {
+    pub fn new(font_slot: usize) -> Self {
+        Self {
+            font_slot,
+            font: None,
+        }
+    }
+}
+
+impl UndoOperation for RemoveFont {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-remove_font")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(font) = self.font.take() {
+            edit_state.buffer.set_font(self.font_slot, font);
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("no font for RemoveFont undo."))
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        self.font = edit_state.buffer.remove_font(self.font_slot);
+        if self.font.is_some() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("empty font slot."))
+        }
+    }
+}
