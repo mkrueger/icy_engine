@@ -8,7 +8,7 @@ pub mod attribute {
     pub const BLINK: u16 = 0b0000_0000_0000_1000;
 
     pub const UNDERLINE: u16 = 0b0000_0000_0001_0000;
-    pub const DOUBLE_UNDERLINE: u16 = 0b0000_0000_0011_0000;
+    pub const DOUBLE_UNDERLINE: u16 = 0b0000_0000_0010_0000;
     pub const CONCEAL: u16 = 0b0000_0000_0100_0000;
     pub const CROSSED_OUT: u16 = 0b0000_0000_1000_0000;
     pub const DOUBLE_HEIGHT: u16 = 0b0000_0001_0000_0000;

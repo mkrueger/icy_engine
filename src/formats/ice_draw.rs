@@ -252,7 +252,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        test_ice_draw(buffer);
+        test_ice_draw(&buffer);
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod tests {
             (1, 0),
             AttributedChar::new('\x01', TextAttribute::from_u8(0, crate::IceMode::Ice)),
         );
-        test_ice_draw(buffer);
+        test_ice_draw(&buffer);
     }
 
     #[test]
@@ -314,7 +314,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        test_ice_draw(buffer);
+        test_ice_draw(&buffer);
     }
 
     #[test]
@@ -329,7 +329,7 @@ mod tests {
                 TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
             ),
         );
-        test_ice_draw(buffer);
+        test_ice_draw(&buffer);
     }
 
     fn create_buffer() -> Buffer {
@@ -343,15 +343,15 @@ mod tests {
         buffer
     }
 
-    fn test_ice_draw(mut buffer: Buffer) -> Buffer {
+    fn test_ice_draw(buffer: &Buffer) -> Buffer {
         let xb = super::IceDraw::default();
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
-        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
-        let mut buffer2 = xb
+        let bytes = xb.to_bytes(buffer, &opt).unwrap();
+        let buffer2 = xb
             .load_buffer(std::path::Path::new("test.idf"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
+        compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
         buffer2
     }
 }

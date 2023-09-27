@@ -470,8 +470,8 @@ fn test_xterm_256_colors() {
     );
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
-    assert_eq!(XTERM_256_PALETTE[232].1, buf.palette.get_color(fg as usize));
-    assert_eq!(XTERM_256_PALETTE[42].1, buf.palette.get_color(bg as usize));
+    assert_eq!(XTERM_256_PALETTE[232].1, buf.palette.get_color(fg));
+    assert_eq!(XTERM_256_PALETTE[42].1, buf.palette.get_color(bg));
 }
 
 #[test]
@@ -482,8 +482,8 @@ fn test_xterm_24bit_colors() {
     );
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
-    assert_eq!(Color::new(12, 13, 14), buf.palette.get_color(fg as usize));
-    assert_eq!(Color::new(55, 54, 19), buf.palette.get_color(bg as usize));
+    assert_eq!(Color::new(12, 13, 14), buf.palette.get_color(fg));
+    assert_eq!(Color::new(55, 54, 19), buf.palette.get_color(bg));
 }
 
 #[test]
@@ -494,8 +494,8 @@ fn test_alt_24bit_colors() {
     );
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
-    assert_eq!(Color::new(12, 13, 14), buf.palette.get_color(fg as usize));
-    assert_eq!(Color::new(55, 54, 19), buf.palette.get_color(bg as usize));
+    assert_eq!(Color::new(12, 13, 14), buf.palette.get_color(fg));
+    assert_eq!(Color::new(55, 54, 19), buf.palette.get_color(bg));
 }
 
 #[test]
@@ -1058,13 +1058,11 @@ fn test_extended_background_color() {
     assert_eq!('#', ch.ch);
     assert_eq!(
         XTERM_256_PALETTE[88].1,
-        buf.palette
-            .get_color(ch.attribute.get_foreground() as usize)
+        buf.palette.get_color(ch.attribute.get_foreground())
     );
     assert_eq!(
         XTERM_256_PALETTE[107].1,
-        buf.palette
-            .get_color(ch.attribute.get_background() as usize)
+        buf.palette.get_color(ch.attribute.get_background())
     );
     assert!(!ch.attribute.is_blinking());
 }

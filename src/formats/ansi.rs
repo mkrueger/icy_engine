@@ -1,10 +1,11 @@
+use std::collections::HashMap;
 use std::path::Path;
 
 use crate::ansi::constants::COLOR_OFFSETS;
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
-    analyze_font_usage, parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat,
-    Rectangle, TextPane, DOS_DEFAULT_PALETTE,
+    analyze_font_usage, parse_with_parser, parsers, BitFont, Buffer, BufferFeatures, OutputFormat,
+    Rectangle, TextPane, ANSI_FONTS, DOS_DEFAULT_PALETTE,
 };
 use crate::{Color, TextAttribute};
 
@@ -85,6 +86,11 @@ pub struct StringGenerator {
 struct AnsiState {
     pub is_bold: bool,
     pub is_blink: bool,
+    pub is_faint: bool,
+    pub is_italic: bool,
+    pub is_underlined: bool,
+    pub is_double_underlined: bool,
+    pub is_crossed_out: bool,
 
     pub fg_idx: u32,
     pub fg: Color,
@@ -120,11 +126,11 @@ impl StringGenerator {
         let mut sgr_tc = Vec::new();
 
         let fg = attr.get_foreground();
-        let cur_fore_color = buf.palette.get_color(fg as usize);
+        let cur_fore_color = buf.palette.get_color(fg);
         let cur_fore_rgb = cur_fore_color.get_rgb();
 
         let bg = attr.get_background();
-        let cur_back_color = buf.palette.get_color(bg as usize);
+        let cur_back_color = buf.palette.get_color(bg);
         let cur_back_rgb = cur_back_color.get_rgb();
 
         let mut fore_idx = DOS_DEFAULT_PALETTE
@@ -136,6 +142,11 @@ impl StringGenerator {
 
         let mut is_bold = state.is_bold;
         let mut is_blink = state.is_blink;
+        let is_faint = attr.is_faint();
+        let is_italic = attr.is_italic();
+        let is_underlined = attr.is_underlined();
+        let is_double_underlined = attr.is_double_underlined();
+        let is_crossed_out = attr.is_crossed_out();
 
         if let Some(idx) = fore_idx {
             if idx < 8 {
@@ -172,10 +183,27 @@ impl StringGenerator {
 
         if fore_idx.is_some() && !is_bold && state.is_bold
             || back_idx.is_some() && !is_blink && state.is_blink
+            || !is_italic && state.is_italic
+            || !is_faint && state.is_faint
+            || !is_underlined && state.is_underlined
+            || !is_underlined && state.is_underlined
+            || !is_double_underlined && state.is_double_underlined
+            || !is_crossed_out && state.is_crossed_out
+            || is_bold
+                && !state.is_bold
+                && !DOS_DEFAULT_PALETTE
+                    .iter()
+                    .any(|c| c.get_rgb() == state.fg.get_rgb())
+        // special case if bold changes but fore color is custom rgb - color needs to reset
         {
             sgr.push(0);
             state.is_bold = false;
             state.is_blink = false;
+            state.is_italic = false;
+            state.is_faint = false;
+            state.is_underlined = false;
+            state.is_double_underlined = false;
+            state.is_crossed_out = false;
 
             state.fg_idx = 7;
             state.fg = DOS_DEFAULT_PALETTE[7].clone();
@@ -192,43 +220,78 @@ impl StringGenerator {
             }
             state.is_bold = true;
         }
+        if is_faint && !state.is_faint {
+            sgr.push(2);
+            state.is_faint = true;
+        }
+        if is_italic && !state.is_italic {
+            sgr.push(3);
+            state.is_italic = true;
+        }
+        if is_underlined && !state.is_underlined {
+            sgr.push(4);
+            state.is_underlined = true;
+        }
+
         if is_blink && !state.is_blink {
             sgr.push(5);
             state.is_blink = true;
         }
 
+        if is_crossed_out && !state.is_crossed_out {
+            sgr.push(9);
+            state.is_crossed_out = true;
+        }
+
+        if is_double_underlined && !state.is_double_underlined {
+            sgr.push(21);
+            state.is_double_underlined = true;
+        }
+
         if cur_fore_rgb != state.fg.get_rgb() {
             if let Some(fg_idx) = fore_idx {
                 sgr.push(COLOR_OFFSETS[fg_idx] + 30);
+                state.fg_idx = fg_idx as u32;
             } else {
                 sgr_tc.push(1);
                 sgr_tc.push(cur_fore_rgb.0);
                 sgr_tc.push(cur_fore_rgb.1);
                 sgr_tc.push(cur_fore_rgb.2);
+                state.fg_idx = fg;
             }
             state.fg = cur_fore_color;
-            state.fg_idx = fg;
         }
         if cur_back_rgb != state.bg.get_rgb() {
             if let Some(bg_idx) = back_idx {
                 sgr.push(COLOR_OFFSETS[bg_idx] + 40);
+                state.bg_idx = bg_idx as u32;
             } else {
                 sgr_tc.push(0);
                 sgr_tc.push(cur_back_rgb.0);
                 sgr_tc.push(cur_back_rgb.1);
                 sgr_tc.push(cur_back_rgb.2);
+                state.bg_idx = bg;
             }
             state.bg = cur_back_color;
-            state.bg_idx = bg;
         }
         (state, sgr, sgr_tc)
     }
 
-    fn generate_cells<T: TextPane>(buf: &Buffer, layer: &T, area: Rectangle) -> Vec<Vec<CharCell>> {
+    fn generate_cells<T: TextPane>(
+        buf: &Buffer,
+        layer: &T,
+        area: Rectangle,
+        font_map: &HashMap<usize, usize>,
+    ) -> Vec<Vec<CharCell>> {
         let mut result = Vec::new();
         let mut state = AnsiState {
             is_bold: false,
             is_blink: false,
+            is_italic: false,
+            is_faint: false,
+            is_underlined: false,
+            is_double_underlined: false,
+            is_crossed_out: false,
             fg_idx: 7,
             fg: DOS_DEFAULT_PALETTE[7].clone(),
             bg: DOS_DEFAULT_PALETTE[0].clone(),
@@ -241,12 +304,11 @@ impl StringGenerator {
 
                 let (new_state, sgr, sgr_tc) = StringGenerator::get_color(buf, ch.attribute, state);
                 state = new_state;
-
                 line.push(CharCell {
                     ch: ch.ch,
                     sgr,
                     sgr_tc,
-                    font_page: ch.get_font_page(),
+                    font_page: *font_map.get(&ch.get_font_page()).unwrap(),
                     cur_state: state.clone(),
                 });
             }
@@ -254,6 +316,28 @@ impl StringGenerator {
             result.push(line);
         }
         result
+    }
+
+    fn generate_ansi_font_map(buf: &Buffer) -> HashMap<usize, usize> {
+        let mut font_map = HashMap::new();
+
+        let mut ansi_fonts = Vec::new();
+        for i in 0..ANSI_FONTS {
+            ansi_fonts.push(BitFont::from_ansi_font_page(i).unwrap());
+        }
+        for (page, font) in buf.font_iter() {
+            let mut to_page = *page;
+            for (i, ansi_font) in ansi_fonts.iter().enumerate() {
+                if ansi_font.glyphs == font.glyphs {
+                    to_page = i;
+                    break;
+                }
+            }
+
+            font_map.insert(*page, to_page);
+        }
+
+        font_map
     }
 
     pub fn screen_prep(&mut self, buf: &Buffer) {
@@ -294,7 +378,8 @@ impl StringGenerator {
                 }
             }
         }
-        let cells = StringGenerator::generate_cells(buf, layer, layer.get_rectangle());
+        let font_map = StringGenerator::generate_ansi_font_map(buf);
+        let cells = StringGenerator::generate_cells(buf, layer, layer.get_rectangle(), &font_map);
         let mut cur_font_page = 0;
 
         for (y, line) in cells.iter().enumerate() {
@@ -445,7 +530,7 @@ impl StringGenerator {
         }
     }
 
-    const CONTROL_CHARS: &str = "\x1b\x07\x08\x09\x0C\x7F";
+    const CONTROL_CHARS: &str = "\x1b\x07\x08\x09\x0C\x7F\r\n";
 
     pub fn add_sixels(&mut self, buf: &Buffer) {
         for layer in &buf.layers {
@@ -507,76 +592,91 @@ mod tests {
 
     use crate::{Buffer, SaveOptions, StringGenerator, TextPane};
     /*
-        fn is_hidden(entry: &walkdir::DirEntry) -> bool {
-            entry
-                .file_name()
-                .to_str()
-                .map_or(false, |s| s.starts_with('.'))
+    fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+        entry
+            .file_name()
+            .to_str()
+            .map_or(false, |s| s.starts_with('.'))
+    }
+
+    #[test]
+    fn test_roundtrip() {
+        let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
+        let mut num = 0;
+
+        for entry in walker.filter_entry(|e| !is_hidden(e)) {
+            let entry = entry.unwrap();
+            let path = entry.path();
+
+            if path.is_dir() {
+                continue;
+            }
+            let extension = path.extension();
+            if extension.is_none() {
+                continue;
+            }
+            let extension = extension.unwrap().to_str();
+            if extension.is_none() {
+                continue;
+            }
+            let extension = extension.unwrap().to_lowercase();
+
+            let mut found = false;
+            for format in &*crate::FORMATS {
+                if format.get_file_extension() == extension
+                    || format.get_alt_extensions().contains(&extension)
+                {
+                    found = true;
+                }
+            }
+            if !found {
+                continue;
+            }
+            num += 1;
+            if num < 22970 {
+                //     println!("skipping {num}:{path:?}");
+                continue;
+            }
+            println!("testing {num}:{path:?}");
+            if let Ok(buf) = Buffer::load_buffer(path, true) {
+                if buf.get_width() != 80 {
+                    continue;
+                }
+                if buf.palette.len() > 16 {
+                    continue;
+                }
+                let mut opt = SaveOptions::default();
+                opt.control_char_handling = crate::ControlCharHandling::IcyTerm;
+                opt.compress = false;
+                opt.save_sauce = true;
+                let mut draw = StringGenerator::new(opt);
+                draw.screen_prep(&buf);
+                draw.generate(&buf, &buf);
+                draw.screen_end(&buf);
+                let bytes = draw.get_data().to_vec();
+
+                let buf2 = Buffer::from_bytes(Path::new("test.ans"), true, &bytes).unwrap();
+                if buf.get_height() != buf2.get_height() {
+                    continue;
+                }
+                /*
+                for x in 0..8 {
+                    let ch = buf2.layers[0].get_char((x, 1));
+                    println!("{:?} {:?}", ch, buf2.palette.get_color(ch.attribute.get_foreground()));
+                }
+                */
+                crate::compare_buffers(
+                    &buf,
+                    &buf2,
+                    crate::CompareOptions {
+                        compare_palette: false,
+                        compare_fonts: false,
+                        ignore_invisible_chars: true,
+                    },
+                );
+            }
         }
+    }
 
-                    #[test]
-                    fn test_roundtrip() {
-                        let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
-                        let mut num = 0;
-
-                        for entry in walker.filter_entry(|e| !is_hidden(e)) {
-                            let entry = entry.unwrap();
-                            let path = entry.path();
-
-                            if path.is_dir() {
-                                continue;
-                            }
-                            let extension = path.extension();
-                            if extension.is_none() {
-                                continue;
-                            }
-                            let extension = extension.unwrap().to_str();
-                            if extension.is_none() {
-                                continue;
-                            }
-                            let extension = extension.unwrap().to_lowercase();
-
-                            let mut found = false;
-                            for format in &*crate::FORMATS {
-                                if format.get_file_extension() == extension
-                                    || format.get_alt_extensions().contains(&extension)
-                                {
-                                    found = true;
-                                }
-                            }
-                            if !found {
-                                continue;
-                            }
-                            num += 1;/*
-                            if num < 53430 {
-                                println!("skipping {num}:{path:?}");
-                                continue;
-                            }*/
-                             println!("testing {num}:{path:?}");
-                            if let Ok(mut buf) = Buffer::load_buffer(path, true) {
-                                if buf.get_width() != 80 {
-                                    continue;
-                                }
-                                if buf.palette.len() > 16 {
-                                    continue;
-                                }
-                                let mut opt = SaveOptions::default();
-                                opt.compress = false;
-                                opt.save_sauce = true;
-                                let mut draw = StringGenerator::new(opt);
-                                draw.screen_prep(&buf);
-                                draw.generate(&buf, &buf);
-                                draw.screen_end(&buf);
-                                let bytes = draw.get_data().to_vec();
-
-                                let mut buf2 = Buffer::from_bytes(Path::new("test.ans"), true, &bytes).unwrap();
-                                if buf.get_height() != buf2.get_height() {
-                                    continue;
-                                }
-
-                                crate::compare_buffers(&mut buf, &mut buf2 , crate::CompareOptions { compare_palette: false, compare_fonts: false, ignore_invisible_chars: true });
-                           }
-                        }
-                    }
     */
 }

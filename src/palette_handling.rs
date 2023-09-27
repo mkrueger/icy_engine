@@ -169,11 +169,11 @@ impl Palette {
         }
     }
 
-    pub fn get_color(&self, index: usize) -> Color {
-        if index >= self.colors.len() {
+    pub fn get_color(&self, index: u32) -> Color {
+        if index as usize >= self.colors.len() {
             return Color::new(0, 0, 0);
         }
-        self.colors[index].clone()
+        self.colors[index as usize].clone()
     }
 
     pub fn are_colors_equal(&self, other: &Palette) -> bool {

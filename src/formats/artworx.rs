@@ -175,7 +175,7 @@ pub fn to_ega_data(palette: &Palette) -> Vec<u8> {
         if i >= palette.len() {
             break;
         }
-        ega_colors[EGA_COLOR_OFFSETS[i]] = palette.get_color(i);
+        ega_colors[EGA_COLOR_OFFSETS[i]] = palette.get_color(i as u32);
     }
     let mut res = Vec::with_capacity(3 * 64);
     for col in ega_colors {
@@ -224,7 +224,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        test_artworx(buffer);
+        test_artworx(&buffer);
     }
 
     #[test]
@@ -268,7 +268,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        test_artworx(buffer);
+        test_artworx(&buffer);
     }
 
     #[test]
@@ -283,7 +283,7 @@ mod tests {
                 TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
             ),
         );
-        test_artworx(buffer);
+        test_artworx(&buffer);
     }
     fn create_buffer() -> Buffer {
         let mut buffer = Buffer::new((80, 25));
@@ -296,15 +296,15 @@ mod tests {
         buffer
     }
 
-    fn test_artworx(mut buffer: Buffer) -> Buffer {
+    fn test_artworx(buffer: &Buffer) -> Buffer {
         let xb = super::Artworx::default();
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
-        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
-        let mut buffer2 = xb
+        let bytes = xb.to_bytes(buffer, &opt).unwrap();
+        let buffer2 = xb
             .load_buffer(std::path::Path::new("test.adf"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
+        compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
         buffer2
     }
 }

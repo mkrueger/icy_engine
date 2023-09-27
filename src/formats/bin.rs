@@ -50,7 +50,7 @@ impl OutputFormat for Bin {
         loop {
             for _ in 0..result.get_width() {
                 if o >= data.len() {
-                    crate::crop_loaded_file(&mut result);
+                    result.set_height(result.layers[0].get_height());
                     return Ok(result);
                 }
 
@@ -58,6 +58,7 @@ impl OutputFormat for Bin {
                     // last byte is not important enough to throw an error
                     // there seem to be some invalid files out there.
                     log::error!("Invalid Bin. Read char block beyond EOF.");
+                    result.set_height(result.layers[0].get_height());
                     return Ok(result);
                 }
 

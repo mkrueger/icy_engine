@@ -201,7 +201,7 @@ impl SixelParser {
 
         let fg_color = self
             .current_sixel_palette
-            .get_color((self.current_sixel_color as usize) % self.current_sixel_palette.len())
+            .get_color((self.current_sixel_color as u32) % self.current_sixel_palette.len() as u32)
             .clone();
         let x_pos = self.sixel_cursor.x;
         let y_pos = self.sixel_cursor.y * 6;

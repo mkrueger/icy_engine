@@ -941,10 +941,10 @@ mod tests {
                             if let Ok(mut buf) = Buffer::load_buffer(path, true) {
                                 let draw = IcyDraw::default();
                                 let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-                                let mut buf2 = draw
+                                let buf2 = draw
                                     .load_buffer(Path::new("test.icy"), &bytes, None)
                                     .unwrap();
-                                compare_buffers(&mut buf, &mut buf2);
+                                compare_buffers(&buf, &buf2);
                             }
                         }
                     }
@@ -961,13 +961,13 @@ mod tests {
             let draw = IcyDraw::default();
             let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
             println!("SAVED!");
-            let mut buf2 = draw
+            let buf2 = draw
                 .load_buffer(Path::new("test.icy"), &bytes, None)
                 .unwrap();
             println!("{buf}");
             println!("------------");
             println!("{buf2}");
-            compare_buffers(&mut buf, &mut buf2);
+            compare_buffers(&buf, &buf2);
         }
     */
 
@@ -980,10 +980,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -994,10 +994,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1022,10 +1022,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1046,10 +1046,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1069,11 +1069,11 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1093,11 +1093,11 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1113,10 +1113,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1139,10 +1139,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1172,10 +1172,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1191,10 +1191,10 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
+        let buf2 = draw
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
     #[test]
@@ -1211,7 +1211,7 @@ mod tests {
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
         buf2.layers[0].is_visible = true;
         buf2.layers[1].is_visible = true;
     }
@@ -1234,7 +1234,7 @@ mod tests {
             .load_buffer(Path::new("test.icy"), &bytes, None)
             .unwrap();
 
-        compare_buffers(&mut buf, &mut buf2, crate::CompareOptions::ALL);
+        compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
         buf2.layers[0].is_visible = true;
         buf2.layers[1].is_visible = true;
     }

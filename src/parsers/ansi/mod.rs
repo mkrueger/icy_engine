@@ -275,7 +275,7 @@ impl BufferParser for Parser {
                             self.state = EngineState::Default;
                             Ok(CallbackAction::None)
                         }
-                        FF | BEL | BS | '\x09' | '\x7F' | '\x1B' => {
+                        FF | BEL | BS | '\x09' | '\x7F' | '\x1B' | '\n' | '\r' => {
                             // non standard extension to print esc chars ESC ESC -> ESC
                             self.last_char = ch;
                             let ch = AttributedChar::new(self.last_char, caret.get_attribute());

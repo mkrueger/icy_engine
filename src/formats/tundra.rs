@@ -291,7 +291,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        test_tundra(buffer);
+        test_tundra(&buffer);
     }
 
     fn create_buffer() -> Buffer {
@@ -305,17 +305,17 @@ mod tests {
         buffer
     }
 
-    fn test_tundra(mut buffer: Buffer) -> Buffer {
+    fn test_tundra(buffer: &Buffer) -> Buffer {
         let xb = super::TundraDraw::default();
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
-        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
-        let mut buffer2 = xb
+        let bytes = xb.to_bytes(buffer, &opt).unwrap();
+        let buffer2 = xb
             .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
             .unwrap();
         let mut opt = crate::CompareOptions::ALL;
         opt.compare_palette = false;
-        compare_buffers(&mut buffer, &mut buffer2, opt);
+        compare_buffers(buffer, &buffer2, opt);
         buffer2
     }
 }

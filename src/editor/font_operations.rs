@@ -319,7 +319,7 @@ fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize)
             break;
         }
         color_count[idx] = -1;
-        new_colors.push((idx, old_palette.get_color(idx)));
+        new_colors.push((idx, old_palette.get_color(idx as u32)));
     }
     new_colors.sort_by(|a, b| (a.0).partial_cmp(&b.0).unwrap());
 

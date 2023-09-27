@@ -704,7 +704,7 @@ mod tests {
                 TextAttribute::from_u8(0b1000_1000, crate::IceMode::Blink),
             ),
         );
-        let res = test_xbin(buffer);
+        let res = test_xbin(&buffer);
         let ch = res.layers[0].get_char((1, 0));
 
         assert_eq!(ch.attribute.get_foreground(), 0b1000);
@@ -730,7 +730,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        let res = test_xbin(buffer);
+        let res = test_xbin(&buffer);
         let ch = res.layers[0].get_char((1, 0));
 
         assert_eq!(ch.attribute.get_foreground(), 0b1111);
@@ -778,7 +778,7 @@ mod tests {
                 TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
             ),
         );
-        let res = test_xbin(buffer);
+        let res = test_xbin(&buffer);
         let ch = res.layers[0].get_char((1, 0));
 
         assert_eq!(ch.attribute.get_foreground(), 0b1111);
@@ -797,7 +797,7 @@ mod tests {
                 TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
             ),
         );
-        test_xbin(buffer);
+        test_xbin(&buffer);
     }
 
     #[test]
@@ -810,7 +810,7 @@ mod tests {
         buffer.layers[0].set_char((0, 0), AttributedChar::new('A', attr));
         attr.set_font_page(1);
         buffer.layers[0].set_char((1, 0), AttributedChar::new('B', attr));
-        let res = test_xbin(buffer);
+        let res = test_xbin(&buffer);
 
         let ch = res.layers[0].get_char((1, 0));
 
@@ -833,7 +833,7 @@ mod tests {
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
 
-        let res = test_xbin(buffer);
+        let res = test_xbin(&buffer);
 
         let ch = res.layers[0].get_char((1, 0));
 
@@ -854,22 +854,22 @@ mod tests {
         buffer
     }
 
-    fn test_xbin(mut buffer: Buffer) -> Buffer {
+    fn test_xbin(buffer: &Buffer) -> Buffer {
         let xb = super::XBin::default();
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
-        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
-        let mut buffer2 = xb
+        let bytes = xb.to_bytes(buffer, &opt).unwrap();
+        let buffer2 = xb
             .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
+        compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
 
         opt.compress = true;
-        let bytes = xb.to_bytes(&buffer, &opt).unwrap();
-        let mut buffer2 = xb
+        let bytes = xb.to_bytes(buffer, &opt).unwrap();
+        let buffer2 = xb
             .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
             .unwrap();
-        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
+        compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
 
         buffer2
     }
