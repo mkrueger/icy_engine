@@ -67,6 +67,7 @@ impl OutputFormat for Ansi {
         Ok(result)
     }
 }
+#[derive(Debug)]
 struct CharCell {
     ch: char,
     sgr: Vec<u8>,
@@ -91,6 +92,7 @@ struct AnsiState {
     pub is_underlined: bool,
     pub is_double_underlined: bool,
     pub is_crossed_out: bool,
+    pub is_concealed: bool,
 
     pub fg_idx: u32,
     pub fg: Color,
@@ -140,13 +142,14 @@ impl StringGenerator {
             .iter()
             .position(|c| c.get_rgb() == cur_back_rgb);
 
-        let mut is_bold = state.is_bold;
-        let mut is_blink = state.is_blink;
+        let mut is_bold = attr.is_bold();
+        let mut is_blink = attr.is_blinking();
         let is_faint = attr.is_faint();
         let is_italic = attr.is_italic();
         let is_underlined = attr.is_underlined();
         let is_double_underlined = attr.is_double_underlined();
         let is_crossed_out = attr.is_crossed_out();
+        let is_concealed = attr.is_concealed();
 
         if let Some(idx) = fore_idx {
             if idx < 8 {
@@ -159,7 +162,6 @@ impl StringGenerator {
 
         match buf.ice_mode {
             crate::IceMode::Unlimited => {
-                is_blink = attr.is_blinking();
                 if let Some(idx) = back_idx {
                     if idx > 7 {
                         back_idx = None;
@@ -167,7 +169,11 @@ impl StringGenerator {
                 }
             }
             crate::IceMode::Blink => {
-                is_blink = attr.is_blinking();
+                if let Some(idx) = back_idx {
+                    if idx > 7 && idx < 16 {
+                        back_idx = None;
+                    }
+                }
             }
             crate::IceMode::Ice => {
                 if let Some(idx) = back_idx {
@@ -181,14 +187,15 @@ impl StringGenerator {
             }
         }
 
-        if fore_idx.is_some() && !is_bold && state.is_bold
-            || back_idx.is_some() && !is_blink && state.is_blink
+        if !is_bold && state.is_bold
+            || !is_blink && state.is_blink
             || !is_italic && state.is_italic
             || !is_faint && state.is_faint
             || !is_underlined && state.is_underlined
             || !is_underlined && state.is_underlined
             || !is_double_underlined && state.is_double_underlined
             || !is_crossed_out && state.is_crossed_out
+            || !is_concealed && state.is_concealed
             || is_bold
                 && !state.is_bold
                 && !DOS_DEFAULT_PALETTE
@@ -235,6 +242,11 @@ impl StringGenerator {
 
         if is_blink && !state.is_blink {
             sgr.push(5);
+            state.is_blink = true;
+        }
+
+        if is_concealed && !state.is_concealed {
+            sgr.push(8);
             state.is_blink = true;
         }
 
@@ -292,6 +304,7 @@ impl StringGenerator {
             is_underlined: false,
             is_double_underlined: false,
             is_crossed_out: false,
+            is_concealed: false,
             fg_idx: 7,
             fg: DOS_DEFAULT_PALETTE[7].clone(),
             bg: DOS_DEFAULT_PALETTE[0].clone(),
@@ -389,7 +402,13 @@ impl StringGenerator {
                 result.extend_from_slice(y.to_string().as_bytes());
                 result.push(b'H');
             }
-
+            /*
+                        if y == 0 {
+                            for x in 0..3 {
+                                println!("{:?}", line[x]);
+                            }
+                        }
+            */
             let len = if self.options.compress {
                 let mut last = line.len() as i32 - 1;
                 while last > 0 {
@@ -591,7 +610,7 @@ mod tests {
     use std::path::Path;
 
     use crate::{Buffer, SaveOptions, StringGenerator, TextPane};
-    /*
+
     fn is_hidden(entry: &walkdir::DirEntry) -> bool {
         entry
             .file_name()
@@ -633,7 +652,7 @@ mod tests {
                 continue;
             }
             num += 1;
-            if num < 22970 {
+            if num < 0 {
                 //     println!("skipping {num}:{path:?}");
                 continue;
             }
@@ -659,12 +678,14 @@ mod tests {
                 if buf.get_height() != buf2.get_height() {
                     continue;
                 }
+
                 /*
-                for x in 0..8 {
-                    let ch = buf2.layers[0].get_char((x, 1));
+                for x in 23..30 {
+                    let ch = buf2.layers[0].get_char((x, 0));
                     println!("{:?} {:?}", ch, buf2.palette.get_color(ch.attribute.get_foreground()));
                 }
                 */
+
                 crate::compare_buffers(
                     &buf,
                     &buf2,
@@ -677,6 +698,4 @@ mod tests {
             }
         }
     }
-
-    */
 }

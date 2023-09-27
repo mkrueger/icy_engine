@@ -97,18 +97,20 @@ impl OutputFormat for TundraDraw {
                     continue;
                 }
 
-                if attr != cur_attr {
-                    let mut cmd = 0;
-                    let write_foreground = attr.get_foreground() != cur_attr.get_foreground()
-                        || attr.is_bold() != cur_attr.is_bold();
-                    if write_foreground {
-                        cmd |= TUNDRA_COLOR_FOREGROUND;
-                    }
-                    let write_background = attr.get_background() != cur_attr.get_background();
-                    if write_background {
-                        cmd |= TUNDRA_COLOR_BACKGROUND;
-                    }
+                let mut cmd = 0;
+                let write_foreground = buf.palette.get_color(attr.get_foreground()).get_rgb()
+                    != buf.palette.get_color(cur_attr.get_foreground()).get_rgb()
+                    || attr.is_bold() != cur_attr.is_bold();
+                if write_foreground {
+                    cmd |= TUNDRA_COLOR_FOREGROUND;
+                }
+                let write_background = buf.palette.get_color(attr.get_background()).get_rgb()
+                    != buf.palette.get_color(cur_attr.get_background()).get_rgb();
+                if write_background {
+                    cmd |= TUNDRA_COLOR_BACKGROUND;
+                }
 
+                if cmd != 0 {
                     result.push(cmd);
                     result.push(ch as u8);
                     if write_foreground {
@@ -296,12 +298,7 @@ mod tests {
 
     fn create_buffer() -> Buffer {
         let mut buffer = Buffer::new((80, 25));
-        for y in 0..buffer.get_height() {
-            for x in 0..buffer.get_width() {
-                buffer.layers[0]
-                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
-            }
-        }
+
         buffer
     }
 
@@ -315,6 +312,7 @@ mod tests {
             .unwrap();
         let mut opt = crate::CompareOptions::ALL;
         opt.compare_palette = false;
+        opt.ignore_invisible_chars = true;
         compare_buffers(buffer, &buffer2, opt);
         buffer2
     }

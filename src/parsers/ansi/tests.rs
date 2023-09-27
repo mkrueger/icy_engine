@@ -1305,3 +1305,19 @@ fn test_00_and_bs() {
     assert_eq!(0, buf.get_char((0, 0)).ch as u32);
     assert_eq!(8, buf.get_char((1, 0)).ch as u32);
 }
+
+#[test]
+fn test_rgb_issue() {
+    let mut parser = ansi::Parser {
+        bs_is_ctrl_char: false,
+        ..Default::default()
+    };
+    let (buf, _) = create_buffer(&mut parser, b"\x1b[?33h\x1b[1;223;223;223t                                                                               ");
+
+    assert_eq!(
+        (223, 223, 223),
+        buf.palette
+            .get_color(buf.get_char((25, 0)).attribute.get_foreground())
+            .get_rgb()
+    );
+}

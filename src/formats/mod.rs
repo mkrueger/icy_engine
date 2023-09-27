@@ -548,6 +548,11 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
             for i in 0..buf_old.layers[layer].get_width() as usize {
                 let mut ch = buf_old.layers[layer].get_char((line, i));
                 let mut ch2 = buf_new.layers[layer].get_char((line, i));
+                if compare_options.ignore_invisible_chars && (!ch.is_visible() || !ch2.is_visible())
+                {
+                    continue;
+                }
+
                 assert_eq!(
                     buf_old.palette.get_color(ch.attribute.get_foreground()),
                     buf_new.palette.get_color(ch2.attribute.get_foreground()),
@@ -572,10 +577,6 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
 
                 ch2.attribute.set_foreground(0);
                 ch2.attribute.set_background(0);
-                if compare_options.ignore_invisible_chars && (!ch.is_visible() || !ch2.is_visible())
-                {
-                    continue;
-                }
                 assert_eq!(ch, ch2, "layer: {layer}, line: {line}, char: {i}");
             }
         }
