@@ -2,11 +2,11 @@ use std::path::Path;
 
 use crate::ansi::constants::COLOR_OFFSETS;
 use crate::ascii::CP437_TO_UNICODE;
-use crate::TextAttribute;
 use crate::{
     analyze_font_usage, parse_with_parser, parsers, Buffer, BufferFeatures, OutputFormat,
     Rectangle, TextPane, DOS_DEFAULT_PALETTE,
 };
+use crate::{Color, TextAttribute};
 
 use super::SaveOptions;
 
@@ -33,17 +33,10 @@ impl OutputFormat for Ansi {
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> anyhow::Result<Vec<u8>> {
         let mut result = Vec::new();
 
-        match options.screen_preparation {
-            super::ScreenPreperation::None => {}
-            super::ScreenPreperation::ClearScreen => {
-                result.extend_from_slice(b"\x1b[2J");
-            }
-            super::ScreenPreperation::Home => {
-                result.extend_from_slice(b"\x1b[1;1H");
-            }
-        }
         let mut gen = StringGenerator::new(options.clone());
+        gen.screen_prep(buf);
         gen.generate(buf, buf);
+        gen.screen_end(buf);
         gen.add_sixels(buf);
         result.extend(gen.get_data());
 
@@ -73,12 +66,12 @@ impl OutputFormat for Ansi {
         Ok(result)
     }
 }
-
 struct CharCell {
     ch: char,
     sgr: Vec<u8>,
     sgr_tc: Vec<u8>,
     font_page: usize,
+    cur_state: AnsiState,
 }
 
 pub struct StringGenerator {
@@ -88,13 +81,16 @@ pub struct StringGenerator {
     max_output_line_length: usize,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct AnsiState {
     pub is_bold: bool,
     pub is_blink: bool,
 
-    pub fg: u32,
-    pub bg: u32,
+    pub fg_idx: u32,
+    pub fg: Color,
+
+    pub bg_idx: u32,
+    pub bg: Color,
 }
 
 impl StringGenerator {
@@ -150,35 +146,58 @@ impl StringGenerator {
             }
         }
 
-        if let Some(idx) = back_idx {
-            if idx < 8 {
-                is_blink = false;
-            } else if idx > 7 && idx < 16 {
-                is_blink = true;
-                back_idx = Some(idx - 8);
+        match buf.ice_mode {
+            crate::IceMode::Unlimited => {
+                is_blink = attr.is_blinking();
+                if let Some(idx) = back_idx {
+                    if idx > 7 {
+                        back_idx = None;
+                    }
+                }
+            }
+            crate::IceMode::Blink => {
+                is_blink = attr.is_blinking();
+            }
+            crate::IceMode::Ice => {
+                if let Some(idx) = back_idx {
+                    if idx < 8 {
+                        is_blink = false | attr.is_blinking();
+                    } else if idx > 7 && idx < 16 {
+                        is_blink = true;
+                        back_idx = Some(idx - 8);
+                    }
+                }
             }
         }
-        is_blink |= attr.is_blinking();
 
         if fore_idx.is_some() && !is_bold && state.is_bold
             || back_idx.is_some() && !is_blink && state.is_blink
         {
             sgr.push(0);
-            state.fg = 7;
             state.is_bold = false;
-            state.bg = 0;
             state.is_blink = false;
+
+            state.fg_idx = 7;
+            state.fg = DOS_DEFAULT_PALETTE[7].clone();
+
+            state.bg_idx = 0;
+            state.bg = DOS_DEFAULT_PALETTE[0].clone();
         }
 
         if is_bold && !state.is_bold {
             sgr.push(1);
-            state.fg += 8;
+            state.fg_idx += 8;
+            if state.fg_idx < 16 {
+                state.fg = DOS_DEFAULT_PALETTE[state.fg_idx as usize].clone();
+            }
+            state.is_bold = true;
         }
         if is_blink && !state.is_blink {
             sgr.push(5);
+            state.is_blink = true;
         }
 
-        if fg != state.fg {
+        if cur_fore_rgb != state.fg.get_rgb() {
             if let Some(fg_idx) = fore_idx {
                 sgr.push(COLOR_OFFSETS[fg_idx] + 30);
             } else {
@@ -187,8 +206,10 @@ impl StringGenerator {
                 sgr_tc.push(cur_fore_rgb.1);
                 sgr_tc.push(cur_fore_rgb.2);
             }
+            state.fg = cur_fore_color;
+            state.fg_idx = fg;
         }
-        if bg != state.bg {
+        if cur_back_rgb != state.bg.get_rgb() {
             if let Some(bg_idx) = back_idx {
                 sgr.push(COLOR_OFFSETS[bg_idx] + 40);
             } else {
@@ -197,18 +218,10 @@ impl StringGenerator {
                 sgr_tc.push(cur_back_rgb.1);
                 sgr_tc.push(cur_back_rgb.2);
             }
+            state.bg = cur_back_color;
+            state.bg_idx = bg;
         }
-
-        (
-            AnsiState {
-                is_bold,
-                is_blink,
-                fg,
-                bg,
-            },
-            sgr,
-            sgr_tc,
-        )
+        (state, sgr, sgr_tc)
     }
 
     fn generate_cells<T: TextPane>(buf: &Buffer, layer: &T, area: Rectangle) -> Vec<Vec<CharCell>> {
@@ -216,8 +229,10 @@ impl StringGenerator {
         let mut state = AnsiState {
             is_bold: false,
             is_blink: false,
-            fg: 7,
-            bg: 0,
+            fg_idx: 7,
+            fg: DOS_DEFAULT_PALETTE[7].clone(),
+            bg: DOS_DEFAULT_PALETTE[0].clone(),
+            bg_idx: 0,
         };
         for y in area.y_range() {
             let mut line = Vec::new();
@@ -232,6 +247,7 @@ impl StringGenerator {
                     sgr,
                     sgr_tc,
                     font_page: ch.get_font_page(),
+                    cur_state: state.clone(),
                 });
             }
 
@@ -241,13 +257,23 @@ impl StringGenerator {
     }
 
     pub fn screen_prep(&mut self, buf: &Buffer) {
-        if buf.ice_mode.has_high_bg_colors() {
+        if matches!(buf.ice_mode, crate::IceMode::Ice) {
             self.push_result(&mut b"\x1b[?33h".to_vec());
+        }
+
+        match self.options.screen_preparation {
+            super::ScreenPreperation::None => {}
+            super::ScreenPreperation::ClearScreen => {
+                self.push_result(&mut b"\x1b[2J".to_vec());
+            }
+            super::ScreenPreperation::Home => {
+                self.push_result(&mut b"\x1b[1;1H".to_vec());
+            }
         }
     }
 
     pub fn screen_end(&mut self, buf: &Buffer) {
-        if buf.ice_mode.has_high_bg_colors() {
+        if matches!(buf.ice_mode, crate::IceMode::Ice) {
             self.push_result(&mut b"\x1b[?33l".to_vec());
         }
     }
@@ -376,7 +402,7 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if line[x].ch == ' ' {
+                    if line[x].ch == ' ' && line[x].cur_state.bg_idx == 0 {
                         let fmt = &format!("\x1B[{}C", rle + 1);
                         let output = fmt.as_bytes();
                         if output.len() <= rle {
@@ -477,8 +503,80 @@ pub fn get_save_sauce_default_ans(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
-        TextPane,
-    };
+    use std::path::Path;
+
+    use crate::{Buffer, SaveOptions, StringGenerator, TextPane};
+    /*
+        fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+            entry
+                .file_name()
+                .to_str()
+                .map_or(false, |s| s.starts_with('.'))
+        }
+
+                    #[test]
+                    fn test_roundtrip() {
+                        let walker = walkdir::WalkDir::new("../sixteencolors-archive").into_iter();
+                        let mut num = 0;
+
+                        for entry in walker.filter_entry(|e| !is_hidden(e)) {
+                            let entry = entry.unwrap();
+                            let path = entry.path();
+
+                            if path.is_dir() {
+                                continue;
+                            }
+                            let extension = path.extension();
+                            if extension.is_none() {
+                                continue;
+                            }
+                            let extension = extension.unwrap().to_str();
+                            if extension.is_none() {
+                                continue;
+                            }
+                            let extension = extension.unwrap().to_lowercase();
+
+                            let mut found = false;
+                            for format in &*crate::FORMATS {
+                                if format.get_file_extension() == extension
+                                    || format.get_alt_extensions().contains(&extension)
+                                {
+                                    found = true;
+                                }
+                            }
+                            if !found {
+                                continue;
+                            }
+                            num += 1;/*
+                            if num < 53430 {
+                                println!("skipping {num}:{path:?}");
+                                continue;
+                            }*/
+                             println!("testing {num}:{path:?}");
+                            if let Ok(mut buf) = Buffer::load_buffer(path, true) {
+                                if buf.get_width() != 80 {
+                                    continue;
+                                }
+                                if buf.palette.len() > 16 {
+                                    continue;
+                                }
+                                let mut opt = SaveOptions::default();
+                                opt.compress = false;
+                                opt.save_sauce = true;
+                                let mut draw = StringGenerator::new(opt);
+                                draw.screen_prep(&buf);
+                                draw.generate(&buf, &buf);
+                                draw.screen_end(&buf);
+                                let bytes = draw.get_data().to_vec();
+
+                                let mut buf2 = Buffer::from_bytes(Path::new("test.ans"), true, &bytes).unwrap();
+                                if buf.get_height() != buf2.get_height() {
+                                    continue;
+                                }
+
+                                crate::compare_buffers(&mut buf, &mut buf2 , crate::CompareOptions { compare_palette: false, compare_fonts: false, ignore_invisible_chars: true });
+                           }
+                        }
+                    }
+    */
 }

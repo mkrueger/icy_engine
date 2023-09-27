@@ -134,28 +134,6 @@ fn test_char0_bug() {
     assert_eq!(b'A', ch.ch as u8);
 }
 
-fn test_ansi(data: &[u8]) {
-    let (buf, _) = create_buffer(&mut ansi::Parser::default(), data);
-    let converted = crate::Ansi::default()
-        .to_bytes(&buf, &crate::SaveOptions::new())
-        .unwrap();
-
-    // more gentle output.
-    let b: Vec<u8> = converted
-        .iter()
-        .map(|&x| if x == 27 { b'^' } else { x })
-        .collect();
-    let converted = String::from_utf8_lossy(b.as_slice());
-
-    let b: Vec<u8> = data
-        .iter()
-        .map(|&x| if x == 27 { b'^' } else { x })
-        .collect();
-    let expected = String::from_utf8_lossy(b.as_slice());
-
-    assert_eq!(expected, converted);
-}
-
 #[test]
 fn test_linebreak_bug() {
     let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"XX");

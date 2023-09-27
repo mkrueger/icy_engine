@@ -313,13 +313,9 @@ mod tests {
         let mut buffer2 = xb
             .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
             .unwrap();
-        compare_buffers(
-            &mut buffer,
-            &mut buffer2,
-            crate::CompareOptions {
-                compare_palette: false,
-            },
-        );
+        let mut opt = crate::CompareOptions::ALL;
+        opt.compare_palette = false;
+        compare_buffers(&mut buffer, &mut buffer2, opt);
         buffer2
     }
 }

@@ -11,8 +11,8 @@ use self::sound::{AnsiMusic, MusicState};
 use super::{ascii, BufferParser};
 use crate::{
     update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
-    FontSelectionState, HyperLink, MouseMode, OriginMode, ParserError, Position, TerminalScrolling,
-    TextPane, BEL, BS, CR, FF, LF,
+    FontSelectionState, HyperLink, IceMode, MouseMode, OriginMode, ParserError, Position,
+    TerminalScrolling, TextPane, BEL, BS, CR, FF, LF,
 };
 
 mod ansi_commands;
@@ -481,7 +481,10 @@ impl BufferParser for Parser {
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
                             Some(25) => caret.is_visible = true,
-                            Some(33) => caret.set_ice_mode(true),
+                            Some(33) => {
+                                buf.ice_mode = IceMode::Ice;
+                                caret.set_ice_mode(true);
+                            }
                             Some(35) => caret.is_blinking = false,
 
                             Some(69) => buf.terminal_state.dec_margin_mode_left_right = true,

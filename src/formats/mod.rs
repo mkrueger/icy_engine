@@ -392,6 +392,12 @@ mod tests {
         let data = b"\x1B[1;33;45mA\x1B[0m ";
         test_ansi(data);
     }
+
+    #[test]
+    fn test_ice() {
+        let data = b"\x1B[?33h\x1B[5;40m   test\x1B[0m \x1B[?33l";
+        test_ansi(data);
+    }
 }
 
 #[cfg(test)]
@@ -416,12 +422,16 @@ fn crop2_loaded_file(result: &mut Buffer) {
 #[derive(Clone, Copy)]
 pub struct CompareOptions {
     pub compare_palette: bool,
+    pub compare_fonts: bool,
+    pub ignore_invisible_chars: bool,
 }
 
 #[cfg(test)]
 impl CompareOptions {
     pub const ALL: CompareOptions = CompareOptions {
         compare_palette: true,
+        compare_fonts: true,
+        ignore_invisible_chars: false,
     };
 }
 
@@ -445,6 +455,11 @@ pub(crate) fn compare_buffers(
 
     crop2_loaded_file(buf_old);
     crop2_loaded_file(buf_new);
+    assert_eq!(
+        buf_old.ice_mode, buf_new.ice_mode,
+        "ice_mode differs: {:?} != {:?}",
+        buf_old.ice_mode, buf_new.ice_mode,
+    );
 
     if compare_options.compare_palette {
         assert_eq!(
@@ -464,21 +479,22 @@ pub(crate) fn compare_buffers(
         }
     }
 
-    assert_eq!(buf_old.font_count(), buf_new.font_count());
+    if compare_options.compare_fonts {
+        assert_eq!(buf_old.font_count(), buf_new.font_count());
 
-    for (i, old_fnt) in buf_old.font_iter() {
-        let new_fnt = buf_new.get_font(*i).unwrap();
+        for (i, old_fnt) in buf_old.font_iter() {
+            let new_fnt = buf_new.get_font(*i).unwrap();
 
-        for (ch, glyph) in &old_fnt.glyphs {
-            let new_glyph = new_fnt.glyphs.get(ch).unwrap();
-            assert_eq!(
-                glyph, new_glyph,
-                "glyphs differ font: {i}, char: {ch} (0x{:02X})",
-                *ch as u32
-            );
+            for (ch, glyph) in &old_fnt.glyphs {
+                let new_glyph = new_fnt.glyphs.get(ch).unwrap();
+                assert_eq!(
+                    glyph, new_glyph,
+                    "glyphs differ font: {i}, char: {ch} (0x{:02X})",
+                    *ch as u32
+                );
+            }
         }
     }
-
     for layer in 0..buf_old.layers.len() {
         /*      assert_eq!(
             buf_old.layers[layer].lines.len(),
@@ -559,7 +575,10 @@ pub(crate) fn compare_buffers(
 
                 ch2.attribute.set_foreground(0);
                 ch2.attribute.set_background(0);
-
+                if compare_options.ignore_invisible_chars && (!ch.is_visible() || !ch2.is_visible())
+                {
+                    continue;
+                }
                 assert_eq!(ch, ch2, "layer: {layer}, line: {line}, char: {i}");
             }
         }

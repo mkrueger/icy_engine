@@ -304,13 +304,7 @@ mod tests {
         let mut buffer2 = xb
             .load_buffer(std::path::Path::new("test.adf"), &bytes, None)
             .unwrap();
-        compare_buffers(
-            &mut buffer,
-            &mut buffer2,
-            crate::CompareOptions {
-                compare_palette: true,
-            },
-        );
+        compare_buffers(&mut buffer, &mut buffer2, crate::CompareOptions::ALL);
         buffer2
     }
 }
