@@ -12,6 +12,7 @@ pub mod ansi;
 pub mod ascii;
 pub mod atascii;
 pub mod avatar;
+pub mod ctrla;
 pub mod pcboard;
 pub mod petscii;
 pub mod rip;

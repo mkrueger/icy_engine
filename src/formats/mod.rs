@@ -30,6 +30,7 @@ pub use ice_draw::*;
 mod tundra;
 pub use tundra::*;
 
+mod ctrla;
 mod icy_draw;
 
 use crate::{
@@ -125,7 +126,7 @@ pub trait OutputFormat: Send + Sync {
 }
 
 lazy_static::lazy_static! {
-    pub static ref FORMATS: [Box<dyn OutputFormat>; 10] = [
+    pub static ref FORMATS: [Box<dyn OutputFormat>; 11] = [
         Box::<ansi::Ansi>::default(),
         Box::<icy_draw::IcyDraw>::default(),
         Box::<IceDraw>::default(),
@@ -136,6 +137,7 @@ lazy_static::lazy_static! {
         Box::<Avatar>::default(),
         Box::<ascii::Ascii>::default(),
         Box::<artworx::Artworx>::default(),
+        Box::<ctrla::CtrlA>::default(),
     ];
 }
 
