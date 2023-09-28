@@ -119,6 +119,7 @@ impl EditState {
             old_mask,
             self.selection_mask.clone(),
         );
+        self.is_buffer_dirty = true;
         self.push_plain_undo(Box::new(op))
     }
 
