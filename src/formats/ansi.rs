@@ -453,7 +453,7 @@ impl StringGenerator {
 
         for (y, line) in cells.iter().enumerate() {
             let mut x = 0;
-            if self.options.longer_terminal_output && y > 0 {
+            if self.options.longer_terminal_output {
                 result.extend_from_slice(b"\x1b[");
                 result.extend_from_slice((y + 1).to_string().as_bytes());
                 result.push(b'H');
