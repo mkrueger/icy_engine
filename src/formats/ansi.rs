@@ -538,7 +538,7 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if line[x].ch == ' '
+                    if self.options.use_skip_ws && line[x].ch == ' '
                         && line[x].cur_state.bg_idx == 0
                         && !line[x].cur_state.is_blink
                     {
