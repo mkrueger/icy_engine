@@ -1,15 +1,15 @@
+use crate::{BitFont, Buffer, Glyph, TextAttribute, TextPane};
 use std::collections::HashMap;
-use crate::{Buffer, BitFont, Glyph, TextPane, TextAttribute};
 
 enum GlyphShape {
     Whitespace,
     Block,
-    Mixed
+    Mixed,
 }
 
 /// Reduces the amount of color changes inside a buffer.
 /// Ignoring foreground color changes on whitespaces and background color changes on blocks.
-/// 
+///
 /// That reduces the amount of color switches required in the output formats.
 pub(crate) struct ColorOptimizer {
     shape_map: HashMap<usize, HashMap<char, GlyphShape>>,
@@ -18,9 +18,7 @@ pub(crate) struct ColorOptimizer {
 impl ColorOptimizer {
     pub fn new(buf: &Buffer) -> Self {
         let shape_map = generate_shape_map(buf);
-        Self {
-            shape_map,
-        }
+        Self { shape_map }
     }
 
     pub fn optimize(&self, buffer: &Buffer) -> Buffer {
@@ -30,19 +28,24 @@ impl ColorOptimizer {
             for y in 0..layer.get_height() {
                 for x in 0..layer.get_width() {
                     let ch = layer.get_char((x, y));
-                    let map  = self.shape_map.get(&ch.get_font_page()).unwrap();
+                    let map = self.shape_map.get(&ch.get_font_page()).unwrap();
                     let mut attribute = ch.attribute;
                     match *map.get(&ch.ch).unwrap() {
                         GlyphShape::Whitespace => {
                             attribute.set_foreground(cur_attr.get_foreground());
-                        },
+                        }
                         GlyphShape::Block => {
                             attribute.set_background(cur_attr.get_background());
-                        },
-                        GlyphShape::Mixed => {
-                        },
+                        }
+                        GlyphShape::Mixed => {}
                     }
-                    layer.set_char((x, y), crate::AttributedChar { ch: ch.ch, attribute });
+                    layer.set_char(
+                        (x, y),
+                        crate::AttributedChar {
+                            ch: ch.ch,
+                            attribute,
+                        },
+                    );
                     cur_attr = attribute;
                 }
             }

@@ -5,7 +5,7 @@ use crate::ansi::constants::COLOR_OFFSETS;
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
     analyze_font_usage, parse_with_parser, parsers, BitFont, Buffer, BufferFeatures, OutputFormat,
-    Rectangle, TextPane, ANSI_FONTS, DOS_DEFAULT_PALETTE,
+    Rectangle, TextPane, ANSI_FONTS, DOS_DEFAULT_PALETTE, XTERM_256_PALETTE,
 };
 use crate::{Color, TextAttribute};
 
@@ -81,6 +81,7 @@ pub struct StringGenerator {
     options: SaveOptions,
     last_line_break: usize,
     max_output_line_length: usize,
+    extended_color_hash: HashMap<(u8, u8, u8), u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -111,15 +112,24 @@ impl StringGenerator {
             output.extend([0xEF, 0xBB, 0xBF]);
         }
 
+        let mut extended_color_hash = HashMap::new();
+        if options.use_extended_colors {
+            for (i, (_, col)) in XTERM_256_PALETTE.iter().enumerate() {
+                extended_color_hash.insert(col.get_rgb(), i as u8);
+            }
+        }
+
         Self {
             output,
             options,
             last_line_break: 0,
             max_output_line_length,
+            extended_color_hash,
         }
     }
 
     fn get_color(
+        &self,
         buf: &Buffer,
         attr: TextAttribute,
         mut state: AnsiState,
@@ -263,20 +273,27 @@ impl StringGenerator {
         if cur_fore_rgb != state.fg.get_rgb() {
             if let Some(fg_idx) = fore_idx {
                 sgr.push(COLOR_OFFSETS[fg_idx] + 30);
-                state.fg_idx = fg_idx as u32;
+            } else if let Some(ext_color) = self.extended_color_hash.get(&cur_fore_rgb) {
+                sgr.push(38);
+                sgr.push(5);
+                sgr.push(*ext_color);
             } else {
                 sgr_tc.push(1);
                 sgr_tc.push(cur_fore_rgb.0);
                 sgr_tc.push(cur_fore_rgb.1);
                 sgr_tc.push(cur_fore_rgb.2);
-                state.fg_idx = fg;
             }
+            state.fg_idx = fg;
             state.fg = cur_fore_color;
         }
         if cur_back_rgb != state.bg.get_rgb() {
             if let Some(bg_idx) = back_idx {
                 sgr.push(COLOR_OFFSETS[bg_idx] + 40);
                 state.bg_idx = bg_idx as u32;
+            } else if let Some(ext_color) = self.extended_color_hash.get(&cur_back_rgb) {
+                sgr.push(48);
+                sgr.push(5);
+                sgr.push(*ext_color);
             } else {
                 sgr_tc.push(0);
                 sgr_tc.push(cur_back_rgb.0);
@@ -344,8 +361,7 @@ impl StringGenerator {
             while x < len {
                 let ch = layer.get_char((x, y));
                 if ch.is_visible() {
-                    let (new_state, sgr, sgr_tc) =
-                        StringGenerator::get_color(buf, ch.attribute, state);
+                    let (new_state, sgr, sgr_tc) = self.get_color(buf, ch.attribute, state);
                     state = new_state;
                     line.push(CharCell {
                         ch: ch.ch,

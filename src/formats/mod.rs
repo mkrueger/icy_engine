@@ -1,6 +1,6 @@
 mod ansi;
 
-use std::{error::Error, path::Path, thread, time::Duration};
+use std::{collections::HashMap, error::Error, path::Path, thread, time::Duration};
 
 pub use ansi::*;
 pub use ansi::*;
@@ -30,14 +30,14 @@ pub use ice_draw::*;
 mod tundra;
 pub use tundra::*;
 
+mod color_optimization;
 mod ctrla;
 mod icy_draw;
-mod color_optimization;
 pub(crate) use color_optimization::*;
 
 use crate::{
     BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role,
-    Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES,
+    Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES, XTERM_256_PALETTE,
 };
 
 use super::{Position, TextAttribute};
@@ -70,6 +70,7 @@ pub struct SaveOptions {
     pub longer_terminal_output: bool,
 
     pub lossles_output: bool,
+    pub use_extended_colors: bool,
 
     pub control_char_handling: ControlCharHandling,
 }
@@ -87,6 +88,7 @@ impl SaveOptions {
             preserve_invisible_chars: false,
             control_char_handling: ControlCharHandling::Ignore,
             lossles_output: false,
+            use_extended_colors: true,
         }
     }
 }
@@ -349,7 +351,8 @@ mod tests {
 
     #[test]
     fn test_fg_color_change() {
-        let data = b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m ";
+        let data =
+            b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m ";
         test_ansi(data);
     }
 
@@ -379,13 +382,13 @@ mod tests {
         test_ansi(data);
     }
 
-    /* #[test]
+    #[test]
     fn test_extended_color() {
-        let data = b"\x1B[0;38;5;42m#";
+        let data = b"\x1B[38;5;42m#";
         test_ansi(data);
-        let data = b"\x1B[0;48;5;100m#";
+        let data = b"\x1B[48;5;100m#";
         test_ansi(data);
-    }*/
+    }
 
     #[test]
     fn test_first_char_color() {
@@ -425,10 +428,7 @@ mod tests {
         let bytes = buf.to_bytes("ans", &SaveOptions::default()).unwrap();
         let str = String::from_utf8_lossy(&bytes).to_string();
 
-        assert_eq!(
-            "\u{1b}[1;211;211;211t ",
-            str
-        );
+        assert_eq!("\u{1b}[1;211;211;211t ", str);
     }
 }
 /*
