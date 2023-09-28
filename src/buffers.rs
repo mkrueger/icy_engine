@@ -278,6 +278,31 @@ impl Buffer {
     pub fn has_sauce(&self) -> bool {
         self.sauce_data.is_some()
     }
+
+    /// Clones the buffer (without sixel threads)
+    pub fn flat_clone(&self) -> Buffer {
+        let mut frame = Buffer::new(self.get_size());
+        frame.file_name = self.file_name.clone();
+        frame.terminal_state = self.terminal_state.clone();
+        frame.buffer_type = self.buffer_type;
+        frame.ice_mode = self.ice_mode;
+        frame.palette_mode = self.palette_mode;
+        frame.font_mode = self.font_mode;
+        frame.is_terminal_buffer = self.is_terminal_buffer;
+        frame.layers = self.layers.clone();
+        frame.terminal_state = self.terminal_state.clone();
+        frame.palette = self.palette.clone();
+        frame.layers = Vec::new();
+        frame.sauce_data = self.sauce_data.clone();
+        for l in &self.layers {
+            frame.layers.push(l.clone());
+        }
+        frame.clear_font_table();
+        for f in self.font_iter() {
+            frame.set_font(*f.0, f.1.clone());
+        }
+        frame
+    }
 }
 
 pub fn analyze_font_usage(buf: &Buffer) -> Vec<usize> {
@@ -668,7 +693,11 @@ impl Buffer {
             if fmt.get_file_extension() == extension
                 || fmt.get_alt_extensions().contains(&extension)
             {
-                return fmt.to_bytes(self, options);
+                if options.lossles_output {
+                    return fmt.to_bytes(self, options);
+                }
+                let optimizer = crate::ColorOptimizer::new(self);
+                return fmt.to_bytes(&optimizer.optimize(self), options);
             }
         }
         Err(anyhow::anyhow!("Unknown format"))

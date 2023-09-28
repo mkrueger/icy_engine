@@ -32,6 +32,8 @@ pub use tundra::*;
 
 mod ctrla;
 mod icy_draw;
+mod color_optimization;
+pub(crate) use color_optimization::*;
 
 use crate::{
     BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role,
@@ -67,6 +69,8 @@ pub struct SaveOptions {
     pub preserve_invisible_chars: bool,
     pub longer_terminal_output: bool,
 
+    pub lossles_output: bool,
+
     pub control_char_handling: ControlCharHandling,
 }
 
@@ -82,6 +86,7 @@ impl SaveOptions {
             output_line_length: None,
             preserve_invisible_chars: false,
             control_char_handling: ControlCharHandling::Ignore,
+            lossles_output: false,
         }
     }
 }
@@ -341,35 +346,36 @@ mod tests {
         let data = b"A A  A   A    A\x1B[5CA\x1B[6CA\x1B[8CA";
         test_ansi(data);
     }
+
     #[test]
     fn test_fg_color_change() {
-        let data = b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m \x1B[37m ";
+        let data = b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m ";
         test_ansi(data);
     }
 
     #[test]
     fn test_bg_color_change() {
-        let data = b"A\x1B[44mA\x1B[45mA\x1B[31;40mA\x1B[42mA\x1B[40mA\x1B[1;46mA\x1B[0mA\x1B[1;47mA\x1B[0;47mA\x1B[40m ";
+        let data = b"A\x1B[44mA\x1B[45mA\x1B[31;40mA\x1B[42mA\x1B[40mA\x1B[1;46mA\x1B[0mA\x1B[1;47mA\x1B[0;47mA";
         test_ansi(data);
     }
 
     #[test]
     fn test_blink_change() {
-        let data = b"A\x1B[5mA\x1B[0mA\x1B[1;5;42mA\x1B[0;1;42mA\x1B[0;5mA\x1B[0;36mA\x1B[5;33mA\x1B[0;1mA\x1B[0m ";
+        let data = b"A\x1B[5mA\x1B[0mA\x1B[1;5;42mA\x1B[0;1;42mA\x1B[0;5mA\x1B[0;36mA\x1B[5;33mA\x1B[0;1mA";
         test_ansi(data);
     }
 
     #[test]
     fn test_eol_skip() {
-        let data = b"\x1B[79C\x1B[1mdd\x1B[0m ";
+        let data = b"\x1B[79C\x1B[1mdd";
         test_ansi(data);
     }
 
     #[test]
     fn test_23bit() {
-        let data = b"\x1B[1;24;12;200t#\x1B[37m ";
+        let data = b"\x1B[1;24;12;200t#";
         test_ansi(data);
-        let data = b"\x1B[0;44;2;120t#\x1B[40m ";
+        let data = b"\x1B[0;44;2;120t#";
         test_ansi(data);
     }
 
@@ -383,19 +389,19 @@ mod tests {
 
     #[test]
     fn test_first_char_color() {
-        let data = b"\x1B[1;36mA\x1B[0m ";
+        let data = b"\x1B[1;36mA";
         test_ansi(data);
-        let data = b"\x1B[31mA\x1B[37m ";
+        let data = b"\x1B[31mA";
         test_ansi(data);
-        let data = b"\x1B[33;45mA\x1B[40m \x1B[37m ";
+        let data = b"\x1B[33;45mA\x1B[40m ";
         test_ansi(data);
-        let data = b"\x1B[1;33;45mA\x1B[0m ";
+        let data = b"\x1B[1;33;45mA";
         test_ansi(data);
     }
 
     #[test]
     fn test_ice() {
-        let data = b"\x1B[?33h\x1B[5;40m   test\x1B[0m \x1B[?33l";
+        let data = b"\x1B[?33h\x1B[5;40m   test\x1B[?33l";
         test_ansi(data);
     }
 
@@ -420,7 +426,7 @@ mod tests {
         let str = String::from_utf8_lossy(&bytes).to_string();
 
         assert_eq!(
-            "\u{1b}[1;211;211;211t \u{1b}[0;1m \u{1b}[1;211;211;211t ",
+            "\u{1b}[1;211;211;211t ",
             str
         );
     }
