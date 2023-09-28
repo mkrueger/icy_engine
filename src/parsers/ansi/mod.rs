@@ -798,7 +798,6 @@ impl BufferParser for Parser {
                                 caret.pos.x = 0;
                             }
                         }
-                        println!("goto xy {} {:?}", caret.pos, self.parsed_numbers);
                         buf.terminal_state.limit_caret_pos(buf, caret);
                     }
                     'C' => {

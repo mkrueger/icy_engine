@@ -585,6 +585,8 @@ impl StringGenerator {
                     }
                     self.last_line_break = result.len();
                 }
+            } else if x < layer.get_width() as usize {
+                result.extend(b"\x1B[K");
             }
         }
     }
