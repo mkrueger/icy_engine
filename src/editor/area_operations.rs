@@ -124,14 +124,14 @@ impl EditState {
                 if len == removed_chars {
                     continue;
                 }
-                for x in area.x_range() {
-                    let ch = if area.right() - x - removed_chars > area.left() {
-                        layer.get_char((area.right() - x - removed_chars - 1, y))
+                for x in area.x_range().rev() {
+                    let ch = if x - removed_chars >= area.left() {
+                        layer.get_char((x - removed_chars, y))
                     } else {
                         AttributedChar::invisible()
                     };
 
-                    layer.set_char((area.right() - x - 1, y), ch);
+                    layer.set_char((x, y), ch);
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
@@ -932,9 +932,7 @@ mod tests {
         state.set_selection(Rectangle::from(0, 0, 10, 10)).unwrap();
         state.set_char((5, 5), '#'.into()).unwrap();
         state.set_char((0, 9), '#'.into()).unwrap();
-
         state.justify_right().unwrap();
-
         for y in 10..20 {
             for x in 10..20 {
                 let ch = state.get_buffer().get_char((x, y));
