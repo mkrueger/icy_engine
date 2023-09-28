@@ -42,6 +42,7 @@ undo-switch_palette_mode=Palettenmodus ändern
 undo-switch_ice_mode=ICE-Modus ändern
 undo-replace_font=Font ersetzen
 undo-remove_font=Font löschen
+undo-change_font_slot=Fontslot ändern
 
 layer-duplicate-name={ $name }-Kopie
 layer-new-name=Ebene

@@ -1568,6 +1568,7 @@ impl UndoOperation for ReplaceFontUsage {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.old_layers.clone();
+        println!("undo font replace!");
         edit_state
             .get_caret_mut()
             .set_font_page(self.old_caret_page);
@@ -1576,6 +1577,7 @@ impl UndoOperation for ReplaceFontUsage {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.new_layers.clone();
+        println!("redo font replace!");
         edit_state
             .get_caret_mut()
             .set_font_page(self.new_caret_page);
@@ -1614,6 +1616,45 @@ impl UndoOperation for RemoveFont {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         self.font = edit_state.buffer.remove_font(self.font_slot);
         if self.font.is_some() {
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("empty font slot."))
+        }
+    }
+}
+
+pub struct ChangeFontSlot {
+    from: usize,
+    to: usize,
+}
+
+impl ChangeFontSlot {
+    pub fn new(from: usize, to: usize) -> Self {
+        Self { from, to }
+    }
+}
+
+impl UndoOperation for ChangeFontSlot {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-change_font_slot")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        let font = edit_state.buffer.remove_font(self.to);
+        if let Some(font) = font {
+            println!("set fort {} -> {}", self.to, self.from);
+            edit_state.buffer.set_font(self.from, font);
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("empty font slot."))
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        let font = edit_state.buffer.remove_font(self.from);
+        if let Some(font) = font {
+            println!("set fort {} -> {}", self.from, self.to);
+            edit_state.buffer.set_font(self.to, font);
             Ok(())
         } else {
             Err(anyhow::anyhow!("empty font slot."))

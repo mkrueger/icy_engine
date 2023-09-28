@@ -42,6 +42,7 @@ undo-switch_palette_mode=Switch Palette Mode
 undo-switch_ice_mode=Switch ICE Mode
 undo-replace_font=Replace Font
 undo-remove_font=Remove Font
+undo-change_font_slot=Change Font Slot
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

@@ -65,14 +65,12 @@ impl AtomicUndoGuard {
             undo_stack,
         }
     }
-}
 
-impl Drop for AtomicUndoGuard {
-    fn drop(&mut self) {
-        let count = self.undo_stack.lock().unwrap().len();
-        if self.base_count >= count {
-            return;
-        }
+    pub fn end(&mut self) {
+        self.end_action();
+    }
+
+    fn end_action(&mut self) {
         let stack = self
             .undo_stack
             .lock()
@@ -88,6 +86,17 @@ impl Drop for AtomicUndoGuard {
                 stack,
                 self.operation_type,
             )));
+        self.base_count = usize::MAX;
+    }
+}
+
+impl Drop for AtomicUndoGuard {
+    fn drop(&mut self) {
+        let count = self.undo_stack.lock().unwrap().len();
+        if self.base_count >= count {
+            return;
+        }
+        self.end_action();
     }
 }
 

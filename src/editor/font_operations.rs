@@ -251,11 +251,30 @@ impl EditState {
         self.push_undo_action(Box::new(op))
     }
 
+    pub fn change_font_slot(&mut self, from: usize, to: usize) -> EngineResult<()> {
+        let mut undo_action =
+            self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-change_font_slot"));
+        let res = {
+            let op = super::undo_operations::ChangeFontSlot::new(from, to);
+            let _ = self.push_undo_action(Box::new(op));
+            self.replace_font_usage(from, to)
+        };
+        undo_action.end();
+
+        res
+    }
+
     pub fn remove_font(&mut self, font: usize) -> EngineResult<()> {
-        let _ = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-remove_font"));
-        let _ = self.replace_font_usage(font, 0);
-        let op = super::undo_operations::RemoveFont::new(font);
-        self.push_undo_action(Box::new(op))
+        let mut undo_action =
+            self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-remove_font"));
+        let res = {
+            let _ = self.replace_font_usage(font, 0);
+            let op = super::undo_operations::RemoveFont::new(font);
+            self.push_undo_action(Box::new(op))
+        };
+
+        undo_action.end();
+        res
     }
 }
 
