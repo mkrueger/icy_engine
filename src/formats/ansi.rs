@@ -331,7 +331,7 @@ impl StringGenerator {
         for y in area.y_range() {
             let mut line = Vec::new();
 
-            let len = if self.options.compress {
+            let len = if self.options.compress && !self.options.preserve_line_length {
                 let mut last = area.get_width() - 1;
                 let last_attr = layer.get_char((last, y)).attribute;
                 if last_attr.background_color == 0 {
@@ -538,7 +538,8 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if self.options.use_skip_ws && line[x].ch == ' '
+                    if self.options.use_skip_ws
+                        && line[x].ch == ' '
                         && line[x].cur_state.bg_idx == 0
                         && !line[x].cur_state.is_blink
                     {
@@ -585,8 +586,6 @@ impl StringGenerator {
                     }
                     self.last_line_break = result.len();
                 }
-            } else if x < layer.get_width() as usize {
-                result.extend(b"\x1B[K");
             }
         }
     }
