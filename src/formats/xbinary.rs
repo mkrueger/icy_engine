@@ -824,7 +824,7 @@ mod tests {
         let mut buffer = create_xb_buffer();
         buffer.ice_mode = crate::IceMode::Blink;
         buffer.set_font(1, BitFont::from_ansi_font_page(42).unwrap());
-        let mut attr = TextAttribute::from_u8(0b1111_0111, crate::IceMode::Blink);
+        let mut attr: TextAttribute = TextAttribute::from_u8(0b1111_0111, crate::IceMode::Blink);
         attr.set_font_page(0);
         buffer.layers[0].set_char((0, 0), AttributedChar::new('A', attr));
         attr.set_font_page(1);
@@ -844,7 +844,7 @@ mod tests {
     }
 
     fn create_xb_buffer() -> Buffer {
-        let mut buffer = Buffer::new((80, 25));
+        let mut buffer: Buffer = Buffer::new((80, 25));
         for y in 0..buffer.get_height() {
             for x in 0..buffer.get_width() {
                 buffer.layers[0]

@@ -696,7 +696,7 @@ impl Buffer {
                 if options.lossles_output {
                     return fmt.to_bytes(self, options);
                 }
-                let optimizer = crate::ColorOptimizer::new(self);
+                let optimizer = crate::ColorOptimizer::new(self, options);
                 return fmt.to_bytes(&optimizer.optimize(self), options);
             }
         }

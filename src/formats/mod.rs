@@ -1,6 +1,6 @@
 mod ansi;
 
-use std::{collections::HashMap, error::Error, path::Path, thread, time::Duration};
+use std::{error::Error, path::Path, thread, time::Duration};
 
 pub use ansi::*;
 pub use ansi::*;
@@ -37,7 +37,7 @@ pub(crate) use color_optimization::*;
 
 use crate::{
     BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role,
-    Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES, XTERM_256_PALETTE,
+    Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES,
 };
 
 use super::{Position, TextAttribute};
@@ -71,6 +71,7 @@ pub struct SaveOptions {
 
     pub lossles_output: bool,
     pub use_extended_colors: bool,
+    pub normalize_whitespaces: bool,
 
     pub control_char_handling: ControlCharHandling,
 }
@@ -89,6 +90,7 @@ impl SaveOptions {
             control_char_handling: ControlCharHandling::Ignore,
             lossles_output: false,
             use_extended_colors: true,
+            normalize_whitespaces: true,
         }
     }
 }
