@@ -3,7 +3,7 @@ use std::{thread, time::Duration};
 use crate::{
     ansi::Parser,
     parsers::{create_buffer, update_buffer},
-    Buffer, Position,
+    Buffer, Position, TextAttribute,
 };
 
 fn update_sixels(buf: &mut Buffer) {
@@ -165,4 +165,20 @@ fn test_sixel_raster_attributes() {
 
     assert_eq!(6, buf.layers[0].sixels[0].get_width());
     assert_eq!(8, buf.layers[0].sixels[0].get_height());
+}
+
+#[test]
+fn test_sixel_removal() {
+    let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+    update_sixels(&mut buf);
+    assert_eq!(1, buf.layers[0].sixels.len());
+    assert_eq!(2, buf.layers[0].sixels[0].vertical_scale);
+    assert_eq!(1, buf.layers[0].sixels[0].horizontal_scale);
+    assert_eq!(Position::new(0, 0), buf.layers[0].sixels[0].position);
+    assert_eq!(14, buf.layers[0].sixels[0].get_width());
+    assert_eq!(12, buf.layers[0].sixels[0].get_height());
+
+    buf.layers[0].set_char((5, 5), crate::AttributedChar::new(' ', TextAttribute::default()));
+
+    assert_eq!(0, buf.layers[0].sixels.len());
 }

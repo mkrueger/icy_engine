@@ -208,6 +208,8 @@ impl Layer {
 
         let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
+        let font_dims = Size::new(8, 16);
+        self.sixels.retain(|x| !x.as_rectangle(font_dims).is_inside(pos) || pos.y != x.position.y);
     }
 
     /// .

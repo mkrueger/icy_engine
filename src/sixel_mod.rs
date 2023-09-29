@@ -298,13 +298,24 @@ impl Sixel {
             size: size.into(),
         }
     }
-
-    pub fn get_screen_rect(&self) -> Rectangle {
-        let x = self.position.x * 8;
-        let y = self.position.y * 16;
+    
+    /// Coordinates are points
+    pub fn get_screen_rect(&self, font_dims: Size) -> Rectangle {
+        let x = self.position.x * font_dims.width;
+        let y = self.position.y * font_dims.height;
         Rectangle {
             start: Position::new(x, y),
             size: self.size,
+        }
+    }
+
+    /// Gets the position of the sixel in the buffer.
+    pub fn as_rectangle(&self, font_dims: Size) -> Rectangle {
+        let x = self.position.x;
+        let y = self.position.y;
+        Rectangle {
+            start: Position::new(x, y),
+            size: Size::new(self.size.width / font_dims.width, self.size.height / font_dims.height),
         }
     }
 

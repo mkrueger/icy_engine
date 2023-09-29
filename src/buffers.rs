@@ -399,14 +399,15 @@ impl Buffer {
 
             updated_sixel = true;
 
-            let screen_rect = sixel.get_screen_rect();
+            let font_dims = self.get_font_dimensions();
+            let screen_rect = sixel.get_screen_rect(font_dims);
 
             let vec = &mut self.layers[0].sixels;
             let mut sixel_count = vec.len();
             // remove old sixel that are shadowed by the new one
             let mut i = 0;
             while i < sixel_count {
-                let old_rect = vec[i].get_screen_rect();
+                let old_rect = vec[i].get_screen_rect(font_dims);
                 if screen_rect.contains_rect(&old_rect) {
                     vec.remove(i);
                     sixel_count -= 1;
