@@ -397,12 +397,11 @@ impl StringGenerator {
         for (page, font) in buf.font_iter() {
             let mut to_page = *page;
             for (i, ansi_font) in ansi_fonts.iter().enumerate() {
-                if ansi_font.glyphs == font.glyphs {
+                if ansi_font.get_checksum() == font.get_checksum() {
                     to_page = i;
                     break;
                 }
             }
-
             font_map.insert(*page, to_page);
         }
 

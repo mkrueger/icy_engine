@@ -153,8 +153,8 @@ pub struct Palette {
     pub author: String,
     colors: Vec<Color>,
 
-    old_hash_idx: usize,
-    hash: u32,
+    old_checksum: usize,
+    checksum: u32,
 }
 
 impl Palette {
@@ -164,8 +164,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors,
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         }
     }
 
@@ -409,8 +409,8 @@ impl Palette {
             description,
             author,
             colors,
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         })
     }
 
@@ -523,8 +523,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors: vec![],
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         }
     }
 
@@ -534,8 +534,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors: DOS_DEFAULT_PALETTE.to_vec(),
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         }
     }
 
@@ -649,8 +649,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors,
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         }
     }
 
@@ -685,8 +685,8 @@ impl Palette {
             description: String::new(),
             author: String::new(),
             colors,
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         }
     }
 
@@ -700,15 +700,15 @@ impl Palette {
         res
     }
 
-    pub fn get_hash(&mut self) -> u32 {
-        for i in self.old_hash_idx..self.colors.len() {
+    pub fn get_checksum(&mut self) -> u32 {
+        for i in self.old_checksum..self.colors.len() {
             let c = &self.colors[i];
-            self.hash = update_crc32(self.hash, c.r);
-            self.hash = update_crc32(self.hash, c.g);
-            self.hash = update_crc32(self.hash, c.b);
+            self.checksum = update_crc32(self.checksum, c.r);
+            self.checksum = update_crc32(self.checksum, c.g);
+            self.checksum = update_crc32(self.checksum, c.b);
         }
-        self.old_hash_idx = self.colors.len();
-        self.hash
+        self.old_checksum = self.colors.len();
+        self.checksum
     }
 }
 
@@ -3831,8 +3831,8 @@ impl Default for Palette {
             description: String::new(),
             author: String::new(),
             colors: DOS_DEFAULT_PALETTE.to_vec(),
-            old_hash_idx: 0,
-            hash: 0,
+            old_checksum: 0,
+            checksum: 0,
         }
     }
 }

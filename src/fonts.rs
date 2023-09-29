@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose, Engine};
 
-use crate::{EngineResult, ParserError};
+use crate::{update_crc32, EngineResult, ParserError};
 use std::{
     collections::HashMap,
     error::Error,
@@ -68,6 +68,7 @@ pub struct BitFont {
     pub length: i32,
     font_type: BitFontType,
     pub glyphs: HashMap<char, Glyph>,
+    pub checksum: u32,
 }
 
 impl Default for BitFont {
@@ -92,6 +93,22 @@ impl BitFont {
         data.extend_from_slice(&u16::to_le_bytes(self.size.height as u16));
         data.extend_from_slice(&glyph.data);
         Some(data)
+    }
+
+    pub fn get_checksum(&self) -> u32 {
+        self.checksum
+    }
+
+    pub fn calculate_checksum(&mut self) {
+        let mut crc = 0;
+        for ch in 0..self.length {
+            if let Some(glyph) = self.get_glyph(unsafe { char::from_u32_unchecked(ch as u32) }) {
+                for b in &glyph.data {
+                    crc = update_crc32(crc, *b);
+                }
+            }
+        }
+        self.checksum = crc;
     }
 
     pub fn font_type(&self) -> BitFontType {
@@ -124,25 +141,31 @@ impl BitFont {
     }
 
     pub fn create_8(name: impl Into<String>, width: u8, height: u8, data: &[u8]) -> Self {
-        Self {
+        let mut res = Self {
             name: name.into(),
             path_opt: None,
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
             glyphs: glyphs_from_u8_data(height as usize, data),
-        }
+            checksum: 0,
+        };
+        res.calculate_checksum();
+        res
     }
 
     pub fn from_basic(width: u8, height: u8, data: &[u8]) -> Self {
-        Self {
+        let mut res = Self {
             name: String::new(),
             path_opt: None,
             size: (width, height).into(),
             length: 256,
             font_type: BitFontType::Custom,
             glyphs: glyphs_from_u8_data(height as usize, data),
-        }
+            checksum: 0,
+        };
+        res.calculate_checksum();
+        res
     }
 
     const PSF1_MAGIC: u16 = 0x0436;
@@ -160,14 +183,17 @@ impl BitFont {
             256
         };
 
-        Self {
+        let mut res = Self {
             name: font_name.into(),
             path_opt: None,
             size: (8, charsize).into(),
             length,
             font_type: BitFontType::BuiltIn,
             glyphs: glyphs_from_u8_data(charsize as usize, &data[4..]),
-        }
+            checksum: 0,
+        };
+        res.calculate_checksum();
+        res
     }
 
     fn load_plain_font(font_name: impl Into<String>, data: &[u8]) -> EngineResult<Self> {
@@ -176,14 +202,17 @@ impl BitFont {
         }
         let char_height = data.len() / 256;
         let size = Size::new(8, char_height as i32);
-        Ok(Self {
+        let mut res = Self {
             name: font_name.into(),
             path_opt: None,
             size,
             length: 256,
             font_type: BitFontType::BuiltIn,
             glyphs: glyphs_from_u8_data(char_height, data),
-        })
+            checksum: 0,
+        };
+        res.calculate_checksum();
+        Ok(res)
     }
 
     const PSF2_MAGIC: u32 = 0x864a_b572;
@@ -214,14 +243,16 @@ impl BitFont {
         let height = u32::from_le_bytes(data[24..28].try_into().unwrap()) as usize;
         let width = u32::from_le_bytes(data[28..32].try_into().unwrap()) as usize;
 
-        let r = BitFont {
+        let mut r = BitFont {
             name: font_name.into(),
             path_opt: None,
             size: (width, height).into(),
             length,
             font_type: BitFontType::BuiltIn,
             glyphs: glyphs_from_u8_data(height, &data[headersize..]),
+            checksum: 0,
         };
+        r.calculate_checksum();
         Ok(r)
     }
 
