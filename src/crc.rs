@@ -42,12 +42,23 @@ fn buggy_update(crc: u16, b: u8) -> u16 {
 }
 
 #[must_use]
-pub fn get_crc16_buggy(buf: &[u8], zcrc: u8) -> u16 {
+pub fn get_crc16_buggy_zlde(buf: &[u8], zcrc: u8) -> u16 {
     let mut result = 0;
     for x in buf {
         result = buggy_update(result, *x);
     }
     result = buggy_update(result, zcrc);
+    result = buggy_update(buggy_update(result, 0), 0);
+    result
+}
+
+
+#[must_use]
+pub fn get_crc16_buggy(buf: &[u8]) -> u16 {
+    let mut result = 0;
+    for x in buf {
+        result = buggy_update(result, *x);
+    }
     result = buggy_update(buggy_update(result, 0), 0);
     result
 }

@@ -64,19 +64,37 @@ pub struct SaveOptions {
     pub buffer_type: BufferType,
     pub modern_terminal_output: bool,
     pub save_sauce: bool,
+
+    /// When set the output will be compressed.
     pub compress: bool,
 
-    pub use_skip_ws: bool,
-    pub use_repeat_rle: bool,
+    /// When set the output will contain cursor forawad sequences. (CSI Ps C)
+    pub use_cursor_forward: bool,
+    /// When set the output will contain repeat sequences. (CSI Ps b)
+    pub use_repeat_sequences: bool,
+
+    /// When set the output will contain the full line length.
+    /// This is useful for files that are meant to be displayed on a unix terminal where the bg color may not be 100% black.
     pub preserve_line_length: bool,
+
+    /// When set the output will be cropped to this length.
     pub output_line_length: Option<usize>,
-    pub preserve_invisible_chars: bool,
+
+    /// When set the ansi engine will generate a gotoxy sequence at each line start
+    ///  making the file work on longer terminals.
     pub longer_terminal_output: bool,
 
+    /// When set output ignores fg color changes in whitespaces 
+    /// and bg color changes in blocks.
     pub lossles_output: bool,
+
+    /// When set output will use extended color codes if they apply.
     pub use_extended_colors: bool,
+
+    /// When set all whitespaces will be converted to spaces.
     pub normalize_whitespaces: bool,
 
+    /// Changes control char output behavior
     pub control_char_handling: ControlCharHandling,
 }
 
@@ -90,13 +108,12 @@ impl SaveOptions {
             save_sauce: false,
             compress: true,
             output_line_length: None,
-            preserve_invisible_chars: false,
             control_char_handling: ControlCharHandling::Ignore,
             lossles_output: false,
             use_extended_colors: true,
             normalize_whitespaces: true,
-            use_skip_ws: true,
-            use_repeat_rle: true,
+            use_cursor_forward: true,
+            use_repeat_sequences: true,
             preserve_line_length: false,
         }
     }

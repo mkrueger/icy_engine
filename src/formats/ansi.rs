@@ -534,7 +534,7 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if self.options.use_skip_ws
+                    if self.options.use_cursor_forward
                         && line[x].ch == ' '
                         && line[x].cur_state.bg_idx == 0
                         && !line[x].cur_state.is_blink
@@ -549,7 +549,7 @@ impl StringGenerator {
                             continue;
                         }
                     }
-                    if self.options.use_repeat_rle {
+                    if self.options.use_repeat_sequences {
                         let fmt = &format!("\x1B[{rle}b");
                         let output = fmt.as_bytes();
                         if output.len() <= rle {
