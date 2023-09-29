@@ -245,7 +245,7 @@ impl BufferParser for Parser {
                         return Err(ParserError::UnsupportedControlCode(ch as u32).into());
                     }
                 };
-                let mut ch = AttributedChar::new(tch as char, caret.attribute);
+                let mut ch = AttributedChar::new(self.handle_reverse_mode(tch) as char, caret.attribute);
                 ch.set_font_page(usize::from(self.shift_mode));
                 buf.print_char(current_layer, caret, ch);
             }

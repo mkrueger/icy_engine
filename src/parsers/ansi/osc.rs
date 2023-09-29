@@ -1,4 +1,4 @@
-use crate::{Buffer, CallbackAction, Caret, EngineResult, ParserError, TextPane};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, ParserError};
 
 use super::{parse_next_number, Parser};
 
