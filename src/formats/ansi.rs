@@ -462,13 +462,6 @@ impl StringGenerator {
                 result.push(b'H');
                 self.push_result(&mut result);
             }
-            /*
-                        if y == 0 {
-                            for x in 0..3 {
-                                println!("{:?}", line[x]);
-                            }
-                        }
-            */
 
             let len = line.len();
             while x < len {
@@ -520,7 +513,7 @@ impl StringGenerator {
                             vec![b'\x1B', cell.ch as u8]
                         }
                         crate::ControlCharHandling::FilterOut => {
-                            vec![b' ']
+                            vec![b'.']
                         }
                     }
                 } else {
