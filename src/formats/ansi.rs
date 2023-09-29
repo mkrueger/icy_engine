@@ -465,7 +465,7 @@ impl StringGenerator {
             let len = line.len();
             while x < len {
                 let cell = &line[x];
-                if cur_font_page != cell.font_page {
+                if cur_font_page != cell.font_page && !self.options.modern_terminal_output {
                     cur_font_page = cell.font_page;
                     result.extend_from_slice(b"\x1b[0;");
                     result.extend_from_slice(cur_font_page.to_string().as_bytes());
@@ -549,15 +549,17 @@ impl StringGenerator {
                             continue;
                         }
                     }
-                    let fmt = &format!("\x1B[{rle}b");
-                    let output = fmt.as_bytes();
-                    if output.len() <= rle {
-                        self.push_result(&mut result);
-                        result.extend_from_slice(&cell_char);
-                        result.extend_from_slice(output);
-                        self.push_result(&mut result);
-                        x += rle + 1;
-                        continue;
+                    if self.options.use_repeat_rle {
+                        let fmt = &format!("\x1B[{rle}b");
+                        let output = fmt.as_bytes();
+                        if output.len() <= rle {
+                            self.push_result(&mut result);
+                            result.extend_from_slice(&cell_char);
+                            result.extend_from_slice(output);
+                            self.push_result(&mut result);
+                            x += rle + 1;
+                            continue;
+                        }
                     }
                 }
 

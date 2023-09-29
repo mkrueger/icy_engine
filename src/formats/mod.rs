@@ -67,6 +67,7 @@ pub struct SaveOptions {
     pub compress: bool,
 
     pub use_skip_ws: bool,
+    pub use_repeat_rle: bool,
     pub preserve_line_length: bool,
     pub output_line_length: Option<usize>,
     pub preserve_invisible_chars: bool,
@@ -95,6 +96,7 @@ impl SaveOptions {
             use_extended_colors: true,
             normalize_whitespaces: true,
             use_skip_ws: true,
+            use_repeat_rle: true,
             preserve_line_length: false,
         }
     }
