@@ -69,6 +69,10 @@ impl Caret {
         if !buf.is_terminal_buffer {
             return;
         }
+        if self.pos.y + 1 > buf.get_height() {
+            buf.set_height(self.pos.y + 1);
+        }
+
         if was_ooe {
             buf.terminal_state.limit_caret_pos(buf, self);
         } else {
@@ -226,6 +230,9 @@ impl Buffer {
         if caret.pos.y + 1 > self.layers[layer].get_height() {
             self.layers[layer].set_height(caret.pos.y + 1);
         }
+        if self.is_terminal_buffer && caret.pos.y + 1 > self.get_height() {
+            self.set_height(caret.pos.y + 1);
+        }
 
         self.layers[layer].set_char(caret.pos, ch);
         caret.pos.x += 1;
@@ -312,6 +319,9 @@ impl Buffer {
         let layer = &mut self.layers[layer];
         layer.clear();
         self.stop_sixel_threads();
+        if self.is_terminal_buffer {
+            self.set_size(self.terminal_state.get_size());
+        }
     }
 
     fn clear_buffer_down(&mut self, layer: usize, caret: &Caret) {

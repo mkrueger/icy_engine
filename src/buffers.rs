@@ -148,6 +148,7 @@ impl FontMode {
 }
 
 pub struct Buffer {
+    size: Size,
     pub file_name: Option<PathBuf>,
 
     pub terminal_state: TerminalState,
@@ -353,6 +354,7 @@ impl Buffer {
         let size = size.into();
         Buffer {
             file_name: None,
+            size,
             terminal_state: TerminalState::from(size),
             sauce_data: None,
 
@@ -511,23 +513,23 @@ impl Buffer {
     /// Panics if .
     pub fn set_size(&mut self, size: impl Into<Size>) {
         let size = size.into();
-        self.terminal_state.set_size(size);
+        self.size = size;
         if let Some(sauce) = &mut self.sauce_data {
-            sauce.buffer_size = self.terminal_state.get_size();
+            sauce.buffer_size = size;
         }
     }
 
     pub fn set_width(&mut self, width: i32) {
-        self.terminal_state.set_width(width);
+        self.size.width = width;
         if let Some(sauce) = &mut self.sauce_data {
-            sauce.buffer_size = self.terminal_state.get_size();
+            sauce.buffer_size.width = width;
         }
     }
 
     pub fn set_height(&mut self, height: i32) {
-        self.terminal_state.set_height(height);
+        self.size.height = height;
         if let Some(sauce) = &mut self.sauce_data {
-            sauce.buffer_size = self.terminal_state.get_size();
+            sauce.buffer_size.height = height;
         }
     }
 
@@ -544,10 +546,10 @@ impl Buffer {
     /// this function gives back the first visible line.
     #[must_use]
     pub fn get_first_visible_line(&self) -> i32 {
-        if self.is_terminal_buffer && !self.layers.is_empty() {
+        if self.is_terminal_buffer {
             max(
                 0,
-                (self.layers[0].lines.len() as i32).saturating_sub(self.get_height()),
+                self.size.height.saturating_sub(self.terminal_state.get_height()),
             )
         } else {
             0
@@ -846,18 +848,18 @@ impl Default for Buffer {
 
 impl TextPane for Buffer {
     fn get_width(&self) -> i32 {
-        self.terminal_state.get_width()
+        self.size.width
     }
 
     fn get_height(&self) -> i32 {
-        self.terminal_state.get_height()
+        self.size.height
     }
 
     fn get_line_count(&self) -> i32 {
         if let Some(len) = self.layers.iter().map(|l| l.lines.len()).max() {
             len as i32
         } else {
-            self.terminal_state.get_height()
+            self.size.height
         }
     }
 
@@ -946,7 +948,7 @@ impl TextPane for Buffer {
     }
 
     fn get_size(&self) -> Size {
-        self.terminal_state.get_size()
+        self.size
     }
 
     fn get_rectangle(&self) -> Rectangle {

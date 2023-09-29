@@ -1204,7 +1204,7 @@ fn test_clear_screen_size_reset() {
             format!("{i}\n\r").as_bytes(),
         );
     }
-    assert_eq!(50, buf.get_height());
+    assert_eq!(51, buf.get_height());
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t\x1B[2J");
     assert_eq!(25, buf.get_height());
     assert_eq!(0, buf.get_line_count());
