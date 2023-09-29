@@ -298,7 +298,7 @@ impl Sixel {
             size: size.into(),
         }
     }
-    
+
     /// Coordinates are points
     pub fn get_screen_rect(&self, font_dims: Size) -> Rectangle {
         let x = self.position.x * font_dims.width;
@@ -315,7 +315,10 @@ impl Sixel {
         let y = self.position.y;
         Rectangle {
             start: Position::new(x, y),
-            size: Size::new(self.size.width / font_dims.width, self.size.height / font_dims.height),
+            size: Size::new(
+                self.size.width / font_dims.width,
+                self.size.height / font_dims.height,
+            ),
         }
     }
 

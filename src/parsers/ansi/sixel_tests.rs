@@ -178,7 +178,10 @@ fn test_sixel_removal() {
     assert_eq!(14, buf.layers[0].sixels[0].get_width());
     assert_eq!(12, buf.layers[0].sixels[0].get_height());
 
-    buf.layers[0].set_char((5, 5), crate::AttributedChar::new(' ', TextAttribute::default()));
+    buf.layers[0].set_char(
+        (5, 5),
+        crate::AttributedChar::new(' ', TextAttribute::default()),
+    );
 
     assert_eq!(0, buf.layers[0].sixels.len());
 }

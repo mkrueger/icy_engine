@@ -550,7 +550,9 @@ impl Buffer {
         if self.is_terminal_buffer {
             max(
                 0,
-                self.size.height.saturating_sub(self.terminal_state.get_height()),
+                self.size
+                    .height
+                    .saturating_sub(self.terminal_state.get_height()),
             )
         } else {
             0

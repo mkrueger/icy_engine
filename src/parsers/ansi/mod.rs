@@ -961,8 +961,8 @@ impl BufferParser for Parser {
                                 // Get cursor position
                                 let s = format!(
                                     "\x1b[{};{}R",
-                                    min(buf.get_height(), caret.pos.y + 1),
-                                    min(buf.get_width(), caret.pos.x + 1)
+                                    min(buf.terminal_state.get_height(), caret.pos.y + 1),
+                                    min(buf.terminal_state.get_width(), caret.pos.x + 1)
                                 );
                                 return Ok(CallbackAction::SendString(s));
                             }
@@ -970,7 +970,7 @@ impl BufferParser for Parser {
                                 // Current screen size
                                 let s = format!(
                                     "\x1b[{};{}R",
-                                    buf.get_height(), buf.get_width()
+                                    buf.terminal_state.get_height(), buf.terminal_state.get_width()
                                 );
                                 return Ok(CallbackAction::SendString(s));
                             }

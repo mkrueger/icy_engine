@@ -50,8 +50,8 @@ impl Parser {
             if cp.y == p.position.y {
                 p.length = cp.x - p.position.x;
             } else {
-                p.length = buf.get_width() - p.position.x
-                    + (cp.y - p.position.y) * buf.get_width()
+                p.length = buf.terminal_state.get_width() - p.position.x
+                    + (cp.y - p.position.y) * buf.terminal_state.get_width()
                     + p.position.x;
             }
             buf.layers[0].add_hyperlink(p);
