@@ -397,9 +397,10 @@ impl BufferParser for Parser {
                         self.macro_dcs.clear();
                         return Ok(CallbackAction::None);
                     }
-                    return Err(
-                        ParserError::UnsupportedDCSSequence(format!("end char <ESC>{ch}")).into(),
-                    );
+                    self.parse_string.push('\x1b');
+                    self.parse_string.push(ch);
+                    self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                    return Ok(CallbackAction::None);
                 }
                 ReadSTState::Default(nesting_level) => match ch {
                     '\x1B' => {
