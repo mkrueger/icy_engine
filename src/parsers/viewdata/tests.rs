@@ -177,11 +177,11 @@ fn test_color_on_clreol() {
 #[test]
 fn test_caret_visibility() {
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x14\n\n\n");
-    assert!(!caret.is_visible);
+    assert!(!caret.is_visible());
 
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x14\n\n\n\x11");
-    assert!(caret.is_visible);
+    assert!(caret.is_visible());
 
     let (_, caret) = create_viewdata_buffer(&mut Parser::default(), b"\x14\x0C");
-    assert!(!caret.is_visible);
+    assert!(!caret.is_visible());
 }

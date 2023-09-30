@@ -19,6 +19,7 @@ mod bin;
 pub use bin::*;
 
 mod xbinary;
+use serde::{Serialize, Deserialize};
 pub use xbinary::*;
 
 mod artworx;
@@ -35,11 +36,11 @@ mod ctrla;
 mod icy_draw;
 pub(crate) use color_optimization::*;
 
-use crate::{BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role, Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES};
+use crate::{BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, Layer, Role, Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES};
 
 use super::{Position, TextAttribute};
 
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ScreenPreperation {
     #[default]
     None,
@@ -47,7 +48,7 @@ pub enum ScreenPreperation {
     Home,
 }
 
-#[derive(Default, Clone, Copy, Debug, PartialEq)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ControlCharHandling {
     #[default]
     Ignore,
@@ -55,10 +56,9 @@ pub enum ControlCharHandling {
     FilterOut,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SaveOptions {
     pub screen_preparation: ScreenPreperation,
-    pub buffer_type: BufferType,
     pub modern_terminal_output: bool,
     pub save_sauce: bool,
 
@@ -100,7 +100,6 @@ impl SaveOptions {
         SaveOptions {
             longer_terminal_output: false,
             screen_preparation: ScreenPreperation::None,
-            buffer_type: BufferType::CP437,
             modern_terminal_output: false,
             save_sauce: false,
             compress: true,

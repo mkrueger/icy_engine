@@ -414,7 +414,7 @@ impl BufferParser for Parser {
                                 //  buf.terminal_state.origin_mode = OriginMode::WithinMargins;
                             }
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::NoWrap,
-                            Some(25) => caret.is_visible = false,
+                            Some(25) => caret.set_is_visible(false),
                             Some(33) => caret.set_ice_mode(false),
                             Some(35) => caret.is_blinking = true,
 
@@ -440,7 +440,7 @@ impl BufferParser for Parser {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
                             Some(6) => buf.terminal_state.origin_mode = OriginMode::UpperLeftCorner,
                             Some(7) => buf.terminal_state.auto_wrap_mode = AutoWrapMode::AutoWrap,
-                            Some(25) => caret.is_visible = true,
+                            Some(25) => caret.set_is_visible(true),
                             Some(33) => {
                                 buf.ice_mode = IceMode::Ice;
                                 caret.set_ice_mode(true);
@@ -561,7 +561,7 @@ impl BufferParser for Parser {
                                 if buf.terminal_state.auto_wrap_mode == AutoWrapMode::AutoWrap {
                                     mode_report.push_str(";7");
                                 }
-                                if caret.is_visible {
+                                if caret.is_visible() {
                                     mode_report.push_str(";25");
                                 }
 

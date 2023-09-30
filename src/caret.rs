@@ -5,7 +5,7 @@ pub struct Caret {
     pub(super) pos: Position,
     pub(super) attribute: TextAttribute,
     pub insert_mode: bool,
-    pub is_visible: bool,
+    is_visible: bool,
     pub is_blinking: bool,
     ice_mode: bool,
 }
@@ -95,6 +95,14 @@ impl Caret {
     }
     pub fn set_ice_mode(&mut self, ice_mode: bool) {
         self.ice_mode = ice_mode;
+    }
+
+    pub fn is_visible(&self) -> bool {
+        self.is_visible
+    }
+
+    pub fn set_is_visible(&mut self, is_visible: bool) {
+        self.is_visible = is_visible;
     }
 }
 

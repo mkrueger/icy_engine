@@ -200,17 +200,17 @@ fn test_reset_cursor() {
 #[test]
 fn test_cursor_visibilty() {
     let (mut buf, mut caret) = create_buffer(&mut ansi::Parser::default(), b"\x1b[?25l");
-    assert!(!caret.is_visible);
+    assert!(!caret.is_visible());
     update_buffer(&mut buf, &mut caret, &mut ansi::Parser::default(), b"\x1b[?25h");
-    assert!(caret.is_visible);
+    assert!(caret.is_visible());
 }
 
 #[test]
 fn test_cursor_visibilty_reset() {
     let (mut buf, mut caret) = create_buffer(&mut ansi::Parser::default(), b"\x1b[?25l");
-    assert!(!caret.is_visible);
+    assert!(!caret.is_visible());
     update_buffer(&mut buf, &mut caret, &mut ansi::Parser::default(), b"\x0C"); // FF
-    assert!(caret.is_visible);
+    assert!(caret.is_visible());
 }
 
 #[test]

@@ -78,7 +78,7 @@ impl Caret {
         buf.layers[current_layer].clear();
         buf.stop_sixel_threads();
         self.pos = Position::default();
-        self.is_visible = true;
+        self.set_is_visible(true);
         self.reset_color_attribute();
     }
 

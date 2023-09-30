@@ -288,10 +288,10 @@ impl BufferParser for Parser {
 
             // control codes 1
             0b001_0000 => {} // ignore
-            0b001_0001 => caret.is_visible = true,
+            0b001_0001 => caret.set_is_visible(true),
             0b001_0010 => {} // ignore
             0b001_0011 => {} // ignore
-            0b001_0100 => caret.is_visible = false,
+            0b001_0100 => caret.set_is_visible(false),
             0b001_0101 => {} // NAK
             0b001_0110 => {} // ignore
             0b001_0111 => {} // ignore
