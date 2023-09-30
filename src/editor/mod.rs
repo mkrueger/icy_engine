@@ -140,7 +140,7 @@ impl EditState {
         self.set_mask_size();
     }
 
-    pub(crate) fn set_mask_size(&mut self) {
+    pub fn set_mask_size(&mut self) {
         self.selection_mask.set_size(self.buffer.get_size());
         self.tool_overlay_mask.set_size(self.buffer.get_size());
     }
