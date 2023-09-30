@@ -426,10 +426,18 @@ impl StringGenerator {
         let cells = self.generate_cells(buf, layer, layer.get_rectangle(), &font_map);
         let mut cur_font_page = 0;
 
+        let mut is_first_output_line = false;
+
         for (y, line) in cells.iter().enumerate() {
             let mut x = 0;
             if self.options.longer_terminal_output {
-                if y == 0 {
+                if let Some(skip_lines) = &self.options.skip_lines {
+                    if skip_lines.contains(&y) {
+                        continue;
+                    }
+                }
+                if is_first_output_line {
+                    is_first_output_line = false;
                     result.extend_from_slice(b"\x1b[0m");
                 }
                 result.extend_from_slice(b"\x1b[");
@@ -437,7 +445,7 @@ impl StringGenerator {
                 result.push(b'H');
                 self.push_result(&mut result);
             }
-
+  
             let len = line.len();
             while x < len {
                 let cell = &line[x];

@@ -220,7 +220,13 @@ impl Buffer {
 
         self.layers[layer].set_char(caret.pos, ch);
         caret.pos.x += 1;
-        if caret.pos.x >= if self.is_terminal_buffer { self.terminal_state.get_width() } else { buffer_width } {
+        if caret.pos.x
+            >= if self.is_terminal_buffer {
+                self.terminal_state.get_width()
+            } else {
+                buffer_width
+            }
+        {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self, layer);
             } else {

@@ -19,7 +19,7 @@ mod bin;
 pub use bin::*;
 
 mod xbinary;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 pub use xbinary::*;
 
 mod artworx;
@@ -93,10 +93,13 @@ pub struct SaveOptions {
 
     /// Changes control char output behavior
     pub control_char_handling: ControlCharHandling,
+
+    #[serde(skip)]
+    pub skip_lines: Option<Vec<usize>>,
 }
 
 impl SaveOptions {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         SaveOptions {
             longer_terminal_output: false,
             screen_preparation: ScreenPreperation::None,
@@ -111,6 +114,7 @@ impl SaveOptions {
             use_cursor_forward: true,
             use_repeat_sequences: false,
             preserve_line_length: false,
+            skip_lines: None,
         }
     }
 }
