@@ -307,6 +307,15 @@ impl StringGenerator {
         for y in area.y_range() {
             let mut line = Vec::new();
 
+            if self.options.longer_terminal_output {
+                if let Some(skip_lines) = &self.options.skip_lines {
+                    if skip_lines.contains(&(y as usize)) {
+                        result.push(line);
+                        continue;
+                    }
+                }
+            }
+
             let len = if self.options.compress && !self.options.preserve_line_length {
                 let mut last = area.get_width() - 1;
                 let last_attr = layer.get_char((last, y)).attribute;
@@ -426,7 +435,7 @@ impl StringGenerator {
         let cells = self.generate_cells(buf, layer, layer.get_rectangle(), &font_map);
         let mut cur_font_page = 0;
 
-        let mut is_first_output_line = false;
+        let mut is_first_output_line = true;
 
         for (y, line) in cells.iter().enumerate() {
             let mut x = 0;
