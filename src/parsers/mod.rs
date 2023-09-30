@@ -55,7 +55,7 @@ impl Caret {
         self.pos.y += 1;
         while self.pos.y >= buf.layers[current_layer].lines.len() as i32 {
             let len = buf.layers[current_layer].lines.len();
-            let buffer_width = buf.get_width();
+            let buffer_width = buf.terminal_state.get_width();
             buf.layers[current_layer].lines.insert(len, Line::with_capacity(buffer_width));
         }
         if !buf.is_terminal_buffer {
@@ -88,7 +88,7 @@ impl Caret {
     }
 
     pub fn eol(&mut self, buf: &Buffer) {
-        self.pos.x = buf.get_width() - 1;
+        self.pos.x = buf.terminal_state.get_width() - 1;
     }
 
     pub fn home(&mut self, buf: &Buffer) {
@@ -121,7 +121,7 @@ impl Caret {
 
     pub fn erase_charcter(&mut self, buf: &mut Buffer, current_layer: usize, number: i32) {
         let mut i = self.pos.x;
-        let number = min(buf.get_width() - i, number);
+        let number = min(buf.terminal_state.get_width() - i, number);
         if number <= 0 {
             return;
         }
@@ -220,7 +220,7 @@ impl Buffer {
 
         self.layers[layer].set_char(caret.pos, ch);
         caret.pos.x += 1;
-        if caret.pos.x >= buffer_width {
+        if caret.pos.x >= if self.is_terminal_buffer { self.terminal_state.get_width() } else { buffer_width } {
             if let crate::AutoWrapMode::AutoWrap = self.terminal_state.auto_wrap_mode {
                 caret.lf(self, layer);
             } else {

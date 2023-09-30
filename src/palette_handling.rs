@@ -1,5 +1,5 @@
 #![allow(clippy::many_single_char_names)]
-use std::{any, fmt::Display, path::Path};
+use std::{fmt::Display, path::Path};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
