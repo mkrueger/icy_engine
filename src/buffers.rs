@@ -251,6 +251,8 @@ impl Buffer {
                     size.width = 80;
                 }
                 self.set_size(size);
+                self.terminal_state.set_size(size);
+                
                 if !self.layers.is_empty() {
                     self.layers[0].set_size(size);
                 }
