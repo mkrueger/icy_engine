@@ -123,7 +123,7 @@ impl OutputFormat for IceDraw {
     fn load_buffer(&self, file_name: &Path, data: &[u8], _sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.ice_mode = IceMode::Ice;
-        result.is_terminal_buffer = true;
+        result.is_terminal_buffer = false;
         result.file_name = Some(file_name.into());
 
         if data.len() < HEADER_SIZE + FONT_SIZE + PALETTE_SIZE {

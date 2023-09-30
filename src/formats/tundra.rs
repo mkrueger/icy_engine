@@ -151,7 +151,7 @@ impl OutputFormat for TundraDraw {
 
     fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
-        result.is_terminal_buffer = true;
+        result.is_terminal_buffer = false;
         result.file_name = Some(file_name.into());
         result.set_sauce(sauce_opt, true);
         if data.len() < 1 + TUNDRA_HEADER.len() {
