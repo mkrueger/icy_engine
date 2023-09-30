@@ -109,7 +109,7 @@ impl SaveOptions {
             use_extended_colors: true,
             normalize_whitespaces: true,
             use_cursor_forward: true,
-            use_repeat_sequences: true,
+            use_repeat_sequences: false,
             preserve_line_length: false,
         }
     }
