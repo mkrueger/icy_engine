@@ -25,6 +25,9 @@ pub struct IcyDraw {}
 
 /// maximum ztext chunk size from libpng source
 const MAX: u64 = 3_000_000;
+lazy_static::lazy_static! {
+    static ref LAYER_CONTINUE_REGEX: Regex = Regex::new(r"LAYER_(\d+)~(\d+)").unwrap();
+}
 
 impl OutputFormat for IcyDraw {
     fn get_file_extension(&self) -> &str {
@@ -420,8 +423,7 @@ impl OutputFormat for IcyDraw {
                                         continue;
                                     }
 
-                                    let layer_cont = Regex::new(r"LAYER_(\d+)~(\d+)")?;
-                                    if let Some(m) = layer_cont.captures(text) {
+                                    if let Some(m) = LAYER_CONTINUE_REGEX.captures(text) {
                                         let (_, [layer_num, _chunk]) = m.extract();
                                         let layer_num = layer_num.parse::<usize>()?;
 

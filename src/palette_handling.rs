@@ -1,10 +1,30 @@
 #![allow(clippy::many_single_char_names)]
-use std::{fmt::Display, path::Path};
+use std::{any, fmt::Display, path::Path};
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::update_crc32;
+
+lazy_static::lazy_static! {
+    static ref HEX_REGEX: Regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})").unwrap();
+
+    static ref PAL_REGEX: Regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)").unwrap();
+
+    static ref GPL_COLOR_REGEX: Regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)\s+\S+").unwrap();
+    static ref GPL_NAME_REGEX: Regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*").unwrap();
+    static ref GPL_DESCRIPTION_REGEX: Regex = Regex::new(r"\s*#Description:\s*(.*)\s*").unwrap();
+
+    static ref TXT_COLOR_REGEX: Regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})").unwrap();
+    static ref TXT_NAME_REGEX: Regex = Regex::new(r"\s*;Palette Name:\s*(.*)\s*").unwrap();
+    static ref TXT_DESCRIPTION_REGEX: Regex = Regex::new(r"\s*;Description:\s*(.*)\s*").unwrap();
+
+    static ref ICE_COLOR_REGEX: Regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})").unwrap();
+    static ref ICE_PALETTE_NAME_REGEX: Regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*").unwrap();
+    static ref ICE_AUTHOR_REGEX: Regex = Regex::new(r"\s*#Author:\s*(.*)\s*").unwrap();
+    static ref ICE_DESCRIPTION_REGEX: Regex = Regex::new(r"\s*#Description:\s*(.*)\s*").unwrap();
+    static ref ICE_COLOR_NAME_REGEX: Regex = Regex::new(r"\s*#Name:\s*(.*)\s*").unwrap();
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Color {
@@ -37,7 +57,29 @@ impl Color {
     pub fn get_rgb(&self) -> (u8, u8, u8) {
         (self.r, self.g, self.b)
     }
+
+    pub fn to_hex(&self) -> String {
+        format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
+    }
+
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn from_hex(hex: &str) -> anyhow::Result<Self> {
+        if let Some(cap) = ICE_COLOR_REGEX.captures(hex) {
+            let (_, [r, g, b]) = cap.extract();
+            let r = u32::from_str_radix(r, 16)?;
+            let g = u32::from_str_radix(g, 16)?;
+            let b = u32::from_str_radix(b, 16)?;
+            Ok(Color::new(r as u8, g as u8, b as u8))
+        } else {
+            Err(anyhow::anyhow!("Invalid hex color: {hex}"))
+        }
+    }
 }
+
 impl PartialEq for Color {
     fn eq(&self, other: &Color) -> bool {
         self.r == other.r && self.g == other.g && self.b == other.b
@@ -204,8 +246,7 @@ impl Palette {
         match format {
             PaletteFormat::Hex => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
-                    let re = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
-                    for (_, [r, g, b]) in re.captures_iter(&data).map(|c| c.extract()) {
+                    for (_, [r, g, b]) in HEX_REGEX.captures_iter(&data).map(|c| c.extract()) {
                         let r = u32::from_str_radix(r, 16)?;
                         let g = u32::from_str_radix(g, 16)?;
                         let b = u32::from_str_radix(b, 16)?;
@@ -217,8 +258,6 @@ impl Palette {
             PaletteFormat::Pal => {
                 match String::from_utf8(bytes.to_vec()) {
                     Ok(data) => {
-                        let re = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)")?;
-
                         for (i, line) in data.lines().enumerate() {
                             match i {
                                 0 => {
@@ -230,7 +269,7 @@ impl Palette {
                                     // Ignore
                                 }
                                 _ => {
-                                    for (_, [r, g, b]) in re.captures_iter(line).map(|c| c.extract()) {
+                                    for (_, [r, g, b]) in PAL_REGEX.captures_iter(line).map(|c| c.extract()) {
                                         let r = r.parse::<u32>()?;
                                         let g = g.parse::<u32>()?;
                                         let b = b.parse::<u32>()?;
@@ -245,9 +284,6 @@ impl Palette {
             }
             PaletteFormat::Gpl => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
-                    let color_regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)\s+\S+")?;
-                    let name_regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*")?;
-                    let description_regex = Regex::new(r"\s*#Description:\s*(.*)\s*")?;
                     for (i, line) in data.lines().enumerate() {
                         match i {
                             0 => {
@@ -257,17 +293,17 @@ impl Palette {
                             }
                             _ => {
                                 if line.starts_with('#') {
-                                    if let Some(cap) = name_regex.captures(line) {
+                                    if let Some(cap) = GPL_NAME_REGEX.captures(line) {
                                         if let Some(name) = cap.get(1) {
                                             title = name.as_str().to_string();
                                         }
                                     }
-                                    if let Some(cap) = description_regex.captures(line) {
+                                    if let Some(cap) = GPL_DESCRIPTION_REGEX.captures(line) {
                                         if let Some(name) = cap.get(1) {
                                             description = name.as_str().to_string();
                                         }
                                     }
-                                } else if let Some(cap) = color_regex.captures(line) {
+                                } else if let Some(cap) = GPL_COLOR_REGEX.captures(line) {
                                     let (_, [r, g, b]) = cap.extract();
 
                                     let r = r.parse::<u32>()?;
@@ -283,11 +319,6 @@ impl Palette {
             },
             PaletteFormat::Ice => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
-                    let color_regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
-                    let palette_name_regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*")?;
-                    let author_regex = Regex::new(r"\s*#Author:\s*(.*)\s*")?;
-                    let description_regex = Regex::new(r"\s*#Description:\s*(.*)\s*")?;
-                    let color_name_regex = Regex::new(r"\s*#Name:\s*(.*)\s*")?;
                     let mut next_color_name = String::new();
                     for (i, line) in data.lines().enumerate() {
                         match i {
@@ -298,27 +329,27 @@ impl Palette {
                             }
                             _ => {
                                 if line.starts_with('#') {
-                                    if let Some(cap) = palette_name_regex.captures(line) {
+                                    if let Some(cap) = ICE_PALETTE_NAME_REGEX.captures(line) {
                                         if let Some(name) = cap.get(1) {
                                             title = name.as_str().to_string();
                                         }
                                     }
-                                    if let Some(cap) = description_regex.captures(line) {
+                                    if let Some(cap) = ICE_DESCRIPTION_REGEX.captures(line) {
                                         if let Some(name) = cap.get(1) {
                                             description = name.as_str().to_string();
                                         }
                                     }
-                                    if let Some(cap) = author_regex.captures(line) {
+                                    if let Some(cap) = ICE_AUTHOR_REGEX.captures(line) {
                                         if let Some(name) = cap.get(1) {
                                             author = name.as_str().to_string();
                                         }
                                     }
-                                    if let Some(cap) = color_name_regex.captures(line) {
+                                    if let Some(cap) = ICE_COLOR_NAME_REGEX.captures(line) {
                                         if let Some(name) = cap.get(1) {
                                             next_color_name = name.as_str().to_string();
                                         }
                                     }
-                                } else if let Some(cap) = color_regex.captures(line) {
+                                } else if let Some(cap) = ICE_COLOR_REGEX.captures(line) {
                                     let (_, [r, g, b]) = cap.extract();
                                     let r = u32::from_str_radix(r, 16)?;
                                     let g = u32::from_str_radix(g, 16)?;
@@ -339,22 +370,19 @@ impl Palette {
 
             PaletteFormat::Txt => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
-                    let color_regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
-                    let name_regex = Regex::new(r"\s*;Palette Name:\s*(.*)\s*")?;
-                    let description_regex = Regex::new(r"\s*;Description:\s*(.*)\s*")?;
                     for line in data.lines() {
                         if line.starts_with(';') {
-                            if let Some(cap) = name_regex.captures(line) {
+                            if let Some(cap) = TXT_NAME_REGEX.captures(line) {
                                 if let Some(name) = cap.get(1) {
                                     title = name.as_str().to_string();
                                 }
                             }
-                            if let Some(cap) = description_regex.captures(line) {
+                            if let Some(cap) = TXT_DESCRIPTION_REGEX.captures(line) {
                                 if let Some(name) = cap.get(1) {
                                     description = name.as_str().to_string();
                                 }
                             }
-                        } else if let Some(cap) = color_regex.captures(line) {
+                        } else if let Some(cap) = TXT_COLOR_REGEX.captures(line) {
                             let (_, [_a, r, g, b]) = cap.extract();
 
                             let r = u32::from_str_radix(r, 16)?;

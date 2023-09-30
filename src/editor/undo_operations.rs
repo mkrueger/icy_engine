@@ -1382,7 +1382,6 @@ impl SwitchPalette {
         old_mode: PaletteMode,
         old_palette: Palette,
         old_layers: Vec<Layer>,
-
         new_mode: PaletteMode,
         new_palette: Palette,
         new_layers: Vec<Layer>,
