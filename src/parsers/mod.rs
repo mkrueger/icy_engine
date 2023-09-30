@@ -43,13 +43,7 @@ pub trait BufferParser: Send {
     /// # Errors
     ///
     /// This function will return an error if .
-    fn print_char(
-        &mut self,
-        buffer: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        c: char,
-    ) -> EngineResult<CallbackAction>;
+    fn print_char(&mut self, buffer: &mut Buffer, current_layer: usize, caret: &mut Caret, c: char) -> EngineResult<CallbackAction>;
 }
 
 impl Caret {
@@ -62,9 +56,7 @@ impl Caret {
         while self.pos.y >= buf.layers[current_layer].lines.len() as i32 {
             let len = buf.layers[current_layer].lines.len();
             let buffer_width = buf.get_width();
-            buf.layers[current_layer]
-                .lines
-                .insert(len, Line::with_capacity(buffer_width));
+            buf.layers[current_layer].lines.insert(len, Line::with_capacity(buffer_width));
         }
         if !buf.is_terminal_buffer {
             return;
@@ -122,8 +114,7 @@ impl Caret {
         if let Some(line) = buf.layers[current_layer].lines.get_mut(self.pos.y as usize) {
             let i = self.pos.x as usize;
             if i < line.chars.len() {
-                line.chars
-                    .insert(i, AttributedChar::new(' ', self.attribute));
+                line.chars.insert(i, AttributedChar::new(' ', self.attribute));
             }
         }
     }
@@ -195,12 +186,7 @@ impl Caret {
         }
     }
 
-    fn check_scrolling_on_caret_down(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        force: bool,
-    ) {
+    fn check_scrolling_on_caret_down(&mut self, buf: &mut Buffer, current_layer: usize, force: bool) {
         if (buf.needs_scrolling() || force) && self.pos.y > buf.get_last_editable_line() {
             buf.scroll_up(current_layer);
             self.pos.y -= 1;
@@ -221,9 +207,7 @@ impl Buffer {
         if caret.insert_mode {
             let layer = &mut self.layers[layer];
             if layer.lines.len() < caret.pos.y as usize + 1 {
-                layer
-                    .lines
-                    .resize(caret.pos.y as usize + 1, Line::with_capacity(buffer_width));
+                layer.lines.resize(caret.pos.y as usize + 1, Line::with_capacity(buffer_width));
             }
             layer.lines[caret.pos.y as usize].insert_char(caret.pos.x, AttributedChar::default());
         }
@@ -290,8 +274,7 @@ impl Buffer {
         for i in start_line..=end_line {
             let line = &mut layer.lines[i as usize];
             if line.chars.len() > start_column {
-                line.chars
-                    .insert(end_column as usize, AttributedChar::default());
+                line.chars.insert(end_column as usize, AttributedChar::default());
                 line.chars.remove(start_column);
             }
         }
@@ -423,24 +406,14 @@ fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Care
 }
 
 #[cfg(test)]
-fn update_buffer<T: BufferParser>(
-    buf: &mut Buffer,
-    caret: &mut Caret,
-    parser: &mut T,
-    input: &[u8],
-) {
+fn update_buffer<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8]) {
     for b in input {
         parser.print_char(buf, 0, caret, *b as char).unwrap(); // test code
     }
 }
 
 #[cfg(test)]
-fn update_buffer_force<T: BufferParser>(
-    buf: &mut Buffer,
-    caret: &mut Caret,
-    parser: &mut T,
-    input: &[u8],
-) {
+fn update_buffer_force<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8]) {
     for b in input {
         let _ = parser.print_char(buf, 0, caret, *b as char); // test code
     }
@@ -456,12 +429,7 @@ fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackA
 }
 
 #[cfg(test)]
-fn get_action<T: BufferParser>(
-    buf: &mut Buffer,
-    caret: &mut Caret,
-    parser: &mut T,
-    input: &[u8],
-) -> CallbackAction {
+fn get_action<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8]) -> CallbackAction {
     let mut action = CallbackAction::None;
     for b in input {
         action = parser.print_char(buf, 0, caret, *b as char).unwrap(); // test code

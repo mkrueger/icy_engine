@@ -12,11 +12,7 @@ impl EditState {
         let size = self.buffer.get_size();
         let mut new_layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-new-name"), size);
         new_layer.has_alpha_channel = true;
-        let idx = if self.buffer.layers.is_empty() {
-            0
-        } else {
-            layer + 1
-        };
+        let idx = if self.buffer.layers.is_empty() { 0 } else { layer + 1 };
 
         let op = undo_operations::AddLayer::new(idx, new_layer);
         self.push_undo_action(Box::new(op))?;
@@ -51,11 +47,7 @@ impl EditState {
 
     pub fn duplicate_layer(&mut self, layer: usize) -> EngineResult<()> {
         let mut new_layer = self.buffer.layers[layer].clone();
-        new_layer.title = fl!(
-            crate::LANGUAGE_LOADER,
-            "layer-duplicate-name",
-            name = new_layer.title
-        );
+        new_layer.title = fl!(crate::LANGUAGE_LOADER, "layer-duplicate-name", name = new_layer.title);
         let op = undo_operations::AddLayer::new(layer + 1, new_layer);
         self.push_undo_action(Box::new(op))?;
         self.current_layer = layer + 1;
@@ -129,12 +121,8 @@ impl EditState {
 
         merge_layer.set_offset(start);
 
-        let width = (base_layer.get_offset().x + base_layer.get_width())
-            .max(cur_layer.get_offset().x + cur_layer.get_width())
-            - start.x;
-        let height = (base_layer.get_offset().y + base_layer.get_height())
-            .max(cur_layer.get_offset().y + cur_layer.get_height())
-            - start.y;
+        let width = (base_layer.get_offset().x + base_layer.get_width()).max(cur_layer.get_offset().x + cur_layer.get_width()) - start.x;
+        let height = (base_layer.get_offset().y + base_layer.get_height()).max(cur_layer.get_offset().y + cur_layer.get_height()) - start.y;
         if width < 0 || height < 0 {
             return Ok(());
         }
@@ -224,12 +212,7 @@ impl EditState {
         }
 
         let new_layer = Layer::from_layer(base_layer, area);
-        let op = super::undo_operations::UndoLayerChange::new(
-            layer_idx - 1,
-            area.start,
-            old_layer,
-            new_layer,
-        );
+        let op = super::undo_operations::UndoLayerChange::new(layer_idx - 1, area.start, old_layer, new_layer);
         self.push_plain_undo(Box::new(op))
     }
 
@@ -245,11 +228,7 @@ impl EditState {
                     new_layer.set_char((x, y), ch);
                 }
             }
-            let op = super::undo_operations::RotateLayer::new(
-                current_layer,
-                layer.lines.clone(),
-                new_layer.lines.clone(),
-            );
+            let op = super::undo_operations::RotateLayer::new(current_layer, layer.lines.clone(), new_layer.lines.clone());
             self.push_undo_action(Box::new(op))
         } else {
             Err(super::EditorError::InvalidLayer(current_layer).into())
@@ -285,9 +264,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                layer_idx, area.start, old_layer, new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(layer_idx, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -295,10 +272,7 @@ impl EditState {
     }
 }
 
-pub fn map_char_u8<S: ::std::hash::BuildHasher>(
-    mut ch: AttributedChar,
-    table: &HashMap<u8, u8, S>,
-) -> AttributedChar {
+pub fn map_char_u8<S: ::std::hash::BuildHasher>(mut ch: AttributedChar, table: &HashMap<u8, u8, S>) -> AttributedChar {
     if let Some(repl) = table.get(&(ch.ch as u8)) {
         ch.ch = *repl as char;
     }

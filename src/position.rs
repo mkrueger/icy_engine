@@ -129,10 +129,7 @@ impl From<(usize, usize)> for Position {
 
 impl From<(i32, i32)> for Position {
     fn from(value: (i32, i32)) -> Self {
-        Position {
-            x: value.0,
-            y: value.1,
-        }
+        Position { x: value.0, y: value.1 }
     }
 }
 

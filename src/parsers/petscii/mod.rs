@@ -24,13 +24,7 @@ impl Parser {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn handle_c128_escapes(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: u8,
-    ) -> EngineResult<CallbackAction> {
+    pub fn handle_c128_escapes(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: u8) -> EngineResult<CallbackAction> {
         self.got_esc = false;
 
         match ch {
@@ -182,13 +176,7 @@ impl BufferParser for Parser {
         }
     }
 
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         if self.got_esc {
             return self.handle_c128_escapes(buf, current_layer, caret, ch);

@@ -35,12 +35,7 @@ impl OutputFormat for Bin {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((160, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());

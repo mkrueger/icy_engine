@@ -1,7 +1,5 @@
 use super::BufferParser;
-use crate::{
-    AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError, TextAttribute,
-};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError, TextAttribute};
 use std::cmp::{max, min};
 
 #[derive(Debug)]
@@ -41,13 +39,7 @@ impl Default for Parser {
 }
 
 impl Parser {
-    fn print_fallback(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_fallback(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         self.ansi_parser.print_char(buf, current_layer, caret, ch)
     }
 }
@@ -61,13 +53,7 @@ impl BufferParser for Parser {
         self.ansi_parser.convert_to_unicode(attributed_char)
     }
 
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match self.avt_state {
             AvtReadState::Chars => {
                 match ch {
@@ -132,12 +118,7 @@ impl BufferParser for Parser {
                     self.avatar_state = 3;
                     let repeat_count = ch as usize;
                     for _ in 0..repeat_count {
-                        self.ansi_parser.print_char(
-                            buf,
-                            current_layer,
-                            caret,
-                            self.avt_repeat_char,
-                        )?;
+                        self.ansi_parser.print_char(buf, current_layer, caret, self.avt_repeat_char)?;
                     }
                     self.avt_state = AvtReadState::Chars;
                     Ok(CallbackAction::None)

@@ -15,7 +15,10 @@ fn update_sixels(buf: &mut Buffer) {
 
 #[test]
 fn test_simple_sixel() {
-    let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+    let (mut buf, _) = create_buffer(
+        &mut Parser::default(),
+        b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
     update_sixels(&mut buf);
     assert_eq!(1, buf.layers[0].sixels.len());
     assert_eq!(2, buf.layers[0].sixels[0].vertical_scale);
@@ -27,7 +30,10 @@ fn test_simple_sixel() {
 
 #[test]
 fn test_simple_position_sixel() {
-    let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+    let (mut buf, _) = create_buffer(
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
     update_sixels(&mut buf);
     let sixels = &buf.layers[0].sixels;
 
@@ -39,12 +45,40 @@ fn test_simple_position_sixel() {
 
 #[test]
 fn test_overwrite_sixel() {
-    let (mut buf, mut caret) = create_buffer(&mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+    let (mut buf, mut caret) = create_buffer(
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[4;13H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
     update_sixels(&mut buf);
 
     let sixels = &buf.layers[0].sixels;
@@ -56,13 +90,41 @@ fn test_overwrite_sixel() {
 
 #[test]
 fn test_overwrite_multiple_sixels() {
-    let (mut buf, mut caret) = create_buffer(&mut Parser::default(), b"\x1B[0;0H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[5;5H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-    update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[10;10H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+    let (mut buf, mut caret) = create_buffer(
+        &mut Parser::default(),
+        b"\x1B[0;0H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[5;5H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut Parser::default(),
+        b"\x1B[10;10H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
     for _ in 0..10 {
-        update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[0;0H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-        update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[5;5H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
-        update_buffer(&mut buf, &mut caret, &mut Parser::default(), b"\x1B[10;10H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+        update_buffer(
+            &mut buf,
+            &mut caret,
+            &mut Parser::default(),
+            b"\x1B[0;0H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+        );
+        update_buffer(
+            &mut buf,
+            &mut caret,
+            &mut Parser::default(),
+            b"\x1B[5;5H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+        );
+        update_buffer(
+            &mut buf,
+            &mut caret,
+            &mut Parser::default(),
+            b"\x1B[10;10H\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+        );
     }
     update_sixels(&mut buf);
 
@@ -116,25 +178,23 @@ fn test_chess_update() {
 #[test]
 fn test_macro_sixels() {
     let mut parser: Parser = Parser::default();
-    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP11;0;0!zq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\r\n");
-    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1BP12;0;0!zq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\r\n");
-    assert_eq!(2, parser.macros.len());
+    let (mut buf, mut caret) = create_buffer(
+        &mut parser,
+        b"\x1BP11;0;0!zq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\r\n",
+    );
     update_buffer(
         &mut buf,
         &mut caret,
         &mut parser,
-        b"\x1B[10;59f\x1BP\x1B[11*z\x1B\\",
+        b"\x1BP12;0;0!zq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\r\n",
     );
+    assert_eq!(2, parser.macros.len());
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[10;59f\x1BP\x1B[11*z\x1B\\");
     update_sixels(&mut buf);
     {
         assert_eq!(1, buf.layers[0].sixels.len());
     }
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[0;59f\x1BP\x1B[11*z\x1B\\",
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[0;59f\x1BP\x1B[11*z\x1B\\");
     update_sixels(&mut buf);
 
     {
@@ -148,9 +208,24 @@ fn test_simple_sixel2() {
     let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1B[1;1H");
     update_sixels(&mut buf);
 
-    update_buffer(&mut buf, &mut caret, &mut parser, b"test\n\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\n\r");
-    update_buffer(&mut buf, &mut caret, &mut parser, b"test\n\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\n\r");
-    update_buffer(&mut buf, &mut caret, &mut parser, b"test\n\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\n\r");
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"test\n\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\n\r",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"test\n\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\n\r",
+    );
+    update_buffer(
+        &mut buf,
+        &mut caret,
+        &mut parser,
+        b"test\n\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\\n\r",
+    );
 }
 
 #[test]
@@ -169,7 +244,10 @@ fn test_sixel_raster_attributes() {
 
 #[test]
 fn test_sixel_removal() {
-    let (mut buf, _) = create_buffer(&mut Parser::default(), b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\");
+    let (mut buf, _) = create_buffer(
+        &mut Parser::default(),
+        b"\x1BPq#0;2;0;0;0#1;2;100;100;0#2;2;0;100;0#1~~@@vv@@~~@@~~$43#2??}}GG}}??}}??-#1!14@\x1B\\",
+    );
     update_sixels(&mut buf);
     assert_eq!(1, buf.layers[0].sixels.len());
     assert_eq!(2, buf.layers[0].sixels[0].vertical_scale);
@@ -178,10 +256,7 @@ fn test_sixel_removal() {
     assert_eq!(14, buf.layers[0].sixels[0].get_width());
     assert_eq!(12, buf.layers[0].sixels[0].get_height());
 
-    buf.layers[0].set_char(
-        (5, 5),
-        crate::AttributedChar::new(' ', TextAttribute::default()),
-    );
+    buf.layers[0].set_char((5, 5), crate::AttributedChar::new(' ', TextAttribute::default()));
 
     assert_eq!(0, buf.layers[0].sixels.len());
 }

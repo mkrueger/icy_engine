@@ -47,12 +47,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -92,12 +87,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -135,12 +125,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -167,22 +152,15 @@ impl EditState {
                     let pos2 = Position::new(area.right() - x - 1, y);
 
                     let pos1ch = layer.get_char(pos1);
-                    let pos1ch =
-                        map_char(pos1ch, flip_tables.get(&pos1ch.get_font_page()).unwrap());
+                    let pos1ch = map_char(pos1ch, flip_tables.get(&pos1ch.get_font_page()).unwrap());
                     let pos2ch = layer.get_char(pos2);
-                    let pos2ch =
-                        map_char(pos2ch, flip_tables.get(&pos2ch.get_font_page()).unwrap());
+                    let pos2ch = map_char(pos2ch, flip_tables.get(&pos2ch.get_font_page()).unwrap());
                     layer.set_char(pos1, pos2ch);
                     layer.set_char(pos2, pos1ch);
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -209,22 +187,15 @@ impl EditState {
                     let pos1 = Position::new(x, area.top() + y);
                     let pos2 = Position::new(x, area.bottom() - 1 - y);
                     let pos1ch = layer.get_char(pos1);
-                    let pos1ch =
-                        map_char(pos1ch, flip_tables.get(&pos1ch.get_font_page()).unwrap());
+                    let pos1ch = map_char(pos1ch, flip_tables.get(&pos1ch.get_font_page()).unwrap());
                     let pos2ch = layer.get_char(pos2);
-                    let pos2ch =
-                        map_char(pos2ch, flip_tables.get(&pos2ch.get_font_page()).unwrap());
+                    let pos2ch = map_char(pos2ch, flip_tables.get(&pos2ch.get_font_page()).unwrap());
                     layer.set_char(pos1, pos2ch);
                     layer.set_char(pos2, pos1ch);
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -257,8 +228,7 @@ impl EditState {
 
             for y in 0..new_rectangle.get_height() {
                 for x in 0..new_rectangle.get_width() {
-                    let ch =
-                        old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
+                    let ch = old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
                     new_layer.set_char((x, y), ch);
                 }
             }
@@ -289,21 +259,12 @@ impl EditState {
             for x in 0..area.get_width() {
                 let pos = Position::new(x, y);
                 if self.get_is_selected(pos + area.start) {
-                    self.buffer
-                        .layers
-                        .get_mut(layer_idx)
-                        .unwrap()
-                        .set_char(pos, AttributedChar::invisible());
+                    self.buffer.layers.get_mut(layer_idx).unwrap().set_char(pos, AttributedChar::invisible());
                 }
             }
         }
         let new_layer = self.buffer.layers.get_mut(layer_idx).unwrap().clone();
-        let op = super::undo_operations::UndoLayerChange::new(
-            self.get_current_layer(),
-            area.start,
-            old_layer,
-            new_layer,
-        );
+        let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
         let _ = self.push_plain_undo(Box::new(op));
         self.clear_selection()
     }
@@ -317,8 +278,7 @@ impl EditState {
                 return Ok(());
             }
             if area.get_width() >= layer.get_width() {
-                let op =
-                    super::undo_operations::UndoScrollWholeLayerUp::new(self.get_current_layer());
+                let op = super::undo_operations::UndoScrollWholeLayerUp::new(self.get_current_layer());
                 return self.push_undo_action(Box::new(op));
             }
 
@@ -329,38 +289,21 @@ impl EditState {
             for y in area.y_range() {
                 let line = &mut layer.lines[y as usize];
                 if line.chars.len() < area.right() as usize {
-                    line.chars
-                        .resize(area.right() as usize, AttributedChar::invisible());
+                    line.chars.resize(area.right() as usize, AttributedChar::invisible());
                 }
                 if y == area.top() {
-                    saved_line.extend(
-                        line.chars
-                            .drain(area.left() as usize..area.right() as usize),
-                    );
+                    saved_line.extend(line.chars.drain(area.left() as usize..area.right() as usize));
                     continue;
                 }
                 if y == area.bottom() - 1 {
-                    line.chars.splice(
-                        area.right() as usize..area.right() as usize,
-                        saved_line.iter().copied(),
-                    );
+                    line.chars.splice(area.right() as usize..area.right() as usize, saved_line.iter().copied());
                 }
-                let chars = line
-                    .chars
-                    .drain(area.left() as usize..area.right() as usize)
-                    .collect::<Vec<AttributedChar>>();
+                let chars = line.chars.drain(area.left() as usize..area.right() as usize).collect::<Vec<AttributedChar>>();
                 let line_above = &mut layer.lines[y as usize - 1];
-                line_above
-                    .chars
-                    .splice(area.left() as usize..area.left() as usize, chars);
+                line_above.chars.splice(area.left() as usize..area.left() as usize, chars);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -376,8 +319,7 @@ impl EditState {
                 return Ok(());
             }
             if area.get_width() >= layer.get_width() {
-                let op =
-                    super::undo_operations::UndoScrollWholeLayerDown::new(self.get_current_layer());
+                let op = super::undo_operations::UndoScrollWholeLayerDown::new(self.get_current_layer());
                 return self.push_undo_action(Box::new(op));
             }
             let old_layer = Layer::from_layer(layer, area);
@@ -387,38 +329,21 @@ impl EditState {
             for y in area.y_range().rev() {
                 let line = &mut layer.lines[y as usize];
                 if line.chars.len() < area.right() as usize {
-                    line.chars
-                        .resize(area.right() as usize, AttributedChar::invisible());
+                    line.chars.resize(area.right() as usize, AttributedChar::invisible());
                 }
                 if y == area.bottom() - 1 {
-                    saved_line.extend(
-                        line.chars
-                            .drain(area.left() as usize..area.right() as usize),
-                    );
+                    saved_line.extend(line.chars.drain(area.left() as usize..area.right() as usize));
                     continue;
                 }
                 if y == area.top() {
-                    line.chars.splice(
-                        area.right() as usize..area.right() as usize,
-                        saved_line.iter().copied(),
-                    );
+                    line.chars.splice(area.right() as usize..area.right() as usize, saved_line.iter().copied());
                 }
-                let chars = line
-                    .chars
-                    .drain(area.left() as usize..area.right() as usize)
-                    .collect::<Vec<AttributedChar>>();
+                let chars = line.chars.drain(area.left() as usize..area.right() as usize).collect::<Vec<AttributedChar>>();
                 let line_below = &mut layer.lines[y as usize + 1];
-                line_below
-                    .chars
-                    .splice(area.left() as usize..area.left() as usize, chars);
+                line_below.chars.splice(area.left() as usize..area.left() as usize, chars);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -437,19 +362,13 @@ impl EditState {
             for y in area.y_range() {
                 let line = &mut layer.lines[y as usize];
                 if line.chars.len() < area.right() as usize {
-                    line.chars
-                        .resize(area.right() as usize, AttributedChar::invisible());
+                    line.chars.resize(area.right() as usize, AttributedChar::invisible());
                 }
                 let ch = line.chars.remove(area.left() as usize);
                 line.chars.insert(area.right() as usize - 1, ch);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -468,19 +387,13 @@ impl EditState {
             for y in area.y_range() {
                 let line = &mut layer.lines[y as usize];
                 if line.chars.len() < area.right() as usize {
-                    line.chars
-                        .resize(area.right() as usize, AttributedChar::invisible());
+                    line.chars.resize(area.right() as usize, AttributedChar::invisible());
                 }
                 let ch = line.chars.remove(area.right() as usize - 1);
                 line.chars.insert(area.left() as usize, ch);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(
-                self.get_current_layer(),
-                area.start,
-                old_layer,
-                new_layer,
-            );
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -642,10 +555,7 @@ fn generate_y_variants(flipped_glyph: &crate::Glyph) -> Vec<crate::Glyph> {
     cmp_glyhps
 }
 
-pub fn map_char<S: ::std::hash::BuildHasher>(
-    mut ch: AttributedChar,
-    table: &HashMap<char, char, S>,
-) -> AttributedChar {
+pub fn map_char<S: ::std::hash::BuildHasher>(mut ch: AttributedChar, table: &HashMap<char, char, S>) -> AttributedChar {
     if let Some(repl) = table.get(&(ch.ch)) {
         ch.ch = *repl;
     }
@@ -720,11 +630,7 @@ mod tests {
         ]);
 
         for k in table.keys() {
-            assert!(
-                cp437_table.contains_key(k),
-                "invalid key in flip table {}",
-                *k as u32
-            );
+            assert!(cp437_table.contains_key(k), "invalid key in flip table {}", *k as u32);
         }
         for k in cp437_table.keys() {
             assert!(table.contains_key(k), "missing key {}", *k as u32);
@@ -772,11 +678,7 @@ mod tests {
             println!("{k}({}) -> {v}({})", *k as u32, *v as u32);
         }*/
         for k in table.keys() {
-            assert!(
-                cp437_table.contains_key(k),
-                "invalid key in flip table {}",
-                *k as u32
-            );
+            assert!(cp437_table.contains_key(k), "invalid key in flip table {}", *k as u32);
         }
         for k in cp437_table.keys() {
             assert!(table.contains_key(k), "missing key {}", *k as u32);

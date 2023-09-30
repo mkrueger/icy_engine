@@ -107,18 +107,12 @@ fn test_conceal() {
 #[test]
 fn test_line_lose_color_bug() {
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BAfoo\x1BBbar\x1E\x1E");
-    assert_eq!(
-        1,
-        buf.get_char(Position::new(1, 0)).attribute.get_foreground()
-    );
+    assert_eq!(1, buf.get_char(Position::new(1, 0)).attribute.get_foreground());
 }
 
 #[test]
 fn testpage_bug_1() {
-    let (buf, _) = create_viewdata_buffer(
-        &mut Parser::default(),
-        b"\x1BT\x1BZ\x1B^s\x1BQ\x1BY\x1BU\x1B@\x1BU\x1BA\x1BM",
-    );
+    let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BT\x1BZ\x1B^s\x1BQ\x1BY\x1BU\x1B@\x1BU\x1BA\x1BM");
     assert_eq!(' ', buf.get_char(Position::new(10, 0)).ch);
 }
 
@@ -126,33 +120,21 @@ fn testpage_bug_1() {
 fn testpage_bug_2() {
     // bg color changes immediately
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BM \x1BE\x1B]\x1BBT");
-    assert_eq!(
-        5,
-        buf.get_char(Position::new(3, 0)).attribute.get_background()
-    );
+    assert_eq!(5, buf.get_char(Position::new(3, 0)).attribute.get_background());
 }
 
 #[test]
 fn testpage_bug_3() {
     // bg reset color changes immediately
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BM \x1BE\x1B]\x1BBT\x1B\\X");
-    assert_eq!(
-        0,
-        buf.get_char(Position::new(6, 0)).attribute.get_background()
-    );
-    assert_eq!(
-        0,
-        buf.get_char(Position::new(7, 0)).attribute.get_background()
-    );
+    assert_eq!(0, buf.get_char(Position::new(6, 0)).attribute.get_background());
+    assert_eq!(0, buf.get_char(Position::new(7, 0)).attribute.get_background());
 }
 
 #[test]
 fn testpage_bug_4() {
     // conceal has no effect in graphics mode
-    let (buf, _) = create_viewdata_buffer(
-        &mut Parser::default(),
-        b"\x1B^\x1BRs\x1BV\x1BX\x1BS\x1B@\x1BW\x1BX\x1BA05",
-    );
+    let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1B^\x1BRs\x1BV\x1BX\x1BS\x1B@\x1BW\x1BX\x1BA05");
     for i in 0..10 {
         assert!(!buf.get_char(Position::new(i, 0)).attribute.is_concealed());
     }
@@ -163,11 +145,7 @@ fn test_cr_at_eol() {
     // conceal has no effect in graphics mode
     let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA\x1BA01\x1B\x08\r");
     for x in 1..buf.get_width() {
-        assert_eq!(
-            1,
-            buf.get_char((x, 0)).attribute.get_foreground(),
-            "wrong color at {x}"
-        );
+        assert_eq!(1, buf.get_char((x, 0)).attribute.get_foreground(), "wrong color at {x}");
     }
 }
 
@@ -181,10 +159,7 @@ fn test_lf_fill_bg_bug() {
 #[test]
 fn test_drop_shadow() {
     // conceal has no effect in graphics mode
-    let (buf, _) = create_viewdata_buffer(
-        &mut Parser::default(),
-        b"\x1B^\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F",
-    );
+    let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1B^\x1BT\x1B]\x1BGDrop Shadow\x1BTk\x1BV\x1B\\\x7F\x7F");
     assert_eq!('«', buf.get_char((18, 0)).ch);
     assert_eq!(0, buf.get_char((18, 0)).attribute.get_background());
 }
@@ -192,13 +167,11 @@ fn test_drop_shadow() {
 #[test]
 fn test_color_on_clreol() {
     // conceal has no effect in graphics mode
-    let (buf, _) = create_viewdata_buffer(&mut Parser::default(), b"\x1E\x0B\x1BAACCESS DENIED.\x11\x1E\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\x1E\x0B\x1BB*1\x14\x1E\x09\n");
-    assert_eq!(
-        2,
-        buf.get_char((3, buf.get_height() - 1))
-            .attribute
-            .get_foreground()
+    let (buf, _) = create_viewdata_buffer(
+        &mut Parser::default(),
+        b"\x1E\x0B\x1BAACCESS DENIED.\x11\x1E\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\x1E\x0B\x1BB*1\x14\x1E\x09\n",
     );
+    assert_eq!(2, buf.get_char((3, buf.get_height() - 1)).attribute.get_foreground());
 }
 
 #[test]

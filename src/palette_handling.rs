@@ -17,38 +17,21 @@ pub struct Color {
 
 impl Display for Color {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{{Color: r={:02X}, g={:02X}, b{:02X}}}",
-            self.r, self.g, self.b
-        )
+        write!(f, "{{Color: r={:02X}, g={:02X}, b{:02X}}}", self.r, self.g, self.b)
     }
 }
 
 impl Color {
     pub const fn new(r: u8, g: u8, b: u8) -> Self {
-        Color {
-            name: None,
-            r,
-            g,
-            b,
-        }
+        Color { name: None, r, g, b }
     }
 
     pub fn get_rgb_f64(&self) -> (f64, f64, f64) {
-        (
-            self.r as f64 / 255_f64,
-            self.g as f64 / 255_f64,
-            self.b as f64 / 255_f64,
-        )
+        (self.r as f64 / 255_f64, self.g as f64 / 255_f64, self.b as f64 / 255_f64)
     }
 
     pub fn get_rgb_f32(&self) -> (f32, f32, f32) {
-        (
-            self.r as f32 / 255_f32,
-            self.g as f32 / 255_f32,
-            self.b as f32 / 255_f32,
-        )
+        (self.r as f32 / 255_f32, self.g as f32 / 255_f32, self.b as f32 / 255_f32)
     }
 
     pub fn get_rgb(&self) -> (u8, u8, u8) {
@@ -108,11 +91,7 @@ impl From<(f32, f32, f32)> for Color {
 
 impl From<Color> for (f32, f32, f32) {
     fn from(value: Color) -> (f32, f32, f32) {
-        (
-            (value.r as f32 / 255_f32),
-            (value.g as f32 / 255_f32),
-            (value.b as f32 / 255_f32),
-        )
+        ((value.r as f32 / 255_f32), (value.g as f32 / 255_f32), (value.b as f32 / 255_f32))
     }
 }
 
@@ -129,11 +108,7 @@ impl From<[f32; 3]> for Color {
 
 impl From<Color> for [f32; 3] {
     fn from(value: Color) -> [f32; 3] {
-        [
-            (value.r as f32 / 255_f32),
-            (value.g as f32 / 255_f32),
-            (value.b as f32 / 255_f32),
-        ]
+        [(value.r as f32 / 255_f32), (value.g as f32 / 255_f32), (value.b as f32 / 255_f32)]
     }
 }
 
@@ -248,18 +223,14 @@ impl Palette {
                             match i {
                                 0 => {
                                     if line != "JASC-PAL" {
-                                        return Err(anyhow::anyhow!(
-                                            "Only JASC-PAL supported: {line}"
-                                        ));
+                                        return Err(anyhow::anyhow!("Only JASC-PAL supported: {line}"));
                                     }
                                 }
                                 1 | 2 => {
                                     // Ignore
                                 }
                                 _ => {
-                                    for (_, [r, g, b]) in
-                                        re.captures_iter(line).map(|c| c.extract())
-                                    {
+                                    for (_, [r, g, b]) in re.captures_iter(line).map(|c| c.extract()) {
                                         let r = r.parse::<u32>()?;
                                         let g = g.parse::<u32>()?;
                                         let b = b.parse::<u32>()?;
@@ -281,9 +252,7 @@ impl Palette {
                         match i {
                             0 => {
                                 if line != "GIMP Palette" {
-                                    return Err(anyhow::anyhow!(
-                                        "Only GIMP Palette supported: {line}"
-                                    ));
+                                    return Err(anyhow::anyhow!("Only GIMP Palette supported: {line}"));
                                 }
                             }
                             _ => {
@@ -314,8 +283,7 @@ impl Palette {
             },
             PaletteFormat::Ice => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
-                    let color_regex =
-                        Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
+                    let color_regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
                     let palette_name_regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*")?;
                     let author_regex = Regex::new(r"\s*#Author:\s*(.*)\s*")?;
                     let description_regex = Regex::new(r"\s*#Description:\s*(.*)\s*")?;
@@ -325,9 +293,7 @@ impl Palette {
                         match i {
                             0 => {
                                 if line != "ICE Palette" {
-                                    return Err(anyhow::anyhow!(
-                                        "Only ICE Palette supported: {line}"
-                                    ));
+                                    return Err(anyhow::anyhow!("Only ICE Palette supported: {line}"));
                                 }
                             }
                             _ => {
@@ -373,9 +339,7 @@ impl Palette {
 
             PaletteFormat::Txt => match String::from_utf8(bytes.to_vec()) {
                 Ok(data) => {
-                    let color_regex = Regex::new(
-                        r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})",
-                    )?;
+                    let color_regex = Regex::new(r"([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})")?;
                     let name_regex = Regex::new(r"\s*;Palette Name:\s*(.*)\s*")?;
                     let description_regex = Regex::new(r"\s*;Description:\s*(.*)\s*")?;
                     for line in data.lines() {
@@ -468,13 +432,7 @@ impl Palette {
                 res.push_str(format!("#Colors: {}\n", self.colors.len()).as_str());
 
                 for c in &self.colors {
-                    res.push_str(
-                        format!(
-                            "{:3} {:3} {:3} {:02x}{:02x}{:02x}\n",
-                            c.r, c.g, c.b, c.r, c.g, c.b
-                        )
-                        .as_str(),
-                    );
+                    res.push_str(format!("{:3} {:3} {:3} {:02x}{:02x}{:02x}\n", c.r, c.g, c.b, c.r, c.g, c.b).as_str());
                 }
 
                 return res.as_bytes().to_vec();
@@ -576,12 +534,7 @@ impl Palette {
         if self.colors.len() <= number {
             self.colors.resize(number + 1, Color::default());
         }
-        self.colors[number] = Color {
-            name: None,
-            r,
-            g,
-            b,
-        };
+        self.colors[number] = Color { name: None, r, g, b };
     }
 
     pub fn set_color_hsl(&mut self, number: usize, h: f32, s: f32, l: f32) {
@@ -595,11 +548,7 @@ impl Palette {
             let l = (l * 255.0) as u8;
             (l, l, l)
         } else {
-            let temp2 = if l <= 0.5 {
-                l * (1.0 + s)
-            } else {
-                l + s - (l * s)
-            };
+            let temp2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
             let temp1 = 2.0 * l - temp2;
             (
                 convert_vector(temp2, temp1, h + 1.0 / 3.0),
@@ -608,12 +557,7 @@ impl Palette {
             )
         };
 
-        self.colors[number] = Color {
-            name: None,
-            r,
-            g,
-            b,
-        };
+        self.colors[number] = Color { name: None, r, g, b };
     }
 
     pub fn insert_color(&mut self, color: Color) -> u32 {

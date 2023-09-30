@@ -236,10 +236,7 @@ impl Rectangle {
     }
 
     pub fn contains_pt(&self, point: Position) -> bool {
-        self.start.x <= point.x
-            && point.x <= self.start.x + self.size.width
-            && self.start.y <= point.y
-            && point.y <= self.start.y + self.size.height
+        self.start.x <= point.x && point.x <= self.start.x + self.size.width && self.start.y <= point.y && point.y <= self.start.y + self.size.height
     }
 
     pub fn contains_rect(&self, other: &Rectangle) -> bool {
@@ -322,10 +319,7 @@ impl Rectangle {
     pub fn is_inside(&self, pos: impl Into<Position>) -> bool {
         let pos = pos.into();
 
-        self.start.x <= pos.x
-            && self.start.y <= pos.y
-            && pos.x < self.start.x + self.size.width
-            && pos.y < self.start.y + self.size.height
+        self.start.x <= pos.x && self.start.y <= pos.y && pos.x < self.start.x + self.size.width && pos.y < self.start.y + self.size.height
     }
 }
 

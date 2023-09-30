@@ -35,10 +35,7 @@ mod ctrla;
 mod icy_draw;
 pub(crate) use color_optimization::*;
 
-use crate::{
-    BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role,
-    Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES,
-};
+use crate::{BitFont, Buffer, BufferFeatures, BufferParser, BufferType, Caret, EngineResult, Layer, Role, Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES};
 
 use super::{Position, TextAttribute};
 
@@ -84,7 +81,7 @@ pub struct SaveOptions {
     ///  making the file work on longer terminals.
     pub longer_terminal_output: bool,
 
-    /// When set output ignores fg color changes in whitespaces 
+    /// When set output ignores fg color changes in whitespaces
     /// and bg color changes in blocks.
     pub lossles_output: bool,
 
@@ -150,12 +147,7 @@ pub trait OutputFormat: Send + Sync {
     /// # Errors
     ///
     /// This function will return an error if .
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> anyhow::Result<crate::Buffer>;
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> anyhow::Result<crate::Buffer>;
 }
 
 lazy_static::lazy_static! {
@@ -183,12 +175,7 @@ lazy_static::lazy_static! {
 /// # Errors
 ///
 /// This function will return an error if .
-pub fn parse_with_parser(
-    result: &mut Buffer,
-    interpreter: &mut dyn BufferParser,
-    text: &str,
-    skip_errors: bool,
-) -> EngineResult<()> {
+pub fn parse_with_parser(result: &mut Buffer, interpreter: &mut dyn BufferParser, text: &str, skip_errors: bool) -> EngineResult<()> {
     result.layers[0].lines.clear();
     let mut caret = Caret::default();
     if let Some(sauce) = &result.get_sauce() {
@@ -217,14 +204,7 @@ pub fn parse_with_parser(
                 (size.height + font_size.height - 1) / font_size.height,
             );
             num += 1;
-            let mut layer = Layer::new(
-                fl!(
-                    crate::LANGUAGE_LOADER,
-                    "layer-new-sixel_layer_name",
-                    number = num
-                ),
-                size,
-            );
+            let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-new-sixel_layer_name", number = num), size);
             layer.role = Role::Image;
             layer.set_offset(sixel.position);
             sixel.position = Position::default();
@@ -252,9 +232,7 @@ pub fn parse_with_parser(
 }
 
 pub(crate) fn crop_loaded_file(result: &mut Buffer) {
-    while result.layers[0].lines.len() > 1
-        && result.layers[0].lines.last().unwrap().chars.is_empty()
-    {
+    while result.layers[0].lines.len() > 1 && result.layers[0].lines.last().unwrap().chars.is_empty() {
         result.layers[0].lines.pop();
     }
     let height = result.get_line_count();
@@ -324,7 +302,10 @@ impl std::fmt::Display for SavingError {
         match self {
             SavingError::NoFontFound => write!(f, "No font found"),
             SavingError::Only8x16FontsSupported => write!(f, "Only 8x16 fonts are supported by this format."),
-            SavingError::InvalidXBinFont => write!(f, "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."),
+            SavingError::InvalidXBinFont => write!(
+                f,
+                "font not supported by the .xb format only fonts with 8px width and a height from 1 to 32 are supported."
+            ),
             SavingError::Only8BitCharactersSupported => write!(f, "Only 8 bit characters are supported by this format."),
         }
     }
@@ -350,20 +331,12 @@ mod tests {
 
     fn test_ansi(data: &[u8]) {
         let buf = Buffer::from_bytes(&PathBuf::from("test.ans"), false, data).unwrap();
-        let converted = super::Ansi::default()
-            .to_bytes(&buf, &SaveOptions::new())
-            .unwrap();
+        let converted = super::Ansi::default().to_bytes(&buf, &SaveOptions::new()).unwrap();
         // more gentle output.
-        let b: Vec<u8> = converted
-            .iter()
-            .map(|&x| if x == 27 { b'x' } else { x })
-            .collect();
+        let b: Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
         let converted = String::from_utf8_lossy(b.as_slice());
 
-        let b: Vec<u8> = data
-            .iter()
-            .map(|&x| if x == 27 { b'x' } else { x })
-            .collect();
+        let b: Vec<u8> = data.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
         let expected = String::from_utf8_lossy(b.as_slice());
 
         assert_eq!(expected, converted);
@@ -377,8 +350,7 @@ mod tests {
 
     #[test]
     fn test_fg_color_change() {
-        let data =
-            b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m ";
+        let data = b"a\x1B[32ma\x1B[33ma\x1B[1ma\x1B[35ma\x1B[0;35ma\x1B[1;32ma\x1B[0;36ma\x1B[32m ";
         test_ansi(data);
     }
 
@@ -513,11 +485,7 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
     );*/
 
     if compare_options.compare_palette {
-        assert_eq!(
-            buf_old.palette.len(),
-            buf_new.palette.len(),
-            "palette color count differs"
-        );
+        assert_eq!(buf_old.palette.len(), buf_new.palette.len(), "palette color count differs");
         for i in 0..buf_old.palette.len() {
             assert_eq!(
                 buf_old.palette.get_color(i as u32),
@@ -538,11 +506,7 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
 
             for (ch, glyph) in &old_fnt.glyphs {
                 let new_glyph = new_fnt.glyphs.get(ch).unwrap();
-                assert_eq!(
-                    glyph, new_glyph,
-                    "glyphs differ font: {i}, char: {ch} (0x{:02X})",
-                    *ch as u32
-                );
+                assert_eq!(glyph, new_glyph, "glyphs differ font: {i}, char: {ch} (0x{:02X})", *ch as u32);
             }
         }
     }
@@ -557,11 +521,7 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
             buf_new.layers[layer].get_offset(),
             "layer {layer} offset differs"
         );
-        assert_eq!(
-            buf_old.layers[layer].get_size(),
-            buf_new.layers[layer].get_size(),
-            "layer {layer} size differs"
-        );
+        assert_eq!(buf_old.layers[layer].get_size(), buf_new.layers[layer].get_size(), "layer {layer} size differs");
         assert_eq!(
             buf_old.layers[layer].is_visible, buf_new.layers[layer].is_visible,
             "layer {layer} is_visible differs"
@@ -580,8 +540,7 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
             for i in 0..buf_old.layers[layer].get_width() as usize {
                 let mut ch = buf_old.layers[layer].get_char((line, i));
                 let mut ch2 = buf_new.layers[layer].get_char((line, i));
-                if compare_options.ignore_invisible_chars && (!ch.is_visible() || !ch2.is_visible())
-                {
+                if compare_options.ignore_invisible_chars && (!ch.is_visible() || !ch2.is_visible()) {
                     continue;
                 }
 
@@ -648,10 +607,5 @@ pub fn guess_font_name(font: &BitFont) -> String {
         }
     }
 
-    fl!(
-        crate::LANGUAGE_LOADER,
-        "unknown-font-name",
-        width = font.size.width,
-        height = font.size.height
-    )
+    fl!(crate::LANGUAGE_LOADER, "unknown-font-name", width = font.size.width, height = font.size.height)
 }

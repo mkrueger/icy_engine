@@ -2,19 +2,13 @@
 
 use crate::{
     ansi::{sound::MusicAction, BaudEmulation, MusicOption},
-    parsers::{
-        ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force,
-    },
-    AttributedChar, CallbackAction, Caret, Color, IceMode, OutputFormat, Position, SaveOptions,
-    TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE,
+    parsers::{ansi, create_buffer, get_action, get_simple_action, update_buffer, update_buffer_force},
+    AttributedChar, CallbackAction, Caret, Color, IceMode, OutputFormat, Position, SaveOptions, TerminalScrolling, TextAttribute, TextPane, XTERM_256_PALETTE,
 };
 
 #[test]
 fn test_ansi_sequence() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[0;40;37mFoo-\x1B[1mB\x1B[0ma\x1B[35mr",
-    );
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[0;40;37mFoo-\x1B[1mB\x1B[0ma\x1B[35mr");
 
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'F', ch.ch as u8);
@@ -47,10 +41,7 @@ fn test_ansi_sequence() {
 
 #[test]
 fn test_ansi_30() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[1;35mA\x1B[30mB\x1B[0mC",
-    );
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[1;35mA\x1B[30mB\x1B[0mC");
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
     assert_eq!(13, ch.attribute.as_u8(IceMode::Blink));
@@ -92,10 +83,7 @@ fn test_bg_colorrsequence() {
 }
 #[test]
 fn test_char_missing_bug() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[1;35mA\x1B[30mB\x1B[0mC",
-    );
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[1;35mA\x1B[30mB\x1B[0mC");
 
     let ch = buf.get_char(Position::new(0, 0));
     assert_eq!(b'A', ch.ch as u8);
@@ -164,12 +152,7 @@ fn test_remove_n_line() {
     for i in 0..4 {
         assert_eq!(b't', buf.get_char(Position::new(0, i)).ch as u8);
     }
-    update_buffer(
-        &mut buf,
-        &mut Caret::default(),
-        &mut ansi::Parser::default(),
-        b"\x1b[3M",
-    );
+    update_buffer(&mut buf, &mut Caret::default(), &mut ansi::Parser::default(), b"\x1b[3M");
     assert_eq!(b't', buf.get_char(Position::new(0, 0)).ch as u8);
     assert_eq!(b' ', buf.get_char(Position::new(0, 1)).ch as u8);
 }
@@ -177,38 +160,18 @@ fn test_remove_n_line() {
 #[test]
 fn test_delete_character_default() {
     let (mut buf, _) = create_buffer(&mut ansi::Parser::default(), b"test");
-    update_buffer(
-        &mut buf,
-        &mut Caret::new_xy(0, 0),
-        &mut ansi::Parser::default(),
-        b"\x1b[P",
-    );
+    update_buffer(&mut buf, &mut Caret::new_xy(0, 0), &mut ansi::Parser::default(), b"\x1b[P");
     assert_eq!(b'e', buf.get_char(Position::new(0, 0)).ch as u8);
-    update_buffer(
-        &mut buf,
-        &mut Caret::new_xy(0, 0),
-        &mut ansi::Parser::default(),
-        b"\x1b[P",
-    );
+    update_buffer(&mut buf, &mut Caret::new_xy(0, 0), &mut ansi::Parser::default(), b"\x1b[P");
     assert_eq!(b's', buf.get_char(Position::new(0, 0)).ch as u8);
-    update_buffer(
-        &mut buf,
-        &mut Caret::new_xy(0, 0),
-        &mut ansi::Parser::default(),
-        b"\x1b[P",
-    );
+    update_buffer(&mut buf, &mut Caret::new_xy(0, 0), &mut ansi::Parser::default(), b"\x1b[P");
     assert_eq!(b't', buf.get_char(Position::new(0, 0)).ch as u8);
 }
 
 #[test]
 fn test_delete_n_character() {
     let (mut buf, _) = create_buffer(&mut ansi::Parser::default(), b"testme");
-    update_buffer(
-        &mut buf,
-        &mut Caret::new_xy(0, 0),
-        &mut ansi::Parser::default(),
-        b"\x1b[4P",
-    );
+    update_buffer(&mut buf, &mut Caret::new_xy(0, 0), &mut ansi::Parser::default(), b"\x1b[4P");
     assert_eq!(b'm', buf.get_char(Position::new(0, 0)).ch as u8);
 }
 
@@ -238,12 +201,7 @@ fn test_reset_cursor() {
 fn test_cursor_visibilty() {
     let (mut buf, mut caret) = create_buffer(&mut ansi::Parser::default(), b"\x1b[?25l");
     assert!(!caret.is_visible);
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut ansi::Parser::default(),
-        b"\x1b[?25h",
-    );
+    update_buffer(&mut buf, &mut caret, &mut ansi::Parser::default(), b"\x1b[?25h");
     assert!(caret.is_visible);
 }
 
@@ -355,19 +313,9 @@ fn test_set_top_and_bottom_margins() {
 fn test_scrolling_terminal_state() {
     let (mut buf, mut caret) = create_buffer(&mut ansi::Parser::default(), b"");
     assert_eq!(TerminalScrolling::Smooth, buf.terminal_state.scroll_state);
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut ansi::Parser::default(),
-        b"\x1b[?4l",
-    );
+    update_buffer(&mut buf, &mut caret, &mut ansi::Parser::default(), b"\x1b[?4l");
     assert_eq!(TerminalScrolling::Fast, buf.terminal_state.scroll_state);
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut ansi::Parser::default(),
-        b"\x1b[?4h",
-    );
+    update_buffer(&mut buf, &mut caret, &mut ansi::Parser::default(), b"\x1b[?4h");
     assert_eq!(TerminalScrolling::Smooth, buf.terminal_state.scroll_state);
 }
 
@@ -377,18 +325,9 @@ fn test_reset_empty_colors() {
         &mut ansi::Parser::default(),
         b"\x1B[m\x1B[33mN\x1B[1m\x1B[33ma\x1B[m\x1B[33mCHR\x1B[1m\x1B[33mi\x1B[m\x1B[33mCHT",
     );
-    assert_eq!(
-        buf.get_char(Position::new(0, 0)).attribute,
-        buf.get_char(Position::new(2, 0)).attribute
-    );
-    assert_eq!(
-        buf.get_char(Position::new(1, 0)).attribute,
-        buf.get_char(Position::new(5, 0)).attribute
-    );
-    assert_eq!(
-        buf.get_char(Position::new(2, 0)).attribute,
-        buf.get_char(Position::new(8, 0)).attribute
-    );
+    assert_eq!(buf.get_char(Position::new(0, 0)).attribute, buf.get_char(Position::new(2, 0)).attribute);
+    assert_eq!(buf.get_char(Position::new(1, 0)).attribute, buf.get_char(Position::new(5, 0)).attribute);
+    assert_eq!(buf.get_char(Position::new(2, 0)).attribute, buf.get_char(Position::new(8, 0)).attribute);
 }
 
 #[test]
@@ -402,19 +341,11 @@ fn test_print_char_extension() {
 
 #[test]
 fn test_insert_mode() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"test\x1B[H\x1B[4lhelp\x1B[H\x1B[4hnewtest",
-    );
-    let converted = crate::Ascii::default()
-        .to_bytes(&buf, &SaveOptions::new())
-        .unwrap();
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"test\x1B[H\x1B[4lhelp\x1B[H\x1B[4hnewtest");
+    let converted = crate::Ascii::default().to_bytes(&buf, &SaveOptions::new()).unwrap();
 
     // more gentle output.
-    let b: Vec<u8> = converted
-        .iter()
-        .map(|&x| if x == 27 { b'x' } else { x })
-        .collect();
+    let b: Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
     let converted = String::from_utf8_lossy(b.as_slice());
     assert_eq!("newtesthelp", converted);
 }
@@ -435,10 +366,7 @@ fn test_reverse_index_line() {
 
 #[test]
 fn test_next_line() {
-    let (buf, caret) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[25;1Htest\x1BE\x1BE\x1BE",
-    );
+    let (buf, caret) = create_buffer(&mut ansi::Parser::default(), b"\x1B[25;1Htest\x1BE\x1BE\x1BE");
     assert_eq!(Position::new(0, 24), caret.get_position());
     let ch = buf.get_char(Position::new(0, 24 - 3));
     assert_eq!('t', ch.ch);
@@ -464,10 +392,7 @@ fn test_erase_character() {
 
 #[test]
 fn test_xterm_256_colors() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[38;5;232m\x1B[48;5;42mf",
-    );
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[38;5;232m\x1B[48;5;42mf");
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
     assert_eq!(XTERM_256_PALETTE[232].1, buf.palette.get_color(fg));
@@ -476,10 +401,7 @@ fn test_xterm_256_colors() {
 
 #[test]
 fn test_xterm_24bit_colors() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[38;2;12;13;14m\x1B[48;2;55;54;19mf",
-    );
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[38;2;12;13;14m\x1B[48;2;55;54;19mf");
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
     assert_eq!(Color::new(12, 13, 14), buf.palette.get_color(fg));
@@ -488,10 +410,7 @@ fn test_xterm_24bit_colors() {
 
 #[test]
 fn test_alt_24bit_colors() {
-    let (buf, _) = create_buffer(
-        &mut ansi::Parser::default(),
-        b"\x1B[1;12;13;14t\x1B[0;55;54;19tf",
-    );
+    let (buf, _) = create_buffer(&mut ansi::Parser::default(), b"\x1B[1;12;13;14t\x1B[0;55;54;19tf");
     let fg = buf.get_char(Position::new(0, 0)).attribute.get_foreground();
     let bg = buf.get_char(Position::new(0, 0)).attribute.get_background();
     assert_eq!(Color::new(12, 13, 14), buf.palette.get_color(fg));
@@ -591,10 +510,7 @@ fn test_melody() {
         ansi_music: MusicOption::Both,
         ..ansi::Parser::default()
     };
-    let action = get_simple_action(
-        &mut p,
-        b"\x1B[MFT225O3L8GL8GL8GL2E-P8L8FL8FL8FMLL2DL2DMNP8\x0E",
-    );
+    let action = get_simple_action(&mut p, b"\x1B[MFT225O3L8GL8GL8GL2E-P8L8FL8FL8FMLL2DL2DMNP8\x0E");
     let CallbackAction::PlayMusic(music) = action else {
         panic!();
     };
@@ -676,10 +592,7 @@ fn test_scroll_left() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -701,10 +614,7 @@ fn test_scroll_left_with_margins() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -727,10 +637,7 @@ fn test_scroll_right() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -752,10 +659,7 @@ fn test_scroll_right_with_margins() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -778,10 +682,7 @@ fn test_scroll_up() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -803,10 +704,7 @@ fn test_scroll_up_with_margins() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -829,10 +727,7 @@ fn test_scroll_down() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (y % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -854,10 +749,7 @@ fn test_scroll_down_with_margins() {
         for x in 0..buf.get_width() {
             buf.layers[0].set_char(
                 (x, y),
-                AttributedChar::new(
-                    unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) },
-                    TextAttribute::default(),
-                ),
+                AttributedChar::new(unsafe { char::from_u32_unchecked((b'0' as i32 + (x % 10)) as u32) }, TextAttribute::default()),
             );
         }
     }
@@ -877,10 +769,7 @@ fn test_select_communication_speed() {
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     assert_eq!(BaudEmulation::Off, buf.terminal_state.get_baud_emulation());
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[0;8*r");
-    assert_eq!(
-        BaudEmulation::Rate(38400),
-        buf.terminal_state.get_baud_emulation()
-    );
+    assert_eq!(BaudEmulation::Rate(38400), buf.terminal_state.get_baud_emulation());
 }
 
 #[test]
@@ -899,11 +788,7 @@ fn test_font_loading() {
     assert_eq!(100, caret.get_font_page());
 
     for i in 0.."Hello World".len() {
-        assert_eq!(
-            100,
-            buf.get_char((i, 0)).get_font_page(),
-            "font test failed at {i}"
-        );
+        assert_eq!(100, buf.get_char((i, 0)).get_font_page(), "font test failed at {i}");
     }
 }
 
@@ -912,19 +797,11 @@ fn test_rect_checksum_decrqcra() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     for _ in 0..20 {
-        update_buffer(
-            &mut buf,
-            &mut caret,
-            &mut parser,
-            b"aaaaaaaaaaaaaaaaaaaaaa\n\r",
-        );
+        update_buffer(&mut buf, &mut caret, &mut parser, b"aaaaaaaaaaaaaaaaaaaaaa\n\r");
     }
 
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[42;1;1;1;10;10*y");
-    assert_eq!(
-        CallbackAction::SendString("\u{1b}P42!~F175\u{1b}\\".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\u{1b}P42!~F175\u{1b}\\".to_string()), act);
 }
 
 #[test]
@@ -938,15 +815,9 @@ fn test_macro_space_report() {
 #[test]
 fn test_macro_checksum_report() {
     let mut parser = ansi::Parser::default();
-    let (mut buf, mut caret) = create_buffer(
-        &mut parser,
-        b"\x1BP0;0;0!zHello\x1B\\\x1BP1;0;0!zWorld\x1B\\",
-    );
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"\x1BP0;0;0!zHello\x1B\\\x1BP1;0;0!zWorld\x1B\\");
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[?63;1n");
-    assert_eq!(
-        CallbackAction::SendString("\x1BP1!~9D2C\x1B\\".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\x1BP1!~9D2C\x1B\\".to_string()), act);
 }
 
 #[test]
@@ -964,10 +835,7 @@ fn test_request_tab_stop_report() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let act = get_action(&mut buf, &mut caret, &mut parser, b"#\x1B[2$w");
-    assert_eq!(
-        CallbackAction::SendString("\x1BP2$u1/9/17/25/33/41/49/57/65/73\x1B\\".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/17/25/33/41/49/57/65/73\x1B\\".to_string()), act);
 }
 
 #[test]
@@ -975,10 +843,7 @@ fn test_clear_all_tab_stops() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[2$w");
-    assert_eq!(
-        CallbackAction::SendString("\x1BP2$u\x1B\\".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\x1BP2$u\x1B\\".to_string()), act);
 }
 
 #[test]
@@ -986,26 +851,15 @@ fn test_clear_tab_at_pos() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[16C\x1B[g\x1B[2$w");
-    assert_eq!(
-        CallbackAction::SendString("\x1BP2$u1/9/25/33/41/49/57/65/73\x1B\\".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/25/33/41/49/57/65/73\x1B\\".to_string()), act);
 }
 
 #[test]
 fn test_delete_tab() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    let act = get_action(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[41 d\x1B[49 d\x1B[17 d\x1B[2$w",
-    );
-    assert_eq!(
-        CallbackAction::SendString("\x1BP2$u1/9/25/33/57/65/73\x1B\\".to_string()),
-        act
-    );
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[41 d\x1B[49 d\x1B[17 d\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u1/9/25/33/57/65/73\x1B\\".to_string()), act);
 }
 
 #[test]
@@ -1030,16 +884,8 @@ fn test_tab_backward() {
 fn set_tab() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    let act: CallbackAction = get_action(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[3g\x1B[1;60H\x1BH\x1B[2$w",
-    );
-    assert_eq!(
-        CallbackAction::SendString("\x1BP2$u60\x1B\\".to_string()),
-        act
-    );
+    let act: CallbackAction = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[3g\x1B[1;60H\x1BH\x1B[2$w");
+    assert_eq!(CallbackAction::SendString("\x1BP2$u60\x1B\\".to_string()), act);
 }
 
 #[test]
@@ -1056,14 +902,8 @@ fn test_extended_background_color() {
     let (buf, _) = create_buffer(&mut parser, b"\x1B[38;5;088;48;5;107m#$");
     let ch = buf.get_char((0, 0));
     assert_eq!('#', ch.ch);
-    assert_eq!(
-        XTERM_256_PALETTE[88].1,
-        buf.palette.get_color(ch.attribute.get_foreground())
-    );
-    assert_eq!(
-        XTERM_256_PALETTE[107].1,
-        buf.palette.get_color(ch.attribute.get_background())
-    );
+    assert_eq!(XTERM_256_PALETTE[88].1, buf.palette.get_color(ch.attribute.get_foreground()));
+    assert_eq!(XTERM_256_PALETTE[107].1, buf.palette.get_color(ch.attribute.get_background()));
     assert!(!ch.attribute.is_blinking());
 }
 
@@ -1073,16 +913,10 @@ fn test_font_state_report() {
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
 
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=1n");
-    assert_eq!(
-        CallbackAction::SendString("\x1B[=1;99;0;0;0;0n".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\x1B[=1;99;0;0;0;0n".to_string()), act);
 
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=2n");
-    assert_eq!(
-        CallbackAction::SendString("\x1B[=2;7;25;35n".to_string()),
-        act
-    );
+    assert_eq!(CallbackAction::SendString("\x1B[=2;7;25;35n".to_string()), act);
 
     let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[=3n");
     assert_eq!(CallbackAction::SendString("\x1B[=3;16;8n".to_string()), act);
@@ -1118,12 +952,7 @@ fn test_window_manipulation() {
 fn test_fill_rectangular_area() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        format!("\x1B[{};5;5;10;10$x", b'#').as_bytes(),
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, format!("\x1B[{};5;5;10;10$x", b'#').as_bytes());
     for y in 4..9 {
         for x in 4..9 {
             assert_eq!('#', buf.get_char((x, y)).ch);
@@ -1135,12 +964,7 @@ fn test_fill_rectangular_area() {
 fn test_erase_rectangular_area() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[42m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10$z",
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[42m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10$z");
     for y in 4..9 {
         for x in 4..9 {
             assert_eq!(' ', buf.get_char((x, y)).ch);
@@ -1153,19 +977,11 @@ fn test_erase_rectangular_area() {
 fn test_selective_erase_rectangular_area() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[32m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10${",
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[32m\x1B[65;0;0;24;79$x\x1B[;5;5;10;10${");
     for y in 4..9 {
         for x in 4..9 {
             assert_eq!(' ', buf.get_char((x, y)).ch);
-            assert_eq!(
-                TextAttribute::from_color(2, 0),
-                buf.get_char((x, y)).attribute
-            );
+            assert_eq!(TextAttribute::from_color(2, 0), buf.get_char((x, y)).attribute);
         }
     }
 }
@@ -1197,12 +1013,7 @@ fn test_clear_screen_size_reset() {
     assert_eq!(0, buf.get_line_count());
 
     for i in 0..50 {
-        update_buffer(
-            &mut buf,
-            &mut caret,
-            &mut parser,
-            format!("{i}\n\r").as_bytes(),
-        );
+        update_buffer(&mut buf, &mut caret, &mut parser, format!("{i}\n\r").as_bytes());
     }
     assert_eq!(51, buf.get_height());
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[8;25;80t\x1B[2J");
@@ -1213,17 +1024,11 @@ fn test_clear_screen_size_reset() {
 #[test]
 fn test_ocs8_hyperlinks() {
     let mut parser = ansi::Parser::default();
-    let (buf, _) = create_buffer(
-        &mut parser,
-        b"\x1B]8;;http://example.com\x1B\\This is a link\x1B]8;;\x1B\\",
-    );
+    let (buf, _) = create_buffer(&mut parser, b"\x1B]8;;http://example.com\x1B\\This is a link\x1B]8;;\x1B\\");
     assert_eq!('T', buf.get_char((0, 0)).ch);
     assert!(buf.get_char((0, 0)).attribute.is_underlined());
     assert_eq!(1, buf.layers[0].hyperlinks.len());
-    assert_eq!(
-        "http://example.com",
-        buf.layers[0].hyperlinks[0].get_url(&buf)
-    );
+    assert_eq!("http://example.com", buf.layers[0].hyperlinks[0].get_url(&buf));
 }
 
 #[test]
@@ -1238,7 +1043,10 @@ fn test_caret_bounds_bug() {
 #[test]
 fn test_caret_bounds_bug_2() {
     let mut parser = ansi::Parser::default();
-    let (_, caret) = create_buffer(&mut parser, b"\x1B[25;1H01234567890123456789012345678901234567890123456789012345678901234567890123456789\x1B[6CHello");
+    let (_, caret) = create_buffer(
+        &mut parser,
+        b"\x1B[25;1H01234567890123456789012345678901234567890123456789012345678901234567890123456789\x1B[6CHello",
+    );
     assert_eq!(11, caret.get_position().x);
     assert_eq!(25, caret.get_position().y);
 }
@@ -1246,7 +1054,10 @@ fn test_caret_bounds_bug_2() {
 #[test]
 fn test_caret_bounds_bug_3() {
     let mut parser = ansi::Parser::default();
-    let (buf, _) = create_buffer(&mut parser, b"\x1B[25;1H0123456789012345678901234567890123456789012345678901234567890123456789012345678\x1B[6CA");
+    let (buf, _) = create_buffer(
+        &mut parser,
+        b"\x1B[25;1H0123456789012345678901234567890123456789012345678901234567890123456789012345678\x1B[6CA",
+    );
     assert_eq!('A', buf.get_char((79, 24)).ch);
 }
 
@@ -1258,12 +1069,7 @@ fn test_ice_colors() {
     assert!(buf.get_char((0, 0)).attribute.is_blinking());
     assert_eq!(4, buf.get_char((0, 0)).attribute.background_color);
 
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[2J\x1B[?33h\x1B[5;41m#",
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[2J\x1B[?33h\x1B[5;41m#");
     assert!(caret.ice_mode());
     assert!(!buf.get_char((0, 0)).attribute.is_blinking());
     assert_eq!(4 + 8, buf.get_char((0, 0)).attribute.background_color);
@@ -1273,22 +1079,12 @@ fn test_ice_colors() {
 fn test_margins_bug() {
     let mut parser = ansi::Parser::default();
     let (mut buf, mut caret) = create_buffer(&mut parser, b"");
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"\x1B[27L\x1B[0;25rtest\r\n",
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[27L\x1B[0;25rtest\r\n");
     update_buffer(&mut buf, &mut caret, &mut parser, b"\x1B[27L\x1B[1;25r");
     update_buffer(&mut buf, &mut caret, &mut parser, b"test1\r\n");
     update_buffer(&mut buf, &mut caret, &mut parser, b"test2\r\n");
     update_buffer(&mut buf, &mut caret, &mut parser, b"test3\r\n");
-    update_buffer(
-        &mut buf,
-        &mut caret,
-        &mut parser,
-        b"test4\r\n\x1B[1;1Hhello",
-    );
+    update_buffer(&mut buf, &mut caret, &mut parser, b"test4\r\n\x1B[1;1Hhello");
     caret.up(&mut buf, 0, 1);
     caret.up(&mut buf, 0, 1);
     caret.up(&mut buf, 0, 1);
@@ -1312,12 +1108,13 @@ fn test_rgb_issue() {
         bs_is_ctrl_char: false,
         ..Default::default()
     };
-    let (buf, _) = create_buffer(&mut parser, b"\x1b[?33h\x1b[1;223;223;223t                                                                               ");
+    let (buf, _) = create_buffer(
+        &mut parser,
+        b"\x1b[?33h\x1b[1;223;223;223t                                                                               ",
+    );
 
     assert_eq!(
         (223, 223, 223),
-        buf.palette
-            .get_color(buf.get_char((25, 0)).attribute.get_foreground())
-            .get_rgb()
+        buf.palette.get_color(buf.get_char((25, 0)).attribute.get_foreground()).get_rgb()
     );
 }

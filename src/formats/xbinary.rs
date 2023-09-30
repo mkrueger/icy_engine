@@ -1,9 +1,8 @@
 use std::path::Path;
 
 use crate::{
-    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures,
-    EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette, PaletteMode, Position,
-    SavingError, TextPane,
+    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures, EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette,
+    PaletteMode, Position, SavingError, TextPane,
 };
 
 use super::{SaveOptions, TextAttribute};
@@ -63,9 +62,7 @@ impl OutputFormat for XBin {
         }
 
         if fonts.len() > 2 {
-            return Err(anyhow::anyhow!(
-                "Only up to 2 fonts are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only up to 2 fonts are supported by this format."));
         }
 
         if font.size.width != 8 || font.size.height < 1 || font.size.height > 32 {
@@ -126,9 +123,7 @@ impl OutputFormat for XBin {
 
                     let ext_font_data = ext_font.convert_to_u8_data();
                     if ext_font_data.len() != font_len {
-                        return Err(anyhow::anyhow!(
-                            "File needs 2nd font to be same height as 1st font."
-                        ));
+                        return Err(anyhow::anyhow!("File needs 2nd font to be same height as 1st font."));
                     }
                     result.extend(ext_font_data);
                 } else {
@@ -159,12 +154,7 @@ impl OutputFormat for XBin {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -183,9 +173,7 @@ impl OutputFormat for XBin {
         o += 1;
         let width = data[o] as i32 + ((data[o + 1] as i32) << 8);
         if !(1..=4096).contains(&width) {
-            return Err(anyhow::anyhow!(
-                "Invalid XBin. Width out of range: {width} (1-4096)."
-            ));
+            return Err(anyhow::anyhow!("Invalid XBin. Width out of range: {width} (1-4096)."));
         }
         result.set_width(width);
         o += 2;
@@ -198,9 +186,7 @@ impl OutputFormat for XBin {
             font_size = 16;
         }
         if font_size > 32 {
-            return Err(anyhow::anyhow!(
-                "Invalid XBin. Font height too large: {font_size} (32 max)."
-            ));
+            return Err(anyhow::anyhow!("Invalid XBin. Font height too large: {font_size} (32 max)."));
         }
         o += 1;
         let flags = data[o];
@@ -212,21 +198,9 @@ impl OutputFormat for XBin {
         let use_ice = (flags & FLAG_NON_BLINK_MODE) == FLAG_NON_BLINK_MODE;
         let extended_char_mode = (flags & FLAG_512CHAR_MODE) == FLAG_512CHAR_MODE;
 
-        result.font_mode = if extended_char_mode {
-            FontMode::FixedSize
-        } else {
-            FontMode::Single
-        };
-        result.palette_mode = if extended_char_mode {
-            PaletteMode::Free8
-        } else {
-            PaletteMode::Free16
-        };
-        result.ice_mode = if use_ice {
-            IceMode::Ice
-        } else {
-            IceMode::Blink
-        };
+        result.font_mode = if extended_char_mode { FontMode::FixedSize } else { FontMode::Single };
+        result.palette_mode = if extended_char_mode { PaletteMode::Free8 } else { PaletteMode::Free16 };
+        result.ice_mode = if use_ice { IceMode::Ice } else { IceMode::Blink };
 
         if has_custom_palette {
             result.palette = Palette::from_63(&data[o..(o + XBIN_PALETTE_LENGTH)]);
@@ -362,12 +336,7 @@ fn decode_char(result: &Buffer, char_code: u8, attr: u8) -> AttributedChar {
 
 fn encode_attr(buf: &Buffer, ch: AttributedChar, fonts: &[usize]) -> u8 {
     if fonts.len() == 2 {
-        (ch.attribute.as_u8(buf.ice_mode) & 0b_1111_0111)
-            | if ch.attribute.font_page == fonts[1] {
-                0b1000
-            } else {
-                0
-            }
+        (ch.attribute.as_u8(buf.ice_mode) & 0b_1111_0111) | if ch.attribute.font_page == fonts[1] { 0b1000 } else { 0 }
     } else {
         ch.attribute.as_u8(buf.ice_mode)
     }
@@ -419,11 +388,7 @@ fn count_length(
                                 end_run = Some(true);
                             } else if x + 2 < buffer.get_width() {
                                 let next2 = buffer.get_char((x + 2, y));
-                                end_run = Some(
-                                    cur.ch == next.ch && cur.ch == next2.ch
-                                        || cur.attribute == next.attribute
-                                            && cur.attribute == next2.attribute,
-                                );
+                                end_run = Some(cur.ch == next.ch && cur.ch == next2.ch || cur.attribute == next.attribute && cur.attribute == next2.attribute);
                             }
                         }
                         Compression::Char => {
@@ -494,11 +459,7 @@ fn count_length(
     count
 }
 
-fn compress_backtrack(
-    outputdata: &mut Vec<u8>,
-    buffer: &Buffer,
-    fonts: &[usize],
-) -> EngineResult<()> {
+fn compress_backtrack(outputdata: &mut Vec<u8>, buffer: &Buffer, fonts: &[usize]) -> EngineResult<()> {
     for y in 0..buffer.get_height() {
         let mut run_buf = Vec::new();
         let mut run_mode = Compression::Off;
@@ -521,87 +482,32 @@ fn compress_backtrack(
                 } else if run_count > 0 {
                     match run_mode {
                         Compression::Off => {
-                            if x + 2 < buffer.get_width()
-                                && (cur.ch == next.ch || cur.attribute == next.attribute)
-                            {
-                                let l1 = count_length(
-                                    run_mode,
-                                    run_ch,
-                                    Some(true),
-                                    run_count,
-                                    buffer,
-                                    y,
-                                    x,
-                                );
-                                let l2 = count_length(
-                                    run_mode,
-                                    run_ch,
-                                    Some(false),
-                                    run_count,
-                                    buffer,
-                                    y,
-                                    x,
-                                );
+                            if x + 2 < buffer.get_width() && (cur.ch == next.ch || cur.attribute == next.attribute) {
+                                let l1 = count_length(run_mode, run_ch, Some(true), run_count, buffer, y, x);
+                                let l2 = count_length(run_mode, run_ch, Some(false), run_count, buffer, y, x);
                                 end_run = l1 < l2;
                             }
                         }
                         Compression::Char => {
-                            if cur.ch != run_ch.ch || cur.get_font_page() != run_ch.get_font_page()
-                            {
+                            if cur.ch != run_ch.ch || cur.get_font_page() != run_ch.get_font_page() {
                                 end_run = true;
                             } else if x + 4 < buffer.get_width() {
                                 let next2 = buffer.get_char((x + 2, y));
-                                if cur.attribute == next.attribute
-                                    && cur.attribute == next2.attribute
-                                {
-                                    let l1 = count_length(
-                                        run_mode,
-                                        run_ch,
-                                        Some(true),
-                                        run_count,
-                                        buffer,
-                                        y,
-                                        x,
-                                    );
-                                    let l2 = count_length(
-                                        run_mode,
-                                        run_ch,
-                                        Some(false),
-                                        run_count,
-                                        buffer,
-                                        y,
-                                        x,
-                                    );
+                                if cur.attribute == next.attribute && cur.attribute == next2.attribute {
+                                    let l1 = count_length(run_mode, run_ch, Some(true), run_count, buffer, y, x);
+                                    let l2 = count_length(run_mode, run_ch, Some(false), run_count, buffer, y, x);
                                     end_run = l1 < l2;
                                 }
                             }
                         }
                         Compression::Attr => {
-                            if cur.attribute != run_ch.attribute
-                                || cur.get_font_page() != run_ch.get_font_page()
-                            {
+                            if cur.attribute != run_ch.attribute || cur.get_font_page() != run_ch.get_font_page() {
                                 end_run = true;
                             } else if x + 3 < buffer.get_width() {
                                 let next2 = buffer.get_char((x + 2, y));
                                 if cur.ch == next.ch && cur.ch == next2.ch {
-                                    let l1 = count_length(
-                                        run_mode,
-                                        run_ch,
-                                        Some(true),
-                                        run_count,
-                                        buffer,
-                                        y,
-                                        x,
-                                    );
-                                    let l2 = count_length(
-                                        run_mode,
-                                        run_ch,
-                                        Some(false),
-                                        run_count,
-                                        buffer,
-                                        y,
-                                        x,
-                                    );
+                                    let l1 = count_length(run_mode, run_ch, Some(true), run_count, buffer, y, x);
+                                    let l2 = count_length(run_mode, run_ch, Some(false), run_count, buffer, y, x);
                                     end_run = l1 < l2;
                                 }
                             }
@@ -681,29 +587,14 @@ pub fn get_save_sauce_default_xb(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
-        TextPane,
-    };
+    use crate::{compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute, TextPane};
 
     #[test]
     pub fn test_blink() {
         let mut buffer = create_xb_buffer();
         buffer.ice_mode = crate::IceMode::Blink;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1000_1000, crate::IceMode::Blink),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1000_1000, crate::IceMode::Blink)));
         let res = test_xbin(&buffer);
         let ch = res.layers[0].get_char((1, 0));
 
@@ -716,20 +607,8 @@ mod tests {
     pub fn test_ice() {
         let mut buffer = create_xb_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         let res = test_xbin(&buffer);
         let ch = res.layers[0].get_char((1, 0));
 
@@ -743,41 +622,20 @@ mod tests {
         buffer.ice_mode = crate::IceMode::Ice;
 
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
+            buffer.palette.set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
         }
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
+            buffer.palette.set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
         }
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
+            buffer.palette.set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
         }
         for i in 0..3 {
-            buffer.palette.set_color(
-                12 + i,
-                Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8),
-            );
+            buffer.palette.set_color(12 + i, Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8));
         }
 
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         let res = test_xbin(&buffer);
         let ch = res.layers[0].get_char((1, 0));
 
@@ -790,13 +648,7 @@ mod tests {
         let mut buffer = create_xb_buffer();
         buffer.set_font(0, BitFont::from_ansi_font_page(42).unwrap());
         buffer.ice_mode = crate::IceMode::Blink;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink)));
         test_xbin(&buffer);
     }
 
@@ -847,8 +699,7 @@ mod tests {
         let mut buffer: Buffer = Buffer::new((80, 25));
         for y in 0..buffer.get_height() {
             for x in 0..buffer.get_width() {
-                buffer.layers[0]
-                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+                buffer.layers[0].set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
             }
         }
         buffer
@@ -859,16 +710,12 @@ mod tests {
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
         let bytes = xb.to_bytes(buffer, &opt).unwrap();
-        let buffer2 = xb
-            .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
-            .unwrap();
+        let buffer2 = xb.load_buffer(std::path::Path::new("test.xb"), &bytes, None).unwrap();
         compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
 
         opt.compress = true;
         let bytes = xb.to_bytes(buffer, &opt).unwrap();
-        let buffer2 = xb
-            .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
-            .unwrap();
+        let buffer2 = xb.load_buffer(std::path::Path::new("test.xb"), &bytes, None).unwrap();
         compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
 
         buffer2

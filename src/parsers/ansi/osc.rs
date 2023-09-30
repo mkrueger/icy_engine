@@ -3,11 +3,7 @@ use crate::{Buffer, CallbackAction, Caret, EngineResult, ParserError};
 use super::{parse_next_number, Parser};
 
 impl Parser {
-    pub(super) fn parse_osc(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(super) fn parse_osc(&mut self, buf: &mut Buffer, caret: &mut Caret) -> EngineResult<CallbackAction> {
         let mut i = 0;
         for ch in self.parse_string.chars() {
             match ch {
@@ -36,12 +32,7 @@ impl Parser {
         Err(ParserError::UnsupportedOSCSequence(self.parse_string.clone()).into())
     }
 
-    fn handle_osc_hyperlinks(
-        &mut self,
-        parse_string: impl Into<String>,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-    ) {
+    fn handle_osc_hyperlinks(&mut self, parse_string: impl Into<String>, buf: &mut Buffer, caret: &mut Caret) {
         let url = parse_string.into();
         if url.is_empty() {
             caret.attribute.set_is_underlined(false);
@@ -50,9 +41,7 @@ impl Parser {
             if cp.y == p.position.y {
                 p.length = cp.x - p.position.x;
             } else {
-                p.length = buf.terminal_state.get_width() - p.position.x
-                    + (cp.y - p.position.y) * buf.terminal_state.get_width()
-                    + p.position.x;
+                p.length = buf.terminal_state.get_width() - p.position.x + (cp.y - p.position.y) * buf.terminal_state.get_width() + p.position.x;
             }
             buf.layers[0].add_hyperlink(p);
         } else {

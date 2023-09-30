@@ -1,9 +1,6 @@
 use std::path::Path;
 
-use crate::{
-    ctrla, parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat,
-    Position, TextAttribute, TextPane,
-};
+use crate::{ctrla, parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position, TextAttribute, TextPane};
 
 use super::SaveOptions;
 
@@ -25,9 +22,7 @@ impl OutputFormat for CtrlA {
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         if buf.palette.len() != 16 {
-            return Err(anyhow::anyhow!(
-                "Only 16 color palettes are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
         }
         let mut result = Vec::new();
         let mut last_attr = TextAttribute::default();
@@ -111,12 +106,7 @@ impl OutputFormat for CtrlA {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -126,12 +116,7 @@ impl OutputFormat for CtrlA {
         if is_unicode {
             result.buffer_type = crate::BufferType::Unicode;
         }
-        parse_with_parser(
-            &mut result,
-            &mut parsers::ctrla::Parser::default(),
-            &text,
-            true,
-        )?;
+        parse_with_parser(&mut result, &mut parsers::ctrla::Parser::default(), &text, true)?;
         Ok(result)
     }
 }

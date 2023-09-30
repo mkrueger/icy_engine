@@ -2,8 +2,8 @@ use std::path::Path;
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, EngineResult, IceMode,
-    LoadingError, OutputFormat, Palette, Position, SavingError, Size, TextPane,
+    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, EngineResult, IceMode, LoadingError, OutputFormat, Palette, Position, SavingError,
+    Size, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/ICEDraw
@@ -32,26 +32,18 @@ impl OutputFormat for IceDraw {
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         if buf.ice_mode != IceMode::Ice {
-            return Err(anyhow::anyhow!(
-                "Only ice mode files are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only ice mode files are supported by this format."));
         }
 
         if buf.get_height() > 200 {
-            return Err(anyhow::anyhow!(
-                "Only up do 200 lines are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only up do 200 lines are supported by this format."));
         }
         let fonts = analyze_font_usage(buf);
         if fonts.len() > 1 {
-            return Err(anyhow::anyhow!(
-                "Only single font files are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only single font files are supported by this format."));
         }
         if buf.palette.len() != 16 {
-            return Err(anyhow::anyhow!(
-                "Only 16 color palettes are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
         }
 
         let mut result = IDF_V1_4_HEADER.to_vec();
@@ -128,12 +120,7 @@ impl OutputFormat for IceDraw {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        _sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], _sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.ice_mode = IceMode::Ice;
         result.is_terminal_buffer = true;
@@ -159,9 +146,7 @@ impl OutputFormat for IceDraw {
         o += 2;
 
         if x2 < x1 {
-            return Err(anyhow::anyhow!(
-                "invalid bounds for idf width needs to be >=0."
-            ));
+            return Err(anyhow::anyhow!("invalid bounds for idf width needs to be >=0."));
         }
 
         result.set_width(x2 - x1 + 1);
@@ -229,29 +214,14 @@ fn advance_pos(x1: i32, x2: i32, pos: &mut Position) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
-        TextPane,
-    };
+    use crate::{compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute, TextPane};
 
     #[test]
     pub fn test_ice() {
         let mut buffer = create_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         test_ice_draw(&buffer);
     }
 
@@ -259,17 +229,8 @@ mod tests {
     pub fn test_repeat_char() {
         let mut buffer = create_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new('\x01', TextAttribute::from_u8(0, crate::IceMode::Ice)),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('\x01', TextAttribute::from_u8(0, crate::IceMode::Ice)));
         test_ice_draw(&buffer);
     }
 
@@ -279,41 +240,20 @@ mod tests {
         buffer.ice_mode = crate::IceMode::Ice;
 
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
+            buffer.palette.set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
         }
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
+            buffer.palette.set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
         }
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
+            buffer.palette.set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
         }
         for i in 0..3 {
-            buffer.palette.set_color(
-                12 + i,
-                Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8),
-            );
+            buffer.palette.set_color(12 + i, Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8));
         }
 
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         test_ice_draw(&buffer);
     }
 
@@ -322,13 +262,7 @@ mod tests {
         let mut buffer = create_buffer();
         buffer.set_font(0, BitFont::from_ansi_font_page(42).unwrap());
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink)));
         test_ice_draw(&buffer);
     }
 
@@ -336,8 +270,7 @@ mod tests {
         let mut buffer = Buffer::new((80, 25));
         for y in 0..buffer.get_height() {
             for x in 0..buffer.get_width() {
-                buffer.layers[0]
-                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+                buffer.layers[0].set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
             }
         }
         buffer
@@ -348,9 +281,7 @@ mod tests {
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
         let bytes = xb.to_bytes(buffer, &opt).unwrap();
-        let buffer2 = xb
-            .load_buffer(std::path::Path::new("test.idf"), &bytes, None)
-            .unwrap();
+        let buffer2 = xb.load_buffer(std::path::Path::new("test.idf"), &bytes, None).unwrap();
         compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
         buffer2
     }

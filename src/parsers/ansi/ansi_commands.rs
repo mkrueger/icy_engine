@@ -1,11 +1,6 @@
 #![allow(clippy::unnecessary_wraps)]
-use super::{
-    constants::COLOR_OFFSETS, set_font_selection_success, BaudEmulation, EngineState, Parser,
-};
-use crate::{
-    update_crc16, AttributedChar, BitFont, Buffer, CallbackAction, Caret, EngineResult,
-    FontSelectionState, ParserError, TextPane, XTERM_256_PALETTE,
-};
+use super::{constants::COLOR_OFFSETS, set_font_selection_success, BaudEmulation, EngineState, Parser};
+use crate::{update_crc16, AttributedChar, BitFont, Buffer, CallbackAction, Caret, EngineResult, FontSelectionState, ParserError, TextPane, XTERM_256_PALETTE};
 
 impl Parser {
     /// Sequence: `CSI Ps ... m`</p>
@@ -179,11 +174,7 @@ impl Parser {
     /// Source: `UnixWare 7 display(7)`
     /// Source: `OpenServer 5.0.6 screen(HW)`
     /// Status: `standard; Linux, iBCS2, aixterm extensions`
-    pub(crate) fn select_graphic_rendition(
-        &mut self,
-        caret: &mut Caret,
-        buf: &mut Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn select_graphic_rendition(&mut self, caret: &mut Caret, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if self.parsed_numbers.is_empty() {
             caret.reset_color_attribute(); // Reset or normal
@@ -206,16 +197,14 @@ impl Parser {
                 }
                 7 => {
                     let fg = caret.attribute.get_foreground();
-                    caret
-                        .attribute
-                        .set_foreground(caret.attribute.get_background());
+                    caret.attribute.set_foreground(caret.attribute.get_background());
                     caret.attribute.set_background(fg);
                 }
                 8 => {
                     caret.attribute.set_is_concealed(true);
                 }
                 9 => caret.attribute.set_is_crossed_out(true),
-                10 => caret.set_font_page(0), // Primary (default) font
+                10 => caret.set_font_page(0),                            // Primary (default) font
                 11..=19 | 20 => { /* ignore alternate fonts for now */ } //return Err(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()).into()),
                 21 => caret.attribute.set_is_double_underlined(true),
                 22 => {
@@ -227,32 +216,21 @@ impl Parser {
                 25 => caret.attribute.set_is_blinking(false),
                 27 => {
                     // 27  positive image ?
-                    return Err(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )
-                    .into());
+                    return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                 }
                 28 => caret.attribute.set_is_concealed(false),
                 29 => caret.attribute.set_is_crossed_out(false),
                 // set foreaground color
-                30..=37 => caret
-                    .attribute
-                    .set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
+                30..=37 => caret.attribute.set_foreground(COLOR_OFFSETS[n as usize - 30] as u32),
                 38 => {
-                    caret
-                        .attribute
-                        .set_foreground(self.parse_extended_colors(buf, &mut i)?);
+                    caret.attribute.set_foreground(self.parse_extended_colors(buf, &mut i)?);
                     continue;
                 }
                 39 => caret.attribute.set_foreground(7), // Set foreground color to default, ECMA-48 3rd
                 // set background color
-                40..=47 => caret
-                    .attribute
-                    .set_background(COLOR_OFFSETS[n as usize - 40] as u32),
+                40..=47 => caret.attribute.set_background(COLOR_OFFSETS[n as usize - 40] as u32),
                 48 => {
-                    caret
-                        .attribute
-                        .set_background(self.parse_extended_colors(buf, &mut i)?);
+                    caret.attribute.set_background(self.parse_extended_colors(buf, &mut i)?);
                     continue;
                 }
                 49 => caret.attribute.set_background(0), // Set background color to default, ECMA-48 3rd
@@ -268,19 +246,13 @@ impl Parser {
                 53 => caret.attribute.set_is_overlined(true),
                 55 => caret.attribute.set_is_overlined(false),
                 // high intensity colors
-                90..=97 => caret
-                    .attribute
-                    .set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
-                100..=107 => caret
-                    .attribute
-                    .set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
+                90..=97 => caret.attribute.set_foreground(8 + COLOR_OFFSETS[n as usize - 90] as u32),
+                100..=107 => caret.attribute.set_background(8 + COLOR_OFFSETS[n as usize - 100] as u32),
 
                 _ => {
-                    return Err(ParserError::UnsupportedEscapeSequence(format!(
-                        "unsupported graphic rendition {} ",
-                        self.current_escape_sequence.clone()
-                    ))
-                    .into());
+                    return Err(
+                        ParserError::UnsupportedEscapeSequence(format!("unsupported graphic rendition {} ", self.current_escape_sequence.clone())).into(),
+                    );
                 }
             }
             i += 1;
@@ -291,41 +263,27 @@ impl Parser {
 
     fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
         if *i + 1 >= self.parsed_numbers.len() {
-            return Err(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            )
-            .into());
+            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
         }
         match self.parsed_numbers.get(*i + 1) {
             Some(5) => {
                 // ESC[38/48;5;⟨n⟩m Select fg/bg color from 256 color lookup
                 if *i + 3 > self.parsed_numbers.len() {
-                    return Err(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )
-                    .into());
+                    return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                 }
                 let color = self.parsed_numbers[*i + 2];
                 *i += 3;
                 if (0..=255).contains(&color) {
-                    let color = buf
-                        .palette
-                        .insert_color(XTERM_256_PALETTE[color as usize].1.clone());
+                    let color = buf.palette.insert_color(XTERM_256_PALETTE[color as usize].1.clone());
                     Ok(color)
                 } else {
-                    Err(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )
-                    .into())
+                    Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into())
                 }
             }
             Some(2) => {
                 // ESC[38/48;2;⟨r⟩;⟨g⟩;⟨b⟩ m Select RGB fg/bg color
                 if *i + 5 > self.parsed_numbers.len() {
-                    return Err(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )
-                    .into());
+                    return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                 }
                 let r = self.parsed_numbers[*i + 2];
                 let g = self.parsed_numbers[*i + 3];
@@ -335,15 +293,10 @@ impl Parser {
                     let color = buf.palette.insert_color_rgb(r as u8, g as u8, b as u8);
                     Ok(color)
                 } else {
-                    Err(ParserError::UnsupportedEscapeSequence(
-                        self.current_escape_sequence.clone(),
-                    )
-                    .into())
+                    Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into())
                 }
             }
-            _ => Err(
-                ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into(),
-            ),
+            _ => Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into()),
         }
     }
 
@@ -363,11 +316,7 @@ impl Parser {
     /// Source: ECMA-48 5th Ed. 8.3.121
     /// Status: standard
     pub(crate) fn scroll_left(&mut self, buf: &mut Buffer, layer: usize) {
-        let num = if let Some(number) = self.parsed_numbers.first() {
-            *number
-        } else {
-            1
-        };
+        let num = if let Some(number) = self.parsed_numbers.first() { *number } else { 1 };
         (0..num).for_each(|_| buf.scroll_left(layer));
     }
 
@@ -388,11 +337,7 @@ impl Parser {
     /// Source: ECMA-48 5th Ed. 8.3.135
     /// Status: standard
     pub(crate) fn scroll_right(&mut self, buf: &mut Buffer, layer: usize) {
-        let num = if let Some(number) = self.parsed_numbers.first() {
-            *number
-        } else {
-            1
-        };
+        let num = if let Some(number) = self.parsed_numbers.first() { *number } else { 1 };
         (0..num).for_each(|_| buf.scroll_right(layer));
     }
 
@@ -408,21 +353,14 @@ impl Parser {
     ///
     /// Source: <URL:http://www.cs.utk.edu/~shuford/terminal/vt100_reference_card.txt>
     /// Status: DEC private; VT100
-    pub(crate) fn set_top_and_bottom_margins(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn set_top_and_bottom_margins(&mut self, buf: &mut Buffer, caret: &mut Caret) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         let (top, bottom) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
             0 => (0, buf.terminal_state.get_height()),
             _ => {
-                return Err(ParserError::UnsupportedEscapeSequence(
-                    self.current_escape_sequence.clone(),
-                )
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         };
         // CSI Pt ; Pb r
@@ -441,20 +379,14 @@ impl Parser {
     ///
     /// Source: DEC Terminals and Printers Handbook 1985 EB 26291-56 pE10
     /// Status: DEC private; VT400, printers
-    pub(crate) fn set_left_and_right_margins(
-        &mut self,
-        buf: &mut Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn set_left_and_right_margins(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         let (left, right) = match self.parsed_numbers.len() {
             2 => (self.parsed_numbers[0] - 1, self.parsed_numbers[1] - 1),
             1 => (0, self.parsed_numbers[0] - 1),
             0 => (0, buf.terminal_state.get_height()),
             _ => {
-                return Err(ParserError::UnsupportedEscapeSequence(
-                    self.current_escape_sequence.clone(),
-                )
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         };
         // Set Left and Right Margins
@@ -480,11 +412,7 @@ impl Parser {
     /// cursor is moved to the top left hand corner of the newly-created
     /// region. The new region will now define the bounds of all scroll and
     /// cursor motion operations.
-    pub(crate) fn change_scrolling_region(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn change_scrolling_region(&mut self, buf: &mut Buffer, caret: &mut Caret) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         let (top, bottom, left, right) = match self.parsed_numbers.len() {
             3 => (
@@ -500,10 +428,7 @@ impl Parser {
                 self.parsed_numbers[3] - 1,
             ),
             _ => {
-                return Err(ParserError::UnsupportedEscapeSequence(
-                    self.current_escape_sequence.clone(),
-                )
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         };
 
@@ -565,16 +490,10 @@ impl Parser {
                 buf.terminal_state.set_margins_left_right(n, right);
             }
             Some(n) => {
-                return Err(ParserError::UnsupportedEscapeSequence(format!(
-                    "Set specific margin '{n}' is invalid."
-                ))
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence(format!("Set specific margin '{n}' is invalid.")).into());
             }
             None => {
-                return Err(ParserError::UnsupportedEscapeSequence(
-                    "No argument found for SSM.".to_string(),
-                )
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence("No argument found for SSM.".to_string()).into());
             }
         }
         Ok(CallbackAction::None)
@@ -650,12 +569,7 @@ impl Parser {
     ///
     /// Source: ECMA-48 5th Ed. 8.3.38
     /// Status: standard
-    pub(crate) fn erase_character(
-        &mut self,
-        caret: &mut Caret,
-        buf: &mut Buffer,
-        current_layer: usize,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn erase_character(&mut self, caret: &mut Caret, buf: &mut Buffer, current_layer: usize) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         // ECH - Erase character
 
@@ -664,10 +578,7 @@ impl Parser {
         } else {
             caret.erase_charcter(buf, current_layer, 1);
             if self.parsed_numbers.len() != 1 {
-                return Err(ParserError::UnsupportedEscapeSequence(
-                    self.current_escape_sequence.clone(),
-                )
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         }
         Ok(CallbackAction::None)
@@ -701,18 +612,11 @@ impl Parser {
     /// Source: ECMA-48 5th Ed. 8.3.53
     /// Status: standard
     ///
-    pub(crate) fn font_selection(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn font_selection(&mut self, buf: &mut Buffer, caret: &mut Caret) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if self.parsed_numbers.len() != 2 {
             self.current_escape_sequence.push('D');
-            return Err(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            )
-            .into());
+            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
         }
 
         // Ignore Ps1 for now
@@ -750,16 +654,9 @@ impl Parser {
     ///
     /// Source: ECMA-48 5th Ed. 8.3.156
     /// Status: standard
-    pub(crate) fn tabulation_stop_remove(
-        &mut self,
-        buf: &mut Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn tabulation_stop_remove(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         if self.parsed_numbers.len() != 1 {
-            return Err(ParserError::UnsupportedEscapeSequence(format!(
-                "Invalid parameter number in remove tab stops: {}",
-                self.parsed_numbers.len()
-            ))
-            .into());
+            return Err(ParserError::UnsupportedEscapeSequence(format!("Invalid parameter number in remove tab stops: {}", self.parsed_numbers.len())).into());
         }
         // tab stop remove
         if let Some(num) = self.parsed_numbers.first() {
@@ -822,10 +719,7 @@ impl Parser {
     /// Printer             4800
     /// Modem Hi            Ignore
     /// Modem Lo            Ignore
-    pub(crate) fn select_communication_speed(
-        &mut self,
-        buf: &mut Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn select_communication_speed(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         let ps1 = self.parsed_numbers.first().unwrap_or(&0);
         if *ps1 != 0 && *ps1 != 1 {
@@ -839,9 +733,7 @@ impl Parser {
 
         // no ps2 or 0 are equiv in disabling baud emulation
         let ps2 = self.parsed_numbers.get(1).unwrap_or(&0);
-        let baud_option = *BaudEmulation::OPTIONS
-            .get(*ps2 as usize)
-            .unwrap_or(&BaudEmulation::Off);
+        let baud_option = *BaudEmulation::OPTIONS.get(*ps2 as usize).unwrap_or(&BaudEmulation::Off);
 
         buf.terminal_state.set_baud_rate(baud_option);
         Ok(CallbackAction::ChangeBaudEmulation(baud_option))
@@ -879,32 +771,17 @@ impl Parser {
     ///
     /// Source: Reflection TRM (VT) Version 7.0
     /// Status: DEC private; VT400
-    pub(crate) fn request_checksum_of_rectangular_area(
-        &mut self,
-        buf: &Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn request_checksum_of_rectangular_area(&mut self, buf: &Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if self.parsed_numbers.len() != 6 {
-            return Err(ParserError::UnsupportedEscapeSequence(
-                self.current_escape_sequence.clone(),
-            )
-            .into());
+            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
         }
         let pt = self.parsed_numbers[2];
         let pl = self.parsed_numbers[3];
         let pb = self.parsed_numbers[4];
         let pr = self.parsed_numbers[5];
-        if pt > pb
-            || pl > pr
-            || pr > buf.terminal_state.get_width()
-            || pb > buf.terminal_state.get_height()
-            || pl < 0
-            || pt < 0
-        {
-            return Err(ParserError::UnsupportedEscapeSequence(format!(
-                "invalid area for requesting checksum pt:{pt} pl:{pl} pb:{pb} pr:{pr}"
-            ))
-            .into());
+        if pt > pb || pl > pr || pr > buf.terminal_state.get_width() || pb > buf.terminal_state.get_height() || pl < 0 || pt < 0 {
+            return Err(ParserError::UnsupportedEscapeSequence(format!("invalid area for requesting checksum pt:{pt} pl:{pl} pb:{pb} pr:{pr}")).into());
         }
         let mut crc16 = 0;
         for y in pt..pb {
@@ -924,10 +801,7 @@ impl Parser {
                 }
             }
         }
-        Ok(CallbackAction::SendString(format!(
-            "\x1BP{}!~{crc16:04X}\x1B\\",
-            self.parsed_numbers[0]
-        )))
+        Ok(CallbackAction::SendString(format!("\x1BP{}!~{crc16:04X}\x1B\\", self.parsed_numbers[0])))
         // DECRQCRA—Request Checksum of Rectangular Area
         // <https://vt100.net/docs/vt510-rm/DECRQCRA.html>
     }
@@ -943,12 +817,7 @@ impl Parser {
     ///
     /// Source: Reflection TRM (VT) Version 7.0
     /// Status: DEC private; VT400
-    pub(crate) fn invoke_macro(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn invoke_macro(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
         if let Some(id) = self.parsed_numbers.first() {
             self.invoke_macro_by_id(buf, current_layer, caret, *id);
@@ -996,11 +865,7 @@ impl Parser {
     ///
     /// Source: CTerm.txt
     /// Status: NON-STANDARD EXTENSION
-    pub(crate) fn select_24bit_color(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &mut Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn select_24bit_color(&mut self, buf: &mut Buffer, caret: &mut Caret) -> EngineResult<CallbackAction> {
         let r = self.parsed_numbers[1];
         let g = self.parsed_numbers[2];
         let b = self.parsed_numbers[3];
@@ -1013,10 +878,7 @@ impl Parser {
                 caret.attribute.set_foreground(color);
             }
             _ => {
-                return Err(ParserError::UnsupportedEscapeSequence(
-                    self.current_escape_sequence.clone(),
-                )
-                .into());
+                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         }
         Ok(CallbackAction::None)
@@ -1084,11 +946,7 @@ impl Parser {
                 buf.terminal_state.set_height(height);
                 Ok(CallbackAction::ResizeTerminal(width, height))
             }
-            _ => Err(ParserError::UnsupportedEscapeSequence(format!(
-                "Unsupported window manipulation sequence {:?}",
-                self.current_escape_sequence
-            ))
-            .into()),
+            _ => Err(ParserError::UnsupportedEscapeSequence(format!("Unsupported window manipulation sequence {:?}", self.current_escape_sequence)).into()),
         }
     }
 
@@ -1111,19 +969,11 @@ impl Parser {
     ///
     /// Source: Reflection TRM (VT) Version 7.0
     /// Status: DEC private; VT400
-    pub(crate) fn fill_rectangular_area(
-        &mut self,
-        buf: &mut Buffer,
-        caret: &Caret,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn fill_rectangular_area(&mut self, buf: &mut Buffer, caret: &Caret) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
 
         if self.parsed_numbers.len() != 5 {
-            return Err(ParserError::UnsupportedEscapeSequence(format!(
-                "Fill rectangular area needs 5 parameters {:?}",
-                self.current_escape_sequence
-            ))
-            .into());
+            return Err(ParserError::UnsupportedEscapeSequence(format!("Fill rectangular area needs 5 parameters {:?}", self.current_escape_sequence)).into());
         }
         let ch: char = unsafe { char::from_u32_unchecked(self.parsed_numbers[0] as u32) };
 
@@ -1142,19 +992,13 @@ impl Parser {
             .max(1)
             .min(buf.get_line_count().max(buf.terminal_state.get_height()))
             - 1;
-        let left_column = self.parsed_numbers[offset + 1]
-            .max(1)
-            .min(buf.terminal_state.get_width())
-            - 1;
+        let left_column = self.parsed_numbers[offset + 1].max(1).min(buf.terminal_state.get_width()) - 1;
 
         let bottom_line = self.parsed_numbers[offset + 2]
             .max(1)
             .min(buf.get_line_count().max(buf.terminal_state.get_height()))
             - 1;
-        let right_column = self.parsed_numbers[offset + 3]
-            .max(1)
-            .min(buf.terminal_state.get_width())
-            - 1;
+        let right_column = self.parsed_numbers[offset + 3].max(1).min(buf.terminal_state.get_width()) - 1;
 
         (top_line, left_column, bottom_line, right_column)
     }
@@ -1175,18 +1019,11 @@ impl Parser {
     ///
     /// Source: Reflection TRM (VT) Version 7.0
     /// Status: DEC private; VT400
-    pub(crate) fn erase_rectangular_area(
-        &mut self,
-        buf: &mut Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn erase_rectangular_area(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
 
         if self.parsed_numbers.len() != 4 {
-            return Err(ParserError::UnsupportedEscapeSequence(format!(
-                "Erase rectangular area needs 4 parameters {:?}",
-                self.current_escape_sequence
-            ))
-            .into());
+            return Err(ParserError::UnsupportedEscapeSequence(format!("Erase rectangular area needs 4 parameters {:?}", self.current_escape_sequence)).into());
         }
 
         let (top_line, left_column, bottom_line, right_column) = self.get_rect_area(buf, 0);
@@ -1220,10 +1057,7 @@ impl Parser {
     ///
     /// Source: Reflection TRM (VT) Version 7.0
     /// Status: DEC private; VT400
-    pub(crate) fn selective_erase_rectangular_area(
-        &mut self,
-        buf: &mut Buffer,
-    ) -> EngineResult<CallbackAction> {
+    pub(crate) fn selective_erase_rectangular_area(&mut self, buf: &mut Buffer) -> EngineResult<CallbackAction> {
         self.state = EngineState::Default;
 
         if self.parsed_numbers.len() != 4 {

@@ -1,9 +1,6 @@
 use std::path::Path;
 
-use crate::{
-    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
-    TextAttribute, TextPane,
-};
+use crate::{parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position, TextAttribute, TextPane};
 
 use super::SaveOptions;
 
@@ -43,9 +40,7 @@ impl OutputFormat for Avatar {
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         if buf.palette.len() != 16 {
-            return Err(anyhow::anyhow!(
-                "Only 16 color palettes are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
         }
 
         let mut result = Vec::new();
@@ -127,12 +122,7 @@ impl OutputFormat for Avatar {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -141,12 +131,7 @@ impl OutputFormat for Avatar {
         if is_unicode {
             result.buffer_type = crate::BufferType::Unicode;
         }
-        parse_with_parser(
-            &mut result,
-            &mut parsers::avatar::Parser::default(),
-            &text,
-            true,
-        )?;
+        parse_with_parser(&mut result, &mut parsers::avatar::Parser::default(), &text, true)?;
         Ok(result)
     }
 }
@@ -169,24 +154,14 @@ mod tests {
 
     #[test]
     fn test_clear() {
-        let buf = Buffer::from_bytes(
-            &std::path::PathBuf::from("test.avt"),
-            false,
-            &[b'X', 12, b'X'],
-        )
-        .unwrap();
+        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, &[b'X', 12, b'X']).unwrap();
         assert_eq!(1, buf.get_line_count());
         assert_eq!(1, buf.get_real_buffer_width());
     }
 
     #[test]
     fn test_repeat() {
-        let buf = Buffer::from_bytes(
-            &std::path::PathBuf::from("test.avt"),
-            false,
-            &[b'X', 25, b'b', 3, b'X'],
-        )
-        .unwrap();
+        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, &[b'X', 25, b'b', 3, b'X']).unwrap();
         assert_eq!(1, buf.get_line_count());
         assert_eq!(5, buf.get_real_buffer_width());
         assert_eq!(b'X', buf.get_char((0, 0)).ch as u8);
@@ -198,8 +173,7 @@ mod tests {
 
     #[test]
     fn test_zero_repeat() {
-        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, &[25, b'b', 0])
-            .unwrap();
+        let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, &[25, b'b', 0]).unwrap();
         assert_eq!(0, buf.get_line_count());
         assert_eq!(0, buf.get_real_buffer_width());
     }
@@ -210,9 +184,8 @@ mod tests {
             &std::path::PathBuf::from("test.avt"),
             false,
             &[
-                12, 22, 1, 8, 32, 88, 22, 1, 15, 88, 25, 32, 4, 88, 22, 1, 8, 88, 32, 32, 32, 22,
-                1, 3, 88, 88, 22, 1, 57, 88, 88, 88, 25, 88, 7, 22, 1, 9, 25, 88, 4, 22, 1, 25, 88,
-                88, 88, 88, 88, 88, 22, 1, 1, 25, 88, 13,
+                12, 22, 1, 8, 32, 88, 22, 1, 15, 88, 25, 32, 4, 88, 22, 1, 8, 88, 32, 32, 32, 22, 1, 3, 88, 88, 22, 1, 57, 88, 88, 88, 25, 88, 7, 22, 1, 9, 25,
+                88, 4, 22, 1, 25, 88, 88, 88, 88, 88, 88, 22, 1, 1, 25, 88, 13,
             ],
         )
         .unwrap();
@@ -256,9 +229,7 @@ mod tests {
 
     fn test_avt(data: &[u8]) {
         let buf = Buffer::from_bytes(&std::path::PathBuf::from("test.avt"), false, data).unwrap();
-        let converted = super::Avatar::default()
-            .to_bytes(&buf, &SaveOptions::new())
-            .unwrap();
+        let converted = super::Avatar::default().to_bytes(&buf, &SaveOptions::new()).unwrap();
 
         // more gentle output.
         let b: Vec<u8> = output_avt(&converted);

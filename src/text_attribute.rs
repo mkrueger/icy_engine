@@ -113,9 +113,7 @@ impl TextAttribute {
             fg |= 0b_1000;
         }
         let bg = match ice_mode {
-            IceMode::Blink => {
-                self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 }
-            }
+            IceMode::Blink => self.background_color & 0b_0111 | if self.is_blinking() { 0b_1000 } else { 0 },
             IceMode::Unlimited | IceMode::Ice => self.background_color & 0b_1111,
         };
         (fg | bg << 4) as u8
@@ -277,8 +275,6 @@ impl TextAttribute {
 
 impl PartialEq for TextAttribute {
     fn eq(&self, other: &TextAttribute) -> bool {
-        self.foreground_color == other.foreground_color
-            && self.background_color == other.background_color
-            && self.attr == other.attr
+        self.foreground_color == other.foreground_color && self.background_color == other.background_color && self.attr == other.attr
     }
 }

@@ -45,16 +45,12 @@ for oct in range(1, 8):
 */
 pub const FREQ: [f32; 12 * 7] = [
     //  C      C#       D        D#       E        F        F#       G         G#        A         A#        B
-    65.4064, 69.2957, 73.4162, 77.7817, 82.4069, 87.3071, 92.4986, 97.9989, 103.8262, 110.0000,
-    116.5409, 123.4708, 130.8128, 138.5913, 146.8324, 155.5635, 164.8138, 174.6141, 184.9972,
-    195.9977, 207.6523, 220.0000, 233.0819, 246.9417, 261.6256, 277.1826, 293.6648, 311.127,
-    329.6276, 349.2282, 369.9944, 391.9954, 415.3047, 440.0000, 466.1638, 493.8833, 523.2511,
-    554.3653, 587.3295, 622.254, 659.2551, 698.4565, 739.9888, 783.9909, 830.6094, 880.0000,
-    932.3275, 987.7666, 1046.5023, 1108.7305, 1_174.659, 1244.5079, 1318.5102, 1396.9129,
-    1479.9777, 1567.9817, 1661.2188, 1760.0000, 1_864.655, 1975.5332, 2093.0045, 2217.461,
-    2_349.318, 2489.0159, 2637.0205, 2_793.826, 2959.9554, 3135.9635, 3322.4376, 3520.0000,
-    3_729.31, 3951.0664, 4_186.009, 4_434.922, 4_698.636, 4978.0317, 5_274.041, 5_587.652,
-    5919.9108, 6_271.927, 6_644.875, 7040.0000, 7_458.62, 7_902.132,
+    65.4064, 69.2957, 73.4162, 77.7817, 82.4069, 87.3071, 92.4986, 97.9989, 103.8262, 110.0000, 116.5409, 123.4708, 130.8128, 138.5913, 146.8324, 155.5635,
+    164.8138, 174.6141, 184.9972, 195.9977, 207.6523, 220.0000, 233.0819, 246.9417, 261.6256, 277.1826, 293.6648, 311.127, 329.6276, 349.2282, 369.9944,
+    391.9954, 415.3047, 440.0000, 466.1638, 493.8833, 523.2511, 554.3653, 587.3295, 622.254, 659.2551, 698.4565, 739.9888, 783.9909, 830.6094, 880.0000,
+    932.3275, 987.7666, 1046.5023, 1108.7305, 1_174.659, 1244.5079, 1318.5102, 1396.9129, 1479.9777, 1567.9817, 1661.2188, 1760.0000, 1_864.655, 1975.5332,
+    2093.0045, 2217.461, 2_349.318, 2489.0159, 2637.0205, 2_793.826, 2959.9554, 3135.9635, 3322.4376, 3520.0000, 3_729.31, 3951.0664, 4_186.009, 4_434.922,
+    4_698.636, 4978.0317, 5_274.041, 5_587.652, 5919.9108, 6_271.927, 6_644.875, 7040.0000, 7_458.62, 7_902.132,
 ];
 
 impl Parser {
@@ -85,24 +81,9 @@ impl Parser {
                             .unwrap()
                             .music_actions
                             .push(MusicAction::SetStyle(MusicStyle::Background)),
-                        'N' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Normal)),
-                        'L' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Legato)),
-                        'S' => self
-                            .cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::SetStyle(MusicStyle::Staccato)),
+                        'N' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Normal)),
+                        'L' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Legato)),
+                        'S' => self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::SetStyle(MusicStyle::Staccato)),
                         _ => return self.parse_ansi_music(ch),
                     }
                 }
@@ -122,10 +103,7 @@ impl Parser {
                         self.cur_octave = ((ch as u8) - b'0') as usize;
                         self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                     } else {
-                        return Err(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )
-                        .into());
+                        return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                     }
                 }
                 MusicState::Note(n, len) => {
@@ -133,15 +111,13 @@ impl Parser {
                     match ch {
                         '+' | '#' => {
                             if n + 1 < FREQ.len() {
-                                self.state =
-                                    EngineState::ParseAnsiMusic(MusicState::Note(n + 1, len));
+                                self.state = EngineState::ParseAnsiMusic(MusicState::Note(n + 1, len));
                             }
                         }
                         '-' => {
                             if n > 0 {
                                 // B
-                                self.state =
-                                    EngineState::ParseAnsiMusic(MusicState::Note(n - 1, len));
+                                self.state = EngineState::ParseAnsiMusic(MusicState::Note(n - 1, len));
                             }
                         }
                         '0'..='9' => {
@@ -156,13 +132,11 @@ impl Parser {
                         _ => {
                             self.state = EngineState::ParseAnsiMusic(MusicState::Default);
                             let len = if len == 0 { self.cur_length } else { len };
-                            self.cur_music.as_mut().unwrap().music_actions.push(
-                                MusicAction::PlayNote(
-                                    FREQ[n + (self.cur_octave * 12)],
-                                    self.cur_tempo * len,
-                                    self.dotted_note,
-                                ),
-                            );
+                            self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::PlayNote(
+                                FREQ[n + (self.cur_octave * 12)],
+                                self.cur_tempo * len,
+                                self.dotted_note,
+                            ));
                             self.dotted_note = false;
                             return Ok(self.parse_default_ansi_music(ch));
                         }
@@ -191,11 +165,7 @@ impl Parser {
                         self.state = EngineState::ParseAnsiMusic(MusicState::Pause(x));
                     } else {
                         let pause = x.clamp(1, 64);
-                        self.cur_music
-                            .as_mut()
-                            .unwrap()
-                            .music_actions
-                            .push(MusicAction::Pause(self.cur_tempo * pause));
+                        self.cur_music.as_mut().unwrap().music_actions.push(MusicAction::Pause(self.cur_tempo * pause));
                         return Ok(self.parse_default_ansi_music(ch));
                     }
                 }
@@ -221,9 +191,7 @@ impl Parser {
             '\x0E' => {
                 self.state = EngineState::Default;
                 self.cur_octave = 3;
-                return CallbackAction::PlayMusic(
-                    self.cur_music.replace(AnsiMusic::default()).unwrap(),
-                );
+                return CallbackAction::PlayMusic(self.cur_music.replace(AnsiMusic::default()).unwrap());
             }
             'T' => self.state = EngineState::ParseAnsiMusic(MusicState::SetTempo(0)),
             'L' => self.state = EngineState::ParseAnsiMusic(MusicState::SetLength(0)),

@@ -5,21 +5,13 @@ use crate::{
 
 fn test_ascii(data: &[u8]) {
     let (buf, _) = create_buffer(&mut Parser::default(), data);
-    let converted = crate::Ascii::default()
-        .to_bytes(&buf, &SaveOptions::new())
-        .unwrap();
+    let converted = crate::Ascii::default().to_bytes(&buf, &SaveOptions::new()).unwrap();
 
     // more gentle output.
-    let b: Vec<u8> = converted
-        .iter()
-        .map(|&x| if x == 27 { b'x' } else { x })
-        .collect();
+    let b: Vec<u8> = converted.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
     let converted = String::from_utf8_lossy(b.as_slice());
 
-    let b: Vec<u8> = data
-        .iter()
-        .map(|&x| if x == 27 { b'x' } else { x })
-        .collect();
+    let b: Vec<u8> = data.iter().map(|&x| if x == 27 { b'x' } else { x }).collect();
     let expected = String::from_utf8_lossy(b.as_slice());
 
     assert_eq!(expected, converted);
@@ -125,9 +117,6 @@ fn test_url_scanner_multiple() {
     assert_eq!("https://www.google.com", hyperlinks[1].get_url(&buf));
     assert_eq!(Position::new(24, 1), hyperlinks[1].position);
 
-    assert_eq!(
-        "https://github.com/mkrueger/icy_engine",
-        hyperlinks[0].get_url(&buf)
-    );
+    assert_eq!("https://github.com/mkrueger/icy_engine", hyperlinks[0].get_url(&buf));
     assert_eq!(Position::new(0, 2), hyperlinks[0].position);
 }

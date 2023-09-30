@@ -32,16 +32,14 @@ impl Line {
 
     pub fn insert_char(&mut self, index: i32, char_opt: AttributedChar) {
         if index > self.chars.len() as i32 {
-            self.chars
-                .resize(index as usize, AttributedChar::invisible());
+            self.chars.resize(index as usize, AttributedChar::invisible());
         }
         self.chars.insert(index as usize, char_opt);
     }
 
     pub fn set_char(&mut self, index: i32, char: AttributedChar) {
         if index >= self.chars.len() as i32 {
-            self.chars
-                .resize(index as usize + 1, AttributedChar::invisible());
+            self.chars.resize(index as usize + 1, AttributedChar::invisible());
         }
         self.chars[index as usize] = char;
     }

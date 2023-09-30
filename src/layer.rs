@@ -1,8 +1,6 @@
 use i18n_embed_fl::fl;
 
-use crate::{
-    Buffer, BufferParser, Color, Line, Position, Rectangle, Sixel, Size, TextAttribute, TextPane,
-};
+use crate::{Buffer, BufferParser, Color, Line, Position, Rectangle, Sixel, Size, TextAttribute, TextPane};
 
 use super::AttributedChar;
 
@@ -195,8 +193,7 @@ impl Layer {
             return;
         }
         if pos.y >= self.lines.len() as i32 {
-            self.lines
-                .resize(pos.y as usize + 1, Line::create(self.size.width));
+            self.lines.resize(pos.y as usize + 1, Line::create(self.size.width));
         }
 
         if self.has_alpha_channel && self.is_alpha_channel_locked {
@@ -209,8 +206,7 @@ impl Layer {
         let cur_line = &mut self.lines[pos.y as usize];
         cur_line.set_char(pos.x, attributed_char);
         let font_dims = Size::new(8, 16);
-        self.sixels
-            .retain(|x| !x.as_rectangle(font_dims).is_inside(pos) || pos.y != x.position.y);
+        self.sixels.retain(|x| !x.as_rectangle(font_dims).is_inside(pos) || pos.y != x.position.y);
     }
 
     /// .
@@ -222,10 +218,7 @@ impl Layer {
         if self.is_locked || !self.is_visible {
             return;
         }
-        assert!(
-            !(index < 0 || index >= self.lines.len() as i32),
-            "line out of range"
-        );
+        assert!(!(index < 0 || index >= self.lines.len() as i32), "line out of range");
         self.lines.remove(index as usize);
     }
 
@@ -240,8 +233,7 @@ impl Layer {
         }
         assert!(index >= 0, "line out of range");
         if index > self.lines.len() as i32 {
-            self.lines
-                .resize(index as usize, Line::create(self.size.width));
+            self.lines.resize(index as usize, Line::create(self.size.width));
         }
 
         self.lines.insert(index as usize, line);
@@ -298,26 +290,19 @@ impl Layer {
         let height = u32::from_le_bytes(data[13..17].try_into().unwrap()) as usize;
         let mut data = &data[17..];
 
-        let mut layer = Layer::new(
-            fl!(crate::LANGUAGE_LOADER, "layer-pasted-name"),
-            (width, height),
-        );
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-pasted-name"), (width, height));
         layer.has_alpha_channel = true;
         layer.role = Role::PastePreview;
         layer.set_offset((x, y));
         for y in 0..height {
             for x in 0..width {
                 let ch = AttributedChar {
-                    ch: unsafe {
-                        char::from_u32_unchecked(u16::from_le_bytes([data[0], data[1]]) as u32)
-                    },
+                    ch: unsafe { char::from_u32_unchecked(u16::from_le_bytes([data[0], data[1]]) as u32) },
                     attribute: TextAttribute {
                         attr: u16::from_le_bytes([data[2], data[3]]),
                         font_page: u16::from_le_bytes([data[4], data[5]]) as usize,
                         background_color: u32::from_le_bytes([data[6], data[7], data[8], data[9]]),
-                        foreground_color: u32::from_le_bytes([
-                            data[10], data[11], data[12], data[13],
-                        ]),
+                        foreground_color: u32::from_le_bytes([data[10], data[11], data[12], data[13]]),
                     },
                 };
                 layer.set_char((x as i32, y as i32), ch);
@@ -354,16 +339,11 @@ impl Layer {
 mod tests {
     use i18n_embed_fl::fl;
 
-    use crate::{
-        editor::EditState, AttributedChar, Layer, Line, Rectangle, TextAttribute, TextPane,
-    };
+    use crate::{editor::EditState, AttributedChar, Layer, Line, Rectangle, TextAttribute, TextPane};
 
     #[test]
     fn test_get_char() {
-        let mut layer = Layer::new(
-            fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
-            (20, 20),
-        );
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (20, 20));
         layer.has_alpha_channel = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
@@ -379,10 +359,7 @@ mod tests {
 
     #[test]
     fn test_get_char_intransparent() {
-        let mut layer = Layer::new(
-            fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
-            (20, 20),
-        );
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (20, 20));
         layer.has_alpha_channel = true;
 
         let mut line = Line::new();
@@ -399,13 +376,9 @@ mod tests {
 
     #[test]
     fn test_insert_line() {
-        let mut layer = Layer::new(
-            fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
-            (80, 0),
-        );
+        let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (80, 0));
         let mut line = Line::new();
-        line.chars
-            .push(AttributedChar::new('a', TextAttribute::default()));
+        line.chars.push(AttributedChar::new('a', TextAttribute::default()));
         layer.insert_line(10, line);
 
         assert_eq!('a', layer.lines[10].chars[0].ch);
@@ -433,9 +406,7 @@ mod tests {
             }
         }
 
-        state
-            .set_selection(Rectangle::from_min_size((5, 6), (7, 8)))
-            .unwrap();
+        state.set_selection(Rectangle::from_min_size((5, 6), (7, 8))).unwrap();
         let data = state.get_clipboard_data().unwrap();
 
         let layer = Layer::from_clipboard_data(&data).unwrap();

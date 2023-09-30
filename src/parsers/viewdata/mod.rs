@@ -123,9 +123,7 @@ impl Parser {
                     Parser::fill_to_eol(buf, caret);
                 }
                 b']' => {
-                    caret
-                        .attribute
-                        .set_background(caret.attribute.get_foreground());
+                    caret.attribute.set_background(caret.attribute.get_foreground());
                     Parser::fill_to_eol(buf, caret);
                 }
                 b'I' => {
@@ -160,11 +158,7 @@ impl Parser {
 
         let mut print_ch = ch;
         if self.got_esc || ch < 0x20 {
-            print_ch = if self.hold_graphics {
-                self.held_graphics_character as u8
-            } else {
-                b' '
-            };
+            print_ch = if self.hold_graphics { self.held_graphics_character as u8 } else { b' ' };
         } else if self.is_in_graphic_mode {
             if (0x20..0x40).contains(&ch) || (0x60..0x80).contains(&ch) {
                 if print_ch < 0x40 {
@@ -244,13 +238,7 @@ impl BufferParser for Parser {
         }
     }
 
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         match ch {
             // control codes 0

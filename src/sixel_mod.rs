@@ -1,6 +1,4 @@
-use crate::{
-    ansi::parse_next_number, EngineResult, Palette, ParserError, Position, Rectangle, Size,
-};
+use crate::{ansi::parse_next_number, EngineResult, Palette, ParserError, Position, Rectangle, Size};
 
 #[derive(Clone, Debug, Copy)]
 pub enum SixelState {
@@ -119,8 +117,7 @@ impl SixelParser {
                             Some(1) => {
                                 self.current_sixel_palette.set_color_hsl(
                                     self.current_sixel_color as usize,
-                                    self.parsed_numbers[2] as f32 * 360.0
-                                        / (2.0 * std::f32::consts::PI),
+                                    self.parsed_numbers[2] as f32 * 360.0 / (2.0 * std::f32::consts::PI),
                                     self.parsed_numbers[4] as f32 / 100.0, // sixel is hls
                                     self.parsed_numbers[3] as f32 / 100.0,
                                 );
@@ -160,8 +157,7 @@ impl SixelParser {
                     if self.parsed_numbers.len() == 4 {
                         let height = self.parsed_numbers[3];
                         let width = self.parsed_numbers[2];
-                        self.picture_data
-                            .resize(height as usize, vec![0; 4 * width as usize]);
+                        self.picture_data.resize(height as usize, vec![0; 4 * width as usize]);
                         self.height_set = true;
                     }
                     self.state = SixelState::Read;
@@ -212,8 +208,7 @@ impl SixelParser {
         }
 
         if (self.picture_data.len() as i32) < last_line {
-            self.picture_data
-                .resize(last_line as usize, vec![0; (self.width() as usize) * 4]);
+            self.picture_data.resize(last_line as usize, vec![0; (self.width() as usize) * 4]);
         }
 
         for i in 0..6 {
@@ -284,12 +279,7 @@ impl Sixel {
         }
     }
 
-    pub fn from_data(
-        size: impl Into<Size>,
-        vertical_scale: i32,
-        horizontal_scale: i32,
-        data: Vec<u8>,
-    ) -> Self {
+    pub fn from_data(size: impl Into<Size>, vertical_scale: i32, horizontal_scale: i32, data: Vec<u8>) -> Self {
         Self {
             position: Position::default(),
             vertical_scale,
@@ -315,10 +305,7 @@ impl Sixel {
         let y = self.position.y;
         Rectangle {
             start: Position::new(x, y),
-            size: Size::new(
-                self.size.width / font_dims.width,
-                self.size.height / font_dims.height,
-            ),
+            size: Size::new(self.size.width / font_dims.width, self.size.height / font_dims.height),
         }
     }
 
@@ -327,13 +314,7 @@ impl Sixel {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn parse_from(
-        pos: Position,
-        horizontal_scale: i32,
-        vertical_scale: i32,
-        default_bg_color: [u8; 4],
-        data: &str,
-    ) -> EngineResult<Self> {
+    pub fn parse_from(pos: Position, horizontal_scale: i32, vertical_scale: i32, default_bg_color: [u8; 4], data: &str) -> EngineResult<Self> {
         let mut parser = SixelParser {
             pos,
             vertical_scale,

@@ -12,10 +12,7 @@ pub struct Caret {
 
 impl Caret {
     pub fn new(pos: Position) -> Self {
-        Self {
-            pos,
-            ..Default::default()
-        }
+        Self { pos, ..Default::default() }
     }
 
     pub fn new_xy(x: i32, y: i32) -> Self {

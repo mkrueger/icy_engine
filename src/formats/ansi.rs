@@ -4,8 +4,8 @@ use std::path::Path;
 use crate::ansi::constants::COLOR_OFFSETS;
 use crate::ascii::CP437_TO_UNICODE;
 use crate::{
-    analyze_font_usage, parse_with_parser, parsers, BitFont, Buffer, BufferFeatures, OutputFormat,
-    Rectangle, TextPane, ANSI_FONTS, DOS_DEFAULT_PALETTE, XTERM_256_PALETTE,
+    analyze_font_usage, parse_with_parser, parsers, BitFont, Buffer, BufferFeatures, OutputFormat, Rectangle, TextPane, ANSI_FONTS, DOS_DEFAULT_PALETTE,
+    XTERM_256_PALETTE,
 };
 use crate::{Color, TextAttribute};
 
@@ -47,12 +47,7 @@ impl OutputFormat for Ansi {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> anyhow::Result<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> anyhow::Result<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -128,12 +123,7 @@ impl StringGenerator {
         }
     }
 
-    fn get_color(
-        &self,
-        buf: &Buffer,
-        attr: TextAttribute,
-        mut state: AnsiState,
-    ) -> (AnsiState, Vec<u8>, Vec<u8>) {
+    fn get_color(&self, buf: &Buffer, attr: TextAttribute, mut state: AnsiState) -> (AnsiState, Vec<u8>, Vec<u8>) {
         let mut sgr = Vec::new();
         let mut sgr_tc = Vec::new();
 
@@ -145,12 +135,8 @@ impl StringGenerator {
         let cur_back_color = buf.palette.get_color(bg);
         let cur_back_rgb = cur_back_color.get_rgb();
 
-        let mut fore_idx = DOS_DEFAULT_PALETTE
-            .iter()
-            .position(|c| c.get_rgb() == cur_fore_rgb);
-        let mut back_idx = DOS_DEFAULT_PALETTE
-            .iter()
-            .position(|c| c.get_rgb() == cur_back_rgb);
+        let mut fore_idx = DOS_DEFAULT_PALETTE.iter().position(|c| c.get_rgb() == cur_fore_rgb);
+        let mut back_idx = DOS_DEFAULT_PALETTE.iter().position(|c| c.get_rgb() == cur_back_rgb);
 
         let mut is_bold = attr.is_bold();
         let mut is_blink = attr.is_blinking();
@@ -206,11 +192,7 @@ impl StringGenerator {
             || !is_double_underlined && state.is_double_underlined
             || !is_crossed_out && state.is_crossed_out
             || !is_concealed && state.is_concealed
-            || is_bold
-                && !state.is_bold
-                && !DOS_DEFAULT_PALETTE
-                    .iter()
-                    .any(|c| c.get_rgb() == state.fg.get_rgb())
+            || is_bold && !state.is_bold && !DOS_DEFAULT_PALETTE.iter().any(|c| c.get_rgb() == state.fg.get_rgb())
         // special case if bold changes but fore color is custom rgb - color needs to reset
         {
             sgr.push(0);
@@ -306,13 +288,7 @@ impl StringGenerator {
         (state, sgr, sgr_tc)
     }
 
-    fn generate_cells<T: TextPane>(
-        &self,
-        buf: &Buffer,
-        layer: &T,
-        area: Rectangle,
-        font_map: &HashMap<usize, usize>,
-    ) -> Vec<Vec<CharCell>> {
+    fn generate_cells<T: TextPane>(&self, buf: &Buffer, layer: &T, area: Rectangle, font_map: &HashMap<usize, usize>) -> Vec<Vec<CharCell>> {
         let mut result = Vec::new();
         let mut state = AnsiState {
             is_bold: false,
@@ -522,11 +498,7 @@ impl StringGenerator {
                 if self.options.compress {
                     let mut rle = x + 1;
                     while rle < len {
-                        if line[rle].ch != line[x].ch
-                            || !line[rle].sgr.is_empty()
-                            || !line[rle].sgr_tc.is_empty()
-                            || line[rle].font_page != line[x].font_page
-                        {
+                        if line[rle].ch != line[x].ch || !line[rle].sgr.is_empty() || !line[rle].sgr_tc.is_empty() || line[rle].font_page != line[x].font_page {
                             break;
                         }
                         rle += 1;
@@ -534,11 +506,7 @@ impl StringGenerator {
                     // rle is always >= x + 1 but "x - 1" may overflow.
                     rle -= 1;
                     rle -= x;
-                    if self.options.use_cursor_forward
-                        && line[x].ch == ' '
-                        && line[x].cur_state.bg_idx == 0
-                        && !line[x].cur_state.is_blink
-                    {
+                    if self.options.use_cursor_forward && line[x].ch == ' ' && line[x].cur_state.bg_idx == 0 && !line[x].cur_state.is_blink {
                         let fmt = &format!("\x1B[{}C", rle + 1);
                         let output = fmt.as_bytes();
                         if output.len() <= rle {
@@ -606,8 +574,7 @@ impl StringGenerator {
                     Err(err) => log::error!("{err}"),
                     Ok(data) => {
                         let p = layer.get_offset() + sixel.position;
-                        self.output
-                            .extend(format!("\x1b[{};{}H", p.y + 1, p.x + 1).as_bytes());
+                        self.output.extend(format!("\x1b[{};{}H", p.y + 1, p.x + 1).as_bytes());
                         self.output.extend(data.as_bytes());
                     }
                 }

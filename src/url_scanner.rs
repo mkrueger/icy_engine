@@ -60,12 +60,7 @@ impl Buffer {
         }
     }
 
-    pub fn is_position_in_range(
-        &self,
-        pos: impl Into<Position>,
-        from: impl Into<Position>,
-        size: i32,
-    ) -> bool {
+    pub fn is_position_in_range(&self, pos: impl Into<Position>, from: impl Into<Position>, size: i32) -> bool {
         let pos = pos.into();
         let from = from.into();
 

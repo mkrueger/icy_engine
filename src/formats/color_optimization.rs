@@ -96,14 +96,7 @@ mod tests {
 
         let opt_buf = opt.optimize(&buffer);
         for x in 0..opt_buf.get_width() {
-            assert_eq!(
-                opt_buf.layers[0]
-                    .get_char((x, 0))
-                    .attribute
-                    .get_foreground(),
-                14,
-                "x={x}"
-            );
+            assert_eq!(opt_buf.layers[0].get_char((x, 0)).attribute.get_foreground(), 14, "x={x}");
         }
     }
 
@@ -119,14 +112,7 @@ mod tests {
 
         let opt_buf = opt.optimize(&buffer);
         for x in 0..opt_buf.get_width() {
-            assert_eq!(
-                opt_buf.layers[0]
-                    .get_char((x, 0))
-                    .attribute
-                    .get_background(),
-                0,
-                "x={x}"
-            );
+            assert_eq!(opt_buf.layers[0].get_char((x, 0)).attribute.get_background(), 0, "x={x}");
         }
     }
 
@@ -134,15 +120,9 @@ mod tests {
     pub fn test_ws_normalization() {
         let mut buffer = Buffer::new((5, 1));
         for x in 0..buffer.get_width() {
-            buffer.layers[0].set_char(
-                (x, 0),
-                AttributedChar::new(0 as char, TextAttribute::default()),
-            );
+            buffer.layers[0].set_char((x, 0), AttributedChar::new(0 as char, TextAttribute::default()));
         }
-        buffer.layers[0].set_char(
-            (3, 0),
-            AttributedChar::new(255 as char, TextAttribute::default()),
-        );
+        buffer.layers[0].set_char((3, 0), AttributedChar::new(255 as char, TextAttribute::default()));
 
         let mut save_options = crate::SaveOptions::default();
         save_options.normalize_whitespaces = true;

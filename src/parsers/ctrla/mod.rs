@@ -22,13 +22,7 @@ impl BufferParser for Parser {
         self.ascii_parser.convert_to_unicode(attributed_char)
     }
 
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.ctrl_a {
             self.ctrl_a = false;
             match ch {
@@ -40,9 +34,7 @@ impl BufferParser for Parser {
                 '|' => caret.cr(buf),
                 ']' => caret.down(buf, current_layer, 1),
                 'A' => {
-                    let _ = self
-                        .ascii_parser
-                        .print_char(buf, current_layer, caret, CTRL_A);
+                    let _ = self.ascii_parser.print_char(buf, current_layer, caret, CTRL_A);
                 }
                 'H' => {
                     self.is_bold = true;

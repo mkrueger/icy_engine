@@ -6,8 +6,7 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode,
-    Position, SauceData, Selection, SelectionMask, Size, TextPane,
+    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode, Position, SauceData, Selection, SelectionMask, Size, TextPane,
 };
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
@@ -19,11 +18,7 @@ pub(crate) struct AtomicUndo {
 }
 
 impl AtomicUndo {
-    pub(crate) fn new(
-        description: String,
-        stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
-        operation_type: OperationType,
-    ) -> Self {
+    pub(crate) fn new(description: String, stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>, operation_type: OperationType) -> Self {
         Self {
             description,
             stack,
@@ -65,11 +60,7 @@ impl UndoOperation for AtomicUndo {
     }
 
     fn try_clone(&self) -> Option<Box<dyn UndoOperation>> {
-        Some(Box::new(AtomicUndo::new(
-            self.description.clone(),
-            self.stack.clone(),
-            self.operation_type,
-        )))
+        Some(Box::new(AtomicUndo::new(self.description.clone(), self.stack.clone(), self.operation_type)))
     }
 }
 
@@ -124,10 +115,7 @@ pub struct ClearLayerOperation {
 
 impl ClearLayerOperation {
     pub fn _new(layer_num: usize) -> Self {
-        Self {
-            layer_num,
-            lines: Vec::new(),
-        }
+        Self { layer_num, lines: Vec::new() }
     }
 }
 
@@ -137,18 +125,12 @@ impl UndoOperation for ClearLayerOperation {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        mem::swap(
-            &mut self.lines,
-            &mut edit_state.buffer.layers[self.layer_num].lines,
-        );
+        mem::swap(&mut self.lines, &mut edit_state.buffer.layers[self.layer_num].lines);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        mem::swap(
-            &mut self.lines,
-            &mut edit_state.buffer.layers[self.layer_num].lines,
-        );
+        mem::swap(&mut self.lines, &mut edit_state.buffer.layers[self.layer_num].lines);
         Ok(())
     }
 }
@@ -161,10 +143,7 @@ pub struct AddLayer {
 
 impl AddLayer {
     pub(crate) fn new(index: usize, new_layer: Layer) -> Self {
-        Self {
-            index,
-            layer: Some(new_layer),
-        }
+        Self { index, layer: Some(new_layer) }
     }
 }
 
@@ -195,10 +174,7 @@ pub struct RemoveLayer {
 
 impl RemoveLayer {
     pub fn new(layer_index: usize) -> Self {
-        Self {
-            layer_index,
-            layer: None,
-        }
+        Self { layer_index, layer: None }
     }
 }
 
@@ -242,18 +218,12 @@ impl UndoOperation for RaiseLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .buffer
-            .layers
-            .swap(self.layer_index, self.layer_index + 1);
+        edit_state.buffer.layers.swap(self.layer_index, self.layer_index + 1);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .buffer
-            .layers
-            .swap(self.layer_index, self.layer_index + 1);
+        edit_state.buffer.layers.swap(self.layer_index, self.layer_index + 1);
         Ok(())
     }
 }
@@ -275,18 +245,12 @@ impl UndoOperation for LowerLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .buffer
-            .layers
-            .swap(self.layer_index, self.layer_index - 1);
+        edit_state.buffer.layers.swap(self.layer_index, self.layer_index - 1);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .buffer
-            .layers
-            .swap(self.layer_index, self.layer_index - 1);
+        edit_state.buffer.layers.swap(self.layer_index, self.layer_index - 1);
         Ok(())
     }
 }
@@ -328,13 +292,7 @@ impl UndoOperation for MergeLayerDown {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = self.merged_layer.take() {
-            self.orig_layers = Some(
-                edit_state
-                    .buffer
-                    .layers
-                    .drain((self.index - 1)..=self.index)
-                    .collect(),
-            );
+            self.orig_layers = Some(edit_state.buffer.layers.drain((self.index - 1)..=self.index).collect());
             edit_state.buffer.layers.insert(self.index - 1, layer);
             Ok(())
         } else {
@@ -424,11 +382,7 @@ pub struct SetLayerSize {
 
 impl SetLayerSize {
     pub(crate) fn new(index: usize, to: Size) -> Self {
-        Self {
-            index,
-            from: to,
-            to,
-        }
+        Self { index, from: to, to }
     }
 }
 
@@ -464,9 +418,7 @@ pub struct Paste {
 
 impl Paste {
     pub(crate) fn new(paste_layer: Layer) -> Self {
-        Self {
-            layer: Some(paste_layer),
-        }
+        Self { layer: Some(paste_layer) }
     }
 }
 
@@ -848,10 +800,7 @@ impl UndoOperation for InsertColumn {
 mod scroll_util {
     use crate::{editor::EditorError, EngineResult};
 
-    pub(crate) fn scroll_layer_up(
-        edit_state: &mut crate::editor::EditState,
-        layer: usize,
-    ) -> EngineResult<()> {
+    pub(crate) fn scroll_layer_up(edit_state: &mut crate::editor::EditState, layer: usize) -> EngineResult<()> {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(layer) {
             let lines = layer.lines.remove(0);
             layer.lines.push(lines);
@@ -860,10 +809,7 @@ mod scroll_util {
             Err(EditorError::InvalidLayer(layer).into())
         }
     }
-    pub(crate) fn scroll_layer_down(
-        edit_state: &mut crate::editor::EditState,
-        layer: usize,
-    ) -> EngineResult<()> {
+    pub(crate) fn scroll_layer_down(edit_state: &mut crate::editor::EditState, layer: usize) -> EngineResult<()> {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(layer) {
             let lines = layer.lines.pop().unwrap();
             layer.lines.insert(0, lines);
@@ -933,11 +879,7 @@ pub struct RotateLayer {
 
 impl RotateLayer {
     pub fn new(layer: usize, old_lines: Vec<Line>, new_lines: Vec<Line>) -> Self {
-        Self {
-            layer,
-            old_lines,
-            new_lines,
-        }
+        Self { layer, old_lines, new_lines }
     }
 }
 
@@ -972,11 +914,7 @@ pub(crate) struct ReversedUndo {
 }
 
 impl ReversedUndo {
-    pub(crate) fn new(
-        description: String,
-        op: Box<dyn UndoOperation>,
-        operation_type: OperationType,
-    ) -> Self {
+    pub(crate) fn new(description: String, op: Box<dyn UndoOperation>, operation_type: OperationType) -> Self {
         Self {
             description,
             op,
@@ -1057,10 +995,7 @@ impl UndoOperation for ClearLayer {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if self.layer_index < edit_state.buffer.layers.len() {
-            mem::swap(
-                &mut self.layer,
-                &mut edit_state.buffer.layers[self.layer_index].lines,
-            );
+            mem::swap(&mut self.layer, &mut edit_state.buffer.layers[self.layer_index].lines);
             Ok(())
         } else {
             Err(EditorError::InvalidLayer(self.layer_index).into())
@@ -1180,11 +1115,7 @@ pub struct SetSelectionMask {
 
 impl SetSelectionMask {
     pub fn new(description: String, old: crate::SelectionMask, new: crate::SelectionMask) -> Self {
-        Self {
-            description,
-            old,
-            new,
-        }
+        Self { description, old, new }
     }
 }
 
@@ -1259,11 +1190,7 @@ pub struct InverseSelection {
 }
 
 impl InverseSelection {
-    pub fn new(
-        sel: Option<Selection>,
-        old: crate::SelectionMask,
-        new: crate::SelectionMask,
-    ) -> Self {
+    pub fn new(sel: Option<Selection>, old: crate::SelectionMask, new: crate::SelectionMask) -> Self {
         Self { sel, old, new }
     }
 }
@@ -1338,16 +1265,12 @@ impl UndoOperation for SetSauceData {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.data = edit_state
-            .get_buffer_mut()
-            .set_sauce(self.data.take(), false);
+        self.data = edit_state.get_buffer_mut().set_sauce(self.data.take(), false);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.data = edit_state
-            .get_buffer_mut()
-            .set_sauce(self.data.take(), false);
+        self.data = edit_state.get_buffer_mut().set_sauce(self.data.take(), false);
         Ok(())
     }
 }
@@ -1389,11 +1312,7 @@ pub struct SetFont {
 
 impl SetFont {
     pub fn new(font_page: usize, old: BitFont, new: BitFont) -> Self {
-        Self {
-            font_page,
-            old,
-            new,
-        }
+        Self { font_page, old, new }
     }
 }
 
@@ -1403,16 +1322,12 @@ impl UndoOperation for SetFont {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .get_buffer_mut()
-            .set_font(self.font_page, self.old.clone());
+        edit_state.get_buffer_mut().set_font(self.font_page, self.old.clone());
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .get_buffer_mut()
-            .set_font(self.font_page, self.new.clone());
+        edit_state.get_buffer_mut().set_font(self.font_page, self.new.clone());
         Ok(())
     }
 }
@@ -1446,9 +1361,7 @@ impl UndoOperation for AddFont {
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        edit_state
-            .buffer
-            .set_font(self.new_font_page, self.font.clone());
+        edit_state.buffer.set_font(self.new_font_page, self.font.clone());
         edit_state.caret.set_font_page(self.new_font_page);
         Ok(())
     }
@@ -1516,12 +1429,7 @@ pub struct SetIceMode {
 }
 
 impl SetIceMode {
-    pub fn new(
-        old_mode: IceMode,
-        old_layers: Vec<Layer>,
-        new_mode: IceMode,
-        new_layers: Vec<Layer>,
-    ) -> Self {
+    pub fn new(old_mode: IceMode, old_layers: Vec<Layer>, new_mode: IceMode, new_layers: Vec<Layer>) -> Self {
         Self {
             old_mode,
             old_layers,
@@ -1557,12 +1465,7 @@ pub struct ReplaceFontUsage {
 }
 
 impl ReplaceFontUsage {
-    pub fn new(
-        old_caret_page: usize,
-        old_layers: Vec<Layer>,
-        new_caret_page: usize,
-        new_layers: Vec<Layer>,
-    ) -> Self {
+    pub fn new(old_caret_page: usize, old_layers: Vec<Layer>, new_caret_page: usize, new_layers: Vec<Layer>) -> Self {
         Self {
             old_caret_page,
             old_layers,
@@ -1580,18 +1483,14 @@ impl UndoOperation for ReplaceFontUsage {
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.old_layers.clone();
         println!("undo font replace!");
-        edit_state
-            .get_caret_mut()
-            .set_font_page(self.old_caret_page);
+        edit_state.get_caret_mut().set_font_page(self.old_caret_page);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.new_layers.clone();
         println!("redo font replace!");
-        edit_state
-            .get_caret_mut()
-            .set_font_page(self.new_caret_page);
+        edit_state.get_caret_mut().set_font_page(self.new_caret_page);
         Ok(())
     }
 }
@@ -1603,10 +1502,7 @@ pub struct RemoveFont {
 
 impl RemoveFont {
     pub fn new(font_slot: usize) -> Self {
-        Self {
-            font_slot,
-            font: None,
-        }
+        Self { font_slot, font: None }
     }
 }
 

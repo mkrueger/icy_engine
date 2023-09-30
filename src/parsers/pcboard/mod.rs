@@ -21,13 +21,7 @@ impl BufferParser for Parser {
         self.ansi_parser.convert_to_unicode(attributed_char)
     }
 
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.pcb_color {
             self.pcb_pos += 1;
             if self.pcb_pos < 3 {

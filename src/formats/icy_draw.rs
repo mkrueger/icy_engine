@@ -4,8 +4,8 @@ use base64::{engine::general_purpose, Engine};
 use regex::Regex;
 
 use crate::{
-    attribute, BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Palette,
-    Position, SauceData, SauceFileType, SaveOptions, Sixel, Size, TextPane,
+    attribute, BitFont, Buffer, Color, EngineResult, Layer, LoadingError, OutputFormat, Palette, Position, SauceData, SauceFileType, SaveOptions, Sixel, Size,
+    TextPane,
 };
 
 mod constants {
@@ -60,17 +60,13 @@ impl OutputFormat for IcyDraw {
             false
         };
 
-        let mut encoder: png::Encoder<'_, &mut Vec<u8>> =
-            png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
+        let mut encoder: png::Encoder<'_, &mut Vec<u8>> = png::Encoder::new(&mut result, width as u32, height as u32); // Width is 2 pixels and height is 1.
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
         encoder.set_compression(png::Compression::Best);
 
         {
-            let mut result = vec![
-                constants::ICD_VERSION as u8,
-                (constants::ICD_VERSION >> 8) as u8,
-            ];
+            let mut result = vec![constants::ICD_VERSION as u8, (constants::ICD_VERSION >> 8) as u8];
             result.extend(u32::to_le_bytes(0)); // Type
                                                 // Modes
             result.extend(u16::to_le_bytes(buf.buffer_type.to_byte() as u16));
@@ -108,10 +104,7 @@ impl OutputFormat for IcyDraw {
             write_utf8_encoded_string(&mut font_data, &v.name);
             font_data.extend(v.to_psf2_bytes().unwrap());
 
-            if let Err(err) = encoder.add_ztxt_chunk(
-                format!("FONT_{k}"),
-                general_purpose::STANDARD.encode(&font_data),
-            ) {
+            if let Err(err) = encoder.add_ztxt_chunk(format!("FONT_{k}"), general_purpose::STANDARD.encode(&font_data)) {
                 return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
             }
         }
@@ -194,14 +187,10 @@ impl OutputFormat for IcyDraw {
                 let len = sixel.picture_data.len() as u64;
                 while len > bytes_written {
                     let next_bytes = MAX.min(len - bytes_written);
-                    let layer_data = general_purpose::STANDARD.encode(
-                        &sixel.picture_data[bytes_written as usize
-                            ..(bytes_written as usize + next_bytes as usize)],
-                    );
+                    let layer_data =
+                        general_purpose::STANDARD.encode(&sixel.picture_data[bytes_written as usize..(bytes_written as usize + next_bytes as usize)]);
                     bytes_written += next_bytes;
-                    if let Err(err) =
-                        encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data)
-                    {
+                    if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data) {
                         return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
                     }
                     chunk += 1;
@@ -256,8 +245,7 @@ impl OutputFormat for IcyDraw {
                     y += 1;
                 }
                 let len = result.len();
-                result[offset..(offset + 8)]
-                    .copy_from_slice(&u64::to_le_bytes((len - offset - 8) as u64));
+                result[offset..(offset + 8)].copy_from_slice(&u64::to_le_bytes((len - offset - 8) as u64));
                 let layer_data = general_purpose::STANDARD.encode(&result);
                 if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}"), layer_data) {
                     return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
@@ -309,9 +297,7 @@ impl OutputFormat for IcyDraw {
                         y += 1;
                     }
                     let layer_data = general_purpose::STANDARD.encode(&result);
-                    if let Err(err) =
-                        encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data)
-                    {
+                    if let Err(err) = encoder.add_ztxt_chunk(format!("LAYER_{i}~{chunk}"), layer_data) {
                         return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
                     }
                     chunk += 1;
@@ -339,12 +325,7 @@ impl OutputFormat for IcyDraw {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        _sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], _sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -384,45 +365,34 @@ impl OutputFormat for IcyDraw {
                                 "ICED" => {
                                     let mut o: usize = 0;
                                     if bytes.len() != constants::ICED_HEADER_SIZE {
-                                        return Err(anyhow::anyhow!(
-                                            "unsupported header size {}",
-                                            bytes.len()
-                                        ));
+                                        return Err(anyhow::anyhow!("unsupported header size {}", bytes.len()));
                                     }
                                     o += 2; // skip version
                                             // TODO: read type ATM only 1 type is generated.
                                     o += 4; // skip type
-                                    let buffer_type =
-                                        u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap());
+                                    let buffer_type = u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap());
                                     o += 2;
-                                    result.buffer_type =
-                                        crate::BufferType::from_byte(buffer_type as u8);
+                                    result.buffer_type = crate::BufferType::from_byte(buffer_type as u8);
                                     let ice_mode = bytes[o];
                                     o += 1;
                                     result.ice_mode = crate::IceMode::from_byte(ice_mode as u8);
 
                                     let palette_mode = bytes[o];
                                     o += 1;
-                                    result.palette_mode =
-                                        crate::PaletteMode::from_byte(palette_mode as u8);
+                                    result.palette_mode = crate::PaletteMode::from_byte(palette_mode as u8);
 
                                     let font_mode = bytes[o];
                                     o += 1;
                                     result.font_mode = crate::FontMode::from_byte(font_mode as u8);
 
-                                    let width: i32 =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
-                                            as i32;
+                                    let width: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                     o += 4;
-                                    let height: i32 =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
-                                            as i32;
+                                    let height: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                     result.set_size((width, height));
                                 }
 
                                 "PALETTE" => {
-                                    result.palette =
-                                        Palette::load_palette(&crate::PaletteFormat::Ice, &bytes)?;
+                                    result.palette = Palette::load_palette(&crate::PaletteFormat::Ice, &bytes)?;
                                 }
 
                                 "SAUCE" => {
@@ -434,20 +404,14 @@ impl OutputFormat for IcyDraw {
                                         match font_slot.parse() {
                                             Ok(font_slot) => {
                                                 let mut o: usize = 0;
-                                                let (font_name, size) =
-                                                    read_utf8_encoded_string(&bytes[o..]);
+                                                let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
                                                 o += size;
-                                                let font =
-                                                    BitFont::from_bytes(font_name, &bytes[o..])
-                                                        .unwrap();
+                                                let font = BitFont::from_bytes(font_name, &bytes[o..]).unwrap();
                                                 result.set_font(font_slot, font);
                                                 continue;
                                             }
                                             Err(err) => {
-                                                return Err(IcedError::ErrorParsingFontSlot(
-                                                    format!("{err}"),
-                                                )
-                                                .into());
+                                                return Err(IcedError::ErrorParsingFontSlot(format!("{err}")).into());
                                             }
                                         }
                                     }
@@ -465,27 +429,19 @@ impl OutputFormat for IcyDraw {
                                         match layer.role {
                                             crate::Role::Normal => {
                                                 let mut o = 0;
-                                                for y in layer.get_line_count()..layer.get_height()
-                                                {
+                                                for y in layer.get_line_count()..layer.get_height() {
                                                     if o >= bytes.len() {
                                                         // will be continued in a later chunk.
                                                         break;
                                                     }
                                                     for x in 0..layer.get_width() {
-                                                        let mut attr = u16::from_le_bytes(
-                                                            bytes[o..(o + 2)].try_into().unwrap(),
-                                                        )
-                                                            as u16;
+                                                        let mut attr = u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap()) as u16;
                                                         o += 2;
-                                                        if attr == crate::attribute::INVISIBLE_SHORT
-                                                        {
+                                                        if attr == crate::attribute::INVISIBLE_SHORT {
                                                             // end of line
                                                             break;
                                                         }
-                                                        let is_short = if (attr
-                                                            & attribute::SHORT_DATA)
-                                                            == 0
-                                                        {
+                                                        let is_short = if (attr & attribute::SHORT_DATA) == 0 {
                                                             false
                                                         } else {
                                                             attr &= !attribute::SHORT_DATA;
@@ -507,33 +463,13 @@ impl OutputFormat for IcyDraw {
                                                             o += 1;
                                                             (ch, fg, bg, font_page)
                                                         } else {
-                                                            let ch = u32::from_le_bytes(
-                                                                bytes[o..(o + 4)]
-                                                                    .try_into()
-                                                                    .unwrap(),
-                                                            )
-                                                                as u32;
+                                                            let ch = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as u32;
                                                             o += 4;
-                                                            let fg = u32::from_le_bytes(
-                                                                bytes[o..(o + 4)]
-                                                                    .try_into()
-                                                                    .unwrap(),
-                                                            )
-                                                                as u32;
+                                                            let fg = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as u32;
                                                             o += 4;
-                                                            let bg = u32::from_le_bytes(
-                                                                bytes[o..(o + 4)]
-                                                                    .try_into()
-                                                                    .unwrap(),
-                                                            )
-                                                                as u32;
+                                                            let bg = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as u32;
                                                             o += 4;
-                                                            let font_page = u16::from_le_bytes(
-                                                                bytes[o..(o + 2)]
-                                                                    .try_into()
-                                                                    .unwrap(),
-                                                            )
-                                                                as u16;
+                                                            let font_page = u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap()) as u16;
                                                             o += 2;
                                                             (ch, fg, bg, font_page)
                                                         };
@@ -541,9 +477,7 @@ impl OutputFormat for IcyDraw {
                                                         layer.set_char(
                                                             (x, y),
                                                             crate::AttributedChar {
-                                                                ch: unsafe {
-                                                                    char::from_u32_unchecked(ch)
-                                                                },
+                                                                ch: unsafe { char::from_u32_unchecked(ch) },
                                                                 attribute: crate::TextAttribute {
                                                                     foreground_color: fg,
                                                                     background_color: bg,
@@ -587,10 +521,7 @@ impl OutputFormat for IcyDraw {
                                         1 => crate::Mode::Chars,
                                         2 => crate::Mode::Attributes,
                                         _ => {
-                                            return Err(LoadingError::IcyDrawUnsupportedLayerMode(
-                                                mode,
-                                            )
-                                            .into());
+                                            return Err(LoadingError::IcyDrawUnsupportedLayerMode(mode).into());
                                         }
                                     };
                                     o += 1;
@@ -608,79 +539,47 @@ impl OutputFormat for IcyDraw {
                                         layer.color = Some(Color::new(red, green, blue));
                                     }
 
-                                    let flags =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
+                                    let flags = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
                                     o += 4;
 
                                     layer.transparency = bytes[o];
                                     o += 1;
 
-                                    let x_offset: i32 =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
-                                            as i32;
+                                    let x_offset: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                     o += 4;
-                                    let y_offset: i32 =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
-                                            as i32;
+                                    let y_offset: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                     o += 4;
                                     layer.set_offset((x_offset, y_offset));
 
-                                    let width: i32 =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
-                                            as i32;
+                                    let width: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                     o += 4;
-                                    let height: i32 =
-                                        u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap())
-                                            as i32;
+                                    let height: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                     o += 4;
                                     layer.set_size((width, height));
-                                    let default_font_page =
-                                        u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap())
-                                            as u16;
+                                    let default_font_page = u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap()) as u16;
                                     o += 2;
                                     layer.default_font_page = default_font_page as usize;
 
-                                    let length =
-                                        u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap())
-                                            as usize;
+                                    let length = u64::from_le_bytes(bytes[o..(o + 8)].try_into().unwrap()) as usize;
                                     o += 8;
 
                                     if role == 1 {
-                                        let width: i32 = u32::from_le_bytes(
-                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                        )
-                                            as i32;
+                                        let width: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                         o += 4;
-                                        let height: i32 = u32::from_le_bytes(
-                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                        )
-                                            as i32;
+                                        let height: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                         o += 4;
 
-                                        let vert_scale: i32 = u32::from_le_bytes(
-                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                        )
-                                            as i32;
+                                        let vert_scale: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                         o += 4;
-                                        let horiz_scale: i32 = u32::from_le_bytes(
-                                            bytes[o..(o + 4)].try_into().unwrap(),
-                                        )
-                                            as i32;
+                                        let horiz_scale: i32 = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as i32;
                                         o += 4;
-                                        layer.sixels.push(Sixel::from_data(
-                                            (width, height),
-                                            vert_scale as i32,
-                                            horiz_scale as i32,
-                                            bytes[o..].to_vec(),
-                                        ));
+                                        layer
+                                            .sixels
+                                            .push(Sixel::from_data((width, height), vert_scale as i32, horiz_scale as i32, bytes[o..].to_vec()));
                                         result.layers.push(layer);
                                     } else {
                                         if bytes.len() < o + length {
-                                            return Err(anyhow::anyhow!(
-                                                "data length out ouf bounds {} data lenth: {}",
-                                                o + length,
-                                                bytes.len()
-                                            ));
+                                            return Err(anyhow::anyhow!("data length out ouf bounds {} data lenth: {}", o + length, bytes.len()));
                                         }
                                         for y in 0..height {
                                             if o >= bytes.len() {
@@ -689,27 +588,21 @@ impl OutputFormat for IcyDraw {
                                             }
                                             for x in 0..width {
                                                 if o + 2 > bytes.len() {
-                                                    return Err(anyhow::anyhow!(
-                                                        "data length out ouf bounds"
-                                                    ));
+                                                    return Err(anyhow::anyhow!("data length out ouf bounds"));
                                                 }
-                                                let mut attr = u16::from_le_bytes(
-                                                    bytes[o..(o + 2)].try_into().unwrap(),
-                                                )
-                                                    as u16;
+                                                let mut attr = u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap()) as u16;
                                                 o += 2;
                                                 if attr == crate::attribute::INVISIBLE_SHORT {
                                                     // end of line
                                                     break;
                                                 }
 
-                                                let is_short =
-                                                    if (attr & attribute::SHORT_DATA) == 0 {
-                                                        false
-                                                    } else {
-                                                        attr &= !attribute::SHORT_DATA;
-                                                        true
-                                                    };
+                                                let is_short = if (attr & attribute::SHORT_DATA) == 0 {
+                                                    false
+                                                } else {
+                                                    attr &= !attribute::SHORT_DATA;
+                                                    true
+                                                };
 
                                                 if attr == crate::attribute::INVISIBLE {
                                                     // default char
@@ -718,9 +611,7 @@ impl OutputFormat for IcyDraw {
 
                                                 let (ch, fg, bg, font_page) = if is_short {
                                                     if o + 3 > bytes.len() {
-                                                        return Err(anyhow::anyhow!(
-                                                            "data length out ouf bounds"
-                                                        ));
+                                                        return Err(anyhow::anyhow!("data length out ouf bounds"));
                                                     }
 
                                                     let ch = bytes[o] as u32;
@@ -734,31 +625,17 @@ impl OutputFormat for IcyDraw {
                                                     (ch, fg, bg, font_page)
                                                 } else {
                                                     if o + 14 > bytes.len() {
-                                                        return Err(anyhow::anyhow!(
-                                                            "data length out ouf bounds"
-                                                        ));
+                                                        return Err(anyhow::anyhow!("data length out ouf bounds"));
                                                     }
 
-                                                    let ch = u32::from_le_bytes(
-                                                        bytes[o..(o + 4)].try_into().unwrap(),
-                                                    )
-                                                        as u32;
+                                                    let ch = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as u32;
                                                     o += 4;
-                                                    let fg = u32::from_le_bytes(
-                                                        bytes[o..(o + 4)].try_into().unwrap(),
-                                                    )
-                                                        as u32;
+                                                    let fg = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as u32;
                                                     o += 4;
-                                                    let bg = u32::from_le_bytes(
-                                                        bytes[o..(o + 4)].try_into().unwrap(),
-                                                    )
-                                                        as u32;
+                                                    let bg = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap()) as u32;
                                                     o += 4;
 
-                                                    let font_page = u16::from_le_bytes(
-                                                        bytes[o..(o + 2)].try_into().unwrap(),
-                                                    )
-                                                        as u16;
+                                                    let font_page = u16::from_le_bytes(bytes[o..(o + 2)].try_into().unwrap()) as u16;
                                                     o += 2;
                                                     (ch, fg, bg, font_page)
                                                 };
@@ -782,21 +659,13 @@ impl OutputFormat for IcyDraw {
 
                                     // set attributes at the end because of the way the parser works
                                     if let Some(layer) = result.layers.last_mut() {
-                                        layer.is_visible = (flags & constants::layer::IS_VISIBLE)
-                                            == constants::layer::IS_VISIBLE;
-                                        layer.is_locked = (flags & constants::layer::EDIT_LOCK)
-                                            == constants::layer::EDIT_LOCK;
-                                        layer.is_position_locked = (flags
-                                            & constants::layer::POS_LOCK)
-                                            == constants::layer::POS_LOCK;
+                                        layer.is_visible = (flags & constants::layer::IS_VISIBLE) == constants::layer::IS_VISIBLE;
+                                        layer.is_locked = (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
+                                        layer.is_position_locked = (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
 
-                                        layer.has_alpha_channel = (flags
-                                            & constants::layer::HAS_ALPHA)
-                                            == constants::layer::HAS_ALPHA;
+                                        layer.has_alpha_channel = (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
 
-                                        layer.is_alpha_channel_locked = (flags
-                                            & constants::layer::ALPHA_LOCKED)
-                                            == constants::layer::ALPHA_LOCKED;
+                                        layer.is_alpha_channel_locked = (flags & constants::layer::ALPHA_LOCKED) == constants::layer::ALPHA_LOCKED;
                                     }
                                 }
                             }
@@ -824,10 +693,7 @@ fn get_invisible_line_length(layer: &Layer, y: i32) -> i32 {
 
 fn read_utf8_encoded_string(data: &[u8]) -> (String, usize) {
     let size = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
-    (
-        unsafe { String::from_utf8_unchecked(data[4..(4 + size)].to_vec()) },
-        size + 4,
-    )
+    (unsafe { String::from_utf8_unchecked(data[4..(4 + size)].to_vec()) }, size + 4)
 }
 
 fn write_utf8_encoded_string(data: &mut Vec<u8>, s: &str) {
@@ -885,10 +751,7 @@ impl Error for IcedError {
 mod tests {
     use std::path::Path;
 
-    use crate::{
-        compare_buffers, AttributedChar, Buffer, Color, Layer, OutputFormat, SaveOptions,
-        TextAttribute, TextPane,
-    };
+    use crate::{compare_buffers, AttributedChar, Buffer, Color, Layer, OutputFormat, SaveOptions, TextAttribute, TextPane};
 
     use super::IcyDraw;
     /*
@@ -980,9 +843,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -994,9 +855,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1022,9 +881,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1046,9 +903,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1069,9 +924,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
 
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
@@ -1093,9 +946,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
 
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
@@ -1113,9 +964,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1139,9 +988,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1172,9 +1019,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1191,9 +1036,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
     }
 
@@ -1207,9 +1050,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let mut buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
 
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
         buf2.layers[0].is_visible = true;
@@ -1230,9 +1071,7 @@ mod tests {
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
-        let mut buf2 = draw
-            .load_buffer(Path::new("test.icy"), &bytes, None)
-            .unwrap();
+        let mut buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
 
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
         buf2.layers[0].is_visible = true;

@@ -59,10 +59,7 @@ impl Selection {
     }
 
     pub fn size(&self) -> Size {
-        Size::new(
-            (self.anchor.x - self.lead.x).abs(),
-            (self.anchor.y - self.lead.y).abs(),
-        )
+        Size::new((self.anchor.x - self.lead.x).abs(), (self.anchor.y - self.lead.y).abs())
     }
 
     pub fn as_rectangle(&self) -> Rectangle {

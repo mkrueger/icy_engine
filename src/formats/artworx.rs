@@ -2,9 +2,8 @@ use std::path::Path;
 
 use super::{Position, SaveOptions, TextAttribute};
 use crate::{
-    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures,
-    BufferType, Color, EngineResult, FontMode, IceMode, LoadingError, OutputFormat, Palette,
-    SavingError, TextPane, EGA_PALETTE,
+    analyze_font_usage, guess_font_name, AttributedChar, BitFont, Buffer, BufferFeatures, BufferType, Color, EngineResult, FontMode, IceMode, LoadingError,
+    OutputFormat, Palette, SavingError, TextPane, EGA_PALETTE,
 };
 
 // http://fileformats.archiveteam.org/wiki/ArtWorx_Data_Format
@@ -38,26 +37,18 @@ impl OutputFormat for Artworx {
 
     fn to_bytes(&self, buf: &crate::Buffer, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         if buf.ice_mode != IceMode::Ice {
-            return Err(anyhow::anyhow!(
-                "Only ice mode files are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only ice mode files are supported by this format."));
         }
         if buf.get_width() != 80 {
-            return Err(anyhow::anyhow!(
-                "Only width==80 files are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only width==80 files are supported by this format."));
         }
         if buf.palette.len() != 16 {
-            return Err(anyhow::anyhow!(
-                "Only 16 color palettes are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only 16 color palettes are supported by this format."));
         }
 
         let fonts = analyze_font_usage(buf);
         if fonts.len() > 1 {
-            return Err(anyhow::anyhow!(
-                "Only single font files are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only single font files are supported by this format."));
         }
 
         let mut result = vec![1]; // version
@@ -90,12 +81,7 @@ impl OutputFormat for Artworx {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -158,11 +144,7 @@ pub fn from_ega_data(pal: &[u8]) -> Palette {
         let r = pal[o];
         let g = pal[o + 1];
         let b = pal[o + 2];
-        colors.push(Color::new(
-            r << 2 | r >> 4,
-            g << 2 | g >> 4,
-            b << 2 | b >> 4,
-        ));
+        colors.push(Color::new(r << 2 | r >> 4, g << 2 | g >> 4, b << 2 | b >> 4));
     }
 
     Palette::from_colors(colors)
@@ -201,29 +183,14 @@ pub fn get_save_sauce_default_adf(buf: &Buffer) -> (bool, String) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute,
-        TextPane,
-    };
+    use crate::{compare_buffers, AttributedChar, BitFont, Buffer, Color, OutputFormat, TextAttribute, TextPane};
 
     #[test]
     pub fn test_ice() {
         let mut buffer = create_buffer();
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         test_artworx(&buffer);
     }
 
@@ -233,41 +200,20 @@ mod tests {
         buffer.ice_mode = crate::IceMode::Ice;
 
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
+            buffer.palette.set_color(i, Color::new(8 + i as u8 * 8, 0, 0));
         }
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
+            buffer.palette.set_color(4 + i, Color::new(0, 8 + i as u8 * 8, 0));
         }
         for i in 0..4 {
-            buffer
-                .palette
-                .set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
+            buffer.palette.set_color(8 + i, Color::new(0, 0, 8 + i as u8 * 8));
         }
         for i in 0..3 {
-            buffer.palette.set_color(
-                12 + i,
-                Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8),
-            );
+            buffer.palette.set_color(12 + i, Color::new(i as u8 * 16, i as u8 * 8, 8 + i as u8 * 8));
         }
 
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         test_artworx(&buffer);
     }
 
@@ -276,21 +222,14 @@ mod tests {
         let mut buffer = create_buffer();
         buffer.set_font(0, BitFont::from_ansi_font_page(42).unwrap());
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Blink)));
         test_artworx(&buffer);
     }
     fn create_buffer() -> Buffer {
         let mut buffer = Buffer::new((80, 25));
         for y in 0..buffer.get_height() {
             for x in 0..buffer.get_width() {
-                buffer.layers[0]
-                    .set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
+                buffer.layers[0].set_char((x, y), AttributedChar::new(' ', TextAttribute::default()));
             }
         }
         buffer
@@ -301,9 +240,7 @@ mod tests {
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
         let bytes = xb.to_bytes(buffer, &opt).unwrap();
-        let buffer2 = xb
-            .load_buffer(std::path::Path::new("test.adf"), &bytes, None)
-            .unwrap();
+        let buffer2 = xb.load_buffer(std::path::Path::new("test.adf"), &bytes, None).unwrap();
         compare_buffers(buffer, &buffer2, crate::CompareOptions::ALL);
         buffer2
     }

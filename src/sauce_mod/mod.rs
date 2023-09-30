@@ -115,10 +115,7 @@ impl SauceData {
         o += 5;
 
         if b"00" != &data[o..(o + 2)] {
-            return Err(SauceError::UnsupportedSauceVersion(
-                String::from_utf8_lossy(&data[o..(o + 2)]).to_string(),
-            )
-            .into());
+            return Err(SauceError::UnsupportedSauceVersion(String::from_utf8_lossy(&data[o..(o + 2)]).to_string()).into());
         }
 
         let mut title = SauceString::<35, b' '>::new();
@@ -239,9 +236,7 @@ impl SauceData {
                 }
             }
             _ => {
-                log::error!(
-                    "useless/invalid sauce info data type: {data_type:?} file type: {file_type}."
-                );
+                log::error!("useless/invalid sauce info data type: {data_type:?} file type: {file_type}.");
             }
         }
         let len = if num_comments > 0 {
@@ -251,10 +246,7 @@ impl SauceData {
             let comment_start = (data.len() - SAUCE_LEN) - num_comments as usize * 64 - 5;
             o = comment_start;
             if SAUCE_COMMENT_ID != data[o..(o + 5)] {
-                return Err(SauceError::InvalidCommentId(
-                    String::from_utf8_lossy(&data[o..(o + 5)]).to_string(),
-                )
-                .into());
+                return Err(SauceError::InvalidCommentId(String::from_utf8_lossy(&data[o..(o + 5)]).to_string()).into());
             }
             o += 5;
             for _ in 0..num_comments {
@@ -324,12 +316,7 @@ impl<const LEN: usize, const EMPTY: u8> PartialEq for SauceString<LEN, EMPTY> {
 
 impl<const LEN: usize, const EMPTY: u8> std::fmt::Debug for SauceString<LEN, EMPTY> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "(SauceString<{}> {})",
-            LEN,
-            String::from_utf8_lossy(&self.0)
-        )
+        write!(f, "(SauceString<{}> {})", LEN, String::from_utf8_lossy(&self.0))
     }
 }
 
@@ -439,11 +426,7 @@ impl Buffer {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn write_sauce_info(
-        &self,
-        sauce_file_type: SauceFileType,
-        vec: &mut Vec<u8>,
-    ) -> EngineResult<bool> {
+    pub fn write_sauce_info(&self, sauce_file_type: SauceFileType, vec: &mut Vec<u8>) -> EngineResult<bool> {
         vec.push(0x1A); // EOF Char.
         let file_size = vec.len() as u32;
         let mut comment_len = 0;

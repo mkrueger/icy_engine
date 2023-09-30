@@ -2,8 +2,8 @@ use std::{collections::HashSet, io, path::Path};
 
 use super::{SaveOptions, TextAttribute};
 use crate::{
-    analyze_font_usage, AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode,
-    LoadingError, OutputFormat, PaletteMode, Position, SavingError, TextPane,
+    analyze_font_usage, AttributedChar, Buffer, BufferFeatures, BufferType, EngineResult, IceMode, LoadingError, OutputFormat, PaletteMode, Position,
+    SavingError, TextPane,
 };
 
 // http://fileformats.archiveteam.org/wiki/TUNDRA
@@ -43,9 +43,7 @@ impl OutputFormat for TundraDraw {
 
         let fonts = analyze_font_usage(buf);
         if fonts.len() > 1 {
-            return Err(anyhow::anyhow!(
-                "Only single font files are supported by this format."
-            ));
+            return Err(anyhow::anyhow!("Only single font files are supported by this format."));
         }
 
         for y in 0..buf.get_height() {
@@ -98,14 +96,12 @@ impl OutputFormat for TundraDraw {
                 }
 
                 let mut cmd = 0;
-                let write_foreground = buf.palette.get_color(attr.get_foreground()).get_rgb()
-                    != buf.palette.get_color(cur_attr.get_foreground()).get_rgb()
+                let write_foreground = buf.palette.get_color(attr.get_foreground()).get_rgb() != buf.palette.get_color(cur_attr.get_foreground()).get_rgb()
                     || attr.is_bold() != cur_attr.is_bold();
                 if write_foreground {
                     cmd |= TUNDRA_COLOR_FOREGROUND;
                 }
-                let write_background = buf.palette.get_color(attr.get_background()).get_rgb()
-                    != buf.palette.get_color(cur_attr.get_background()).get_rgb();
+                let write_background = buf.palette.get_color(attr.get_background()).get_rgb() != buf.palette.get_color(cur_attr.get_background()).get_rgb();
                 if write_background {
                     cmd |= TUNDRA_COLOR_BACKGROUND;
                 }
@@ -141,13 +137,9 @@ impl OutputFormat for TundraDraw {
             }
         }
         if let Some(pos2) = skip_pos {
-            let pos = Position::new(
-                buf.get_width().saturating_sub(1),
-                buf.get_height().saturating_sub(1),
-            );
+            let pos = Position::new(buf.get_width().saturating_sub(1), buf.get_height().saturating_sub(1));
 
-            let skip_len =
-                (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width()) + 1;
+            let skip_len = (pos.x + pos.y * buf.get_width()) - (pos2.x + pos2.y * buf.get_width()) + 1;
             result.resize(result.len() + skip_len as usize, 0);
         }
 
@@ -157,12 +149,7 @@ impl OutputFormat for TundraDraw {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -194,7 +181,15 @@ impl OutputFormat for TundraDraw {
             if cmd == TUNDRA_POSITION {
                 pos.y = to_u32(&data[o..]);
                 if pos.y >= (u16::MAX) as i32 {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})", pos.y, result.get_height())).into());
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "Invalid Tundra Draw file.\nJump y position {} out of bounds (height is {})",
+                            pos.y,
+                            result.get_height()
+                        ),
+                    )
+                    .into());
                 }
                 o += 4;
                 pos.x = to_u32(&data[o..]);
@@ -279,20 +274,8 @@ mod tests {
     pub fn test_ice() {
         let mut buffer = Buffer::new((80, 25));
         buffer.ice_mode = crate::IceMode::Ice;
-        buffer.layers[0].set_char(
-            (0, 0),
-            AttributedChar::new(
-                'A',
-                TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice),
-            ),
-        );
-        buffer.layers[0].set_char(
-            (1, 0),
-            AttributedChar::new(
-                'B',
-                TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice),
-            ),
-        );
+        buffer.layers[0].set_char((0, 0), AttributedChar::new('A', TextAttribute::from_u8(0b0000_1000, crate::IceMode::Ice)));
+        buffer.layers[0].set_char((1, 0), AttributedChar::new('B', TextAttribute::from_u8(0b1100_1111, crate::IceMode::Ice)));
         test_tundra(&buffer);
     }
 
@@ -301,9 +284,7 @@ mod tests {
         let mut opt = crate::SaveOptions::default();
         opt.compress = false;
         let bytes = xb.to_bytes(buffer, &opt).unwrap();
-        let buffer2 = xb
-            .load_buffer(std::path::Path::new("test.xb"), &bytes, None)
-            .unwrap();
+        let buffer2 = xb.load_buffer(std::path::Path::new("test.xb"), &bytes, None).unwrap();
         let mut opt = crate::CompareOptions::ALL;
         opt.compare_palette = false;
         opt.ignore_invisible_chars = true;

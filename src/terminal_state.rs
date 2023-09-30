@@ -213,19 +213,11 @@ impl TerminalState {
     }
 
     pub fn set_margins_top_bottom(&mut self, top: i32, bottom: i32) {
-        self.margins_top_bottom = if top > bottom {
-            None
-        } else {
-            Some((top, bottom))
-        };
+        self.margins_top_bottom = if top > bottom { None } else { Some((top, bottom)) };
     }
 
     pub fn set_margins_left_right(&mut self, left: i32, right: i32) {
-        self.margins_left_right = if left > right {
-            None
-        } else {
-            Some((left, right))
-        };
+        self.margins_left_right = if left > right { None } else { Some((left, right)) };
     }
 
     pub fn clear_margins_top_bottom(&mut self) {

@@ -1,8 +1,5 @@
 use super::{ansi, BufferParser};
-use crate::{
-    ansi::EngineState, AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError,
-    Rectangle,
-};
+use crate::{ansi::EngineState, AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle};
 
 #[derive(Default)]
 enum State {
@@ -47,13 +44,7 @@ impl BufferParser for Parser {
         self.ansi_parser.convert_to_unicode(ch)
     }
 
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match self.state {
             State::ReadCommand => {
                 match ch {
@@ -254,10 +245,8 @@ impl BufferParser for Parser {
                     }
                     _ => {
                         self.state = State::Default;
-                        self.ansi_parser
-                            .print_char(buf, current_layer, caret, '!')?;
-                        self.ansi_parser
-                            .print_char(buf, current_layer, caret, '|')?;
+                        self.ansi_parser.print_char(buf, current_layer, caret, '!')?;
+                        self.ansi_parser.print_char(buf, current_layer, caret, '|')?;
                         return self.ansi_parser.print_char(buf, current_layer, caret, ch);
                     }
                 }
@@ -266,8 +255,7 @@ impl BufferParser for Parser {
                 // got !
                 if ch != '|' {
                     self.state = State::Default;
-                    self.ansi_parser
-                        .print_char(buf, current_layer, caret, '!')?;
+                    self.ansi_parser.print_char(buf, current_layer, caret, '!')?;
                     return self.ansi_parser.print_char(buf, current_layer, caret, ch);
                 }
                 self.state = State::ReadCommand;
@@ -285,9 +273,7 @@ impl BufferParser for Parser {
 
                             match self.ansi_parser.parsed_numbers.first() {
                                 Some(0) => {
-                                    return Ok(CallbackAction::SendString(
-                                        RIP_TERMINAL_ID.to_string(),
-                                    ));
+                                    return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                                 }
                                 Some(1) => {
                                     self.enable_rip = false;
@@ -296,10 +282,7 @@ impl BufferParser for Parser {
                                     self.enable_rip = true;
                                 }
                                 _ => {
-                                    return Err(ParserError::InvalidRipAnsiQuery(
-                                        self.ansi_parser.parsed_numbers[0],
-                                    )
-                                    .into());
+                                    return Err(ParserError::InvalidRipAnsiQuery(self.ansi_parser.parsed_numbers[0]).into());
                                 }
                             }
                             return Ok(CallbackAction::None);

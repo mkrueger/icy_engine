@@ -15,10 +15,7 @@ impl EditState {
         if self.selection_opt == selection {
             Ok(())
         } else {
-            self.push_undo_action(Box::new(undo_operations::SetSelection::new(
-                self.selection_opt,
-                selection,
-            )))
+            self.push_undo_action(Box::new(undo_operations::SetSelection::new(self.selection_opt, selection)))
         }
     }
 
@@ -63,10 +60,7 @@ impl EditState {
 
     pub fn add_selection_to_mask(&mut self) -> EngineResult<()> {
         if let Some(selection) = self.selection_opt {
-            self.push_undo_action(Box::new(undo_operations::AddSelectionToMask::new(
-                self.selection_mask.clone(),
-                selection,
-            )))
+            self.push_undo_action(Box::new(undo_operations::AddSelectionToMask::new(self.selection_mask.clone(), selection)))
         } else {
             Ok(())
         }
@@ -101,8 +95,7 @@ impl EditState {
                     self.selection_mask.add_rectangle(selection.as_rectangle());
                 }
                 AddType::Subtract => {
-                    self.selection_mask
-                        .remove_rectangle(selection.as_rectangle());
+                    self.selection_mask.remove_rectangle(selection.as_rectangle());
                 }
             }
         }
@@ -114,11 +107,7 @@ impl EditState {
                 self.selection_mask.set_is_selected(pos, !is_selected);
             }
         }
-        let op = undo_operations::InverseSelection::new(
-            old_selection,
-            old_mask,
-            self.selection_mask.clone(),
-        );
+        let op = undo_operations::InverseSelection::new(old_selection, old_mask, self.selection_mask.clone());
         self.is_buffer_dirty = true;
         self.push_plain_undo(Box::new(op))
     }
@@ -147,11 +136,7 @@ impl EditState {
         }
 
         if old_mask != self.selection_mask {
-            let op = undo_operations::SetSelectionMask::new(
-                fl!(crate::LANGUAGE_LOADER, "undo-set_selection"),
-                old_mask,
-                self.selection_mask.clone(),
-            );
+            let op = undo_operations::SetSelectionMask::new(fl!(crate::LANGUAGE_LOADER, "undo-set_selection"), old_mask, self.selection_mask.clone());
             let _ = self.push_plain_undo(Box::new(op));
         }
 

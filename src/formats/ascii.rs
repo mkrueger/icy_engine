@@ -1,9 +1,6 @@
 use std::path::Path;
 
-use crate::{
-    parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position,
-    TextPane,
-};
+use crate::{parse_with_parser, parsers, Buffer, BufferFeatures, EngineResult, OutputFormat, Position, TextPane};
 
 use super::SaveOptions;
 
@@ -52,12 +49,7 @@ impl OutputFormat for Ascii {
         Ok(result)
     }
 
-    fn load_buffer(
-        &self,
-        file_name: &Path,
-        data: &[u8],
-        sauce_opt: Option<crate::SauceData>,
-    ) -> EngineResult<crate::Buffer> {
+    fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> EngineResult<crate::Buffer> {
         let mut result = Buffer::new((80, 25));
         result.is_terminal_buffer = true;
         result.file_name = Some(file_name.into());
@@ -66,12 +58,7 @@ impl OutputFormat for Ascii {
         if is_unicode {
             result.buffer_type = crate::BufferType::Unicode;
         }
-        parse_with_parser(
-            &mut result,
-            &mut parsers::ascii::Parser::default(),
-            &text,
-            true,
-        )?;
+        parse_with_parser(&mut result, &mut parsers::ascii::Parser::default(), &text, true)?;
         Ok(result)
     }
 }

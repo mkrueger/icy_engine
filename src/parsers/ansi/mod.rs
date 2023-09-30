@@ -10,9 +10,8 @@ use self::sound::{AnsiMusic, MusicState};
 
 use super::{ascii, BufferParser};
 use crate::{
-    update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult,
-    FontSelectionState, HyperLink, IceMode, MouseMode, OriginMode, ParserError, Position,
-    TerminalScrolling, BEL, BS, CR, FF, LF,
+    update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult, FontSelectionState, HyperLink, IceMode, MouseMode, OriginMode,
+    ParserError, Position, TerminalScrolling, BEL, BS, CR, FF, LF,
 };
 
 mod ansi_commands;
@@ -184,13 +183,7 @@ impl BufferParser for Parser {
     }
 
     #[allow(clippy::single_match)]
-    fn print_char(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        ch: char,
-    ) -> EngineResult<CallbackAction> {
+    fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match &self.state {
             EngineState::ParseAnsiMusic(_) => {
                 return self.parse_ansi_music(ch);
@@ -282,10 +275,7 @@ impl BufferParser for Parser {
                             buf.print_char(current_layer, caret, ch);
                             Ok(CallbackAction::None)
                         }
-                        _ => Err(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )
-                        .into()),
+                        _ => Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into()),
                     }
                 };
             }
@@ -320,10 +310,7 @@ impl BufferParser for Parser {
                 if ch.is_ascii_digit() {
                     if *i != 1 {
                         self.state = EngineState::Default;
-                        return Err(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected number got '{ch}'"
-                        ))
-                        .into());
+                        return Err(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected number got '{ch}'")).into());
                     }
                     let d = match self.parsed_numbers.pop() {
                         Some(number) => number,
@@ -335,10 +322,7 @@ impl BufferParser for Parser {
                 if ch == '[' {
                     if *i != 0 {
                         self.state = EngineState::Default;
-                        return Err(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected '[' got '{ch}'"
-                        ))
-                        .into());
+                        return Err(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '[' got '{ch}'")).into());
                     }
                     self.state = EngineState::ReadPossibleMacroInDCS(1);
                     return Ok(CallbackAction::None);
@@ -346,10 +330,7 @@ impl BufferParser for Parser {
                 if ch == '*' {
                     if *i != 1 {
                         self.state = EngineState::Default;
-                        return Err(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected '*' got '{ch}'"
-                        ))
-                        .into());
+                        return Err(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '*' got '{ch}'")).into());
                     }
                     self.state = EngineState::ReadPossibleMacroInDCS(2);
                     return Ok(CallbackAction::None);
@@ -357,26 +338,14 @@ impl BufferParser for Parser {
                 if ch == 'z' {
                     if *i != 2 {
                         self.state = EngineState::Default;
-                        return Err(ParserError::UnsupportedDCSSequence(format!(
-                            "Error in macro inside dcs, expected 'z' got '{ch}'"
-                        ))
-                        .into());
+                        return Err(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected 'z' got '{ch}'")).into());
                     }
                     if self.parsed_numbers.len() != 1 {
                         self.state = EngineState::Default;
-                        return Err(ParserError::UnsupportedDCSSequence(format!(
-                            "Macro hasn't one number defined got '{}'",
-                            self.parsed_numbers.len()
-                        ))
-                        .into());
+                        return Err(ParserError::UnsupportedDCSSequence(format!("Macro hasn't one number defined got '{}'", self.parsed_numbers.len())).into());
                     }
                     self.state = EngineState::RecordDCS(ReadSTState::Default(0));
-                    self.invoke_macro_by_id(
-                        buf,
-                        current_layer,
-                        caret,
-                        *self.parsed_numbers.first().unwrap(),
-                    );
+                    self.invoke_macro_by_id(buf, current_layer, caret, *self.parsed_numbers.first().unwrap());
                     return Ok(CallbackAction::None);
                 }
                 self.parse_string.push('\x1b');
@@ -415,8 +384,7 @@ impl BufferParser for Parser {
             EngineState::ReadOSCSequence(dcs_state) => match dcs_state {
                 ReadSTState::Default(nesting_level) => {
                     if ch == '\x1B' {
-                        self.state =
-                            EngineState::ReadOSCSequence(ReadSTState::GotEscape(*nesting_level));
+                        self.state = EngineState::ReadOSCSequence(ReadSTState::GotEscape(*nesting_level));
                         return Ok(CallbackAction::None);
                     }
                     self.parse_string.push(ch);
@@ -438,10 +406,7 @@ impl BufferParser for Parser {
                     'l' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(ParserError::UnsupportedEscapeSequence(
-                                self.current_escape_sequence.clone(),
-                            )
-                            .into());
+                            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Fast,
@@ -462,20 +427,14 @@ impl BufferParser for Parser {
                                 buf.terminal_state.mouse_mode = MouseMode::Default;
                             }
                             _ => {
-                                return Err(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )
-                                .into());
+                                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                             }
                         }
                     }
                     'h' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(ParserError::UnsupportedEscapeSequence(
-                                self.current_escape_sequence.clone(),
-                            )
-                            .into());
+                            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(4) => buf.terminal_state.scroll_state = TerminalScrolling::Smooth,
@@ -515,12 +474,7 @@ impl BufferParser for Parser {
                             Some(cmd) => {
                                 return Err(ParserError::UnsupportedCustomCommand(*cmd).into());
                             }
-                            None => {
-                                return Err(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )
-                                .into())
-                            }
+                            None => return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into()),
                         }
                     }
                     '0'..='9' => {
@@ -543,11 +497,9 @@ impl BufferParser for Parser {
                             Some(63) => {
                                 // Memory Checksum Report (DECCKSR)
                                 if self.parsed_numbers.len() != 2 {
-                                    return Err(ParserError::UnsupportedEscapeSequence(
-                                        "Memory Checksum Report (DECCKSR) requires 2 parameters."
-                                            .to_string(),
-                                    )
-                                    .into());
+                                    return Err(
+                                        ParserError::UnsupportedEscapeSequence("Memory Checksum Report (DECCKSR) requires 2 parameters.".to_string()).into(),
+                                    );
                                 }
                                 let mut crc16 = 0;
                                 for i in 0..64 {
@@ -560,26 +512,17 @@ impl BufferParser for Parser {
                                         crc16 = update_crc16(crc16, 0);
                                     }
                                 }
-                                return Ok(CallbackAction::SendString(format!(
-                                    "\x1BP{}!~{crc16:04X}\x1B\\",
-                                    self.parsed_numbers[1]
-                                )));
+                                return Ok(CallbackAction::SendString(format!("\x1BP{}!~{crc16:04X}\x1B\\", self.parsed_numbers[1])));
                             }
                             _ => {
-                                return Err(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )
-                                .into());
+                                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                             }
                         }
                     }
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
-                        return Err(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )
-                        .into());
+                        return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                     }
                 }
             }
@@ -590,20 +533,16 @@ impl BufferParser for Parser {
                     'n' => {
                         self.state = EngineState::Default;
                         if self.parsed_numbers.len() != 1 {
-                            return Err(ParserError::UnsupportedEscapeSequence(
-                                self.current_escape_sequence.clone(),
-                            )
-                            .into());
+                            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                         }
                         match self.parsed_numbers.first() {
                             Some(1) => {
                                 // font state report
-                                let font_selection_result =
-                                    match buf.terminal_state.font_selection_state {
-                                        FontSelectionState::NoRequest => 99,
-                                        FontSelectionState::Success => 0,
-                                        FontSelectionState::Failure => 1,
-                                    };
+                                let font_selection_result = match buf.terminal_state.font_selection_state {
+                                    FontSelectionState::NoRequest => 99,
+                                    FontSelectionState::Success => 0,
+                                    FontSelectionState::Failure => 1,
+                                };
 
                                 return Ok(CallbackAction::SendString(format!(
                                     "\x1B[=1;{font_selection_result};{};{};{};{}n",
@@ -658,16 +597,10 @@ impl BufferParser for Parser {
                             Some(3) => {
                                 // font dimension request
                                 let dim = buf.get_font_dimensions();
-                                return Ok(CallbackAction::SendString(format!(
-                                    "\x1B[=3;{};{}n",
-                                    dim.height, dim.width
-                                )));
+                                return Ok(CallbackAction::SendString(format!("\x1B[=3;{};{}n", dim.height, dim.width)));
                             }
                             _ => {
-                                return Err(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )
-                                .into());
+                                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                             }
                         }
                     }
@@ -684,21 +617,14 @@ impl BufferParser for Parser {
                     'r' => return self.reset_margins(buf),
                     'm' => {
                         if self.parsed_numbers.len() != 2 {
-                            return Err(ParserError::UnsupportedEscapeSequence(
-                                self.current_escape_sequence.clone(),
-                            )
-                            .into());
+                            return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                         }
                         return self.set_specific_margin(buf);
                     }
                     _ => {
                         self.state = EngineState::Default;
                         // error in control sequence, terminate reading
-                        return Err(ParserError::UnsupportedEscapeSequence(format!(
-                            "Error in CSI request: {}",
-                            self.current_escape_sequence
-                        ))
-                        .into());
+                        return Err(ParserError::UnsupportedEscapeSequence(format!("Error in CSI request: {}", self.current_escape_sequence)).into());
                     }
                 }
             }
@@ -758,19 +684,13 @@ impl BufferParser for Parser {
                             'd' => return self.tabulation_stop_remove(buf),
                             _ => {
                                 self.current_escape_sequence.push(ch);
-                                return Err(ParserError::UnsupportedEscapeSequence(
-                                    self.current_escape_sequence.clone(),
-                                )
-                                .into());
+                                return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                             }
                         }
                     }
                     _ => {
                         self.state = EngineState::Default;
-                        return Err(ParserError::UnsupportedEscapeSequence(
-                            self.current_escape_sequence.clone(),
-                        )
-                        .into());
+                        return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
                     }
                 }
             }
@@ -1434,13 +1354,7 @@ impl BufferParser for Parser {
 }
 
 impl Parser {
-    fn invoke_macro_by_id(
-        &mut self,
-        buf: &mut Buffer,
-        current_layer: usize,
-        caret: &mut Caret,
-        id: i32,
-    ) {
+    fn invoke_macro_by_id(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, id: i32) {
         let m = if let Some(m) = self.macros.get(&(id as usize)) {
             m.clone()
         } else {
@@ -1474,7 +1388,5 @@ fn set_font_selection_success(buf: &mut Buffer, caret: &mut Caret, slot: usize) 
 }
 
 pub fn parse_next_number(x: i32, ch: u8) -> i32 {
-    x.saturating_mul(10)
-        .saturating_add(ch as i32)
-        .saturating_sub(b'0' as i32)
+    x.saturating_mul(10).saturating_add(ch as i32).saturating_sub(b'0' as i32)
 }

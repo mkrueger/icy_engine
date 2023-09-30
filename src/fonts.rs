@@ -177,11 +177,7 @@ impl BitFont {
     fn load_psf1(font_name: impl Into<String>, data: &[u8]) -> Self {
         let mode = data[2];
         let charsize = data[3];
-        let length = if mode & BitFont::PSF1_MODE512 == BitFont::PSF1_MODE512 {
-            512
-        } else {
-            256
-        };
+        let length = if mode & BitFont::PSF1_MODE512 == BitFont::PSF1_MODE512 { 512 } else { 256 };
 
         let mut res = Self {
             name: font_name.into(),
@@ -234,11 +230,7 @@ impl BitFont {
         let length = u32::from_le_bytes(data[16..20].try_into().unwrap()) as i32;
         let charsize = u32::from_le_bytes(data[20..24].try_into().unwrap()) as i32;
         if length * charsize + headersize as i32 != data.len() as i32 {
-            return Err(FontError::LengthMismatch(
-                data.len(),
-                (length * charsize) as usize + headersize,
-            )
-            .into());
+            return Err(FontError::LengthMismatch(data.len(), (length * charsize) as usize + headersize).into());
         }
         let height = u32::from_le_bytes(data[24..28].try_into().unwrap()) as usize;
         let width = u32::from_le_bytes(data[28..32].try_into().unwrap()) as usize;
@@ -279,12 +271,7 @@ impl BitFont {
 
         // glyphs
         for i in 0..self.length {
-            data.extend(
-                &self
-                    .get_glyph(unsafe { char::from_u32_unchecked(i as u32) })
-                    .unwrap()
-                    .data,
-            );
+            data.extend(&self.get_glyph(unsafe { char::from_u32_unchecked(i as u32) }).unwrap().data);
         }
 
         Ok(data)
@@ -326,8 +313,7 @@ impl BitFont {
         let mut f = File::open(file_name).expect("error while opening file");
         let mut bytes = Vec::new();
         f.read_to_end(&mut bytes).expect("error while reading file");
-        let mut font =
-            BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes);
+        let mut font = BitFont::from_bytes(file_name.file_name().unwrap().to_string_lossy(), &bytes);
         if let Ok(ref mut font) = font {
             font.path_opt = Some(file_name.to_path_buf());
         }
@@ -395,23 +381,9 @@ pub const ANSI_FONTS: usize = 42;
 
 fonts![
     (CP437, "Ansi/cp437_8x16.psf", DEFAULT_FONT_NAME, 8, 16, 0),
-    (
-        CP1251,
-        "Ansi/cp1251_swiss.f16",
-        "Codepage 1251 Cyrillic, (swiss)",
-        8,
-        16,
-        1
-    ),
+    (CP1251, "Ansi/cp1251_swiss.f16", "Codepage 1251 Cyrillic, (swiss)", 8, 16, 1),
     (KOI8_R, "Ansi/KOI8-R.F16", "Russian koi8-r", 8, 16, 2),
-    (
-        ISO8859,
-        "Ansi/ISO-8859-2_Central_European_8x16.f16",
-        "ISO-8859-2 Central European",
-        8,
-        16,
-        3
-    ),
+    (ISO8859, "Ansi/ISO-8859-2_Central_European_8x16.f16", "ISO-8859-2 Central European", 8, 16, 3),
     (
         ISO8859_BALTIC_9BIT,
         "Ansi/ISO-8859-4_Baltic_wide_VGA_9bit_mapped_8x16.f16",
@@ -420,39 +392,11 @@ fonts![
         16,
         4
     ),
-    (
-        CP866,
-        "Ansi/cp866_russian.psf",
-        "Codepage 866 (c) Russian",
-        8,
-        16,
-        5
-    ),
-    (
-        CP8859_T,
-        "Ansi/ISO-8859-9_Turkish_8x16.f16",
-        "ISO-8859-9 Turkish",
-        8,
-        16,
-        6
-    ),
+    (CP866, "Ansi/cp866_russian.psf", "Codepage 866 (c) Russian", 8, 16, 5),
+    (CP8859_T, "Ansi/ISO-8859-9_Turkish_8x16.f16", "ISO-8859-9 Turkish", 8, 16, 6),
     (HAIK8, "Ansi/HAIK8.F16", "haik8 codepage", 8, 16, 7),
-    (
-        ISO8859_HEB,
-        "Ansi/ISO-8859-8_Hebrew_8x16.f16",
-        "ISO-8859-8 Hebrew",
-        8,
-        16,
-        8
-    ),
-    (
-        KOI8_U,
-        "Ansi/Ukrainian_font_koi8-u_8x16.f16",
-        "Ukrainian font koi8-u",
-        8,
-        16,
-        9
-    ),
+    (ISO8859_HEB, "Ansi/ISO-8859-8_Hebrew_8x16.f16", "ISO-8859-8 Hebrew", 8, 16, 8),
+    (KOI8_U, "Ansi/Ukrainian_font_koi8-u_8x16.f16", "Ukrainian font koi8-u", 8, 16, 9),
     (
         ISO8859_WE,
         "Ansi/ISO-8859-15_West_European_thin_8x16.f16",
@@ -469,46 +413,11 @@ fonts![
         16,
         11
     ),
-    (
-        KOI8_R_B,
-        "Ansi/Russian_koi8-r_b_8x16.f16",
-        "Russian koi8-r (b)",
-        8,
-        16,
-        12
-    ),
-    (
-        ISO8859_BW,
-        "Ansi/ISO-8859-4_Baltic_wide_8x16.f16",
-        "ISO-8859-4 Baltic wide",
-        8,
-        16,
-        13
-    ),
-    (
-        ISO8859_5,
-        "Ansi/ISO-8859-5_Cyrillic_8x16.f16",
-        "ISO-8859-5 Cyrillic",
-        8,
-        16,
-        14
-    ),
-    (
-        ARMSCII_8,
-        "Ansi/ARMSCII-8_Character_set_8x16.f16",
-        "ARMSCII-8 Character set",
-        8,
-        16,
-        15
-    ),
-    (
-        ISO8859_15,
-        "Ansi/ISO-8859-15_West_European_8x16.f16",
-        "ISO-8859-15 West European",
-        8,
-        16,
-        16
-    ),
+    (KOI8_R_B, "Ansi/Russian_koi8-r_b_8x16.f16", "Russian koi8-r (b)", 8, 16, 12),
+    (ISO8859_BW, "Ansi/ISO-8859-4_Baltic_wide_8x16.f16", "ISO-8859-4 Baltic wide", 8, 16, 13),
+    (ISO8859_5, "Ansi/ISO-8859-5_Cyrillic_8x16.f16", "ISO-8859-5 Cyrillic", 8, 16, 14),
+    (ARMSCII_8, "Ansi/ARMSCII-8_Character_set_8x16.f16", "ARMSCII-8 Character set", 8, 16, 15),
+    (ISO8859_15, "Ansi/ISO-8859-15_West_European_8x16.f16", "ISO-8859-15 West European", 8, 16, 16),
     (
         CP850_LI,
         "Ansi/Codepage_850_Multilingual_Latin_I_thin_8x16.f16",
@@ -525,94 +434,17 @@ fonts![
         16,
         18
     ),
-    (
-        CP865,
-        "Ansi/Codepage_865_Norwegian_thin_8x16.f16",
-        "Codepage 865 Norwegian, (thin)",
-        8,
-        16,
-        19
-    ),
-    (
-        CP1251_CYR,
-        "Ansi/Codepage_1251_Cyrillic_8x16.f16",
-        "Codepage 1251 Cyrillic",
-        8,
-        16,
-        20
-    ),
-    (
-        ISO8859_7,
-        "Ansi/ISO-8859-7_Greek_8x16.f16",
-        "ISO-8859-7 Greek",
-        8,
-        16,
-        21
-    ),
-    (
-        KOI8_RC,
-        "Ansi/Russian_koi8-r_c_8x16.f16",
-        "Russian koi8-r (c)",
-        8,
-        16,
-        22
-    ),
-    (
-        ISO8859_4_BALTIC2,
-        "Ansi/ISO-8859-4_Baltic_8x16.f16",
-        "ISO-8859-4 Baltic",
-        8,
-        16,
-        23
-    ),
-    (
-        ISO8859_1_WE,
-        "Ansi/ISO-8859-1_West_European_8x16.f16",
-        "ISO-8859-1 West European",
-        8,
-        16,
-        24
-    ),
-    (
-        CP886_RUS,
-        "Ansi/Codepage_866_Russian_8x16.f16",
-        "Codepage 866 Russian",
-        8,
-        16,
-        25
-    ),
-    (
-        CP437_THIN,
-        "Ansi/Codepage_437_English_thin_8x16.f16",
-        "Codepage 437 English, (thin)",
-        8,
-        16,
-        26
-    ),
-    (
-        CP866_R,
-        "Ansi/Codepage_866_b_Russian_8x16.f16",
-        "Codepage 866 (b) Russian",
-        8,
-        16,
-        27
-    ),
-    (
-        CP865_NOR,
-        "Ansi/Codepage_865_Norwegian_8x16.f16",
-        "Codepage 865 Norwegian",
-        8,
-        16,
-        28
-    ),
-    (
-        CP866U,
-        "Ansi/Ukrainian_font_cp866u_8x16.f16",
-        "Ukrainian font cp866u",
-        8,
-        16,
-        29
-    ),
+    (CP865, "Ansi/Codepage_865_Norwegian_thin_8x16.f16", "Codepage 865 Norwegian, (thin)", 8, 16, 19),
+    (CP1251_CYR, "Ansi/Codepage_1251_Cyrillic_8x16.f16", "Codepage 1251 Cyrillic", 8, 16, 20),
+    (ISO8859_7, "Ansi/ISO-8859-7_Greek_8x16.f16", "ISO-8859-7 Greek", 8, 16, 21),
+    (KOI8_RC, "Ansi/Russian_koi8-r_c_8x16.f16", "Russian koi8-r (c)", 8, 16, 22),
+    (ISO8859_4_BALTIC2, "Ansi/ISO-8859-4_Baltic_8x16.f16", "ISO-8859-4 Baltic", 8, 16, 23),
+    (ISO8859_1_WE, "Ansi/ISO-8859-1_West_European_8x16.f16", "ISO-8859-1 West European", 8, 16, 24),
+    (CP886_RUS, "Ansi/Codepage_866_Russian_8x16.f16", "Codepage 866 Russian", 8, 16, 25),
+    (CP437_THIN, "Ansi/Codepage_437_English_thin_8x16.f16", "Codepage 437 English, (thin)", 8, 16, 26),
+    (CP866_R, "Ansi/Codepage_866_b_Russian_8x16.f16", "Codepage 866 (b) Russian", 8, 16, 27),
+    (CP865_NOR, "Ansi/Codepage_865_Norwegian_8x16.f16", "Codepage 865 Norwegian", 8, 16, 28),
+    (CP866U, "Ansi/Ukrainian_font_cp866u_8x16.f16", "Ukrainian font cp866u", 8, 16, 29),
     (
         ISO8859_1_WE_T,
         "Ansi/ISO-8859-1_West_European_thin_8x16.f16",
@@ -629,87 +461,17 @@ fonts![
         16,
         31
     ),
-    (
-        C64_UPPER,
-        "Commodore/C64_PETSCII_shifted.psf",
-        "Commodore 64 (UPPER)",
-        8,
-        8,
-        32
-    ),
-    (
-        C64_LOWER,
-        "Commodore/C64_PETSCII_unshifted.psf",
-        "Commodore 64 (Lower)",
-        8,
-        8,
-        33
-    ),
-    (
-        C128_UPPER,
-        "Commodore/Commodore_128_UPPER_8x16.f16",
-        "Commodore 128 (UPPER)",
-        8,
-        8,
-        34
-    ),
-    (
-        C128_LOWER,
-        "Commodore/Commodore_128_Lower_8x16.f16",
-        "Commodore 128 (Lower)",
-        8,
-        8,
-        35
-    ),
+    (C64_UPPER, "Commodore/C64_PETSCII_shifted.psf", "Commodore 64 (UPPER)", 8, 8, 32),
+    (C64_LOWER, "Commodore/C64_PETSCII_unshifted.psf", "Commodore 64 (Lower)", 8, 8, 33),
+    (C128_UPPER, "Commodore/Commodore_128_UPPER_8x16.f16", "Commodore 128 (UPPER)", 8, 8, 34),
+    (C128_LOWER, "Commodore/Commodore_128_Lower_8x16.f16", "Commodore 128 (Lower)", 8, 8, 35),
     (ATARI, "Atari/Atari_ATASCII.psf", "Atari", 8, 8, 36),
-    (
-        AMIGA_P0T_NOODLE,
-        "Amiga/P0T-NOoDLE.psf",
-        "P0T NOoDLE (Amiga)",
-        8,
-        16,
-        37
-    ),
-    (
-        AMIGA_MOSOUL,
-        "Amiga/mOsOul.psf",
-        "mO'sOul (Amiga)",
-        8,
-        16,
-        38
-    ),
-    (
-        AMIGA_MICROKNIGHTP,
-        "Amiga/MicroKnight+.psf",
-        "MicroKnight Plus (Amiga)",
-        8,
-        16,
-        39
-    ),
-    (
-        AMIGA_TOPAZ_1P,
-        "Amiga/Topaz1+.psf",
-        "Topaz Plus (Amiga)",
-        8,
-        16,
-        40
-    ),
-    (
-        AMIGA_MICROKNIGHT,
-        "Amiga/MicroKnight.psf",
-        "MicroKnight (Amiga)",
-        8,
-        16,
-        41
-    ),
-    (
-        AMIGA_TOPAZ_1,
-        "Amiga/Topaz1.psf",
-        "Topaz (Amiga)",
-        8,
-        16,
-        42
-    ),
+    (AMIGA_P0T_NOODLE, "Amiga/P0T-NOoDLE.psf", "P0T NOoDLE (Amiga)", 8, 16, 37),
+    (AMIGA_MOSOUL, "Amiga/mOsOul.psf", "mO'sOul (Amiga)", 8, 16, 38),
+    (AMIGA_MICROKNIGHTP, "Amiga/MicroKnight+.psf", "MicroKnight Plus (Amiga)", 8, 16, 39),
+    (AMIGA_TOPAZ_1P, "Amiga/Topaz1+.psf", "Topaz Plus (Amiga)", 8, 16, 40),
+    (AMIGA_MICROKNIGHT, "Amiga/MicroKnight.psf", "MicroKnight (Amiga)", 8, 16, 41),
+    (AMIGA_TOPAZ_1, "Amiga/Topaz1.psf", "Topaz (Amiga)", 8, 16, 42),
     (VIEWDATA, "Viewdata/saa5050.psf", "Viewdata", 6, 16),
 ];
 
@@ -750,114 +512,24 @@ macro_rules! sauce_fonts {
 sauce_fonts![
     // CP 437
     (IBM_VGA_SAUCE, "Ansi/cp437_8x16.psf", "IBM VGA", 1.35, 1.20),
-    (
-        IBM_VGA50_SAUCE,
-        "Sauce/cp437/IBM_VGA50.psf",
-        "IBM VGA50",
-        1.35,
-        1.20
-    ),
-    (
-        IBM_VGA25G_SAUCE,
-        "Sauce/cp437/IBM_VGA25G.psf",
-        "IBM VGA25G",
-        0,
-        0
-    ),
-    (
-        IBM_EGA_SAUCE,
-        "Sauce/cp437/IBM_EGA.psf",
-        "IBM EGA",
-        1.3714,
-        0
-    ),
-    (
-        IBM_EGA43_SAUCE,
-        "Sauce/cp437/IBM_EGA43.F08",
-        "IBM EGA43",
-        1.3714,
-        0
-    ),
+    (IBM_VGA50_SAUCE, "Sauce/cp437/IBM_VGA50.psf", "IBM VGA50", 1.35, 1.20),
+    (IBM_VGA25G_SAUCE, "Sauce/cp437/IBM_VGA25G.psf", "IBM VGA25G", 0, 0),
+    (IBM_EGA_SAUCE, "Sauce/cp437/IBM_EGA.psf", "IBM EGA", 1.3714, 0),
+    (IBM_EGA43_SAUCE, "Sauce/cp437/IBM_EGA43.F08", "IBM EGA43", 1.3714, 0),
     // Amiga
-    (
-        AMIGA_TOPAZ_1_SAUCE,
-        "Amiga/Topaz1.psf",
-        "Amiga Topaz 1",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_TOPAZ_1P_SAUCE,
-        "Amiga/Topaz1+.psf",
-        "Amiga Topaz 1+",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_TOPAZ_2_SAUCE,
-        "Amiga/Topaz2.psf",
-        "Amiga Topaz 2",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_TOPAZ_2P_SAUCE,
-        "Amiga/Topaz2+.psf",
-        "Amiga Topaz 2+",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_P0T_NOODLE_SAUCE,
-        "Amiga/P0T-NOoDLE.psf",
-        "Amiga P0T-NOoDLE",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_MICROKNIGHT_SAUCE,
-        "Amiga/MicroKnight.psf",
-        "Amiga MicroKnight",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_MICROKNIGHT_PLUS_SAUCE,
-        "Amiga/MicroKnight+.psf",
-        "Amiga MicroKnight+",
-        1.4,
-        0.0
-    ),
-    (
-        AMIGA_MOSOUL_SAUCE,
-        "Amiga/mOsOul.psf",
-        "Amiga mOsOul",
-        1.4,
-        0.0
-    ),
+    (AMIGA_TOPAZ_1_SAUCE, "Amiga/Topaz1.psf", "Amiga Topaz 1", 1.4, 0.0),
+    (AMIGA_TOPAZ_1P_SAUCE, "Amiga/Topaz1+.psf", "Amiga Topaz 1+", 1.4, 0.0),
+    (AMIGA_TOPAZ_2_SAUCE, "Amiga/Topaz2.psf", "Amiga Topaz 2", 1.4, 0.0),
+    (AMIGA_TOPAZ_2P_SAUCE, "Amiga/Topaz2+.psf", "Amiga Topaz 2+", 1.4, 0.0),
+    (AMIGA_P0T_NOODLE_SAUCE, "Amiga/P0T-NOoDLE.psf", "Amiga P0T-NOoDLE", 1.4, 0.0),
+    (AMIGA_MICROKNIGHT_SAUCE, "Amiga/MicroKnight.psf", "Amiga MicroKnight", 1.4, 0.0),
+    (AMIGA_MICROKNIGHT_PLUS_SAUCE, "Amiga/MicroKnight+.psf", "Amiga MicroKnight+", 1.4, 0.0),
+    (AMIGA_MOSOUL_SAUCE, "Amiga/mOsOul.psf", "Amiga mOsOul", 1.4, 0.0),
     // C64
-    (
-        C64_UNSHIFTED_SAUCE,
-        "Commodore/C64_PETSCII_unshifted.psf",
-        "C64 PETSCII unshifted",
-        1.2,
-        0.0
-    ),
-    (
-        C64_SHIFTED_SAUCE,
-        "Commodore/C64_PETSCII_shifted.psf",
-        "C64 PETSCII shifted",
-        1.2,
-        0.0
-    ),
+    (C64_UNSHIFTED_SAUCE, "Commodore/C64_PETSCII_unshifted.psf", "C64 PETSCII unshifted", 1.2, 0.0),
+    (C64_SHIFTED_SAUCE, "Commodore/C64_PETSCII_shifted.psf", "C64 PETSCII shifted", 1.2, 0.0),
     // Atari
-    (
-        ARMSCII_8_SAUCE,
-        "Ansi/ARMSCII-8_Character_set_8x16.f16",
-        "Atari ATASCII",
-        1.2,
-        0.0
-    ),
+    (ARMSCII_8_SAUCE, "Ansi/ARMSCII-8_Character_set_8x16.f16", "Atari ATASCII", 1.2, 0.0),
 ];
 
 #[derive(Debug, Clone)]
@@ -881,18 +553,10 @@ impl std::fmt::Display for FontError {
                 let sizes = [8, 14, 16, 19];
                 let list = sizes.iter().fold(String::new(), |a, &b| {
                     let empty = a.is_empty();
-                    a + &format!(
-                        "{}{} height ({} bytes)",
-                        if empty { "" } else { ", " },
-                        b,
-                        &(b * 256)
-                    )
+                    a + &format!("{}{} height ({} bytes)", if empty { "" } else { ", " }, b, &(b * 256))
                 });
 
-                write!(
-                    f,
-                    "Unknown binary font format {size} bytes not supported. Valid format heights are: {list}"
-                )
+                write!(f, "Unknown binary font format {size} bytes not supported. Valid format heights are: {list}")
             }
         }
     }

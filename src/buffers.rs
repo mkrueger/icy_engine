@@ -9,8 +9,7 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position,
-    Rectangle, SauceData, Sixel, TerminalState, TextPane, FORMATS,
+    parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position, Rectangle, SauceData, Sixel, TerminalState, TextPane, FORMATS,
 };
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
@@ -242,11 +241,7 @@ impl Buffer {
         &self.sauce_data
     }
 
-    pub fn set_sauce(
-        &mut self,
-        sauce_opt: Option<SauceData>,
-        resize_to_sauce: bool,
-    ) -> Option<SauceData> {
+    pub fn set_sauce(&mut self, sauce_opt: Option<SauceData>, resize_to_sauce: bool) -> Option<SauceData> {
         if resize_to_sauce {
             if let Some(sauce) = &sauce_opt {
                 let mut size = sauce.buffer_size;
@@ -330,11 +325,7 @@ pub struct BufferFeatures {
     pub use_extended_attributes: bool,
 }
 
-fn merge(
-    mut input_char: AttributedChar,
-    ch_opt: Option<char>,
-    attr_opt: Option<crate::TextAttribute>,
-) -> AttributedChar {
+fn merge(mut input_char: AttributedChar, ch_opt: Option<char>, attr_opt: Option<crate::TextAttribute>) -> AttributedChar {
     if !input_char.is_visible() {
         return input_char;
     }
@@ -369,10 +360,7 @@ impl Buffer {
             font_table,
             is_font_table_dirty: false,
             overlay_layer: None,
-            layers: vec![Layer::new(
-                fl!(crate::LANGUAGE_LOADER, "layer-background-name"),
-                size,
-            )],
+            layers: vec![Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), size)],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
         }
     }
@@ -548,12 +536,7 @@ impl Buffer {
     #[must_use]
     pub fn get_first_visible_line(&self) -> i32 {
         if self.is_terminal_buffer {
-            max(
-                0,
-                self.size
-                    .height
-                    .saturating_sub(self.terminal_state.get_height()),
-            )
+            max(0, self.size.height.saturating_sub(self.terminal_state.get_height()))
         } else {
             0
         }
@@ -604,10 +587,7 @@ impl Buffer {
                 (self.get_first_visible_line() + self.get_height()).saturating_sub(1)
             }
         } else {
-            max(
-                self.layers[0].lines.len() as i32,
-                self.get_height().saturating_sub(1),
-            )
+            max(self.layers[0].lines.len() as i32, self.get_height().saturating_sub(1))
         }
     }
 
@@ -629,9 +609,7 @@ impl Buffer {
     pub fn create(size: impl Into<Size>) -> Self {
         let size = size.into();
         let mut res = Buffer::new(size);
-        res.layers[0]
-            .lines
-            .resize(size.height as usize, crate::Line::create(size.width));
+        res.layers[0].lines.resize(size.height as usize, crate::Line::create(size.width));
 
         res
     }
@@ -695,9 +673,7 @@ impl Buffer {
     pub fn to_bytes(&self, extension: &str, options: &SaveOptions) -> EngineResult<Vec<u8>> {
         let extension = extension.to_ascii_lowercase();
         for fmt in &*crate::FORMATS {
-            if fmt.get_file_extension() == extension
-                || fmt.get_alt_extensions().contains(&extension)
-            {
+            if fmt.get_file_extension() == extension || fmt.get_alt_extensions().contains(&extension) {
                 if options.lossles_output {
                     return fmt.to_bytes(self, options);
                 }
@@ -781,9 +757,7 @@ impl Buffer {
                     let cur_font_size = font.size;
                     for cy in 0..cur_font_size.height.min(font_size.height) {
                         for cx in 0..cur_font_size.width.min(font_size.width) {
-                            let offset = ((x * font_size.width + cx) * 4
-                                + (y * font_size.height + cy) * line_bytes)
-                                as usize;
+                            let offset = ((x * font_size.width + cx) * 4 + (y * font_size.height + cy) * line_bytes) as usize;
                             if glyph.data[cy as usize] & (128 >> cx) == 0 {
                                 pixels[offset] = b_r;
                                 pixels[offset + 1] = b_g;
@@ -819,8 +793,7 @@ impl Buffer {
                     if offset + sixel_line_bytes > pixels.len() {
                         break;
                     }
-                    pixels[offset..(offset + sixel_line_bytes)]
-                        .copy_from_slice(&sixel.picture_data[o..(o + sixel_line_bytes)]);
+                    pixels[offset..(offset + sixel_line_bytes)].copy_from_slice(&sixel.picture_data[o..(o + sixel_line_bytes)]);
                     sixel_line += 1;
                 }
             }
@@ -885,11 +858,7 @@ impl TextPane for Buffer {
                 continue;
             }
             let pos = pos - cur_layer.get_offset();
-            if pos.x < 0
-                || pos.y < 0
-                || pos.x >= cur_layer.get_width()
-                || pos.y >= cur_layer.get_height()
-            {
+            if pos.x < 0 || pos.y < 0 || pos.x >= cur_layer.get_width() || pos.y >= cur_layer.get_height() {
                 continue;
             }
             let ch = cur_layer.get_char(pos);
@@ -900,11 +869,7 @@ impl TextPane for Buffer {
                         return merge(ch, ch_opt, attr_opt);
                     }
                     if !cur_layer.has_alpha_channel {
-                        return merge(
-                            AttributedChar::default().with_font_page(default_font_page),
-                            ch_opt,
-                            attr_opt,
-                        );
+                        return merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
                     }
                 }
                 crate::Mode::Chars => {
@@ -977,8 +942,7 @@ mod tests {
         opt.save_sauce = true;
         let ansi_bytes = buf.to_bytes("ans", &opt).unwrap();
 
-        let loaded_buf =
-            Buffer::from_bytes(&std::path::PathBuf::from("test.ans"), false, &ansi_bytes).unwrap();
+        let loaded_buf = Buffer::from_bytes(&std::path::PathBuf::from("test.ans"), false, &ansi_bytes).unwrap();
         assert_eq!(10, loaded_buf.get_width());
         assert_eq!(10, loaded_buf.layers[0].get_width());
     }

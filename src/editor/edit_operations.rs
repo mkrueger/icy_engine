@@ -4,10 +4,7 @@ use std::mem;
 
 use i18n_embed_fl::fl;
 
-use crate::{
-    AttributedChar, EngineResult, Layer, Palette, Position, Rectangle, SauceData, Sixel, Size,
-    TextPane,
-};
+use crate::{AttributedChar, EngineResult, Layer, Palette, Position, Rectangle, SauceData, Sixel, Size, TextPane};
 
 use super::{
     undo_operations::{Paste, ReverseCaretPosition, ReversedUndo, UndoSetChar, UndoSwapChar},
@@ -15,11 +12,7 @@ use super::{
 };
 
 impl EditState {
-    pub fn set_char(
-        &mut self,
-        pos: impl Into<Position>,
-        attributed_char: AttributedChar,
-    ) -> EngineResult<()> {
+    pub fn set_char(&mut self, pos: impl Into<Position>, attributed_char: AttributedChar) -> EngineResult<()> {
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-set_char"));
 
         if let Some(layer) = self.get_cur_layer() {
@@ -48,11 +41,7 @@ impl EditState {
         }
     }
 
-    pub fn swap_char(
-        &mut self,
-        pos1: impl Into<Position>,
-        pos2: impl Into<Position>,
-    ) -> EngineResult<()> {
+    pub fn swap_char(&mut self, pos1: impl Into<Position>, pos2: impl Into<Position>) -> EngineResult<()> {
         let pos1 = pos1.into();
         let pos2 = pos2.into();
         let layer = self.get_current_layer();
@@ -127,8 +116,7 @@ impl EditState {
 
                 for y in 0..new_rectangle.get_height() {
                     for x in 0..new_rectangle.get_width() {
-                        let ch =
-                            old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
+                        let ch = old_layer.get_char((x + new_rectangle.left(), y + new_rectangle.top()));
                         new_layer.set_char((x, y), ch);
                     }
                 }
@@ -148,11 +136,7 @@ impl EditState {
     }
 
     pub fn center_line(&mut self) -> EngineResult<()> {
-        let offset = if let Some(layer) = self.get_cur_layer() {
-            layer.get_offset().y
-        } else {
-            0
-        };
+        let offset = if let Some(layer) = self.get_cur_layer() { layer.get_offset().y } else { 0 };
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
 
         let y = self.get_caret().get_position().y + offset;
@@ -163,11 +147,7 @@ impl EditState {
     }
 
     pub fn justify_line_left(&mut self) -> EngineResult<()> {
-        let offset: i32 = if let Some(layer) = self.get_cur_layer() {
-            layer.get_offset().y
-        } else {
-            0
-        };
+        let offset: i32 = if let Some(layer) = self.get_cur_layer() { layer.get_offset().y } else { 0 };
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
 
         let y = self.get_caret().get_position().y + offset;
@@ -178,11 +158,7 @@ impl EditState {
     }
 
     pub fn justify_line_right(&mut self) -> EngineResult<()> {
-        let offset: i32 = if let Some(layer) = self.get_cur_layer() {
-            layer.get_offset().y
-        } else {
-            0
-        };
+        let offset: i32 = if let Some(layer) = self.get_cur_layer() { layer.get_offset().y } else { 0 };
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
 
         let y = self.get_caret().get_position().y + offset;
@@ -221,11 +197,7 @@ impl EditState {
     }
 
     pub fn erase_row(&mut self) -> EngineResult<()> {
-        let offset = if let Some(layer) = self.get_cur_layer() {
-            layer.get_offset().y
-        } else {
-            0
-        };
+        let offset = if let Some(layer) = self.get_cur_layer() { layer.get_offset().y } else { 0 };
         let y = self.get_caret().get_position().y + offset;
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
 
@@ -310,17 +282,8 @@ impl EditState {
     /// # Errors
     ///
     /// This function will return an error if .
-    pub fn push_reverse_undo(
-        &mut self,
-        description: impl Into<String>,
-        op: Box<dyn UndoOperation>,
-        operation_type: OperationType,
-    ) -> EngineResult<()> {
-        self.push_undo_action(Box::new(ReversedUndo::new(
-            description.into(),
-            op,
-            operation_type,
-        )))
+    pub fn push_reverse_undo(&mut self, description: impl Into<String>, op: Box<dyn UndoOperation>, operation_type: OperationType) -> EngineResult<()> {
+        self.push_undo_action(Box::new(ReversedUndo::new(description.into(), op, operation_type)))
     }
 
     /// Returns the undo caret position of this [`EditState`].

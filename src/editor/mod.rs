@@ -20,8 +20,7 @@ mod font_operations;
 pub use font_operations::*;
 
 use crate::{
-    ansi, overlay_mask::OverlayMask, AttributedChar, Buffer, BufferParser, Caret, EngineResult,
-    Layer, Position, Selection, SelectionMask, Shape, TextPane,
+    ansi, overlay_mask::OverlayMask, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection, SelectionMask, Shape, TextPane,
 };
 
 pub struct EditState {
@@ -52,11 +51,7 @@ pub struct AtomicUndoGuard {
 }
 
 impl AtomicUndoGuard {
-    fn new(
-        description: String,
-        undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>,
-        operation_type: OperationType,
-    ) -> Self {
+    fn new(description: String, undo_stack: Arc<Mutex<Vec<Box<dyn UndoOperation>>>>, operation_type: OperationType) -> Self {
         let base_count = undo_stack.lock().unwrap().len();
         Self {
             base_count,
@@ -71,21 +66,12 @@ impl AtomicUndoGuard {
     }
 
     fn end_action(&mut self) {
-        let stack = self
-            .undo_stack
-            .lock()
-            .unwrap()
-            .drain(self.base_count..)
-            .collect();
+        let stack = self.undo_stack.lock().unwrap().drain(self.base_count..).collect();
         let stack = Arc::new(Mutex::new(stack));
         self.undo_stack
             .lock()
             .unwrap()
-            .push(Box::new(undo_operations::AtomicUndo::new(
-                self.description.clone(),
-                stack,
-                self.operation_type,
-            )));
+            .push(Box::new(undo_operations::AtomicUndo::new(self.description.clone(), stack, self.operation_type)));
         self.base_count = usize::MAX;
     }
 }
@@ -192,9 +178,7 @@ impl EditState {
         &mut self.caret
     }
 
-    pub fn get_buffer_and_caret_mut(
-        &mut self,
-    ) -> (&mut Buffer, &mut Caret, &mut Box<dyn BufferParser>) {
+    pub fn get_buffer_and_caret_mut(&mut self) -> (&mut Buffer, &mut Caret, &mut Box<dyn BufferParser>) {
         (&mut self.buffer, &mut self.caret, &mut self.parser)
     }
 
@@ -283,8 +267,7 @@ impl EditState {
     }
 
     pub fn get_current_layer(&self) -> usize {
-        self.current_layer
-            .clamp(0, self.buffer.layers.len().saturating_sub(1))
+        self.current_layer.clamp(0, self.buffer.layers.len().saturating_sub(1))
     }
 
     pub fn set_current_layer(&mut self, layer: usize) {
@@ -305,19 +288,13 @@ impl EditState {
     }
 
     #[must_use]
-    pub fn begin_typed_atomic_undo(
-        &mut self,
-        description: impl Into<String>,
-        operation_type: OperationType,
-    ) -> AtomicUndoGuard {
+    pub fn begin_typed_atomic_undo(&mut self, description: impl Into<String>, operation_type: OperationType) -> AtomicUndoGuard {
         self.redo_stack.clear();
         AtomicUndoGuard::new(description.into(), self.undo_stack.clone(), operation_type)
     }
 
     fn clamp_current_layer(&mut self) {
-        self.current_layer = self
-            .current_layer
-            .clamp(0, self.buffer.layers.len().saturating_sub(1));
+        self.current_layer = self.current_layer.clamp(0, self.buffer.layers.len().saturating_sub(1));
     }
 
     fn push_undo_action(&mut self, mut op: Box<dyn UndoOperation>) -> EngineResult<()> {
@@ -370,11 +347,7 @@ impl EditState {
 
 impl UndoState for EditState {
     fn undo_description(&self) -> Option<String> {
-        self.undo_stack
-            .lock()
-            .unwrap()
-            .last()
-            .map(|op| op.get_description())
+        self.undo_stack.lock().unwrap().last().map(|op| op.get_description())
     }
 
     fn can_undo(&self) -> bool {
