@@ -596,7 +596,7 @@ pub fn convert_ansi_to_utf8(data: &[u8]) -> (String, bool) {
 pub fn guess_font_name(font: &BitFont) -> String {
     for i in 0..ANSI_FONTS {
         if let Ok(ansi_font) = BitFont::from_ansi_font_page(i) {
-            if ansi_font.glyphs == font.glyphs {
+            if ansi_font.get_checksum() == font.get_checksum() {
                 return ansi_font.name.clone();
             }
         }
@@ -604,7 +604,7 @@ pub fn guess_font_name(font: &BitFont) -> String {
 
     for name in SAUCE_FONT_NAMES {
         if let Ok(sauce_font) = BitFont::from_sauce_name(name) {
-            if sauce_font.glyphs == font.glyphs {
+            if sauce_font.get_checksum() == font.get_checksum() {
                 return sauce_font.name.clone();
             }
         }
