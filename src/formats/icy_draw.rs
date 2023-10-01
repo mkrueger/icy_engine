@@ -399,8 +399,9 @@ impl OutputFormat for IcyDraw {
                                 }
 
                                 "SAUCE" => {
-                                    let sauce = SauceData::extract(&bytes).unwrap();
-                                    result.set_sauce(Some(sauce), false);
+                                    if let Some(sauce) = SauceData::extract(&bytes)? {
+                                        result.set_sauce(Some(sauce), false);
+                                    }
                                 }
                                 text => {
                                     if let Some(font_slot) = text.strip_prefix("FONT_") {
@@ -409,7 +410,7 @@ impl OutputFormat for IcyDraw {
                                                 let mut o: usize = 0;
                                                 let (font_name, size) = read_utf8_encoded_string(&bytes[o..]);
                                                 o += size;
-                                                let font = BitFont::from_bytes(font_name, &bytes[o..]).unwrap();
+                                                let font = BitFont::from_bytes(font_name, &bytes[o..])?;
                                                 result.set_font(font_slot, font);
                                                 continue;
                                             }

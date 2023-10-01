@@ -454,7 +454,7 @@ impl StringGenerator {
                 result.push(b'H');
                 self.push_result(&mut result);
             }
-  
+
             let len = line.len();
             while x < len {
                 let cell = &line[x];

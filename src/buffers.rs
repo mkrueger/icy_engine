@@ -698,10 +698,11 @@ impl Buffer {
         let ext = file_name.extension().unwrap().to_str().unwrap();
         let mut len = bytes.len();
         let sauce_data = match SauceData::extract(bytes) {
-            Ok(sauce) => {
+            Ok(Some(sauce)) => {
                 len -= sauce.sauce_header_len;
                 Some(sauce)
             }
+            Ok(None) => None,
             Err(err) => {
                 log::error!("Error reading sauce data: {}", err);
                 None

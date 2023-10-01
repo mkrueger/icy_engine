@@ -103,14 +103,14 @@ impl SauceData {
     /// # Errors
     ///
     /// This function will return an error if the file con
-    pub fn extract(data: &[u8]) -> EngineResult<SauceData> {
+    pub fn extract(data: &[u8]) -> EngineResult<Option<SauceData>> {
         if data.len() < SAUCE_LEN {
-            return Err(SauceError::FileTooShort.into());
+            return Ok(None);
         }
 
         let mut o = data.len() - SAUCE_LEN;
         if SAUCE_ID != data[o..(o + 5)] {
-            return Err(SauceError::NoSauce.into());
+            return Ok(None);
         }
         o += 5;
 
@@ -261,7 +261,7 @@ impl SauceData {
 
         let offset = len - 1; // -1 is from the EOF char
 
-        Ok(SauceData {
+        Ok(Some(SauceData {
             title,
             author,
             group,
@@ -275,7 +275,7 @@ impl SauceData {
             use_aspect_ratio,
             sauce_header_len: data.len() - offset,
             sauce_file_type,
-        })
+        }))
     }
 }
 
