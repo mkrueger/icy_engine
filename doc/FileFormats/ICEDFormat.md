@@ -19,29 +19,18 @@ It's a png file showing the file contents in some form augmented with base64 enc
 
 Keyword: 'ICED'
 
-|Field      |Bytes  | Type | Meaning
-|-----------|-------|------|----------------------------------
-|[VER]      |2      |LE_U16| u8 Major:u8 Minor - [00:00] atm
-|[Type]     |4      |LE_U32| 0 - CP437/8BIT_ANSI, 1 - UNICODE ANSI, 2 - PETSCII, 3 - ATASCII, 4 - VIEWDATA
-|[Mode]     |2      |LE_U16| Mode flags[^1]
+|Field        |Bytes  | Type | Meaning
+|-------------|-------|------|----------------------------------
+|[VER]        | 2     |LE_U16| u8 Major:u8 Minor - [00:00] atm
+|[Unused]     | 4     |LE_U32| Unused, was type specifier
+|[BufferType] | 2     |LE_U16|
+|[IceMode]    | 1     |U8    |
+|[PaletteMode]| 1     |U8    |
+|[FontMode]   | 1     |U8    |
+|Width        | 4     |LE_U32| width in chars
+|Height       | 4     |LE_U32| height in chars
 
-[^1] Mode flags for CP437
-|Flag | Meaning
-|-----|----------
-| 0   | True Color
-| 1   | 16c
-| 2   | ICE
-| 3   | 256 Colors
-| 4   | XB extended font + blink
-| 5   | XB extended font ice
-
-#### TYPE SPECFIC DATA
-
-For "character buffer" types (ansi/ascii):
-|Field      |Bytes  | Type |Meaning
-|-----------|-------|------|--
-| Width     | 4     |LE_U32| width in chars
-| Height    | 4     |LE_U32| height in chars
+Note: there is room for extra bytes in width/height (U16 is enough IMO), BufferType could be U8
 
 #### END block
 
@@ -54,6 +43,12 @@ Stop parsing the PNG file.
 Keyword: 'SAUCE'
 
 Read content as sauce bytes.
+
+#### Palette block (only 1 is valid)
+
+Keyword: 'PALETTE'
+
+Read content as ice txt palette format.
 
 #### Bitfont Font Block
 
@@ -83,8 +78,8 @@ Keyword: 'LAYER_{SLOT}'
 |             |        |Bit 4   : has_alhpa_channel
 |             |        |Bit 5   : is_alpha_locked
 |Transparency |1       |U8     | Alpha channel of that layer
-|X            |4       |LE_I32 |
-|Y            |4       |LE_I32 |
+|X            |4       |LE_I32 | X Offset of the layer
+|Y            |4       |LE_I32 | Y Offset of the layer
 |Width        |4       |LE_U32 |
 |Height       |4       |LE_U32 |
 |FontPage     |2       |LE_U16 | Font page for default chars (it's char 32=' ' but may've different display depending on FP - makes sense when replacing slot 0->100 for example)
@@ -93,9 +88,14 @@ Keyword: 'LAYER_{SLOT}'
 
 The buffer data is the internal icy_draw buffer format. That covers ansi (cp437 and unicode), petscii, atari, viewdata.
 
-[attribute]  2  LE_U16
--> indicates invisible then it ends here
+[attribute]  2  LE_U16 
 
+There are special flags:
+INVISIBLE -> invisible char, continue to next
+SHORT_DATA -> all data is U8
+INVISIBLE_SHORT -> End of line
+
+Long data is:
 Char         4  UTF_32 char
 Fg           4  LE_U32 Foreground
 Bg           4  LE_U32 Background
