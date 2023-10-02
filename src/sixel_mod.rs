@@ -22,7 +22,7 @@ pub struct Sixel {
 struct SixelParser {
     pos: Position,
     current_sixel_palette: Palette,
-    current_sixel_color: i32,
+    current_sixel_color: u32,
     sixel_cursor: Position,
     parsed_numbers: Vec<i32>,
     state: SixelState,
@@ -98,7 +98,7 @@ impl SixelParser {
                     self.parsed_numbers.push(0);
                 } else {
                     if let Some(color) = self.parsed_numbers.first() {
-                        self.current_sixel_color = *color;
+                        self.current_sixel_color = *color as u32;
                     }
                     if self.parsed_numbers.len() > 1 {
                         if self.parsed_numbers.len() != 5 {
@@ -108,7 +108,7 @@ impl SixelParser {
                         match self.parsed_numbers.get(1) {
                             Some(2) => {
                                 self.current_sixel_palette.set_color_rgb(
-                                    self.current_sixel_color as usize,
+                                    self.current_sixel_color,
                                     (self.parsed_numbers[2] * 255 / 100) as u8,
                                     (self.parsed_numbers[3] * 255 / 100) as u8,
                                     (self.parsed_numbers[4] * 255 / 100) as u8,
@@ -116,7 +116,7 @@ impl SixelParser {
                             }
                             Some(1) => {
                                 self.current_sixel_palette.set_color_hsl(
-                                    self.current_sixel_color as usize,
+                                    self.current_sixel_color,
                                     self.parsed_numbers[2] as f32 * 360.0 / (2.0 * std::f32::consts::PI),
                                     self.parsed_numbers[4] as f32 / 100.0, // sixel is hls
                                     self.parsed_numbers[3] as f32 / 100.0,
@@ -197,7 +197,7 @@ impl SixelParser {
 
         let fg_color = self
             .current_sixel_palette
-            .get_color((self.current_sixel_color as u32) % self.current_sixel_palette.len() as u32)
+            .get_color((self.current_sixel_color) % self.current_sixel_palette.len() as u32)
             .clone();
         let x_pos = self.sixel_cursor.x;
         let y_pos = self.sixel_cursor.y * 6;

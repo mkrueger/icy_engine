@@ -175,22 +175,26 @@ pub struct Palette {
 }
 
 impl Palette {
-    pub fn from_colors(colors: Vec<Color>) -> Self {
+    pub fn from_slice(colors: &[Color]) -> Self {
         Self {
             title: String::new(),
             description: String::new(),
             author: String::new(),
-            colors,
+            colors: colors.to_vec(),
             old_checksum: 0,
             checksum: 0,
         }
     }
 
-    pub fn get_color(&self, index: u32) -> Color {
-        if index as usize >= self.colors.len() {
+    pub fn get_color(&self, color: u32) -> Color {
+        if color & (1 << 31) != 0 {
+            // rgb is directly encoded.
+            return Color::new((color >> 16) as u8, (color >> 8) as u8, color as u8);
+        }
+        if color as usize >= self.colors.len() {
             return Color::new(0, 0, 0);
         }
-        self.colors[index as usize].clone()
+        self.colors[color as usize].clone()
     }
 
     pub fn are_colors_equal(&self, other: &Palette) -> bool {
@@ -208,11 +212,15 @@ impl Palette {
         }
     }
 
-    pub fn get_rgb(&self, index: usize) -> (u8, u8, u8) {
-        if index >= self.colors.len() {
+    pub fn get_rgb(&self, color: u32) -> (u8, u8, u8) {
+        if color & (1 << 31) != 0 {
+            // rgb is directly encoded.
+            return ((color >> 16) as u8, (color >> 8) as u8, color as u8);
+        }
+        if color >= self.colors.len() as u32 {
             (0, 0, 0)
         } else {
-            let c = &self.colors[index];
+            let c = &self.colors[color as usize];
             (c.r, c.g, c.b)
         }
     }
@@ -221,12 +229,15 @@ impl Palette {
         self.colors.iter()
     }
 
-    pub fn push(&mut self, b: Color) {
-        self.colors.push(b);
+    pub fn push(&mut self, color: Color) {
+        self.colors.push(color);
     }
 
-    pub fn set_color(&mut self, index: usize, color: Color) {
-        self.colors[index] = color;
+    pub fn set_color(&mut self, color: u32, color_struct: Color) {
+        if self.colors.len() <= color as usize {
+            self.colors.resize(color as usize + 1, Color::default());
+        }
+        self.colors[color as usize] = color_struct;
     }
 
     /// .
@@ -558,16 +569,16 @@ impl Palette {
         true
     }
 
-    pub fn set_color_rgb(&mut self, number: usize, r: u8, g: u8, b: u8) {
-        if self.colors.len() <= number {
-            self.colors.resize(number + 1, Color::default());
+    pub fn set_color_rgb(&mut self, color: u32, r: u8, g: u8, b: u8) {
+        if self.colors.len() <= color as usize {
+            self.colors.resize(color as usize + 1, Color::default());
         }
-        self.colors[number] = Color { name: None, r, g, b };
+        self.colors[color as usize] = Color { name: None, r, g, b };
     }
 
-    pub fn set_color_hsl(&mut self, number: usize, h: f32, s: f32, l: f32) {
-        if self.colors.len() <= number {
-            self.colors.resize(number + 1, Color::default());
+    pub fn set_color_hsl(&mut self, color: u32, h: f32, s: f32, l: f32) {
+        if self.colors.len() <= color as usize {
+            self.colors.resize(color as usize + 1, Color::default());
         }
 
         let (r, g, b) = if l == 0.0 {
@@ -585,7 +596,7 @@ impl Palette {
             )
         };
 
-        self.colors[number] = Color { name: None, r, g, b };
+        self.colors[color as usize] = Color { name: None, r, g, b };
     }
 
     pub fn insert_color(&mut self, color: Color) -> u32 {

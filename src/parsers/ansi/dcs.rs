@@ -54,7 +54,7 @@ impl Parser {
             let bg_color = if let Some(1) = self.parsed_numbers.get(1) {
                 [0, 0, 0, 0]
             } else {
-                let (r, g, b) = buf.palette.get_rgb(caret.attribute.get_background() as usize);
+                let (r, g, b) = buf.palette.get_rgb(caret.attribute.get_background());
                 [0xff, r, g, b]
             };
 

@@ -753,8 +753,8 @@ impl Buffer {
                     ch.attribute.get_foreground()
                 };
 
-                let (f_r, f_g, f_b) = self.palette.get_rgb(fg as usize);
-                let (b_r, b_g, b_b) = self.palette.get_rgb(ch.attribute.get_background() as usize);
+                let (f_r, f_g, f_b) = self.palette.get_rgb(fg);
+                let (b_r, b_g, b_b) = self.palette.get_rgb(ch.attribute.get_background());
 
                 if let Some(glyph) = font.get_glyph(ch.ch) {
                     let cur_font_size = font.size;

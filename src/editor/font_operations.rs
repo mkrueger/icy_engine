@@ -91,7 +91,7 @@ impl EditState {
         let old_layers = self.get_buffer().layers.clone();
         let new_palette = match mode {
             PaletteMode::RGB => old_palette.clone(),
-            PaletteMode::Fixed16 => Palette::from_colors(DOS_DEFAULT_PALETTE.to_vec()),
+            PaletteMode::Fixed16 => Palette::from_slice(&DOS_DEFAULT_PALETTE),
             PaletteMode::Free8 => get_palette(&old_layers, &old_palette, 8),
             PaletteMode::Free16 => get_palette(&old_layers, &old_palette, 16),
         };
@@ -337,7 +337,7 @@ fn get_palette(old_layers: &[Layer], old_palette: &Palette, palette_size: usize)
 }
 
 fn find_new_color(old_palette: &Palette, new_palette: &Palette, color: u32) -> u32 {
-    let (o_r, o_g, o_b) = old_palette.get_rgb(color as usize);
+    let (o_r, o_g, o_b) = old_palette.get_rgb(color);
     let o_r = o_r as i32;
     let o_g = o_g as i32;
     let o_b = o_b as i32;
@@ -345,7 +345,7 @@ fn find_new_color(old_palette: &Palette, new_palette: &Palette, color: u32) -> u
     let mut new_color = 0;
     let mut delta = i32::MAX;
     for i in 0..new_palette.len() {
-        let (r, g, b) = new_palette.get_rgb(i);
+        let (r, g, b) = new_palette.get_rgb(i as u32);
         let r = r as i32;
         let g = g as i32;
         let b = b as i32;

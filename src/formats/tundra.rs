@@ -87,7 +87,7 @@ impl OutputFormat for TundraDraw {
                     result.push(TUNDRA_COLOR_FOREGROUND);
                     result.push(ch as u8);
 
-                    let rgb = buf.palette.get_rgb(attr.get_foreground() as usize);
+                    let rgb = buf.palette.get_rgb(attr.get_foreground());
                     result.push(0);
                     result.push(rgb.0);
                     result.push(rgb.1);
@@ -110,7 +110,7 @@ impl OutputFormat for TundraDraw {
                     result.push(cmd);
                     result.push(ch as u8);
                     if write_foreground {
-                        let mut fg = cur_attr.get_foreground() as usize;
+                        let mut fg = cur_attr.get_foreground();
                         if cur_attr.is_bold() {
                             fg += 8;
                         }
@@ -122,9 +122,9 @@ impl OutputFormat for TundraDraw {
                         result.push(rgb.2);
                     }
                     if write_background {
-                        colors.insert(cur_attr.get_background() as usize);
+                        colors.insert(cur_attr.get_background());
 
-                        let rgb = buf.palette.get_rgb(cur_attr.get_background() as usize);
+                        let rgb = buf.palette.get_rgb(cur_attr.get_background());
                         result.push(0);
                         result.push(rgb.0);
                         result.push(rgb.1);

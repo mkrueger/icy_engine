@@ -147,7 +147,7 @@ pub fn from_ega_data(pal: &[u8]) -> Palette {
         colors.push(Color::new(r << 2 | r >> 4, g << 2 | g >> 4, b << 2 | b >> 4));
     }
 
-    Palette::from_colors(colors)
+    Palette::from_slice(&colors)
 }
 
 pub fn to_ega_data(palette: &Palette) -> Vec<u8> {
