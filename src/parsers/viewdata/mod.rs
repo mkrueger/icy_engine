@@ -216,7 +216,7 @@ impl Parser {
             }
             self.got_esc = false;
         }
-        CallbackAction::None
+        CallbackAction::NoUpdate
     }
 }
 
@@ -280,10 +280,10 @@ impl BufferParser for Parser {
                 caret.cr(buf);
             }
             0b000_1110 => {
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             } // TODO: SO - switch to G1 char set
             0b000_1111 => {
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             } // TODO: SI - switch to G0 char set
 
             // control codes 1
@@ -300,13 +300,13 @@ impl BufferParser for Parser {
             0b001_1010 => {} // ignore
             0b001_1011 => {
                 self.got_esc = true;
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             } // 0x1B ESC
             0b001_1100 => {
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             } // TODO: SS2 - switch to G2 char set
             0b001_1101 => {
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             } // TODO: SS3 - switch to G3 char set
             0b001_1110 => {
                 // 28 / 0x1E
@@ -318,6 +318,6 @@ impl BufferParser for Parser {
             }
         }
         self.got_esc = false;
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 }

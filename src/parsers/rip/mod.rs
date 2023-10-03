@@ -61,13 +61,13 @@ impl BufferParser for Parser {
                         self.state = State::Default;
                         self.text_window = None;
                         self.viewport = None;
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     'e' => {
                         // RIP_ERASE_VIEW
                         self.state = State::Default;
                         self.clear();
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     'E' => {
                         // RIP_ERASE_WINDOW
@@ -75,7 +75,7 @@ impl BufferParser for Parser {
                         self.state = State::Default;
                         buf.layers[current_layer].clear();
                         buf.stop_sixel_threads();
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     'g' => {
                         // RIP_GOTOXY
@@ -85,13 +85,13 @@ impl BufferParser for Parser {
                         // RIP_HOME
                         self.state = State::Default;
                         caret.home(buf);
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     '>' => {
                         // RIP_ERASE_EOL
                         self.state = State::Default;
                         buf.clear_line_end(current_layer, caret);
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     'c' => {
                         // RIP_COLOR
@@ -241,7 +241,7 @@ impl BufferParser for Parser {
                     '#' => {
                         // RIP_NO_MORE
                         self.state = State::Default;
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     _ => {
                         self.state = State::Default;
@@ -259,7 +259,7 @@ impl BufferParser for Parser {
                     return self.ansi_parser.print_char(buf, current_layer, caret, ch);
                 }
                 self.state = State::ReadCommand;
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             }
             State::Default => {
                 match self.ansi_parser.state {
@@ -285,7 +285,7 @@ impl BufferParser for Parser {
                                     return Err(ParserError::InvalidRipAnsiQuery(self.ansi_parser.parsed_numbers[0]).into());
                                 }
                             }
-                            return Ok(CallbackAction::None);
+                            return Ok(CallbackAction::NoUpdate);
                         }
                     }
                     EngineState::Default => {
@@ -295,7 +295,7 @@ impl BufferParser for Parser {
 
                         if let '!' = ch {
                             self.state = State::GotRipStart;
-                            return Ok(CallbackAction::None);
+                            return Ok(CallbackAction::NoUpdate);
                         }
                     }
                     _ => {}

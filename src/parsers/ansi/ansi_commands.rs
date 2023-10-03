@@ -258,7 +258,7 @@ impl Parser {
             i += 1;
         }
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::Update)
     }
 
     fn parse_extended_colors(&mut self, buf: &mut Buffer, i: &mut usize) -> EngineResult<u32> {
@@ -368,7 +368,7 @@ impl Parser {
 
         buf.terminal_state.set_margins_top_bottom(top, bottom);
         caret.pos = buf.upper_left_position();
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI Pn1 ; Pn2 s`</p>
@@ -392,7 +392,7 @@ impl Parser {
         // Set Left and Right Margins
         buf.terminal_state.set_margins_left_right(left, right);
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI Pn1 ; Pn2 ; Pn3 ; Pn4 r`</p>
@@ -436,7 +436,7 @@ impl Parser {
         buf.terminal_state.set_margins_top_bottom(top, bottom);
         buf.terminal_state.set_margins_left_right(left, right);
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: CSI = Ps ; Pn m
@@ -496,7 +496,7 @@ impl Parser {
                 return Err(ParserError::UnsupportedEscapeSequence("No argument found for SSM.".to_string()).into());
             }
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI = r`</p>
@@ -514,7 +514,7 @@ impl Parser {
         self.state = EngineState::Default;
         buf.terminal_state.clear_margins_left_right();
         buf.terminal_state.clear_margins_top_bottom();
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI s`</p>
@@ -581,7 +581,7 @@ impl Parser {
                 return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI Ps1 ; Ps2 SP D`</p>
@@ -624,7 +624,7 @@ impl Parser {
             let nr = *nr as usize;
             if buf.get_font(nr).is_some() {
                 set_font_selection_success(buf, caret, nr);
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             }
             match BitFont::from_ansi_font_page(nr) {
                 Ok(font) => {
@@ -637,7 +637,7 @@ impl Parser {
                 }
             }
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI Pn SP d`</p>
@@ -662,7 +662,7 @@ impl Parser {
         if let Some(num) = self.parsed_numbers.first() {
             buf.terminal_state.remove_tab_stop(*num - 1);
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     /// Sequence: `CSI ! p`</p>
@@ -728,7 +728,7 @@ impl Parser {
             // 3 	Printer
             // 4 	Modem Hi
             // 5 	Modem Lo
-            return Ok(CallbackAction::None);
+            return Ok(CallbackAction::NoUpdate);
         }
 
         // no ps2 or 0 are equiv in disabling baud emulation
@@ -822,7 +822,8 @@ impl Parser {
         if let Some(id) = self.parsed_numbers.first() {
             self.invoke_macro_by_id(buf, current_layer, caret, *id);
         }
-        Ok(CallbackAction::None)
+        println!("invoke macro!");
+        Ok(CallbackAction::Update)
     }
 
     /// Sequence: `CSI Ps c`</p>
@@ -881,7 +882,7 @@ impl Parser {
                 return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
             }
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::Update)
     }
 
     /// Sequence: `CSI Ps ; Ps ; Ps t`</p>
@@ -984,7 +985,7 @@ impl Parser {
             }
         }
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::Update)
     }
 
     fn get_rect_area(&self, buf: &Buffer, offset: usize) -> (i32, i32, i32, i32) {
@@ -1034,7 +1035,7 @@ impl Parser {
             }
         }
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::Update)
     }
 
     /// Sequence: `CSI Pn1 ; Pn2 ; Pn3 ; Pn4 $ {`</p>
@@ -1077,6 +1078,6 @@ impl Parser {
             }
         }
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::Update)
     }
 }

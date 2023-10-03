@@ -28,7 +28,7 @@ impl BufferParser for Parser {
                 match self.pcb_pos {
                     1 => {
                         self.pcb_value = conv_ch(ch);
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     2 => {
                         self.pcb_value = (self.pcb_value << 4) + conv_ch(ch);
@@ -39,7 +39,7 @@ impl BufferParser for Parser {
             }
             self.pcb_color = false;
             self.pcb_code = false;
-            return Ok(CallbackAction::None);
+            return Ok(CallbackAction::NoUpdate);
         }
 
         if self.pcb_code {
@@ -53,12 +53,12 @@ impl BufferParser for Parser {
                 }
                 _ => {}
             }
-            return Ok(CallbackAction::None);
+            return Ok(CallbackAction::NoUpdate);
         }
         match ch {
             '@' => {
                 self.pcb_code = true;
-                Ok(CallbackAction::None)
+                Ok(CallbackAction::NoUpdate)
             }
             _ => self.ansi_parser.print_char(buf, current_layer, caret, ch),
         }

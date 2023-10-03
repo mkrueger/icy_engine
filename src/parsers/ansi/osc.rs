@@ -26,7 +26,7 @@ impl Parser {
 
         if i == 3 && *self.parsed_numbers.first().unwrap() == 8 {
             self.handle_osc_hyperlinks(self.parse_string[3..].to_string(), buf, caret);
-            return Ok(CallbackAction::None);
+            return Ok(CallbackAction::NoUpdate);
         }
 
         Err(ParserError::UnsupportedOSCSequence(self.parse_string.clone()).into())

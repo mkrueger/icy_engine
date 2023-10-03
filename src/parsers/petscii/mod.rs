@@ -124,7 +124,7 @@ impl Parser {
                 log::error!("Unknown C128 escape code: 0x{:02X}/'{}'", ch, ch as char);
             }
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 
     pub fn update_shift_mode(&mut self, buf: &mut Buffer, current_layer: usize, shift_mode: bool) {
@@ -238,7 +238,7 @@ impl BufferParser for Parser {
                 buf.print_char(current_layer, caret, ch);
             }
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 }
 

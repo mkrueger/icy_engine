@@ -26,7 +26,8 @@ pub const FF: char = '\x0C';
 
 #[derive(Debug, PartialEq)]
 pub enum CallbackAction {
-    None,
+    Update,
+    NoUpdate,
     Beep,
     SendString(String),
     PlayMusic(AnsiMusic),
@@ -436,7 +437,7 @@ fn get_simple_action<T: BufferParser>(parser: &mut T, input: &[u8]) -> CallbackA
 
 #[cfg(test)]
 fn get_action<T: BufferParser>(buf: &mut Buffer, caret: &mut Caret, parser: &mut T, input: &[u8]) -> CallbackAction {
-    let mut action = CallbackAction::None;
+    let mut action = CallbackAction::NoUpdate;
     for b in input {
         action = parser.print_char(buf, 0, caret, *b as char).unwrap(); // test code
     }

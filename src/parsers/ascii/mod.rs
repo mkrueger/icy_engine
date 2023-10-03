@@ -37,7 +37,7 @@ impl BufferParser for Parser {
             '\x7F' => caret.del(buf, current_layer),
             _ => buf.print_value(current_layer, caret, ch as u16),
         }
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 }
 

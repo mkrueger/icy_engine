@@ -197,23 +197,23 @@ impl BufferParser for Parser {
                         '[' => {
                             self.state = EngineState::ReadCSISequence(true);
                             self.parsed_numbers.clear();
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
                         ']' => {
                             self.state = EngineState::ReadOSCSequence(ReadSTState::Default(0));
                             self.parsed_numbers.clear();
                             self.parse_string.clear();
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
                         '7' => {
                             self.saved_cursor_opt = Some(caret.clone());
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
                         '8' => {
                             if let Some(saved_caret) = &self.saved_cursor_opt {
                                 *caret = saved_caret.clone();
                             }
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::Update)
                         }
 
                         'c' => {
@@ -222,24 +222,24 @@ impl BufferParser for Parser {
                             caret.reset();
                             buf.reset_terminal();
                             self.macros.clear();
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::Update)
                         }
 
                         'D' => {
                             // Index
                             caret.index(buf, current_layer);
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::Update)
                         }
                         'M' => {
                             // Reverse Index
                             caret.reverse_index(buf, current_layer);
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::Update)
                         }
 
                         'E' => {
                             // Next Line
                             caret.next_line(buf, current_layer);
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::Update)
                         }
 
                         'P' => {
@@ -247,33 +247,33 @@ impl BufferParser for Parser {
                             self.state = EngineState::RecordDCS(ReadSTState::Default(0));
                             self.parse_string.clear();
                             self.parsed_numbers.clear();
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
                         'H' => {
                             // set tab at current column
                             self.state = EngineState::Default;
                             buf.terminal_state.set_tab_at(caret.get_position().x);
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
 
                         '_' => {
                             // Application Program String
                             self.state = EngineState::ReadAPS(ReadSTState::Default(0));
                             self.parse_string.clear();
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
 
                         '0'..='~' => {
                             // Silently drop unsupported sequences
                             self.state = EngineState::Default;
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::NoUpdate)
                         }
                         FF | BEL | BS | '\x09' | '\x7F' | '\x1B' | '\n' | '\r' => {
                             // non standard extension to print esc chars ESC ESC -> ESC
                             self.last_char = ch;
                             let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                             buf.print_char(current_layer, caret, ch);
-                            Ok(CallbackAction::None)
+                            Ok(CallbackAction::Update)
                         }
                         _ => Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into()),
                     }
@@ -284,7 +284,7 @@ impl BufferParser for Parser {
                 ReadSTState::Default(nesting_level) => {
                     if ch == '\x1B' {
                         self.state = EngineState::ReadAPS(ReadSTState::GotEscape(*nesting_level));
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     self.parse_string.push(ch);
                 }
@@ -292,7 +292,7 @@ impl BufferParser for Parser {
                     if ch == '\\' {
                         self.state = EngineState::Default;
                         self.execute_aps_command(buf, caret);
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     self.state = EngineState::ReadAPS(ReadSTState::Default(*nesting_level));
                     self.parse_string.push('\x1B');
@@ -317,7 +317,7 @@ impl BufferParser for Parser {
                         _ => 0,
                     };
                     self.parsed_numbers.push(parse_next_number(d, ch as u8));
-                    return Ok(CallbackAction::None);
+                    return Ok(CallbackAction::NoUpdate);
                 }
                 if ch == '[' {
                     if *i != 0 {
@@ -325,7 +325,7 @@ impl BufferParser for Parser {
                         return Err(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '[' got '{ch}'")).into());
                     }
                     self.state = EngineState::ReadPossibleMacroInDCS(1);
-                    return Ok(CallbackAction::None);
+                    return Ok(CallbackAction::NoUpdate);
                 }
                 if ch == '*' {
                     if *i != 1 {
@@ -333,7 +333,7 @@ impl BufferParser for Parser {
                         return Err(ParserError::UnsupportedDCSSequence(format!("Error in macro inside dcs, expected '*' got '{ch}'")).into());
                     }
                     self.state = EngineState::ReadPossibleMacroInDCS(2);
-                    return Ok(CallbackAction::None);
+                    return Ok(CallbackAction::NoUpdate);
                 }
                 if ch == 'z' {
                     if *i != 2 {
@@ -346,46 +346,48 @@ impl BufferParser for Parser {
                     }
                     self.state = EngineState::RecordDCS(ReadSTState::Default(0));
                     self.invoke_macro_by_id(buf, current_layer, caret, *self.parsed_numbers.first().unwrap());
-                    return Ok(CallbackAction::None);
+                    return Ok(CallbackAction::NoUpdate);
                 }
                 self.parse_string.push('\x1b');
                 self.parse_string.push('[');
                 self.parse_string.push_str(&self.macro_dcs);
                 self.state = EngineState::RecordDCS(ReadSTState::Default(0));
-                return Ok(CallbackAction::None);
+                return Ok(CallbackAction::NoUpdate);
             }
-            EngineState::RecordDCS(dcs_state) => match dcs_state {
-                ReadSTState::GotEscape(_nesting_level) => {
-                    self.state = EngineState::Default;
-                    if ch == '\\' {
-                        return self.execute_dcs(buf, caret);
-                    }
-                    if ch == '[' {
-                        //
-                        self.state = EngineState::ReadPossibleMacroInDCS(1);
-                        self.macro_dcs.clear();
-                        return Ok(CallbackAction::None);
-                    }
-                    self.parse_string.push('\x1b');
-                    self.parse_string.push(ch);
-                    self.state = EngineState::RecordDCS(ReadSTState::Default(0));
-                    return Ok(CallbackAction::None);
-                }
-                ReadSTState::Default(nesting_level) => match ch {
-                    '\x1B' => {
-                        self.state = EngineState::RecordDCS(ReadSTState::GotEscape(*nesting_level));
-                    }
-                    _ => {
+            EngineState::RecordDCS(dcs_state) => {
+                match dcs_state {
+                    ReadSTState::GotEscape(_nesting_level) => {
+                        self.state = EngineState::Default;
+                        if ch == '\\' {
+                            return self.execute_dcs(buf, caret);
+                        }
+                        if ch == '[' {
+                            //
+                            self.state = EngineState::ReadPossibleMacroInDCS(1);
+                            self.macro_dcs.clear();
+                            return Ok(CallbackAction::NoUpdate);
+                        }
+                        self.parse_string.push('\x1b');
                         self.parse_string.push(ch);
+                        self.state = EngineState::RecordDCS(ReadSTState::Default(0));
                     }
-                },
-            },
+                    ReadSTState::Default(nesting_level) => match ch {
+                        '\x1B' => {
+                            self.state = EngineState::RecordDCS(ReadSTState::GotEscape(*nesting_level));
+                        }
+                        _ => {
+                            self.parse_string.push(ch);
+                        }
+                    },
+                }
+                return Ok(CallbackAction::NoUpdate);
+            }
 
             EngineState::ReadOSCSequence(dcs_state) => match dcs_state {
                 ReadSTState::Default(nesting_level) => {
                     if ch == '\x1B' {
                         self.state = EngineState::ReadOSCSequence(ReadSTState::GotEscape(*nesting_level));
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     self.parse_string.push(ch);
                 }
@@ -720,6 +722,7 @@ impl BufferParser for Parser {
                             }
                         }
                         buf.terminal_state.limit_caret_pos(buf, caret);
+                        return Ok(CallbackAction::Update);
                     }
                     'C' => {
                         // Cursor Forward
@@ -729,6 +732,7 @@ impl BufferParser for Parser {
                         } else {
                             caret.right(buf, self.parsed_numbers[0]);
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'j' | // CSI Pn j
                           // HPB - Character position backward
@@ -740,6 +744,7 @@ impl BufferParser for Parser {
                         } else {
                             caret.left(buf, self.parsed_numbers[0]);
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'k' | // CSI Pn k
                           // VPB - Line position backward
@@ -751,6 +756,7 @@ impl BufferParser for Parser {
                         } else {
                             caret.up(buf, current_layer, self.parsed_numbers[0]);
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'B' => {
                         // Cursor Down
@@ -760,12 +766,14 @@ impl BufferParser for Parser {
                         } else {
                             caret.down(buf, current_layer,self.parsed_numbers[0]);
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     's' => {
                         if buf.terminal_state.dec_margin_mode_left_right {
                             return self.set_left_and_right_margins(buf);
                         }
                         self.save_cursor_position(caret);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     'u' => self.restore_cursor_position(caret),
                     'd' => {
@@ -778,6 +786,7 @@ impl BufferParser for Parser {
                         };
                         caret.pos.y = buf.get_first_visible_line() + num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
+                        return Ok(CallbackAction::Update);
                     }
                     'e' => {
                         // CSI Pn e
@@ -789,6 +798,7 @@ impl BufferParser for Parser {
                         };
                         caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
+                        return Ok(CallbackAction::Update);
                     }
                     '\'' => {
                         // Horizontal Line Position Absolute
@@ -805,6 +815,7 @@ impl BufferParser for Parser {
                         } else {
                             return Err(ParserError::InvalidBuffer.into());
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'a' => {
                         // CSI Pn a
@@ -823,6 +834,7 @@ impl BufferParser for Parser {
                         } else {
                             return Err(ParserError::InvalidBuffer.into());
                         }
+                        return Ok(CallbackAction::Update);
                     }
 
                     'G' => {
@@ -834,6 +846,7 @@ impl BufferParser for Parser {
                         };
                         caret.pos.x = num;
                         buf.terminal_state.limit_caret_pos(buf, caret);
+                        return Ok(CallbackAction::Update);
                     }
                     'E' => {
                         // Cursor Next Line
@@ -845,6 +858,7 @@ impl BufferParser for Parser {
                         caret.pos.y = buf.get_first_visible_line() + caret.pos.y + num;
                         caret.pos.x = 0;
                         buf.terminal_state.limit_caret_pos(buf, caret);
+                        return Ok(CallbackAction::Update);
                     }
                     'F' => {
                         // Cursor Previous Line
@@ -856,6 +870,7 @@ impl BufferParser for Parser {
                         caret.pos.y = buf.get_first_visible_line() + caret.pos.y - num;
                         caret.pos.x = 0;
                         buf.terminal_state.limit_caret_pos(buf, caret);
+                        return Ok(CallbackAction::Update);
                     }
 
                     'n' => {
@@ -923,6 +938,7 @@ impl BufferParser for Parser {
                                 ).into());
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'M' => {
                         // Delete line
@@ -963,6 +979,7 @@ impl BufferParser for Parser {
                                 ).into());
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'N' => {
                         if matches!(self.ansi_music, MusicOption::Banana)
@@ -972,6 +989,7 @@ impl BufferParser for Parser {
                             self.dotted_note = false;
                             self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         }
+                        return Ok(CallbackAction::NoUpdate);
                     }
 
                     '|' => {
@@ -980,6 +998,7 @@ impl BufferParser for Parser {
                             self.dotted_note = false;
                             self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         }
+                        return Ok(CallbackAction::NoUpdate);
                     }
 
                     'P' => {
@@ -1003,6 +1022,7 @@ impl BufferParser for Parser {
                                 ).into());
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
 
                     'L' => {
@@ -1026,6 +1046,7 @@ impl BufferParser for Parser {
                                 ).into());
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
 
                     'J' => {
@@ -1055,6 +1076,7 @@ impl BufferParser for Parser {
                                 self.current_escape_sequence.clone(),
                             ).into());
                         }
+                        return Ok(CallbackAction::Update);
                     }
 
                     '?' => {
@@ -1065,6 +1087,7 @@ impl BufferParser for Parser {
                         }
                         // read custom command
                         self.state = EngineState::ReadCSICommand;
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     '=' => {
                         if !is_start {
@@ -1074,7 +1097,7 @@ impl BufferParser for Parser {
                         }
                         // read custom command
                         self.state = EngineState::ReadCSIRequest;
-                        return Ok(CallbackAction::None);
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     '!' => {
                         if !is_start {
@@ -1084,6 +1107,7 @@ impl BufferParser for Parser {
                         }
                         // read custom command
                         self.state = EngineState::ReadRIPSupportRequest;
+                        return Ok(CallbackAction::NoUpdate);
                     }
 
                     '*' => {
@@ -1119,6 +1143,7 @@ impl BufferParser for Parser {
                                 }
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     'c' => return self.device_attributes(),
                     'r' => return if self.parsed_numbers.len() > 2 {
@@ -1143,6 +1168,7 @@ impl BufferParser for Parser {
                                 ).into())
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
 
                     'l' => {
@@ -1162,6 +1188,7 @@ impl BufferParser for Parser {
                                 ).into())
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
                     '~' => {
                         self.state = EngineState::Default;
@@ -1190,6 +1217,7 @@ impl BufferParser for Parser {
                                 ).into())
                             }
                         }
+                        return Ok(CallbackAction::Update);
                     }
 
                     't' => {
@@ -1211,6 +1239,7 @@ impl BufferParser for Parser {
                             1
                         };
                         (0..num).for_each(|_| buf.scroll_up(current_layer));
+                        return Ok(CallbackAction::Update);
                     }
                     'T' => {
                         // Scroll Down
@@ -1221,6 +1250,7 @@ impl BufferParser for Parser {
                             1
                         };
                         (0..num).for_each(|_| buf.scroll_down(current_layer));
+                        return Ok(CallbackAction::Update);
                     }
                     'b' => {
                         // CSI Pn b
@@ -1233,6 +1263,7 @@ impl BufferParser for Parser {
                         };
                         let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                         (0..num).for_each(|_| buf.print_char(current_layer, caret, ch));
+                        return Ok(CallbackAction::Update);
                     }
                     'g' => {
                         // CSI Ps g
@@ -1261,6 +1292,7 @@ impl BufferParser for Parser {
                                 ).into());
                             }
                         }
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     'Y' => {
                         // CVT - Cursor line tabulation
@@ -1277,6 +1309,7 @@ impl BufferParser for Parser {
                             1
                         };
                         (0..num).for_each(|_| caret.set_x_position(buf.terminal_state.next_tab_stop(caret.get_position().x)));
+                        return Ok(CallbackAction::Update);
                     }
                     'Z' => {
                         // CBT - Cursor backward tabulation
@@ -1293,6 +1326,7 @@ impl BufferParser for Parser {
                             1
                         };
                         (0..num).for_each(|_| caret.set_x_position(buf.terminal_state.prev_tab_stop(caret.get_position().x)));
+                        return Ok(CallbackAction::Update);
                     }
                     _ => {
                         self.state = EngineState::ReadCSISequence(false);
@@ -1319,6 +1353,7 @@ impl BufferParser for Parser {
                                 self.current_escape_sequence.clone(),
                             ).into());
                         }
+                        return Ok(CallbackAction::NoUpdate);
                     }
                 }
             }
@@ -1329,12 +1364,25 @@ impl BufferParser for Parser {
                     self.current_escape_sequence.push_str("<ESC>");
                     self.state = EngineState::Default;
                     self.state = EngineState::ReadEscapeSequence;
+                    return Ok(CallbackAction::NoUpdate);
                 }
-                LF => caret.lf(buf, current_layer),
-                FF => caret.ff(buf, current_layer),
-                CR => caret.cr(buf),
+                LF => {
+                    caret.lf(buf, current_layer);
+                    return Ok(CallbackAction::Update);
+                }
+                FF => {
+                    caret.ff(buf, current_layer);
+                    return Ok(CallbackAction::Update);
+                }
+                CR => {
+                    caret.cr(buf);
+                    return Ok(CallbackAction::Update);
+                }
                 BEL => return Ok(CallbackAction::Beep),
-                '\x7F' => caret.del(buf, current_layer),
+                '\x7F' => {
+                    caret.del(buf, current_layer);
+                    return Ok(CallbackAction::Update);
+                }
                 _ => {
                     if ch == crate::BS && self.bs_is_ctrl_char {
                         caret.bs(buf, current_layer);
@@ -1345,11 +1393,12 @@ impl BufferParser for Parser {
                         let ch = AttributedChar::new(self.last_char, caret.get_attribute());
                         buf.print_char(current_layer, caret, ch);
                     }
+                    return Ok(CallbackAction::Update);
                 }
             },
         }
 
-        Ok(CallbackAction::None)
+        Ok(CallbackAction::NoUpdate)
     }
 }
 
