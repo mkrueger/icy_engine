@@ -36,14 +36,17 @@ pub enum EngineState {
     ReadRIPSupportRequest, // CSI !
     EndCSI(char),
 
-    RecordDCS(ReadSTState),
+    RecordDCS,
+    RecordDCSEscape,
     ReadPossibleMacroInDCS(u8),
 
     ParseAnsiMusic(sound::MusicState),
 
-    ReadAPS(ReadSTState),
+    ReadAPS,
+    ReadAPSEscape,
 
-    ReadOSCSequence(ReadSTState),
+    ReadOSCSequence,
+    ReadOSCSequenceEscape,
 }
 
 #[repr(u8)]
@@ -54,12 +57,6 @@ pub enum MusicOption {
     Conflicting,
     Banana,
     Both,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ReadSTState {
-    Default(usize),
-    GotEscape(usize),
 }
 
 impl Display for MusicOption {
@@ -200,7 +197,7 @@ impl BufferParser for Parser {
                             Ok(CallbackAction::NoUpdate)
                         }
                         ']' => {
-                            self.state = EngineState::ReadOSCSequence(ReadSTState::Default(0));
+                            self.state = EngineState::ReadOSCSequence;
                             self.parsed_numbers.clear();
                             self.parse_string.clear();
                             Ok(CallbackAction::NoUpdate)
@@ -244,7 +241,7 @@ impl BufferParser for Parser {
 
                         'P' => {
                             // DCS
-                            self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                            self.state = EngineState::RecordDCS;
                             self.parse_string.clear();
                             self.parsed_numbers.clear();
                             Ok(CallbackAction::NoUpdate)
@@ -258,7 +255,7 @@ impl BufferParser for Parser {
 
                         '_' => {
                             // Application Program String
-                            self.state = EngineState::ReadAPS(ReadSTState::Default(0));
+                            self.state = EngineState::ReadAPS;
                             self.parse_string.clear();
                             Ok(CallbackAction::NoUpdate)
                         }
@@ -279,26 +276,24 @@ impl BufferParser for Parser {
                     }
                 };
             }
+            EngineState::ReadAPS => {
+                if ch == '\x1B' {
+                    self.state = EngineState::ReadAPSEscape;
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                self.parse_string.push(ch);
+            }
+            EngineState::ReadAPSEscape => {
+                if ch == '\\' {
+                    self.state = EngineState::Default;
+                    self.execute_aps_command(buf, caret);
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                self.state = EngineState::ReadAPS;
+                self.parse_string.push('\x1B');
+                self.parse_string.push(ch);
+            }
 
-            EngineState::ReadAPS(st_state) => match st_state {
-                ReadSTState::Default(nesting_level) => {
-                    if ch == '\x1B' {
-                        self.state = EngineState::ReadAPS(ReadSTState::GotEscape(*nesting_level));
-                        return Ok(CallbackAction::NoUpdate);
-                    }
-                    self.parse_string.push(ch);
-                }
-                ReadSTState::GotEscape(nesting_level) => {
-                    if ch == '\\' {
-                        self.state = EngineState::Default;
-                        self.execute_aps_command(buf, caret);
-                        return Ok(CallbackAction::NoUpdate);
-                    }
-                    self.state = EngineState::ReadAPS(ReadSTState::Default(*nesting_level));
-                    self.parse_string.push('\x1B');
-                    self.parse_string.push(ch);
-                }
-            },
             EngineState::ReadPossibleMacroInDCS(i) => {
                 // \x1B[<num>*z
                 // read macro inside dcs sequence, 3 states:´
@@ -344,63 +339,61 @@ impl BufferParser for Parser {
                         self.state = EngineState::Default;
                         return Err(ParserError::UnsupportedDCSSequence(format!("Macro hasn't one number defined got '{}'", self.parsed_numbers.len())).into());
                     }
-                    self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                    self.state = EngineState::RecordDCS;
                     self.invoke_macro_by_id(buf, current_layer, caret, *self.parsed_numbers.first().unwrap());
                     return Ok(CallbackAction::NoUpdate);
                 }
                 self.parse_string.push('\x1b');
                 self.parse_string.push('[');
                 self.parse_string.push_str(&self.macro_dcs);
-                self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+                self.state = EngineState::RecordDCS;
                 return Ok(CallbackAction::NoUpdate);
             }
-            EngineState::RecordDCS(dcs_state) => {
-                match dcs_state {
-                    ReadSTState::GotEscape(_nesting_level) => {
-                        self.state = EngineState::Default;
-                        if ch == '\\' {
-                            return self.execute_dcs(buf, caret);
-                        }
-                        if ch == '[' {
-                            //
-                            self.state = EngineState::ReadPossibleMacroInDCS(1);
-                            self.macro_dcs.clear();
-                            return Ok(CallbackAction::NoUpdate);
-                        }
-                        self.parse_string.push('\x1b');
-                        self.parse_string.push(ch);
-                        self.state = EngineState::RecordDCS(ReadSTState::Default(0));
+            EngineState::RecordDCS => {
+                match ch {
+                    '\x1B' => {
+                        self.state = EngineState::RecordDCSEscape;
                     }
-                    ReadSTState::Default(nesting_level) => match ch {
-                        '\x1B' => {
-                            self.state = EngineState::RecordDCS(ReadSTState::GotEscape(*nesting_level));
-                        }
-                        _ => {
-                            self.parse_string.push(ch);
-                        }
-                    },
+                    _ => {
+                        self.parse_string.push(ch);
+                    }
                 }
+                return Ok(CallbackAction::NoUpdate);
+            }
+            EngineState::RecordDCSEscape => {
+                if ch == '\\' {
+                    self.state = EngineState::Default;
+                    return self.execute_dcs(buf, caret);
+                }
+                if ch == '[' {
+                    self.state = EngineState::ReadPossibleMacroInDCS(1);
+                    self.macro_dcs.clear();
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                self.parse_string.push('\x1b');
+                self.parse_string.push(ch);
+                self.state = EngineState::RecordDCS;
                 return Ok(CallbackAction::NoUpdate);
             }
 
-            EngineState::ReadOSCSequence(dcs_state) => match dcs_state {
-                ReadSTState::Default(nesting_level) => {
-                    if ch == '\x1B' {
-                        self.state = EngineState::ReadOSCSequence(ReadSTState::GotEscape(*nesting_level));
-                        return Ok(CallbackAction::NoUpdate);
-                    }
-                    self.parse_string.push(ch);
+            EngineState::ReadOSCSequence => {
+                if ch == '\x1B' {
+                    self.state = EngineState::ReadOSCSequenceEscape;
+                    return Ok(CallbackAction::NoUpdate);
                 }
-                ReadSTState::GotEscape(nesting_level) => {
-                    if ch == '\\' {
-                        self.state = EngineState::Default;
-                        return self.parse_osc(buf, caret);
-                    }
-                    self.state = EngineState::ReadOSCSequence(ReadSTState::Default(*nesting_level));
-                    self.parse_string.push('\x1B');
-                    self.parse_string.push(ch);
+                self.parse_string.push(ch);
+                return Ok(CallbackAction::NoUpdate);
+            }
+            EngineState::ReadOSCSequenceEscape => {
+                if ch == '\\' {
+                    self.state = EngineState::Default;
+                    return self.parse_osc(buf, caret);
                 }
-            },
+                self.state = EngineState::ReadOSCSequence;
+                self.parse_string.push('\x1B');
+                self.parse_string.push(ch);
+                return Ok(CallbackAction::NoUpdate);
+            }
 
             EngineState::ReadCSICommand => {
                 self.current_escape_sequence.push(ch);

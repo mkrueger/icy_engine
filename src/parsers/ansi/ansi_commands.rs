@@ -822,7 +822,6 @@ impl Parser {
         if let Some(id) = self.parsed_numbers.first() {
             self.invoke_macro_by_id(buf, current_layer, caret, *id);
         }
-        println!("invoke macro!");
         Ok(CallbackAction::Update)
     }
 

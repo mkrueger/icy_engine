@@ -1481,14 +1481,12 @@ impl UndoOperation for ReplaceFontUsage {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.old_layers.clone();
-        println!("undo font replace!");
         edit_state.get_caret_mut().set_font_page(self.old_caret_page);
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         edit_state.buffer.layers = self.new_layers.clone();
-        println!("redo font replace!");
         edit_state.get_caret_mut().set_font_page(self.new_caret_page);
         Ok(())
     }
@@ -1548,7 +1546,6 @@ impl UndoOperation for ChangeFontSlot {
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         let font = edit_state.buffer.remove_font(self.to);
         if let Some(font) = font {
-            println!("set fort {} -> {}", self.to, self.from);
             edit_state.buffer.set_font(self.from, font);
             Ok(())
         } else {
@@ -1559,7 +1556,6 @@ impl UndoOperation for ChangeFontSlot {
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         let font = edit_state.buffer.remove_font(self.from);
         if let Some(font) = font {
-            println!("set fort {} -> {}", self.from, self.to);
             edit_state.buffer.set_font(self.to, font);
             Ok(())
         } else {
