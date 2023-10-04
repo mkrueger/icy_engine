@@ -216,7 +216,7 @@ impl Parser {
             }
             self.got_esc = false;
         }
-        CallbackAction::NoUpdate
+        CallbackAction::Update
     }
 }
 
@@ -318,6 +318,6 @@ impl BufferParser for Parser {
             }
         }
         self.got_esc = false;
-        Ok(CallbackAction::NoUpdate)
+        Ok(CallbackAction::Update)
     }
 }

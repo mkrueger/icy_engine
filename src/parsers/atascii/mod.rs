@@ -25,7 +25,7 @@ impl BufferParser for Parser {
         if self.got_escape {
             self.got_escape = false;
             buf.print_value(current_layer, caret, ch as u16);
-            return Ok(CallbackAction::NoUpdate);
+            return Ok(CallbackAction::Update);
         }
 
         match ch {
@@ -49,7 +49,7 @@ impl BufferParser for Parser {
             }
             _ => buf.print_value(current_layer, caret, ch as u16),
         }
-        Ok(CallbackAction::NoUpdate)
+        Ok(CallbackAction::Update)
     }
 }
 

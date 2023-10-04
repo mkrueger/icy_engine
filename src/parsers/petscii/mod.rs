@@ -238,7 +238,7 @@ impl BufferParser for Parser {
                 buf.print_char(current_layer, caret, ch);
             }
         }
-        Ok(CallbackAction::NoUpdate)
+        Ok(CallbackAction::Update)
     }
 }
 
