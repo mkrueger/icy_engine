@@ -11,7 +11,7 @@ enum GlyphShape {
 /// Ignoring foreground color changes on whitespaces and background color changes on blocks.
 ///
 /// That reduces the amount of color switches required in the output formats.
-pub(crate) struct ColorOptimizer {
+pub struct ColorOptimizer {
     normalize_whitespace: bool,
     shape_map: HashMap<usize, HashMap<char, GlyphShape>>,
 }

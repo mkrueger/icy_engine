@@ -440,6 +440,8 @@ impl Palette {
         }
     }
 
+    /// .
+    /// # Panics
     pub fn export_palette(&self, format: &PaletteFormat) -> Vec<u8> {
         match format {
             PaletteFormat::Hex => {
