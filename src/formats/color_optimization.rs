@@ -25,8 +25,13 @@ impl ColorOptimizer {
         }
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
     pub fn optimize(&self, buffer: &Buffer) -> Buffer {
-        let mut b = buffer.flat_clone();
+        let mut b = buffer.flat_clone(false);
         for layer in &mut b.layers {
             let mut cur_attr = TextAttribute::default();
             for y in 0..layer.get_height() {

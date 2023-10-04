@@ -277,7 +277,7 @@ impl Buffer {
     }
 
     /// Clones the buffer (without sixel threads)
-    pub fn flat_clone(&self) -> Buffer {
+    pub fn flat_clone(&self, deep_layers: bool) -> Buffer {
         let mut frame = Buffer::new(self.get_size());
         frame.file_name = self.file_name.clone();
         frame.terminal_state = self.terminal_state.clone();
@@ -286,14 +286,24 @@ impl Buffer {
         frame.palette_mode = self.palette_mode;
         frame.font_mode = self.font_mode;
         frame.is_terminal_buffer = self.is_terminal_buffer;
-        frame.layers = self.layers.clone();
         frame.terminal_state = self.terminal_state.clone();
         frame.palette = self.palette.clone();
-        frame.layers = Vec::new();
         frame.sauce_data = self.sauce_data.clone();
-        for l in &self.layers {
-            frame.layers.push(l.clone());
+
+        if deep_layers {
+            frame.layers = Vec::new();
+            for l in &self.layers {
+                frame.layers.push(l.clone());
+            }
+        } else {
+            for y in 0..self.get_height() {
+                for x in 0..self.get_width() {
+                    let ch = self.get_char((x, y));
+                    frame.layers[0].set_char((x, y), ch);
+                }
+            }
         }
+
         frame.clear_font_table();
         for f in self.font_iter() {
             frame.set_font(*f.0, f.1.clone());
