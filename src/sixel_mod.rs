@@ -305,7 +305,10 @@ impl Sixel {
         let y = self.position.y;
         Rectangle {
             start: Position::new(x, y),
-            size: Size::new(self.size.width / font_dims.width, self.size.height / font_dims.height),
+            size: Size::new(
+                (self.size.width as f32 / font_dims.width as f32).ceil() as i32,
+                (self.size.height as f32 / font_dims.height as f32).ceil() as i32,
+            ),
         }
     }
 
