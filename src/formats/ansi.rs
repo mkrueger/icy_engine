@@ -77,6 +77,8 @@ pub struct StringGenerator {
     last_line_break: usize,
     max_output_line_length: usize,
     extended_color_hash: HashMap<(u8, u8, u8), u8>,
+
+    pub line_offsets: Vec<usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +122,7 @@ impl StringGenerator {
             last_line_break: 0,
             max_output_line_length,
             extended_color_hash,
+            line_offsets: Vec::new(),
         }
     }
 
@@ -439,6 +442,11 @@ impl StringGenerator {
 
         for (y, line) in cells.iter().enumerate() {
             let mut x = 0;
+
+            if !self.output.is_empty() {
+                self.line_offsets.push(self.output.len());
+            }
+
             if self.options.longer_terminal_output {
                 if let Some(skip_lines) = &self.options.skip_lines {
                     if skip_lines.contains(&y) {
