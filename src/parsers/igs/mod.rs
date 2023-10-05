@@ -46,7 +46,7 @@ pub struct Parser {
     fallback_parser: Box<dyn BufferParser>,
     state: State,
     parsed_numbers: Vec<i32>,
-
+    parsed_string: String,
     terminal_resolution: TerminalResolution,
 
     igs_texture: Vec<u8>,
@@ -60,6 +60,7 @@ impl Parser {
             parsed_numbers: Vec::new(),
             terminal_resolution: TerminalResolution::Medium,
             igs_texture: Vec::new(),
+            parsed_string: String::new()
         }
     }
     pub fn clear(&mut self) {
@@ -133,6 +134,15 @@ impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match &self.state {
             State::ReadCommand(command) => {
+                if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 2 {
+                    self.parsed_string.push(ch);
+                    if ch == '@' {
+                        println!("parsed string:{}", self.parsed_string);
+                        self.parsed_string.clear();
+                        self.state = State::ReadCommandStart;
+                        return Ok(CallbackAction::NoUpdate); 
+                    }
+                }
                 match ch {
                     ' ' | '>' | '_' => { /* ignore */ }
                     '0'..='9' => {
@@ -333,7 +343,10 @@ impl BufferParser for Parser {
                         self.state = State::ReadCommand(IgsCommands::ExtendedCommands);
                         Ok(CallbackAction::NoUpdate)
                     }
-                    _ => Err(anyhow::anyhow!("Unknown IGS command: {ch}")),
+                    _ => {
+                        self.state = State::Default;
+                        Err(anyhow::anyhow!("Unknown IGS command: {ch}"))
+                    },
                 }
             }
             State::GotIgsStart => {
@@ -341,6 +354,7 @@ impl BufferParser for Parser {
                     self.state = State::ReadCommandStart;
                     return Ok(CallbackAction::NoUpdate);
                 }
+                self.state = State::Default;
                 let _ = self.fallback_parser.print_char(buf, current_layer, caret, 'G');
                 self.fallback_parser.print_char(buf, current_layer, caret, ch)
             }
