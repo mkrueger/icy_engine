@@ -1,5 +1,55 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IgsCommands {
+    /// A  =  command identifier
+    /// Sets attributes for fills and sets
+    /// border option.
+    /// 
+    /// 1st parameter selects pattern type:
+    /// 0=hollow, 1=solid, 2=pattern, 3=hatch 4=user defined
+    /// 
+    /// 2nd parameter selects pattern index number it
+    /// ranges 1-24 for type pattern and 1-12 for type hatch.
+    /// These patterns are illustrated in the ST BASIC manual,
+    /// page 95 in mine.  The IG Drawer will display examples.
+    /// 
+    /// 0-9 for user defined, 8 sets pattern 0 as RANDOM, looks
+    /// like dirt or sand mostly, 9 or greater sets pattern 0 as
+    /// it's stored default, looks like Star Trek symbol.
+    /// Patterns 6 and 7 are also used for user defined LINES.
+    /// SEE X 7 command for defining these patterns. 
+    /// 
+    /// 3rd parameter specifies if a border is to be drawn
+    /// around the filled area.  1=yes, 0=no
+    AttributeForFills,
+
+    /// b = command identifer.
+    /// Allows special sound effects to be played
+    /// using the ST's Sound Chip. 
+    /// 
+    /// number Description
+    /// --------------------
+    /// 0      Alien Invasion
+    /// 1      Red Alert
+    /// 2      Gunshot
+    /// 3      Laser 1
+    /// 4      Jackhammer
+    /// 5      Teleport
+    /// 6      Explosion
+    /// 7      Laser 2
+    /// 8      Longbell
+    /// 9      Surprise
+    /// 10     Radio Broadcast
+    /// 11     Bounce Ball
+    /// 12     Eerie Sound
+    /// 13     Harley Motorcycle
+    /// 14     Helicopter
+    /// 15     Steam Locomotive
+    /// 16     Wave
+    /// 17     Robot Walk
+    /// 18     Passing Plane
+    /// 19     Landing
+    BellsAndWhistles,
+
     /// B = command identifier (5 parameters)
     ///
     /// General purpose command for drawing rectangles.<br/>

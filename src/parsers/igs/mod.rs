@@ -6,7 +6,7 @@ use cmd::IgsCommands;
 
 const IGS_VERSION: &str = "1.8";
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 enum State {
     #[default]
     Default,
@@ -132,19 +132,21 @@ impl BufferParser for Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
+        println!("{} {:?}", ch, self.state  );
         match &self.state {
             State::ReadCommand(command) => {
-                if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 2 {
+                if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 3 {
                     self.parsed_string.push(ch);
-                    if ch == '@' {
-                        println!("parsed string:{}", self.parsed_string);
+                    if ch == '@' || ch == '\n' || ch == '\r' {
                         self.parsed_string.clear();
                         self.state = State::ReadCommandStart;
                         return Ok(CallbackAction::NoUpdate); 
                     }
+                    return Ok(CallbackAction::NoUpdate);
                 }
                 match ch {
-                    ' ' | '>' | '_' => { /* ignore */ }
+                    ' ' | '>' | '_' | '\n' | '\r' => { /* ignore */ }
+                    
                     '0'..='9' => {
                         let d = match self.parsed_numbers.pop() {
                             Some(number) => number,
@@ -156,8 +158,9 @@ impl BufferParser for Parser {
                         self.parsed_numbers.push(0);
                     }
                     ':' => {
-                        self.execute_command(*command)?;
+                        let res = self.execute_command(*command);
                         self.state = State::ReadCommandStart;
+                        return res;
                     }
                     _ => {
                         self.state = State::Default;
@@ -169,6 +172,14 @@ impl BufferParser for Parser {
                 self.parsed_numbers.clear();
                 match ch {
                     '\n' | '\r' => Ok(CallbackAction::NoUpdate),
+                    'A' => {
+                        self.state = State::ReadCommand(IgsCommands::AttributeForFills);
+                        Ok(CallbackAction::NoUpdate)
+                    }
+                    'b' => {
+                        self.state = State::ReadCommand(IgsCommands::BellsAndWhistles);
+                        Ok(CallbackAction::NoUpdate)
+                    }
                     'B' => {
                         self.state = State::ReadCommand(IgsCommands::Box);
                         Ok(CallbackAction::NoUpdate)
@@ -371,4 +382,52 @@ impl BufferParser for Parser {
 
 pub fn parse_next_number(x: i32, ch: u8) -> i32 {
     x.saturating_mul(10).saturating_add(ch as i32).saturating_sub(b'0' as i32)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{parsers::{ get_simple_action, create_buffer, update_buffer_force}, ascii, CallbackAction, TextPane};
+
+    #[test]
+    pub fn test_igs_version() {
+        let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
+        let action = get_simple_action(&mut igs_parser, b"G#?>0:"); 
+        if let CallbackAction::SendString(version) = action {
+            assert_eq!(version, super::IGS_VERSION);
+        } else {
+            panic!("Expected SendString action was :{action:?}");
+        }
+    }
+
+    #[test]
+    pub fn parse_two_commands() {
+        let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
+        let action = get_simple_action(&mut igs_parser, b"G#?>0:?>0:"); 
+        if let CallbackAction::SendString(version) = action {
+            assert_eq!(version, super::IGS_VERSION);
+        } else {
+            panic!("Expected SendString action was :{action:?}");
+        }
+    }
+
+    #[test]
+    pub fn test_eol_marker() {
+        let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
+        let action = get_simple_action(&mut igs_parser, b"G#?>_\n\r0:?>_\n\r0:"); 
+        if let CallbackAction::SendString(version) = action {
+            assert_eq!(version, super::IGS_VERSION);
+        } else {
+            panic!("Expected SendString action was :{action:?}");
+        }
+    }
+
+    #[test]
+    pub fn test_text_break_bug() {
+        let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
+        let (mut buf, mut caret) = create_buffer(&mut igs_parser, b""); 
+        update_buffer_force(&mut buf, &mut caret, &mut igs_parser, b"G#W>20,50,Chain@L 0,0,300,190:W>253,_\n140,IG SUPPORT BOARD@");
+
+       // println!("{buf}");
+        assert_eq!(' ', buf.get_char((0, 0)).ch);
+    }    
 }
