@@ -1,10 +1,7 @@
-use std::{any, path::Path};
+use std::path::Path;
 
-use super::{Position, SaveOptions, TextAttribute};
-use crate::{
-    petscii, AttributedChar, BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, OutputFormat, Palette, TextPane, C64_DEFAULT_PALETTE,
-    C64_LOWER, C64_UPPER,
-};
+use super::SaveOptions;
+use crate::{petscii, BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, OutputFormat, Palette, C64_DEFAULT_PALETTE, C64_LOWER, C64_UPPER};
 
 #[derive(Default)]
 pub(super) struct Seq {}
@@ -44,7 +41,7 @@ impl OutputFormat for Seq {
         let mut p = petscii::Parser::default();
         let mut caret = Caret::default();
         for ch in data.iter() {
-            let res = p.print_char(&mut result, 0, &mut caret, *ch as char);
+            let _ = p.print_char(&mut result, 0, &mut caret, *ch as char);
         }
         Ok(result)
     }
