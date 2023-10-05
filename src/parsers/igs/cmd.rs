@@ -195,17 +195,18 @@ pub enum IgsCommands {
     HollowSet,
 
     /// I = command identifier
-    /// Initializes color pallet and most
-    /// attributes to what ever they were before
-    /// the Instant Graphics ACC was executed.
-    /// Issue this command at the start of each  graphic
-    /// sequence and you'll have a common starting point.
     ///
-    /// Parameter:
-    ///     0 = Set resolution, pallet, and attributes
-    ///     1 = Set resolution and pallet
-    ///     2 = Set attributes
-    ///     3 = Set Instant Graphics! default pallet
+    /// Initializes color pallet and most<br/>
+    /// attributes to what ever they were before<br/>
+    /// the Instant Graphics ACC was executed.<br/>
+    /// Issue this command at the start of each  graphic<br/>
+    /// sequence and you'll have a common starting point.<br/>
+    ///<br/>
+    /// Parameter:<br/>
+    ///     0 = Set resolution, pallet, and attributes<br/>
+    ///     1 = Set resolution and pallet<br/>
+    ///     2 = Set attributes<br/>
+    ///     3 = Set Instant Graphics! default pallet<br/>
     Initialize,
 
     ///  J = command identifier

@@ -1,5 +1,5 @@
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Size};
 
 mod cmd;
 use cmd::IgsCommands;
@@ -32,6 +32,14 @@ impl TerminalResolution {
             TerminalResolution::High => "2".to_string(),
         }
     }
+
+    pub fn get_resolution(&self) -> Size {
+        match self {
+            TerminalResolution::Low => Size { width: 320, height: 200 },
+            TerminalResolution::Medium => Size { width: 640, height: 200 },
+            TerminalResolution::High => Size { width: 640, height: 400 },
+        }
+    }
 }
 
 pub struct Parser {
@@ -40,6 +48,8 @@ pub struct Parser {
     parsed_numbers: Vec<i32>,
 
     terminal_resolution: TerminalResolution,
+
+    igs_texture: Vec<u8>,
 }
 
 impl Parser {
@@ -49,14 +59,53 @@ impl Parser {
             state: State::Default,
             parsed_numbers: Vec::new(),
             terminal_resolution: TerminalResolution::Medium,
+            igs_texture: Vec::new(),
         }
     }
     pub fn clear(&mut self) {
         // clear viewport
     }
 
+    pub fn set_resolution(&mut self) {
+        let res = self.terminal_resolution.get_resolution();
+        self.igs_texture = vec![0; res.width as usize * 2 * 4 * res.height as usize * 2];
+    }
+
+    pub fn set_palette(&mut self) {
+        // TODO
+    }
+
+    pub fn reset_attributes(&mut self) {
+        // TODO
+    }
+
     fn execute_command(&mut self, command: IgsCommands) -> EngineResult<CallbackAction> {
         match command {
+            IgsCommands::Initialize => {
+                if self.parsed_numbers.len() != 1 {
+                    return Err(anyhow::anyhow!("Initialize command requires 1 argument"));
+                }
+                match self.parsed_numbers.pop().unwrap() {
+                    0 => {
+                        self.set_resolution();
+                        self.set_palette();
+                        self.reset_attributes();
+                    }
+                    1 => {
+                        self.set_resolution();
+                        self.set_palette();
+                    }
+                    2 => {
+                        self.reset_attributes();
+                    }
+                    3 => {
+                        self.set_resolution();
+                    }
+                    x => return Err(anyhow::anyhow!("Initialize unknown/unsupported argument: {x}")),
+                }
+
+                Ok(CallbackAction::Update)
+            }
             IgsCommands::AskIG => {
                 if self.parsed_numbers.len() != 1 {
                     return Err(anyhow::anyhow!("AskIG command requires 1 argument"));

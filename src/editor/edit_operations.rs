@@ -56,7 +56,7 @@ impl EditState {
     /// This function will return an error if .
     pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
         if let Some(layer) = Layer::from_clipboard_data(data) {
-            let op = Paste::new(layer);
+            let op = Paste::new(self.current_layer, layer);
             self.push_undo_action(Box::new(op))?;
         }
         self.selection_opt = None;
@@ -77,7 +77,7 @@ impl EditState {
         layer.has_alpha_channel = true;
         layer.sixels.push(sixel);
 
-        let op = Paste::new(layer);
+        let op = Paste::new(self.current_layer, layer);
         self.push_undo_action(Box::new(op))?;
         self.selection_opt = None;
         Ok(())

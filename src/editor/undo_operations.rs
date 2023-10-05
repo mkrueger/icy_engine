@@ -283,6 +283,7 @@ impl UndoOperation for MergeLayerDown {
                 edit_state.buffer.layers.insert(self.index - 1, layer);
             }
             self.merged_layer = Some(edit_state.buffer.layers.remove(self.index + 1));
+            edit_state.set_current_layer(self.index);
             edit_state.clamp_current_layer();
             Ok(())
         } else {
@@ -294,6 +295,7 @@ impl UndoOperation for MergeLayerDown {
         if let Some(layer) = self.merged_layer.take() {
             self.orig_layers = Some(edit_state.buffer.layers.drain((self.index - 1)..=self.index).collect());
             edit_state.buffer.layers.insert(self.index - 1, layer);
+            edit_state.set_current_layer(self.index - 1);
             Ok(())
         } else {
             Err(EditorError::MergeLayerDownHasNoMergeLayer.into())
@@ -414,11 +416,15 @@ impl UndoOperation for SetLayerSize {
 #[derive(Default)]
 pub struct Paste {
     layer: Option<Layer>,
+    current_layer: usize,
 }
 
 impl Paste {
-    pub(crate) fn new(paste_layer: Layer) -> Self {
-        Self { layer: Some(paste_layer) }
+    pub(crate) fn new(current_layer: usize, paste_layer: Layer) -> Self {
+        Self {
+            layer: Some(paste_layer),
+            current_layer,
+        }
     }
 }
 
@@ -428,13 +434,13 @@ impl UndoOperation for Paste {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        self.layer = Some(edit_state.buffer.layers.pop().unwrap());
+        self.layer = Some(edit_state.buffer.layers.remove(self.current_layer + 1));
         Ok(())
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = self.layer.take() {
-            edit_state.buffer.layers.push(layer);
+            edit_state.buffer.layers.insert(self.current_layer + 1, layer);
             Ok(())
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -443,7 +449,15 @@ impl UndoOperation for Paste {
 }
 
 #[derive(Default)]
-pub struct AddFloatingLayer {}
+pub struct AddFloatingLayer {
+    current_layer: usize,
+}
+
+impl AddFloatingLayer {
+    pub(crate) fn new(current_layer: usize) -> Self {
+        Self { current_layer }
+    }
+}
 
 impl UndoOperation for AddFloatingLayer {
     fn get_description(&self) -> String {
@@ -451,7 +465,7 @@ impl UndoOperation for AddFloatingLayer {
     }
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        if let Some(layer) = edit_state.buffer.layers.last_mut() {
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.current_layer) {
             if matches!(layer.role, crate::Role::Image) {
                 layer.role = crate::Role::PasteImage;
             } else {
@@ -463,7 +477,7 @@ impl UndoOperation for AddFloatingLayer {
     }
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
-        if let Some(layer) = edit_state.buffer.layers.last_mut() {
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.current_layer) {
             if matches!(layer.role, crate::Role::PasteImage) {
                 layer.role = crate::Role::Image;
             } else {

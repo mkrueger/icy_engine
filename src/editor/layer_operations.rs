@@ -79,11 +79,11 @@ impl EditState {
             return Ok(());
         }
         let _op = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "layer-anchor"));
-        self.merge_layer_down(self.buffer.layers.len() - 1)
+        self.merge_layer_down(self.get_current_layer())
     }
 
     pub fn add_floating_layer(&mut self) -> EngineResult<()> {
-        let op = undo_operations::AddFloatingLayer::default();
+        let op = undo_operations::AddFloatingLayer::new(self.get_current_layer());
         self.push_undo_action(Box::new(op))
     }
 
