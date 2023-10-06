@@ -121,7 +121,12 @@ impl EditState {
     where
         F: Fn(Position, AttributedChar, bool) -> Option<bool>,
     {
-        let offset = self.get_cur_layer().unwrap().get_offset();
+        let offset = if let Some(cur_layer) = self.get_cur_layer() {
+            cur_layer.get_offset()
+        } else {
+            log::error!("No current layer");
+            return;
+        };
 
         let old_mask = self.selection_mask.clone();
         for y in 0..self.buffer.get_height() {

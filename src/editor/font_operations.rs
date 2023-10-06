@@ -27,13 +27,21 @@ impl EditState {
             crate::FontMode::Sauce => Err(anyhow::anyhow!("Not supported for sauce buffers.")),
             crate::FontMode::Single => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
-                let op = super::undo_operations::SetFont::new(0, self.get_buffer().get_font(0).unwrap().clone(), new_font);
-                self.push_undo_action(Box::new(op))
+                if let Some(font) = self.get_buffer().get_font(0) {
+                    let op = super::undo_operations::SetFont::new(0, font.clone(), new_font);
+                    self.push_undo_action(Box::new(op))
+                } else {
+                    Err(anyhow::anyhow!("No font found in buffer."))
+                }
             }
             crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let new_font = BitFont::from_ansi_font_page(page)?;
-                let op = super::undo_operations::SetFont::new(self.caret.get_font_page(), self.get_buffer().get_font(0).unwrap().clone(), new_font);
-                self.push_undo_action(Box::new(op))
+                if let Some(font) = self.get_buffer().get_font(0) {
+                    let op = super::undo_operations::SetFont::new(self.caret.get_font_page(), font.clone(), new_font);
+                    self.push_undo_action(Box::new(op))
+                } else {
+                    Err(anyhow::anyhow!("No font found in buffer."))
+                }
             }
         }
     }
@@ -42,13 +50,21 @@ impl EditState {
         match self.get_buffer().font_mode {
             crate::FontMode::Sauce | crate::FontMode::Single => {
                 let new_font = BitFont::from_sauce_name(name)?;
-                let op = super::undo_operations::SetFont::new(0, self.get_buffer().get_font(0).unwrap().clone(), new_font);
-                self.push_undo_action(Box::new(op))
+                if let Some(font) = self.get_buffer().get_font(0) {
+                    let op = super::undo_operations::SetFont::new(0, font.clone(), new_font);
+                    self.push_undo_action(Box::new(op))
+                } else {
+                    Err(anyhow::anyhow!("No font found in buffer."))
+                }
             }
             crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
                 let new_font = BitFont::from_sauce_name(name)?;
-                let op = super::undo_operations::SetFont::new(self.caret.get_font_page(), self.get_buffer().get_font(0).unwrap().clone(), new_font);
-                self.push_undo_action(Box::new(op))
+                if let Some(font) = self.get_buffer().get_font(0) {
+                    let op = super::undo_operations::SetFont::new(self.caret.get_font_page(), font.clone(), new_font);
+                    self.push_undo_action(Box::new(op))
+                } else {
+                    Err(anyhow::anyhow!("No font found in buffer."))
+                }
             }
         }
     }
@@ -75,12 +91,20 @@ impl EditState {
         match self.get_buffer().font_mode {
             crate::FontMode::Sauce => Err(anyhow::anyhow!("Not supported for sauce buffers.")),
             crate::FontMode::Single => {
-                let op = super::undo_operations::SetFont::new(0, self.get_buffer().get_font(0).unwrap().clone(), new_font);
-                self.push_undo_action(Box::new(op))
+                if let Some(font) = self.get_buffer().get_font(0) {
+                    let op = super::undo_operations::SetFont::new(0, font.clone(), new_font);
+                    self.push_undo_action(Box::new(op))
+                } else {
+                    Err(anyhow::anyhow!("No font found in buffer."))
+                }
             }
             crate::FontMode::Unlimited | crate::FontMode::FixedSize => {
-                let op = super::undo_operations::SetFont::new(self.caret.get_font_page(), self.get_buffer().get_font(0).unwrap().clone(), new_font);
-                self.push_undo_action(Box::new(op))
+                if let Some(font) = self.get_buffer().get_font(0) {
+                    let op = super::undo_operations::SetFont::new(self.caret.get_font_page(), font.clone(), new_font);
+                    self.push_undo_action(Box::new(op))
+                } else {
+                    Err(anyhow::anyhow!("No font found in buffer."))
+                }
             }
         }
     }

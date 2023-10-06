@@ -825,8 +825,11 @@ mod scroll_util {
     }
     pub(crate) fn scroll_layer_down(edit_state: &mut crate::editor::EditState, layer: usize) -> EngineResult<()> {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(layer) {
-            let lines = layer.lines.pop().unwrap();
-            layer.lines.insert(0, lines);
+            if let Some(lines) = layer.lines.pop() {
+                layer.lines.insert(0, lines);
+            } else {
+                log::error!("Layer {layer} has no lines");
+            }
             Ok(())
         } else {
             Err(EditorError::InvalidLayer(layer).into())
