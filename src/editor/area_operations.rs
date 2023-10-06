@@ -203,8 +203,12 @@ impl EditState {
     }
 
     pub fn crop(&mut self) -> EngineResult<()> {
-        let sel = self.get_selection().unwrap().as_rectangle();
-        self.crop_rect(sel)
+        if let Some(sel) = self.get_selection() {
+            let sel = sel.as_rectangle();
+            self.crop_rect(sel)
+        } else {
+            Ok(())
+        }
     }
 
     pub fn crop_rect(&mut self, rect: Rectangle) -> EngineResult<()> {
