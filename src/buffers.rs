@@ -704,7 +704,7 @@ impl Buffer {
     ///
     /// This function will return an error if .
     pub fn from_bytes(file_name: &Path, _skip_errors: bool, bytes: &[u8]) -> EngineResult<Buffer> {
-        let ext = file_name.extension().unwrap().to_str().unwrap();
+        let ext = file_name.extension().unwrap().to_string_lossy();
         let mut len = bytes.len();
         let sauce_data = match SauceData::extract(bytes) {
             Ok(Some(sauce)) => {

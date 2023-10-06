@@ -1,7 +1,10 @@
 use std::path::Path;
 
 use super::SaveOptions;
-use crate::{petscii, BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, OutputFormat, Palette, C64_DEFAULT_PALETTE, C64_LOWER, C64_UPPER, TextPane, AttributedChar};
+use crate::{
+    petscii, AttributedChar, BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, OutputFormat, Palette, TextPane, C64_DEFAULT_PALETTE,
+    C64_LOWER, C64_UPPER,
+};
 
 #[derive(Default)]
 pub(super) struct Seq {}

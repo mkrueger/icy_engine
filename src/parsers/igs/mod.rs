@@ -15,6 +15,15 @@ enum State {
     ReadCommand(IgsCommands),
 }
 
+#[derive(Default, Debug)]
+enum LoopState {
+    #[default]
+    Start,
+    ReadCommand,
+    ReadCount,
+    ReadParameter,
+}
+
 pub enum TerminalResolution {
     /// 320x200
     Low,
@@ -48,8 +57,9 @@ pub struct Parser {
     parsed_numbers: Vec<i32>,
     parsed_string: String,
     terminal_resolution: TerminalResolution,
-
+    loop_state: LoopState,
     igs_texture: Vec<u8>,
+    loop_parameters: Vec<Vec<String>>,
 }
 
 impl Parser {
@@ -60,7 +70,9 @@ impl Parser {
             parsed_numbers: Vec::new(),
             terminal_resolution: TerminalResolution::Medium,
             igs_texture: Vec::new(),
-            parsed_string: String::new()
+            parsed_string: String::new(),
+            loop_state: LoopState::Start,
+            loop_parameters: Vec::new(),
         }
     }
     pub fn clear(&mut self) {
@@ -132,7 +144,7 @@ impl BufferParser for Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        println!("{} {:?}", ch, self.state  );
+        // println!("{} {:?} - numbers:{:?}", ch, self.state, self.parsed_numbers);
         match &self.state {
             State::ReadCommand(command) => {
                 if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 3 {
@@ -140,13 +152,69 @@ impl BufferParser for Parser {
                     if ch == '@' || ch == '\n' || ch == '\r' {
                         self.parsed_string.clear();
                         self.state = State::ReadCommandStart;
-                        return Ok(CallbackAction::NoUpdate); 
+                        return Ok(CallbackAction::NoUpdate);
+                    }
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                if *command == IgsCommands::LoopCommand && self.parsed_numbers.len() >= 4 {
+                    self.parsed_string.push(ch);
+                    match self.loop_state {
+                        LoopState::Start => {
+                            if ch == ',' {
+                                self.loop_state = LoopState::ReadCommand;
+                            }
+                        }
+                        LoopState::ReadCommand => {
+                            if ch == '@' || ch == '|' || ch == ',' {
+                                self.loop_state = LoopState::ReadCount;
+                                self.parsed_numbers.push(0);
+
+                                self.parsed_string.clear();
+                            }
+                        }
+                        LoopState::ReadCount => match ch {
+                            '0'..='9' => {
+                                let d = match self.parsed_numbers.pop() {
+                                    Some(number) => number,
+                                    _ => 0,
+                                };
+                                self.parsed_numbers.push(parse_next_number(d, ch as u8));
+                            }
+                            ',' => {
+                                self.loop_parameters.clear();
+                                self.loop_parameters.push(vec![String::new()]);
+
+                                self.loop_state = LoopState::ReadParameter;
+                            }
+                            _ => {
+                                self.state = State::Default;
+                            }
+                        },
+                        LoopState::ReadParameter => match ch {
+                            ',' => {
+                                self.loop_parameters.last_mut().unwrap().push(String::new());
+                                if self.parsed_numbers[4] < self.loop_parameters.len() as i32 {
+                                    self.state = State::ReadCommandStart;
+                                }
+                            }
+
+                            ':' => {
+                                self.loop_parameters.push(vec![String::new()]);
+
+                                if self.parsed_numbers[4] < self.loop_parameters.len() as i32 {
+                                    self.state = State::ReadCommandStart;
+                                }
+                            }
+                            _ => {
+                                self.loop_parameters.last_mut().unwrap().last_mut().unwrap().push(ch);
+                            }
+                        },
                     }
                     return Ok(CallbackAction::NoUpdate);
                 }
                 match ch {
                     ' ' | '>' | '_' | '\n' | '\r' => { /* ignore */ }
-                    
+
                     '0'..='9' => {
                         let d = match self.parsed_numbers.pop() {
                             Some(number) => number,
@@ -310,6 +378,7 @@ impl BufferParser for Parser {
                     }
                     '&' => {
                         self.state = State::ReadCommand(IgsCommands::LoopCommand);
+                        self.loop_state = LoopState::Start;
                         Ok(CallbackAction::NoUpdate)
                     }
 
@@ -357,7 +426,7 @@ impl BufferParser for Parser {
                     _ => {
                         self.state = State::Default;
                         Err(anyhow::anyhow!("Unknown IGS command: {ch}"))
-                    },
+                    }
                 }
             }
             State::GotIgsStart => {
@@ -386,12 +455,16 @@ pub fn parse_next_number(x: i32, ch: u8) -> i32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parsers::{ get_simple_action, create_buffer, update_buffer_force}, ascii, CallbackAction, TextPane};
+    use crate::{
+        ascii,
+        parsers::{create_buffer, get_simple_action, update_buffer_force},
+        CallbackAction, TextPane,
+    };
 
     #[test]
     pub fn test_igs_version() {
         let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
-        let action = get_simple_action(&mut igs_parser, b"G#?>0:"); 
+        let action = get_simple_action(&mut igs_parser, b"G#?>0:");
         if let CallbackAction::SendString(version) = action {
             assert_eq!(version, super::IGS_VERSION);
         } else {
@@ -402,7 +475,7 @@ mod tests {
     #[test]
     pub fn parse_two_commands() {
         let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
-        let action = get_simple_action(&mut igs_parser, b"G#?>0:?>0:"); 
+        let action = get_simple_action(&mut igs_parser, b"G#?>0:?>0:");
         if let CallbackAction::SendString(version) = action {
             assert_eq!(version, super::IGS_VERSION);
         } else {
@@ -413,7 +486,7 @@ mod tests {
     #[test]
     pub fn test_eol_marker() {
         let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
-        let action = get_simple_action(&mut igs_parser, b"G#?>_\n\r0:?>_\n\r0:"); 
+        let action = get_simple_action(&mut igs_parser, b"G#?>_\n\r0:?>_\n\r0:");
         if let CallbackAction::SendString(version) = action {
             assert_eq!(version, super::IGS_VERSION);
         } else {
@@ -424,10 +497,21 @@ mod tests {
     #[test]
     pub fn test_text_break_bug() {
         let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
-        let (mut buf, mut caret) = create_buffer(&mut igs_parser, b""); 
-        update_buffer_force(&mut buf, &mut caret, &mut igs_parser, b"G#W>20,50,Chain@L 0,0,300,190:W>253,_\n140,IG SUPPORT BOARD@");
-
-       // println!("{buf}");
+        let (mut buf, mut caret) = create_buffer(&mut igs_parser, b"");
+        update_buffer_force(
+            &mut buf,
+            &mut caret,
+            &mut igs_parser,
+            b"G#W>20,50,Chain@L 0,0,300,190:W>253,_\n140,IG SUPPORT BOARD@",
+        );
         assert_eq!(' ', buf.get_char((0, 0)).ch);
-    }    
+    }
+
+    #[test]
+    pub fn test_loop() {
+        let mut igs_parser = super::Parser::new(Box::<ascii::Parser>::default());
+        let (mut buf, mut caret) = create_buffer(&mut igs_parser, b"");
+        update_buffer_force(&mut buf, &mut caret, &mut igs_parser, b"G#&>0,320,4,0,L,8,0,100,x,0:0,100,x,199:");
+        assert_eq!(' ', buf.get_char((0, 0)).ch);
+    }
 }

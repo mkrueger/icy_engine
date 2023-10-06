@@ -3,29 +3,29 @@ pub enum IgsCommands {
     /// A  =  command identifier
     /// Sets attributes for fills and sets
     /// border option.
-    /// 
+    ///
     /// 1st parameter selects pattern type:
     /// 0=hollow, 1=solid, 2=pattern, 3=hatch 4=user defined
-    /// 
+    ///
     /// 2nd parameter selects pattern index number it
     /// ranges 1-24 for type pattern and 1-12 for type hatch.
     /// These patterns are illustrated in the ST BASIC manual,
     /// page 95 in mine.  The IG Drawer will display examples.
-    /// 
+    ///
     /// 0-9 for user defined, 8 sets pattern 0 as RANDOM, looks
     /// like dirt or sand mostly, 9 or greater sets pattern 0 as
     /// it's stored default, looks like Star Trek symbol.
     /// Patterns 6 and 7 are also used for user defined LINES.
-    /// SEE X 7 command for defining these patterns. 
-    /// 
+    /// SEE X 7 command for defining these patterns.
+    ///
     /// 3rd parameter specifies if a border is to be drawn
     /// around the filled area.  1=yes, 0=no
     AttributeForFills,
 
     /// b = command identifer.
     /// Allows special sound effects to be played
-    /// using the ST's Sound Chip. 
-    /// 
+    /// using the ST's Sound Chip.
+    ///
     /// number Description
     /// --------------------
     /// 0      Alien Invasion
