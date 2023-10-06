@@ -25,13 +25,16 @@ impl EditState {
     }
 
     pub fn remove_layer(&mut self, layer: usize) -> EngineResult<()> {
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
+        }
         let op = undo_operations::RemoveLayer::new(layer);
         self.push_undo_action(Box::new(op))
     }
 
     pub fn raise_layer(&mut self, layer: usize) -> EngineResult<()> {
         if layer + 1 >= self.buffer.layers.len() {
-            return Ok(());
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
         }
         let op = undo_operations::RaiseLayer::new(layer);
         self.push_undo_action(Box::new(op))?;
@@ -43,6 +46,10 @@ impl EditState {
         if layer == 0 {
             return Ok(());
         }
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
+        }
+
         let op = undo_operations::LowerLayer::new(layer);
         self.push_undo_action(Box::new(op))?;
         self.current_layer = layer - 1;
@@ -50,6 +57,9 @@ impl EditState {
     }
 
     pub fn duplicate_layer(&mut self, layer: usize) -> EngineResult<()> {
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
+        }
         let mut new_layer = self.buffer.layers[layer].clone();
         new_layer.title = fl!(crate::LANGUAGE_LOADER, "layer-duplicate-name", name = new_layer.title);
         let op = undo_operations::AddLayer::new(layer + 1, new_layer);
@@ -59,6 +69,9 @@ impl EditState {
     }
 
     pub fn clear_layer(&mut self, layer: usize) -> EngineResult<()> {
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
+        }
         let op = undo_operations::ClearLayer::new(layer);
         self.push_undo_action(Box::new(op))?;
         self.current_layer = layer + 1;
@@ -103,6 +116,9 @@ impl EditState {
     pub fn merge_layer_down(&mut self, layer: usize) -> EngineResult<()> {
         if layer == 0 {
             return Err(anyhow::anyhow!("Cannot merge down base layer"));
+        }
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
         }
         let Some(cur_layer) = self.get_cur_layer() else {
             return Err(super::EditorError::CurrentLayerInvalid.into());
@@ -161,6 +177,9 @@ impl EditState {
     }
 
     pub fn toggle_layer_visibility(&mut self, layer: usize) -> EngineResult<()> {
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
+        }
         let op = undo_operations::ToggleLayerVisibility::new(layer);
         self.push_undo_action(Box::new(op))
     }
@@ -176,6 +195,9 @@ impl EditState {
     }
 
     pub fn set_layer_size(&mut self, layer: usize, size: impl Into<Size>) -> EngineResult<()> {
+        if layer >= self.buffer.layers.len() {
+            return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
+        }
         let op = undo_operations::SetLayerSize::new(layer, size.into());
         self.push_undo_action(Box::new(op))
     }
