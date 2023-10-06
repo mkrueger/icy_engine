@@ -12,7 +12,11 @@ impl EditState {
         let size = self.buffer.get_size();
         let mut new_layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-new-name"), size);
         new_layer.has_alpha_channel = true;
-        let idx = if self.buffer.layers.is_empty() { 0 } else { layer + 1 };
+        let idx = if self.buffer.layers.is_empty() {
+            0
+        } else {
+            (layer + 1).clamp(0, self.buffer.layers.len() - 1)
+        };
 
         let op = undo_operations::AddLayer::new(idx, new_layer);
         self.push_undo_action(Box::new(op))?;
