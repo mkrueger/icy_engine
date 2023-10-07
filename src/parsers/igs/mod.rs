@@ -54,6 +54,7 @@ pub struct Parser {
     loop_cmd: char,
     loop_parameters: Vec<Vec<String>>,
     command_executor: Arc<Mutex<Box<dyn CommandExecutor>>>,
+    got_double_colon: bool,
 }
 
 impl Parser {
@@ -67,6 +68,7 @@ impl Parser {
             loop_state: LoopState::Start,
             loop_parameters: Vec::new(),
             loop_cmd: ' ',
+            got_double_colon: false,
         }
     }
 
@@ -181,7 +183,7 @@ impl BufferParser for Parser {
                             ',' => {
                                 self.loop_parameters.clear();
                                 self.loop_parameters.push(vec![String::new()]);
-
+                                self.got_double_colon = false;
                                 self.loop_state = LoopState::ReadParameter;
                             }
                             _ => {
@@ -241,9 +243,19 @@ impl BufferParser for Parser {
                     return Ok(CallbackAction::NoUpdate);
                 }
                 match ch {
-                    ' ' | '>' | '_' | '\n' | '\r' => { /* ignore */ }
+                    ' ' | '>' => { /* ignore */ }
+                    '_' => {
+                        self.got_double_colon = false;
+                    }
+                    '\n' | '\r' => {
+                        if self.got_double_colon {
+                            self.got_double_colon = false;
+                            self.state = State::Default;
+                        }
+                    }
 
                     '0'..='9' => {
+                        self.got_double_colon = false;
                         let d = match self.parsed_numbers.pop() {
                             Some(number) => number,
                             _ => 0,
@@ -251,15 +263,18 @@ impl BufferParser for Parser {
                         self.parsed_numbers.push(parse_next_number(d, ch as u8));
                     }
                     ',' => {
+                        self.got_double_colon = false;
                         self.parsed_numbers.push(0);
                     }
                     ':' => {
+                        self.got_double_colon = true;
                         let parameters: Vec<_> = self.parsed_numbers.drain(..).collect();
                         let res = self.command_executor.lock().unwrap().execute_command(buf, caret, *command, &parameters);
                         self.state = State::ReadCommandStart;
                         return res;
                     }
                     _ => {
+                        self.got_double_colon = false;
                         self.state = State::Default;
                     }
                 }
@@ -268,7 +283,10 @@ impl BufferParser for Parser {
             State::ReadCommandStart => {
                 self.parsed_numbers.clear();
                 match ch {
-                    '\n' | '\r' => Ok(CallbackAction::NoUpdate),
+                    '\n' | '\r' => {
+                        self.state = State::Default;
+                        Ok(CallbackAction::NoUpdate)
+                    }
 
                     '&' => {
                         self.state = State::ReadCommand(IgsCommands::LoopCommand);

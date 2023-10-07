@@ -1,5 +1,5 @@
 use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION};
-use crate::{paint::get_line_points, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, DOS_DEFAULT_PALETTE, IGS_PALETTE};
+use crate::{paint::get_line_points, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, IGS_PALETTE, IGS_SYSTEM_PALETTE};
 
 #[derive(Default)]
 pub enum TerminalResolution {
@@ -104,7 +104,7 @@ impl Default for DrawExecutor {
             terminal_resolution: TerminalResolution::default(),
             x_scale: 2.0,
             y_scale: 2.0,
-            pen_colors: IGS_PALETTE.to_vec(),
+            pen_colors: IGS_SYSTEM_PALETTE.to_vec(),
             polymarker_color: 0,
             line_color: 0,
             fill_color: 0,
@@ -135,10 +135,6 @@ impl DrawExecutor {
     pub fn set_resolution(&mut self) {
         let res = self.get_resolution();
         self.igs_texture = vec![0; res.width as usize * 4 * res.height as usize];
-    }
-
-    pub fn set_palette(&mut self) {
-        self.pen_colors = IGS_PALETTE.to_vec();
     }
 
     pub fn reset_attributes(&mut self) {
@@ -200,18 +196,19 @@ impl CommandExecutor for DrawExecutor {
                 match parameters[0] {
                     0 => {
                         self.set_resolution();
-                        self.set_palette();
+                        self.pen_colors = IGS_SYSTEM_PALETTE.to_vec();
                         self.reset_attributes();
                     }
                     1 => {
                         self.set_resolution();
-                        self.set_palette();
+                        self.pen_colors = IGS_SYSTEM_PALETTE.to_vec();
                     }
                     2 => {
                         self.reset_attributes();
                     }
                     3 => {
                         self.set_resolution();
+                        self.pen_colors = IGS_PALETTE.to_vec();
                     }
                     x => return Err(anyhow::anyhow!("Initialize unknown/unsupported argument: {x}")),
                 }
@@ -332,6 +329,24 @@ impl CommandExecutor for DrawExecutor {
 
                 Ok(CallbackAction::Update)
             }
+
+            IgsCommands::FilledRectangle => {
+                if parameters.len() != 4 {
+                    return Err(anyhow::anyhow!("FilledRectangle command requires 4 arguments"));
+                }
+                let min = self.translate_pos(Position::new(parameters[0], parameters[1]));
+                let max = self.translate_pos(Position::new(parameters[2], parameters[3]));
+
+                let c = self.pen_colors[self.fill_color].clone();
+                for y in min.y..=max.y {
+                    for x in min.x..=max.x {
+                        self.draw_pixel(Position::new(x, y), &c);
+                    }
+                }
+
+                Ok(CallbackAction::Update)
+            }
+
             IgsCommands::TimeAPause => Ok(CallbackAction::Pause(1000 * parameters[0] as u32)),
 
             IgsCommands::PolymarkerPlot => {
@@ -439,7 +454,7 @@ impl CommandExecutor for DrawExecutor {
                     }
                     1 => {
                         // default system colors
-                        self.pen_colors = DOS_DEFAULT_PALETTE.to_vec();
+                        self.pen_colors = IGS_SYSTEM_PALETTE.to_vec();
                     }
                     2 => {
                         // IG colors

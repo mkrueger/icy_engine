@@ -996,7 +996,7 @@ pub const ATARI_DEFAULT_PALETTE: [Color; 16] = [
     }, // unused
 ];
 
-pub const IGS_PALETTE: [Color; 16] = [
+pub const IGS_SYSTEM_PALETTE: [Color; 16] = [
     Color {
         name: None,
         r: 0x00,
@@ -1086,6 +1086,113 @@ pub const IGS_PALETTE: [Color; 16] = [
         r: 0xEE,
         g: 0x66,
         b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0xEE,
+        b: 0xEE,
+    },
+];
+
+pub const IGS_PALETTE: [Color; 16] = [
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0x00,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0x00,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0xEE,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0x00,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0xEE,
+        b: 0xEE,
+    },
+    Color {
+        // Black 2 ? (from atari emulator)
+        name: None,
+        r: 0x00,
+        g: 0x00,
+        b: 0x00,
+    },
+    Color {
+        // Yellow
+        name: None,
+        r: 0xEE,
+        g: 0xEE,
+        b: 0x00,
+    },
+    Color {
+        // light purple
+        name: None,
+        r: 0xAA,
+        g: 0x88,
+        b: 0xCC,
+    },
+    Color {
+        // light brown
+        name: None,
+        r: 0xAA,
+        g: 0x66,
+        b: 0x44,
+    },
+    Color {
+        // skin color
+        name: None,
+        r: 0xEE,
+        g: 0x88,
+        b: 0x66,
+    },
+    Color {
+        // sea green
+        name: None,
+        r: 0x00,
+        g: 0x88,
+        b: 0x66,
+    },
+    Color {
+        // mid gray
+        name: None,
+        r: 0x66,
+        g: 0x66,
+        b: 0x66,
+    },
+    Color {
+        // blueish
+        name: None,
+        r: 0x22,
+        g: 0x66,
+        b: 0x88,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0x66,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0x44,
+        g: 0x22,
+        b: 0x00,
     },
     Color {
         name: None,
