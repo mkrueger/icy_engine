@@ -78,6 +78,7 @@ pub type EngineResult<T> = anyhow::Result<T>;
 pub mod editor;
 
 pub mod overlay_mask;
+pub mod paint;
 pub mod util;
 
 use i18n_embed::{

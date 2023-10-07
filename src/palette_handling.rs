@@ -996,6 +996,105 @@ pub const ATARI_DEFAULT_PALETTE: [Color; 16] = [
     }, // unused
 ];
 
+pub const IGS_PALETTE: [Color; 16] = [
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0x00,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0x00,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0xEE,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0x00,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0x00,
+        g: 0xEE,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0xEE,
+        b: 0x00,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0x00,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0xAA,
+        g: 0xAA,
+        b: 0xAA,
+    },
+    Color {
+        name: None,
+        r: 0x66,
+        g: 0x66,
+        b: 0x66,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0x66,
+        b: 0x66,
+    },
+    Color {
+        name: None,
+        r: 0x66,
+        g: 0xEE,
+        b: 0x66,
+    },
+    Color {
+        name: None,
+        r: 0x66,
+        g: 0x66,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0x66,
+        g: 0xEE,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0xEE,
+        b: 0x66,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0x66,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
+        r: 0xEE,
+        g: 0xEE,
+        b: 0xEE,
+    },
+];
+
 pub const EGA_PALETTE: [Color; 64] = [
     Color {
         name: None,

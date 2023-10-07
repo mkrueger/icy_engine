@@ -34,6 +34,8 @@ pub enum CallbackAction {
     PlayMusic(AnsiMusic),
     ChangeBaudEmulation(ansi::BaudEmulation),
     ResizeTerminal(i32, i32),
+    /// Pause for milliseconds
+    Pause(u32),
 }
 
 pub trait BufferParser: Send {

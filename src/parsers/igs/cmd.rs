@@ -1,3 +1,5 @@
+use crate::EngineResult;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum IgsCommands {
     /// A  =  command identifier
@@ -979,4 +981,61 @@ pub enum IgsCommands {
     /// sort of like the old 8 bit XIO thing.
     /// Opens a door for 10,000 new commands!!!
     ExtendedCommands,
+}
+
+impl IgsCommands {
+    /// Read all commands except loop.
+    pub fn from_char(ch: char) -> EngineResult<Self> {
+        let result = match ch {
+            'A' => IgsCommands::AttributeForFills,
+            'b' => IgsCommands::BellsAndWhistles,
+            'B' => IgsCommands::Box,
+            'C' => IgsCommands::ColorSet,
+            'D' => IgsCommands::LineDrawTo,
+            'E' => IgsCommands::TextEffects,
+            'F' => IgsCommands::FloodFill,
+            'g' => IgsCommands::GraphicScaling,
+            'G' => IgsCommands::GrabScreen,
+            'q' => IgsCommands::QuickPause,
+            'H' => IgsCommands::HollowSet,
+            'I' => IgsCommands::Initialize,
+            'J' => IgsCommands::EllipticalArc,
+            'k' => IgsCommands::Cursor,
+            'K' => IgsCommands::Arc,
+            'L' => IgsCommands::DrawLine,
+            'M' => IgsCommands::DrawingMode,
+            'n' => IgsCommands::ChipMusic,
+            'N' => IgsCommands::Noise,
+            'O' => IgsCommands::Circle,
+            'P' => IgsCommands::PolymarkerPlot,
+            'Q' => IgsCommands::Ellipse,
+            'R' => IgsCommands::SetResolution,
+            's' => IgsCommands::ScreenClear,
+            'S' => IgsCommands::SetPenColor,
+            't' => IgsCommands::TimeAPause,
+            'T' => IgsCommands::LineMarkerTypes,
+            'U' => IgsCommands::RoundedRectangles,
+            'V' => IgsCommands::Pieslice,
+            'W' => IgsCommands::WriteText,
+            'Y' => IgsCommands::EllipticalPieslice,
+            'Z' => IgsCommands::FilledRectangle,
+            '<' => IgsCommands::InputCommand,
+            '?' => IgsCommands::AskIG,
+            // Modified VT-52 Commands
+            'c' => IgsCommands::VTColor,
+            'd' => IgsCommands::VTDeleteLine,
+            'i' => IgsCommands::VTLineInsert,
+            'l' => IgsCommands::VTLineClear,
+            'm' => IgsCommands::VTCursorMotion,
+            'p' => IgsCommands::VTPosition,
+            'r' => IgsCommands::VTRemember,
+            'v' => IgsCommands::VTInverseVideo,
+            'w' => IgsCommands::VTLineWrap,
+            'X' => IgsCommands::ExtendedCommands,
+            _ => {
+                return Err(anyhow::anyhow!("Unknown IGS command: {ch}"));
+            }
+        };
+        Ok(result)
+    }
 }
