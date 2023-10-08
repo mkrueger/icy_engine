@@ -1118,3 +1118,29 @@ fn test_rgb_issue() {
         buf.palette.get_color(buf.get_char((25, 0)).attribute.get_foreground()).get_rgb()
     );
 }
+
+#[test]
+fn test_cterm_device_attributes() {
+    let mut parser = ansi::Parser::default();
+    let (mut buf, mut caret) = create_buffer(&mut parser, b"");
+
+    let act = get_action(&mut buf, &mut caret, &mut parser, b"\x1B[<0c");
+    assert_eq!(CallbackAction::SendString("\x1B[<1;2;3;4;5;6;7c".to_string()), act);
+}
+
+#[test]
+fn test_load_palette() {
+    let mut parser = ansi::Parser::default();
+    let (buf, _) = create_buffer(&mut parser, b"\x1b]4;0;rgb:18/18/18\x1b\\\x1b]4;1;rgb:ab/46/42\x1b\\");
+    assert_eq!(buf.palette.get_rgb(0), (0x18, 0x18, 0x18));
+    assert_eq!(buf.palette.get_rgb(1), (0xAB, 0x46, 0x42));
+}
+
+#[test]
+fn test_load_palette_case2() {
+    let mut parser = ansi::Parser::default();
+    let (buf, _) = create_buffer(&mut parser, b"\x1b]4;19;rgb:a1/b2/c3;17;rgb:00/11/22;255;rgb:01/ef/2d\x1b\\");
+    assert_eq!(buf.palette.get_rgb(19), (0xa1, 0xb2, 0xc3));
+    assert_eq!(buf.palette.get_rgb(17), (0x00, 0x11, 0x22));
+    assert_eq!(buf.palette.get_rgb(255), (0x01, 0xef, 0x2d));
+}

@@ -1,7 +1,11 @@
+use regex::Regex;
+
 use crate::{Buffer, CallbackAction, Caret, EngineResult, ParserError};
 
 use super::{parse_next_number, Parser};
-
+lazy_static::lazy_static! {
+    static ref OSC_PALETTE: Regex = Regex::new(r"(\d+)?;[rR][gG][bB]:([0-9a-fA-F]{2})/([0-9a-fA-F]{2})/([0-9a-fA-F]{2})").unwrap();
+}
 impl Parser {
     pub(super) fn parse_osc(&mut self, buf: &mut Buffer, caret: &mut Caret) -> EngineResult<CallbackAction> {
         let mut i = 0;
@@ -22,6 +26,21 @@ impl Parser {
                 }
             }
             i += 1;
+        }
+
+        if !self.parsed_numbers.is_empty() && self.parsed_numbers[0] == 4 {
+            for a in OSC_PALETTE.captures_iter(&self.parse_string) {
+                let color = a.get(1).unwrap().as_str().parse::<u32>()?;
+                if color > 255 {
+                    log::error!("Invalid color index: {}", color);
+                    continue;
+                }
+                let r = u8::from_str_radix(a.get(2).unwrap().as_str(), 16)?;
+                let g = u8::from_str_radix(a.get(3).unwrap().as_str(), 16)?;
+                let b = u8::from_str_radix(a.get(4).unwrap().as_str(), 16)?;
+                buf.palette.set_color_rgb(color, r, g, b);
+            }
+            return Ok(CallbackAction::Update);
         }
 
         if i == 3 && *self.parsed_numbers.first().unwrap() == 8 {

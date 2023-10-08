@@ -34,6 +34,7 @@ pub enum EngineState {
     ReadCSICommand,        // CSI ?
     ReadCSIRequest,        // CSI =
     ReadRIPSupportRequest, // CSI !
+    ReadDeviceAttrs,       // CSI <
     EndCSI(char),
 
     RecordDCS,
@@ -636,6 +637,46 @@ impl BufferParser for Parser {
                 }
             }
 
+            EngineState::ReadDeviceAttrs => {
+                self.current_escape_sequence.push(ch);
+                match ch {
+                    '0'..='9' => {
+                        let d = match self.parsed_numbers.pop() {
+                            Some(number) => number,
+                            _ => 0,
+                        };
+                        self.parsed_numbers.push(parse_next_number(d, ch as u8));
+                    }
+                    ';' => {
+                        self.parsed_numbers.push(0);
+                    }
+                    'c' => {
+                        self.state = EngineState::Default;
+
+                        if self.parsed_numbers.len() > 1 {
+                            return Err(ParserError::UnsupportedEscapeSequence("CSI < Ps c more than 1 number.".to_string()).into());
+                        }
+                        /*
+                           1 - Loadable fonts are availabe via Device Control Strings
+                           2 - Bright Background (ie: DECSET 32) is supported
+                           3 - Palette entries may be modified via an Operating System Command
+                               string
+                           4 - Pixel operations are supported (currently, sixel and PPM
+                               graphics)
+                           5 - The current font may be selected via CSI Ps1 ; Ps2 sp D
+                           6 - Extended palette is available
+                           7 - Mouse is available
+                        */
+                        return Ok(CallbackAction::SendString("\x1B[<1;2;3;4;5;6;7c".to_string()));
+                    }
+                    _ => {
+                        self.state = EngineState::Default;
+                        // error in control sequence, terminate reading
+                        return Err(ParserError::UnsupportedEscapeSequence(self.current_escape_sequence.clone()).into());
+                    }
+                }
+            }
+
             EngineState::EndCSI(func) => {
                 self.current_escape_sequence.push(ch);
                 match *func {
@@ -1100,6 +1141,16 @@ impl BufferParser for Parser {
                         }
                         // read custom command
                         self.state = EngineState::ReadRIPSupportRequest;
+                        return Ok(CallbackAction::NoUpdate);
+                    }
+                    '<' => {
+                        if !is_start {
+                            return Err(ParserError::UnsupportedEscapeSequence(
+                                self.current_escape_sequence.clone(),
+                            ).into());
+                        }
+                        // read custom command
+                        self.state = EngineState::ReadDeviceAttrs;
                         return Ok(CallbackAction::NoUpdate);
                     }
 
