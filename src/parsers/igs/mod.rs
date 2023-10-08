@@ -8,8 +8,8 @@ use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Size};
 
 mod cmd;
 use cmd::IgsCommands;
-mod draw;
-pub use draw::*;
+mod paint;
+pub use paint::*;
 
 #[cfg(test)]
 mod tests;
@@ -42,7 +42,14 @@ pub trait CommandExecutor: Send {
     /// # Errors
     ///
     /// This function will return an error if .
-    fn execute_command(&mut self, buf: &mut Buffer, caret: &mut Caret, command: IgsCommands, parameters: &[i32]) -> EngineResult<CallbackAction>;
+    fn execute_command(
+        &mut self,
+        buf: &mut Buffer,
+        caret: &mut Caret,
+        command: IgsCommands,
+        parameters: &[i32],
+        string_parameter: &str,
+    ) -> EngineResult<CallbackAction>;
 }
 
 pub struct Parser {
@@ -75,9 +82,9 @@ impl Parser {
     fn run_loop(&mut self, buf: &mut Buffer, caret: &mut Caret, from: i32, to: i32, step: i32, delay: i32, command: char) -> EngineResult<()> {
         let cmd = IgsCommands::from_char(command)?;
         let mut i = from;
-        while i < to {
+        // println!("run loop: {from} {to} {step} {delay} {command}");
+        while if from < to { i < to } else { i > to } {
             let cur_parameter = ((i - from) as usize) % self.loop_parameters.len();
-
             let mut parameters = Vec::new();
             for p in &self.loop_parameters[cur_parameter] {
                 let mut p = p.clone();
@@ -96,8 +103,8 @@ impl Parser {
                     p.remove(0);
                 }
 
-                let x = i - from;
-                let y = to - 1 - i;
+                let x = (i).abs();
+                let y = (to - 1 - i).abs();
                 let mut value = if p == "x" {
                     x
                 } else if p == "y" {
@@ -123,11 +130,18 @@ impl Parser {
                 }
                 parameters.push(value);
             }
-
-            self.command_executor.lock().unwrap().execute_command(buf, caret, cmd, &parameters)?;
+            // println!("step: {:?} => {:?}", self.loop_parameters[cur_parameter], parameters);
+            self.command_executor
+                .lock()
+                .unwrap()
+                .execute_command(buf, caret, cmd, &parameters, &self.parsed_string)?;
             // todo: correct delay?
             std::thread::sleep(Duration::from_millis(200 * delay as u64));
-            i += step;
+            if from < to {
+                i += step;
+            } else {
+                i -= step;
+            }
         }
         Ok(())
     }
@@ -143,12 +157,24 @@ impl BufferParser for Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        // println!("{} {:?} - numbers:{:?}", ch, self.state, self.parsed_numbers);
+        //println!("{} {:?} - numbers:{:?}", ch, self.state, self.parsed_numbers);
         match &self.state {
             State::ReadCommand(command) => {
                 if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 3 {
+                    if ch == '@' {
+                        let parameters: Vec<_> = self.parsed_numbers.drain(..).collect();
+                        let res = self
+                            .command_executor
+                            .lock()
+                            .unwrap()
+                            .execute_command(buf, caret, *command, &parameters, &self.parsed_string);
+                        self.state = State::ReadCommandStart;
+                        println!(">{}<", self.parsed_string);
+                        self.parsed_string.clear();
+                        return res;
+                    }
                     self.parsed_string.push(ch);
-                    if ch == '@' || ch == '\n' || ch == '\r' {
+                    if ch == '\n' || ch == '\r' {
                         self.parsed_string.clear();
                         self.state = State::ReadCommandStart;
                         return Ok(CallbackAction::NoUpdate);
@@ -156,7 +182,6 @@ impl BufferParser for Parser {
                     return Ok(CallbackAction::NoUpdate);
                 }
                 if *command == IgsCommands::LoopCommand && self.parsed_numbers.len() >= 4 {
-                    self.parsed_string.push(ch);
                     match self.loop_state {
                         LoopState::Start => {
                             if ch == ',' {
@@ -253,7 +278,6 @@ impl BufferParser for Parser {
                             self.state = State::Default;
                         }
                     }
-
                     '0'..='9' => {
                         self.got_double_colon = false;
                         let d = match self.parsed_numbers.pop() {
@@ -269,7 +293,11 @@ impl BufferParser for Parser {
                     ':' => {
                         self.got_double_colon = true;
                         let parameters: Vec<_> = self.parsed_numbers.drain(..).collect();
-                        let res = self.command_executor.lock().unwrap().execute_command(buf, caret, *command, &parameters);
+                        let res = self
+                            .command_executor
+                            .lock()
+                            .unwrap()
+                            .execute_command(buf, caret, *command, &parameters, &self.parsed_string);
                         self.state = State::ReadCommandStart;
                         return res;
                     }

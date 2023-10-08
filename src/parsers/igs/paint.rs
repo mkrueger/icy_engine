@@ -1,12 +1,12 @@
 use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION};
-use crate::{paint::get_line_points, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, IGS_PALETTE, IGS_SYSTEM_PALETTE};
+use crate::{paint::get_line_points, BitFont, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, ATARI, IGS_PALETTE, IGS_SYSTEM_PALETTE};
 
 #[derive(Default)]
 pub enum TerminalResolution {
     /// 320x200
+    #[default]
     Low,
     /// 640x200
-    #[default]
     Medium,
     /// 640x400  
     High,
@@ -39,10 +39,11 @@ pub enum TextEffects {
 }
 
 pub enum TextRotation {
-    Normal,
+    Right,
     Up,
     Down,
-    Reverse,
+    Left,
+    RightReverse,
 }
 
 pub enum PolymarkerType {
@@ -95,13 +96,16 @@ pub struct DrawExecutor {
     polymarker_size: usize,
     solidline_size: usize,
     user_defined_pattern_number: usize,
+
+    font_8px: BitFont,
+    screen_memory: Vec<Vec<u8>>,
 }
 
 impl Default for DrawExecutor {
     fn default() -> Self {
         let mut res = Self {
             igs_texture: Vec::new(),
-            terminal_resolution: TerminalResolution::default(),
+            terminal_resolution: TerminalResolution::Low,
             x_scale: 2.0,
             y_scale: 2.0,
             pen_colors: IGS_SYSTEM_PALETTE.to_vec(),
@@ -112,13 +116,15 @@ impl Default for DrawExecutor {
             cur_position: Position::new(0, 0),
             text_effects: TextEffects::Normal,
             text_size: 8,
-            text_rotation: TextRotation::Normal,
+            text_rotation: TextRotation::Right,
             polymaker_type: PolymarkerType::Point,
             line_type: LineType::Solid,
             drawing_mode: DrawingMode::Replace,
             polymarker_size: 1,
             solidline_size: 1,
             user_defined_pattern_number: 1,
+            font_8px: BitFont::from_bytes("ATARI", ATARI).unwrap(),
+            screen_memory: Vec::new(),
         };
 
         res.set_resolution();
@@ -142,7 +148,11 @@ impl DrawExecutor {
     }
 
     fn draw_pixel(&mut self, p: Position, color: &Color) {
-        let offset = p.x as usize * 4 + p.y as usize * self.get_resolution().width as usize * 4;
+        let res = self.get_resolution();
+        if p.x < 0 || p.y < 0 || p.x >= res.width || p.y >= res.height {
+            return;
+        }
+        let offset = p.x as usize * 4 + p.y as usize * res.width as usize * 4;
         let (r, g, b) = color.get_rgb();
         self.igs_texture[offset] = r;
         self.igs_texture[offset + 1] = g;
@@ -161,7 +171,10 @@ impl DrawExecutor {
 
     fn flood_fill(&mut self, pos: Position) {
         let pos = self.translate_pos(pos);
-        self.fill(pos, self.get_pixel(pos));
+        let col = self.pen_colors[self.fill_color].clone();
+        let color = self.get_pixel(pos);
+        println!("fill {:?} {:?} replace color:{:?}", pos, col.get_rgb(), color);
+        self.fill(pos, color);
     }
 
     fn fill(&mut self, p: Position, color: [u8; 4]) {
@@ -175,6 +188,133 @@ impl DrawExecutor {
         self.fill(Position::new(p.x, p.y - 1), color);
         self.fill(Position::new(p.x, p.y + 1), color);
     }
+
+    fn draw_line(&mut self, from: Position, to: Position) {
+        // println!("draw line: {:?} -> {:?}", from, to);
+        let line = get_line_points(from, to);
+        self.cur_position = to;
+        let color = self.pen_colors[self.line_color].clone();
+        for p in line {
+            self.draw_pixel(p, &color);
+        }
+    }
+
+    fn write_text(&mut self, text_pos: Position, string_parameter: &str) {
+        let mut pos = text_pos;
+        let char_size = self.font_8px.size;
+        let color = self.pen_colors[self.text_color].clone();
+
+        for ch in string_parameter.chars() {
+            let data = self.font_8px.get_glyph(ch).unwrap().data.clone();
+            for y in 0..char_size.height {
+                for x in 0..char_size.width {
+                    if data[y as usize] & (128 >> x) != 0 {
+                        self.draw_pixel(pos + Position::new(x * 2, y * 2), &color);
+                        self.draw_pixel(pos + Position::new(x * 2 + 1, y * 2), &color);
+                        self.draw_pixel(pos + Position::new(x * 2, y * 2 + 1), &color);
+                        self.draw_pixel(pos + Position::new(x * 2 + 1, y * 2 + 1), &color);
+                    }
+                }
+            }
+            match self.text_rotation {
+                TextRotation::RightReverse | TextRotation::Right => pos.x += char_size.width * 2,
+                TextRotation::Up => pos.y -= char_size.height * 2,
+                TextRotation::Down => pos.y += char_size.height * 2,
+                TextRotation::Left => pos.x -= char_size.width * 2,
+            }
+        }
+    }
+
+    fn blit_screen_to_screen(&mut self, _write_mode: i32, from: Position, to: Position, dest: Position) {
+        let res = self.get_resolution();
+
+        for y in from.y..to.y {
+            let y_pos = dest.y + y - from.y;
+            if y < 0 || y_pos < 0 {
+                continue;
+            }
+
+            if y_pos >= res.height {
+                break;
+            }
+            if y >= res.height {
+                break;
+            }
+            let sy = (y * res.width * 4) as usize;
+            let dy = (y_pos * res.width * 4) as usize;
+
+            for x in from.x..to.x {
+                let x_pos = x - from.x + dest.x;
+                if x < 0 || x_pos < 0 {
+                    continue;
+                }
+                if x_pos >= res.width {
+                    break;
+                }
+                if x >= res.width {
+                    break;
+                }
+
+                let srcptr = sy + x as usize * 4;
+                let dstptr = dy + x_pos as usize * 4;
+                for i in 0..4 {
+                    self.igs_texture[dstptr + i] = self.igs_texture[srcptr + i];
+                }
+            }
+        }
+    }
+
+    fn blit_memory_to_screen(&mut self, _write_mode: i32, from: Position, to: Position, dest: Position) {
+        let res = self.get_resolution();
+
+        for y in from.y..to.y {
+            let y_pos = dest.y + y - from.y;
+            if y < 0 || y_pos < 0 {
+                continue;
+            }
+            if y_pos >= res.height {
+                break;
+            }
+            if y >= res.height {
+                break;
+            }
+
+            let dy = (y_pos * res.width * 4) as usize;
+            for x in from.x..to.x {
+                let src = x as usize * 4;
+                let x_pos = x - from.x + dest.x;
+                if x < 0 || x_pos < 0 {
+                    continue;
+                }
+                if src >= res.width as usize {
+                    break;
+                }
+                if x_pos >= res.width {
+                    break;
+                }
+
+                let dptr = dy + x_pos as usize * 4;
+                for i in 0..4 {
+                    self.igs_texture[dptr + i] = self.screen_memory[y as usize][src + i];
+                }
+            }
+        }
+    }
+
+    fn blit_screen_to_memory(&mut self, _write_mode: i32, from: Position, to: Position) {
+        let from = self.translate_pos(from);
+        let to = self.translate_pos(to);
+
+        let mut data = Vec::new();
+        for y in from.y..to.y {
+            let y = (y * self.get_resolution().width * 4) as usize;
+            let o1 = y + from.x as usize * 4;
+            let o2 = y + to.x as usize * 4;
+            data.push(self.igs_texture[o1..o2].to_vec());
+        }
+
+        self.screen_memory = data;
+    }
 }
 
 impl CommandExecutor for DrawExecutor {
@@ -187,7 +327,15 @@ impl CommandExecutor for DrawExecutor {
         &self.igs_texture
     }
 
-    fn execute_command(&mut self, _buf: &mut Buffer, caret: &mut Caret, command: IgsCommands, parameters: &[i32]) -> EngineResult<CallbackAction> {
+    fn execute_command(
+        &mut self,
+        _buf: &mut Buffer,
+        caret: &mut Caret,
+        command: IgsCommands,
+        parameters: &[i32],
+        string_parameter: &str,
+    ) -> EngineResult<CallbackAction> {
+        //  println!("cmd:{command:?}");
         match command {
             IgsCommands::Initialize => {
                 if parameters.len() != 1 {
@@ -248,7 +396,6 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("ColorSet command requires 2 arguments"));
                 }
-
                 match parameters[0] {
                     0 => self.polymarker_color = parameters[1] as usize,
                     1 => self.line_color = parameters[1] as usize,
@@ -273,6 +420,7 @@ impl CommandExecutor for DrawExecutor {
                     (parameters[2] as u8) << 5 | parameters[2] as u8,
                     (parameters[3] as u8) << 5 | parameters[3] as u8,
                 );
+                println!("set color: {} {:?} param?{:?}", color, self.pen_colors[color as usize], parameters);
                 Ok(CallbackAction::NoUpdate)
             }
 
@@ -281,12 +429,8 @@ impl CommandExecutor for DrawExecutor {
                     return Err(anyhow::anyhow!("DrawLine command requires 4 arguments"));
                 }
                 let next_pos = self.translate_pos(Position::new(parameters[2], parameters[3]));
-                let line = get_line_points(self.translate_pos(Position::new(parameters[0], parameters[1])), next_pos);
-                self.cur_position = next_pos;
-                let color = self.pen_colors[self.line_color].clone();
-                for p in line {
-                    self.draw_pixel(p, &color);
-                }
+                let from = self.translate_pos(Position::new(parameters[0], parameters[1]));
+                self.draw_line(from, next_pos);
                 Ok(CallbackAction::Update)
             }
 
@@ -295,12 +439,7 @@ impl CommandExecutor for DrawExecutor {
                     return Err(anyhow::anyhow!("LineDrawTo command requires 2 arguments"));
                 }
                 let next_pos = self.translate_pos(Position::new(parameters[0], parameters[1]));
-                let line: Vec<Position> = get_line_points(self.cur_position, next_pos);
-                self.cur_position = next_pos;
-                let color = self.pen_colors[self.line_color].clone();
-                for p in line {
-                    self.draw_pixel(p, &color);
-                }
+                self.draw_line(self.cur_position, next_pos);
                 Ok(CallbackAction::Update)
             }
             IgsCommands::Box => {
@@ -380,10 +519,11 @@ impl CommandExecutor for DrawExecutor {
                 }
 
                 match parameters[2] {
-                    0 | 4 => self.text_rotation = TextRotation::Normal,
+                    0 => self.text_rotation = TextRotation::Right,
                     1 => self.text_rotation = TextRotation::Up,
                     2 => self.text_rotation = TextRotation::Down,
-                    3 => self.text_rotation = TextRotation::Reverse,
+                    3 => self.text_rotation = TextRotation::Left,
+                    4 => self.text_rotation = TextRotation::RightReverse,
                     _ => return Err(anyhow::anyhow!("TextEffects unknown/unsupported argument: {}", parameters[2])),
                 }
                 Ok(CallbackAction::Update)
@@ -466,12 +606,76 @@ impl CommandExecutor for DrawExecutor {
                 Ok(CallbackAction::NoUpdate)
             }
 
+            IgsCommands::WriteText => {
+                if parameters.len() != 3 {
+                    return Err(anyhow::anyhow!("WriteText command requires 3 arguments"));
+                }
+                let text_pos = self.translate_pos(Position::new(parameters[0], parameters[1]));
+                self.write_text(text_pos, string_parameter);
+                Ok(CallbackAction::Update)
+            }
+
             IgsCommands::FloodFill => {
                 if parameters.len() != 2 {
-                    return Err(anyhow::anyhow!("FloodFill command requires 2 argument"));
+                    return Err(anyhow::anyhow!("FloodFill command requires 2 arguments"));
                 }
                 let next_pos = Position::new(parameters[0], parameters[1]);
                 self.flood_fill(next_pos);
+                println!("fill {}", self.fill_color);
+                Ok(CallbackAction::Pause(100))
+            }
+
+            IgsCommands::GrabScreen => {
+                if parameters.len() < 2 {
+                    return Err(anyhow::anyhow!("GrabScreen command requires > 2 argument"));
+                }
+                let write_mode = parameters[1];
+
+                match parameters[0] {
+                    0 => {
+                        if parameters.len() != 8 {
+                            return Err(anyhow::anyhow!("GrabScreen screen to screen command requires 8 argument"));
+                        }
+                        let from_start = Position::new(parameters[2], parameters[3]);
+                        let from_end = Position::new(parameters[4], parameters[5]);
+                        let dest = Position::new(parameters[6], parameters[7]);
+                        self.blit_screen_to_screen(write_mode, from_start, from_end, dest);
+                    }
+
+                    1 => {
+                        if parameters.len() != 6 {
+                            return Err(anyhow::anyhow!("GrabScreen screen to memory command requires 6 argument"));
+                        }
+                        let from_start = Position::new(parameters[2], parameters[3]);
+                        let from_end = Position::new(parameters[4], parameters[5]);
+                        self.blit_screen_to_memory(write_mode, from_start, from_end);
+                    }
+
+                    2 => {
+                        if parameters.len() != 4 {
+                            return Err(anyhow::anyhow!("GrabScreen memory to screen command requires 4 argument"));
+                        }
+                        let dest = Position::new(parameters[2], parameters[3]);
+                        self.blit_memory_to_screen(
+                            write_mode,
+                            Position::new(0, 0),
+                            Position::new(self.screen_memory[0].len() as i32, self.screen_memory.len() as i32),
+                            dest,
+                        );
+                    }
+
+                    3 => {
+                        if parameters.len() != 8 {
+                            return Err(anyhow::anyhow!("GrabScreen piece of memory to screen command requires 4 argument"));
+                        }
+                        let from_start = Position::new(parameters[2], parameters[3]);
+                        let from_end = Position::new(parameters[4], parameters[5]);
+                        let dest = Position::new(parameters[6], parameters[7]);
+                        self.blit_memory_to_screen(write_mode, from_start, from_end, dest);
+                    }
+                    _ => return Err(anyhow::anyhow!("GrabScreen unknown/unsupported grab screen mode: {}", parameters[0])),
+                }
+
                 Ok(CallbackAction::Update)
             }
             _ => Err(anyhow::anyhow!("Unimplemented IGS command: {command:?}")),

@@ -999,6 +999,12 @@ pub const ATARI_DEFAULT_PALETTE: [Color; 16] = [
 pub const IGS_SYSTEM_PALETTE: [Color; 16] = [
     Color {
         name: None,
+        r: 0xEE,
+        g: 0xEE,
+        b: 0xEE,
+    },
+    Color {
+        name: None,
         r: 0x00,
         g: 0x00,
         b: 0x00,
@@ -1087,15 +1093,15 @@ pub const IGS_SYSTEM_PALETTE: [Color; 16] = [
         g: 0x66,
         b: 0xEE,
     },
+];
+
+pub const IGS_PALETTE: [Color; 16] = [
     Color {
         name: None,
         r: 0xEE,
         g: 0xEE,
         b: 0xEE,
     },
-];
-
-pub const IGS_PALETTE: [Color; 16] = [
     Color {
         name: None,
         r: 0x00,
@@ -1193,12 +1199,6 @@ pub const IGS_PALETTE: [Color; 16] = [
         r: 0x44,
         g: 0x22,
         b: 0x00,
-    },
-    Color {
-        name: None,
-        r: 0xEE,
-        g: 0xEE,
-        b: 0xEE,
     },
 ];
 
