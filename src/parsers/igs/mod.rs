@@ -13,7 +13,7 @@ pub use paint::*;
 
 #[cfg(test)]
 mod tests;
-const IGS_VERSION: &str = "1.8";
+const IGS_VERSION: &str = "2.18";
 
 #[derive(Default, Debug)]
 enum State {
@@ -21,6 +21,7 @@ enum State {
     Default,
     GotIgsStart,
     ReadCommandStart,
+    SkipNewLine,
     ReadCommand(IgsCommands),
 }
 
@@ -82,7 +83,6 @@ impl Parser {
     fn run_loop(&mut self, buf: &mut Buffer, caret: &mut Caret, from: i32, to: i32, step: i32, delay: i32, command: char) -> EngineResult<()> {
         let cmd = IgsCommands::from_char(command)?;
         let mut i = from;
-        // println!("run loop: {from} {to} {step} {delay} {command}");
         while if from < to { i < to } else { i > to } {
             let cur_parameter = ((i - from) as usize) % self.loop_parameters.len();
             let mut parameters = Vec::new();
@@ -157,7 +157,7 @@ impl BufferParser for Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        //println!("{} {:?} - numbers:{:?}", ch, self.state, self.parsed_numbers);
+        //println!("{} {:?} - numbers:{:?}", ch as u32, self.state, self.parsed_numbers);
         match &self.state {
             State::ReadCommand(command) => {
                 if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 3 {
@@ -169,12 +169,11 @@ impl BufferParser for Parser {
                             .unwrap()
                             .execute_command(buf, caret, *command, &parameters, &self.parsed_string);
                         self.state = State::ReadCommandStart;
-                        println!(">{}<", self.parsed_string);
                         self.parsed_string.clear();
                         return res;
                     }
                     self.parsed_string.push(ch);
-                    if ch == '\n' || ch == '\r' {
+                    if ch == '\n' {
                         self.parsed_string.clear();
                         self.state = State::ReadCommandStart;
                         return Ok(CallbackAction::NoUpdate);
@@ -268,14 +267,14 @@ impl BufferParser for Parser {
                     return Ok(CallbackAction::NoUpdate);
                 }
                 match ch {
-                    ' ' | '>' => { /* ignore */ }
+                    ' ' | '>' | '\r' => { /* ignore */ }
                     '_' => {
                         self.got_double_colon = false;
                     }
-                    '\n' | '\r' => {
+                    '\n' => {
                         if self.got_double_colon {
                             self.got_double_colon = false;
-                            self.state = State::Default;
+                            self.state = State::SkipNewLine;
                         }
                     }
                     '0'..='9' => {
@@ -311,8 +310,9 @@ impl BufferParser for Parser {
             State::ReadCommandStart => {
                 self.parsed_numbers.clear();
                 match ch {
-                    '\n' | '\r' => {
-                        self.state = State::Default;
+                    '\r' => Ok(CallbackAction::NoUpdate),
+                    '\n' => {
+                        self.state = State::SkipNewLine;
                         Ok(CallbackAction::NoUpdate)
                     }
 
@@ -341,6 +341,17 @@ impl BufferParser for Parser {
                 }
                 self.state = State::Default;
                 let _ = self.fallback_parser.print_char(buf, current_layer, caret, 'G');
+                self.fallback_parser.print_char(buf, current_layer, caret, ch)
+            }
+            State::SkipNewLine => {
+                self.state = State::Default;
+                if ch == '\r' {
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                if ch == 'G' {
+                    self.state = State::GotIgsStart;
+                    return Ok(CallbackAction::NoUpdate);
+                }
                 self.fallback_parser.print_char(buf, current_layer, caret, ch)
             }
             State::Default => {

@@ -103,8 +103,8 @@ pub struct DrawExecutor {
 
 impl Default for DrawExecutor {
     fn default() -> Self {
-        let mut res = Self {
-            igs_texture: Vec::new(),
+        Self {
+            igs_texture: vec![0; 320 * 2 * 4 * 200 * 2],
             terminal_resolution: TerminalResolution::Low,
             x_scale: 2.0,
             y_scale: 2.0,
@@ -125,20 +125,19 @@ impl Default for DrawExecutor {
             user_defined_pattern_number: 1,
             font_8px: BitFont::from_bytes("ATARI", ATARI).unwrap(),
             screen_memory: Vec::new(),
-        };
-
-        res.set_resolution();
-        res
+        }
     }
 }
 
 impl DrawExecutor {
-    pub fn clear(&mut self) {
+    pub fn clear(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+        buf.clear_screen(0, caret);
         let res = self.get_resolution();
         self.igs_texture = vec![0; res.width as usize * 4 * res.height as usize];
     }
 
-    pub fn set_resolution(&mut self) {
+    pub fn set_resolution(&mut self, buf: &mut Buffer, caret: &mut Caret) {
+        buf.clear_screen(0, caret);
         let res = self.get_resolution();
         self.igs_texture = vec![0; res.width as usize * 4 * res.height as usize];
     }
@@ -170,15 +169,24 @@ impl DrawExecutor {
     }
 
     fn flood_fill(&mut self, pos: Position) {
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_resolution().width || pos.y >= self.get_resolution().height {
+            return;
+        }
         let pos = self.translate_pos(pos);
         let col = self.pen_colors[self.fill_color].clone();
         let color = self.get_pixel(pos);
-        println!("fill {:?} {:?} replace color:{:?}", pos, col.get_rgb(), color);
+        let (r, g, b) = col.get_rgb();
+        if r == color[0] && g == color[1] && b == color[2] {
+            return;
+        }
         self.fill(pos, color);
     }
 
     fn fill(&mut self, p: Position, color: [u8; 4]) {
-        if self.get_pixel(p) != color || p.x < 0 || p.y < 0 || p.x >= self.get_resolution().width || p.y >= self.get_resolution().height {
+        if p.x < 0 || p.y < 0 || p.x >= self.get_resolution().width || p.y >= self.get_resolution().height {
+            return;
+        }
+        if self.get_pixel(p) == color {
             return;
         }
         let col = self.pen_colors[self.fill_color].clone();
@@ -295,6 +303,10 @@ impl DrawExecutor {
 
                 let dptr = dy + x_pos as usize * 4;
                 for i in 0..4 {
+                    if src + i >= self.screen_memory[y as usize].len() {
+                        break;
+                    }
+
                     self.igs_texture[dptr + i] = self.screen_memory[y as usize][src + i];
                 }
             }
@@ -329,13 +341,13 @@ impl CommandExecutor for DrawExecutor {
 
     fn execute_command(
         &mut self,
-        _buf: &mut Buffer,
+        buf: &mut Buffer,
         caret: &mut Caret,
         command: IgsCommands,
         parameters: &[i32],
         string_parameter: &str,
     ) -> EngineResult<CallbackAction> {
-        //  println!("cmd:{command:?}");
+        //println!("cmd:{command:?} params:{parameters:?}");
         match command {
             IgsCommands::Initialize => {
                 if parameters.len() != 1 {
@@ -343,19 +355,19 @@ impl CommandExecutor for DrawExecutor {
                 }
                 match parameters[0] {
                     0 => {
-                        self.set_resolution();
+                        self.set_resolution(buf, caret);
                         self.pen_colors = IGS_SYSTEM_PALETTE.to_vec();
                         self.reset_attributes();
                     }
                     1 => {
-                        self.set_resolution();
+                        self.set_resolution(buf, caret);
                         self.pen_colors = IGS_SYSTEM_PALETTE.to_vec();
                     }
                     2 => {
                         self.reset_attributes();
                     }
                     3 => {
-                        self.set_resolution();
+                        self.set_resolution(buf, caret);
                         self.pen_colors = IGS_PALETTE.to_vec();
                     }
                     x => return Err(anyhow::anyhow!("Initialize unknown/unsupported argument: {x}")),
@@ -364,7 +376,7 @@ impl CommandExecutor for DrawExecutor {
                 Ok(CallbackAction::Update)
             }
             IgsCommands::ScreenClear => {
-                self.clear();
+                self.clear(buf, caret);
                 Ok(CallbackAction::Update)
             }
             IgsCommands::AskIG => {
@@ -373,7 +385,7 @@ impl CommandExecutor for DrawExecutor {
                 }
                 match parameters[0] {
                     0 => Ok(CallbackAction::SendString(IGS_VERSION.to_string())),
-                    3 => Ok(CallbackAction::SendString(self.terminal_resolution.resolution_id())),
+                    3 => Ok(CallbackAction::SendString(self.terminal_resolution.resolution_id() + ":")),
                     x => Err(anyhow::anyhow!("AskIG unknown/unsupported argument: {x}")),
                 }
             }
@@ -420,7 +432,6 @@ impl CommandExecutor for DrawExecutor {
                     (parameters[2] as u8) << 5 | parameters[2] as u8,
                     (parameters[3] as u8) << 5 | parameters[3] as u8,
                 );
-                println!("set color: {} {:?} param?{:?}", color, self.pen_colors[color as usize], parameters);
                 Ok(CallbackAction::NoUpdate)
             }
 
@@ -621,7 +632,6 @@ impl CommandExecutor for DrawExecutor {
                 }
                 let next_pos = Position::new(parameters[0], parameters[1]);
                 self.flood_fill(next_pos);
-                println!("fill {}", self.fill_color);
                 Ok(CallbackAction::Pause(100))
             }
 

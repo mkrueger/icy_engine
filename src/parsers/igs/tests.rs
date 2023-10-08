@@ -20,7 +20,7 @@ impl CommandExecutor for TestExecutor {
         _caret: &mut Caret,
         command: IgsCommands,
         parameters: &[i32],
-        string_parameter: &str,
+        _string_parameter: &str,
     ) -> EngineResult<CallbackAction> {
         self.commands.lock().unwrap().push((command, parameters.to_vec()));
         Ok(CallbackAction::NoUpdate)
@@ -69,7 +69,7 @@ pub fn parse_two_commands() {
 #[test]
 pub fn test_eol_marker() {
     let (commands, mut igs_parser) = create_parser();
-    create_buffer(&mut igs_parser, b"G#?>_\n\r0:?>_\n\r0:");
+    create_buffer(&mut igs_parser, b"G#?>_\r\n0:?>_\r\n0:");
     assert_eq!(2, commands.lock().unwrap().len());
 }
 
@@ -99,4 +99,11 @@ pub fn test_loop_bug() {
     assert_eq!(81, commands.lock().unwrap().len());
     assert_eq!(IgsCommands::WriteText, commands.lock().unwrap()[80].0);
     assert_eq!(vec![147, 100, 0], commands.lock().unwrap()[80].1);
+}
+
+#[test]
+pub fn test_loop_bug2() {
+    let (commands, mut igs_parser) = create_parser();
+    create_buffer(&mut igs_parser, b"G#S>0,0,0,0:\r\nG#S>0,0,0,0:\r\nG#S>0,0,0,0:\r\nG#S>0,0,0,0:\r\n");
+    assert_eq!(4, commands.lock().unwrap().len());
 }
