@@ -161,7 +161,8 @@ pub struct Buffer {
     sauce_data: Option<SauceData>,
 
     pub palette: Palette,
-    pub overlay_layer: Option<Layer>,
+    overlay_layer_index: usize,
+    overlay_layer: Option<Layer>,
 
     font_table: HashMap<usize, BitFont>,
     is_font_table_dirty: bool,
@@ -370,6 +371,7 @@ impl Buffer {
 
             font_table,
             is_font_table_dirty: false,
+            overlay_layer_index: 0,
             overlay_layer: None,
             layers: vec![Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), size)],
             sixel_threads: VecDeque::new(), // file_name_changed: Box::new(|| {}),
@@ -625,7 +627,8 @@ impl Buffer {
         res
     }
 
-    pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
+    pub fn get_overlay_layer(&mut self, index: usize) -> &mut Option<Layer> {
+        self.overlay_layer_index = index;
         if self.overlay_layer.is_none() {
             let mut l = Layer::new("Overlay", self.get_size());
             l.has_alpha_channel = true;
@@ -853,18 +856,21 @@ impl TextPane for Buffer {
 
     fn get_char(&self, pos: impl Into<Position>) -> AttributedChar {
         let pos = pos.into();
-        if let Some(overlay) = &self.overlay_layer {
-            let pos = pos - overlay.get_offset();
-            let ch = overlay.get_char(pos);
-            if ch.is_visible() {
-                return ch;
-            }
-        }
 
         let mut ch_opt = None;
         let mut attr_opt = None;
         let mut default_font_page = 0;
         for i in (0..self.layers.len()).rev() {
+            if i == self.overlay_layer_index {
+                if let Some(overlay) = &self.overlay_layer {
+                    let pos = pos - overlay.get_offset();
+                    let ch = overlay.get_char(pos);
+                    if ch.is_visible() {
+                        return ch;
+                    }
+                }
+            }
+
             let cur_layer = &self.layers[i];
             if !cur_layer.is_visible {
                 continue;

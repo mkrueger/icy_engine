@@ -223,19 +223,13 @@ pub enum IgsCommands {
     /// q Quick Pause with Vsync or set Internal Double Stepping
     /// NOTE: Vsync() waits until the screen's next vertical retrace occurs.
     ///
-    ///
-    /// Parameter = number of Vsync()s to pause, 60ths of a second
-    ///              max 180.  No flow control with this delay.
-    /// IF Parameter = 9995 double step the G command internally
-    ///                     use 3 Vsync()s
+    /// Parameter = number of Vsync()s to pause, 60ths of a second max 180.  No flow control with this delay.
+    /// IF Parameter = 9995 double step the G command internally use 3 Vsync()s
     ///                 
-    ///                9996 double step the G command internally
-    ///                     use 2 Vsync()s
-    ///                9997 double step the G command internally
-    ///                     use 1 Vsync()s
-    ///                9998 double step the G command internally
-    ///                     use 0 Vsync()s
-    ///                9999 Turn double step OFF
+    /// 9996 double step the G command internally use 2 Vsync()s
+    /// 9997 double step the G command internally use 1 Vsync()s
+    /// 9998 double step the G command internally use 0 Vsync()s
+    /// 9999 Turn double step OFF
     QuickPause,
 
     /// H = command identifier (1 parameter)
@@ -351,16 +345,14 @@ pub enum IgsCommands {
     ///     4=Stop all voices immediately. ( same as "b 21" )
     ChipMusic,
 
-    ///     N = command identifier
-    ///     The N command is for handling sound.
-    ///     MIDI, and sound chip.
+    /// N = command identifier
+    /// The N command is for handling sound.
+    /// MIDI, and sound chip.
     ///
-    ///
-    ///     1st parameter = N operation to perform.
-    ///      If 1st parameter = 0, 1, 3 or 4  a 2nd parameter
-    ///      is required, which is number of MIDI data bytes
-    ///      to read into the MIDI buffer, MAX of 9999.
-    ///
+    /// 1st parameter = N operation to perform.
+    /// If 1st parameter = 0, 1, 3 or 4  a 2nd parameter
+    /// is required, which is number of MIDI data bytes
+    /// to read into the MIDI buffer, MAX of 9999.
     ///
     /// Load only midi:      N 0,9998,datadelaydatadelaydatadelay....
     /// sound chip       N 3,9996,DataDataDataDataDelayData....
@@ -368,62 +360,60 @@ pub enum IgsCommands {
     /// Load and execute:    N 1,9998,datadelaydatadelaydatadelay....
     /// sound chip       N 4,9996,DataDataDataDataDelayData....
     ///
-    ///      The 0 means load the MIDI buffer only,
-    ///      then the number of bytes to load followed
-    ///      by a comma, then the MIDI data in the form
-    ///      data byte, delay byte, back to back with the
-    ///      data byte always first.  The delay is in 200ths
-    ///      of a second so a delay of about 1.25 seconds
-    ///      between each data byte is the max. After
-    ///      the MIDI buffer is loaded with a N 0 or 1 command
-    ///      a N 2: (midi) or N 5: (sound chip) issued later will
-    ///      replay the buffer without reloading, like
-    ///      G#N 2:  If a user CONTROL C's or CONTROL X's
-    ///      the MIDI data while it is being loaded the MIDI
-    ///      buffer will be set to 0 and N 2: will play
-    ///      nothing.  However it a user aborts while MIDI is
-    ///      being played the MIDI buffer will remain intact.
-    ///      If a user has the MIDI option off (F4 function key
-    ///      on the ACC, control+shift+m for the EMU) MIDI data
-    ///      will be still loaded but not executed. If line noise
-    ///      creeps into the MIDI buffer when it's loaded it will
-    ///      garble the sound, the user might be able to recover
-    ///      by pressing the + key to try to get the MIDI flow
-    ///      out to the ports in proper sync datadelaydatadelay,
-    ///      line noise can get it in reverse order.
+    /// The 0 means load the MIDI buffer only,
+    /// then the number of bytes to load followed
+    /// by a comma, then the MIDI data in the form
+    /// data byte, delay byte, back to back with the
+    /// data byte always first.  The delay is in 200ths
+    /// of a second so a delay of about 1.25 seconds
+    /// between each data byte is the max. After
+    /// the MIDI buffer is loaded with a N 0 or 1 command
+    /// a N 2: (midi) or N 5: (sound chip) issued later will
+    /// replay the buffer without reloading, like
+    /// G#N 2:  If a user CONTROL C's or CONTROL X's
+    /// the MIDI data while it is being loaded the MIDI
+    /// buffer will be set to 0 and N 2: will play
+    /// nothing.  However it a user aborts while MIDI is
+    /// being played the MIDI buffer will remain intact.
+    /// If a user has the MIDI option off (F4 function key
+    /// on the ACC, control+shift+m for the EMU) MIDI data
+    /// will be still loaded but not executed. If line noise
+    /// creeps into the MIDI buffer when it's loaded it will
+    /// garble the sound, the user might be able to recover
+    /// by pressing the + key to try to get the MIDI flow
+    /// out to the ports in proper sync datadelaydatadelay,
+    /// line noise can get it in reverse order.
     ///
     ///  NEW for IG218...
-    ///      Once the buffer is LOADED you can:
+    /// Once the buffer is LOADED you can:
     ///
-    ///      EXE Buffer N>6,x=From(0-1664), y=To(1-1665)chip notes
-    ///      example N>6,300,701:
+    /// EXE Buffer N>6,x=From(0-1664), y=To(1-1665)chip notes
+    /// example N>6,300,701:
     ///
-    ///      Each note takes six bytes so 1666 notes possible in
-    ///      the 10001 byte buffer note 0 to 1665.  I wrote a GFA
-    ///      Basic program that takes the IG Draw program's
-    ///      Tap A Tune notes and auto generates the N chip note
-    ///      byte format it's N_UTILB.PRG  Keep in mind this buffer
-    ///      doesn't play in the background no multi tasking and
-    ///      you use it for one thing at a time MIDI or Chip Notes
-    ///      or with the New X>9 command that stores and Executes
-    ///      IG commands in it.
+    /// Each note takes six bytes so 1666 notes possible in
+    /// the 10001 byte buffer note 0 to 1665.  I wrote a GFA
+    /// Basic program that takes the IG Draw program's
+    /// Tap A Tune notes and auto generates the N chip note
+    /// byte format it's N_UTILB.PRG  Keep in mind this buffer
+    /// doesn't play in the background no multi tasking and
+    /// you use it for one thing at a time MIDI or Chip Notes
+    /// or with the New X>9 command that stores and Executes
+    /// IG commands in it.
     ///
-    ///           DATA FORMAT FOR SOUND CHIP
-    ///      The data to the sound chip  routine is in
-    ///      ASCII values ie " a capital A represents 65 ".
-    ///      the format is:
+    /// DATA FORMAT FOR SOUND CHIP
+    /// The data to the sound chip  routine is in
+    /// ASCII values ie " a capital A represents 65 ".
+    /// the format is:
     ///
-    ///      Effect_numberVoiceVolumePitchTimingStop_effect
-    ///          0-19      0-2  0-15 0-255 0-255 0-4
+    /// Effect_numberVoiceVolumePitchTimingStop_effect
+    /// 0-19 0-2 0-15 0-255 0-255 0-4
     ///
-    ///      When a 0 is passed as a pitch value timing and
-    ///      stop effects can be issued without executing
-    ///      a note.  For more details see the "n" command.
+    /// When a 0 is passed as a pitch value timing and
+    /// stop effects can be issued without executing
+    /// a note.  For more details see the "n" command.
     ///
-    /// *** Download MS2IG.ARC for a Music Studio to IG MIDI file
-    ///    converter.
+    /// *** Download MS2IG.ARC for a Music Studio to IG MIDI file converter.
     /// *** See "n" command also and look for N_UTILB.PRG in arc.
-    ///
     Noise,
 
     /// O = command identifier
@@ -540,19 +530,17 @@ pub enum IgsCommands {
     ///
     ///
     /// -line end styles-
-    ///     0  = both ends square
-    ///
-    ///     50 = arrows on both ends
-    ///     51 = arrow on left,  squared on right
-    ///     52 = arrow on right, squared on left
-    ///     53 = arrow on left,  rounded on right
-    ///     54 = arrow on right, rounded on left
-    ///
-    ///     60 = rounded on both ends
-    ///     61 = rounded on left,  squared on right
-    ///     62 = rounded on right, squared on left
-    ///     63 = rounded on left,  arrow on right
-    ///     64 = rounded on right, arrow on left
+    /// 0  = both ends square
+    /// 50 = arrows on both ends
+    /// 51 = arrow on left,  squared on right
+    /// 52 = arrow on right, squared on left
+    /// 53 = arrow on left,  rounded on right
+    /// 54 = arrow on right, rounded on left
+    /// 60 = rounded on both ends
+    /// 61 = rounded on left,  squared on right
+    /// 62 = rounded on right, squared on left
+    /// 63 = rounded on left,  arrow on right
+    /// 64 = rounded on right, arrow on left
     LineMarkerTypes,
 
     /// U = command identifier
@@ -618,86 +606,82 @@ pub enum IgsCommands {
     /// 4th parameter = lower right corner Y coordinate
     FilledRectangle,
 
-    ///     Gets input from user's keyboard and transmits it as soon
-    ///     as the chain " > " from the last G#  is broke.  Should
-    ///     be used near the end of a MENU, as the BBS will continue
-    ///     to send to the terminal while the INPUT command is
-    ///     waiting on the user.  This is so the BBS will be waiting
-    ///     for INPUT when IG sends the user's response at '>' exit.
-    ///     The INPUT command is good for letting you use
-    ///     any 4 colors you want for a BBS MENU and then to issue
-    ///     some reset commands. ie G#<>1,0,1:I>0:k>1:s>0:   Also
-    ///     optionally INVOKES MOUSE routine for the X 4  command
-    ///     so ZONES can be pointed to and clicked on, you must
-    ///     use X 4 to define and load the zone strings first and
-    ///     you should use IG to draw some borders around the
-    ///     zones so the user will know where and what he is
-    ///     selecting when he clicks on a ZONE, that way you
-    ///     have the job of cosmetics, that's half the fun anyway.
-    ///     The selected Zone's associated data string is
-    ///     transmitted to the BBS as soon as IG exits
-    ///     the chain from the last G#  .  ZONE 47 is the default
-    ///     ZONE, it's associated data string will be sent if no
-    ///     ZONES match where the user clicked.  You should always
-    ///     define ZONE 47. ( Check out X 4,9998: LOOPBACK also!)
-    ///     You may find the X 3 and the X 6 command useful too.
+    /// Gets input from user's keyboard and transmits it as soon
+    /// as the chain " > " from the last G#  is broke.  Should
+    /// be used near the end of a MENU, as the BBS will continue
+    /// to send to the terminal while the INPUT command is
+    /// waiting on the user.  This is so the BBS will be waiting
+    /// for INPUT when IG sends the user's response at '>' exit.
+    /// The INPUT command is good for letting you use
+    /// any 4 colors you want for a BBS MENU and then to issue
+    /// some reset commands. ie G#<>1,0,1:I>0:k>1:s>0:   Also
+    /// optionally INVOKES MOUSE routine for the X 4  command
+    /// so ZONES can be pointed to and clicked on, you must
+    /// use X 4 to define and load the zone strings first and
+    /// you should use IG to draw some borders around the
+    /// zones so the user will know where and what he is
+    /// selecting when he clicks on a ZONE, that way you
+    /// have the job of cosmetics, that's half the fun anyway.
+    /// The selected Zone's associated data string is
+    /// transmitted to the BBS as soon as IG exits
+    /// the chain from the last G#  .  ZONE 47 is the default
+    /// ZONE, it's associated data string will be sent if no
+    /// ZONES match where the user clicked.  You should always
+    /// define ZONE 47. ( Check out X 4,9998: LOOPBACK also!)
+    /// You may find the X 3 and the X 6 command useful too.
     ///
-    /// 1st parameter = Transmitt carriage return at the end
-    ///                 of the string INPUTted?  1 = YES  0 = NO
-    ///
-    ///
-    ///
+    /// 1st parameter = Transmitt carriage return at the end of the string INPUTted?  1 = YES  0 = NO
     /// 2nd parameter = INPUT type
-    ///                 0 = One key,  (hot key input for FoReM)
-    ///                 1 = String, with a return to
-    ///                     end input from user,
-    ///                     max string length = 128
+    /// 0 = One key,  (hot key input for FoReM)
+    /// 1 = String, with a return to
+    /// end input from user,
+    /// max string length = 128
     ///
-    ///                 2 = MOUSE ZONE, activate a POLYMARKER
-    ///                     mouse pointer, use the " T " command
-    ///                     to select mouse type and size and the
-    ///                     " C " command to set mouse color.
-    ///           3 to 10 = MOUSE ZONE activates a GEM mouse pointer
-    ///                      3=Arrow 4=Hour Glass 5=Bumble Bee
-    ///                      6=Pointing Finger 7=Flat Hand
-    ///                      8=Thin Cross Hair 9=Thick Cross Hair
-    ///                      10=Outlined Cross Hair   
-    ///                     User moves mouse and clicks on a
-    ///                     "ZONE". Selection is processed
-    ///                     when button is released.
-    ///                     The associated ZONE string
-    ///                     is copied into INPUT's
-    ///                     string to be transmitted to BBS
-    ///                     at the end of the IG script chain.
+    /// 2 = MOUSE ZONE, activate a POLYMARKER
+    /// mouse pointer, use the " T " command
+    /// to select mouse type and size and the
+    /// " C " command to set mouse color.
+    /// 3 to 10 = MOUSE ZONE activates a GEM mouse pointer
+    /// 3=Arrow 4=Hour Glass 5=Bumble Bee
+    /// 6=Pointing Finger 7=Flat Hand
+    /// 8=Thin Cross Hair 9=Thick Cross Hair
+    /// 10=Outlined Cross Hair   
+    /// User moves mouse and clicks on a
+    /// "ZONE". Selection is processed
+    /// when button is released.
+    /// The associated ZONE string
+    /// is copied into INPUT's
+    /// string to be transmitted to BBS
+    /// at the end of the IG script chain.
     ///
     ///
     /// 3rd parameter = Output options
-    ///                 0 = Don't show input typed from user
-    ///                     on his screen. Has no effect on
-    ///                     Mouse ZONES.
-    ///                 1 = Show input typed from user on screen.
-    ///                     Has no effect on Mouse ZONES.
-    ///                 2 = Show input but throw it away, don't
-    ///                     transmit it at the end of the chain.
-    ///                     Does effect Mouse ZONE.
-    ///                 3 = Don't show input from user, and throw it
-    ///                     away too.  Does effect Mouse ZONE.
+    /// 0 = Don't show input typed from user
+    ///     on his screen. Has no effect on
+    ///     Mouse ZONES.
+    /// 1 = Show input typed from user on screen.
+    ///     Has no effect on Mouse ZONES.
+    /// 2 = Show input but throw it away, don't
+    ///     transmit it at the end of the chain.
+    ///     Does effect Mouse ZONE.
+    /// 3 = Don't show input from user, and throw it
+    ///     away too.  Does effect Mouse ZONE.
     ///
     /// Note:  If 2 ZONES areas are over lapping on the screen the
     /// ZONE with the lower value ID number will get selected when
     /// the mouse is clicked on both ZONEs at the same time.
     ///
-    ///        +----+--------------------+
+    /// +----+--------------------+
     /// user clicks in here ---> |ID=1|                    |
     /// ZONE 1 gets selected     +----+   ID=10            |
-    ///        |                         |
-    ///        +-------------------------+
+    /// |                         |
+    /// +-------------------------+
     ///
-    ///        +----+--------------------+
+    /// +----+--------------------+
     /// user clicks in here ---> |ID=7|                    |
     /// ZONE 2 gets selected     +----+   ID=2             |
-    ///        |                         |
-    ///        +-------------------------+
+    /// |                         |
+    /// +-------------------------+
     InputCommand,
 
     /// ? = command identifier
@@ -750,29 +734,29 @@ pub enum IgsCommands {
     ///                 2:    high resolution    640x400    
     AskIG,
 
-    ///     XOR stepping example:
-    ///     G#G 1,3,0,0,50,50:
-    ///             G#&>198,0,2,0,G|4,2,6,x,x:
+    /// XOR stepping example:
+    /// G#G 1,3,0,0,50,50:
+    /// G#&>198,0,2,0,G|4,2,6,x,x:
     ///
     ///
-    ///     & = command identifier
-    ///     Loops a operation specified number of times with
-    ///     stepping, special options for XOR ing and the
-    ///     'W'rite text command. The CHAIN character > only
-    ///     works directly after the &>   You can loop a
-    ///     chain of commands, see parameter 5,  but you can't
-    ///     loop a loop.  Still this command is very powerful
-    ///     and worth the effort to learn.
+    /// & = command identifier
+    /// Loops a operation specified number of times with
+    /// stepping, special options for XOR ing and the
+    /// 'W'rite text command. The CHAIN character > only
+    /// works directly after the &>   You can loop a
+    /// chain of commands, see parameter 5,  but you can't
+    /// loop a loop.  Still this command is very powerful
+    /// and worth the effort to learn.
     ///
-    ///     1st parameter = FROM value
-    ///         if from value bigger than TO value
-    ///         loop will detect and step backwards.
+    /// 1st parameter = FROM value
+    ///     if from value bigger than TO value
+    ///     loop will detect and step backwards.
     ///
-    ///     2nd parameter = TO value
-    ///     3rd parameter = step value, positive number only.
-    ///     4th parameter = DELAY in 200 hundredths of a between
+    /// 2nd parameter = TO value
+    /// 3rd parameter = step value, positive number only.
+    /// 4th parameter = DELAY in 200 hundredths of a between
     ///         each step of the loop.
-    ///     5th parameter = command Identifier to loop.
+    /// 5th parameter = command Identifier to loop.
     ///         optional specification character after 5th
     ///         parameter instead of comma:
     ///            | = XOR stepping
@@ -785,20 +769,20 @@ pub enum IgsCommands {
     ///                can be used for easy Written text
     ///                placement with the  loop's stepping.
     /// NOTE: (Chain Gang) If a > symbol is given here as a command
-    ///               identifer chain gang option is invoked.
-    ///               This allows multiple commands to LOOPed.
-    ///               Instead of one command specified for this
-    ///               parameter a string of command identifers
-    ///               are passed.
-    ///               The > to get IG's attention to chain gang
-    ///               and ending with the @ FOLLOWED by a comma.
-    ///               Like this >CL@,
-    ///                 C is at command position 0
-    ///                 L is at command position 1
-    ///               The position of the command is the key
-    ///               to which command will be executed.
-    ///               There can be up to 128 (0-127) commands in
-    ///               this command string in any order you like.
+    /// identifer chain gang option is invoked.
+    /// This allows multiple commands to LOOPed.
+    /// Instead of one command specified for this
+    /// parameter a string of command identifers
+    /// are passed.
+    /// The > to get IG's attention to chain gang
+    /// and ending with the @ FOLLOWED by a comma.
+    /// Like this >CL@,
+    ///   C is at command position 0
+    ///   L is at command position 1
+    /// The position of the command is the key
+    /// to which command will be executed.
+    /// There can be up to 128 (0-127) commands in
+    /// this command string in any order you like.
     ///
     /// Example: switching line color and drawing lines too
     /// G#I>0:k>0:s>4:S>3,0,0,6:
@@ -808,37 +792,37 @@ pub enum IgsCommands {
     /// G#t>6:I>0:s>4:b>7:k>1:
     ///
     ///
-    ///     6th parameter = number of parameters command that
-    ///         to be looped requires.  You should at
-    ///         least specify the number the command requires
-    ///         ie L command requires 4 , ie W command 2.
-    ///         You can specify multiples of the required number
-    ///         such as 8 or 12 for the L command Max up to
-    ///         2048. It's just a total of all the parameters
-    ///         required that follows it.
-    ///         This will work like BASIC's READ DATA
-    ///         statements between each loop step.  Also note
-    ///         a _ underscore may be used to split parameters
-    ///         across lines if it is used in place of the first
-    ///         digit of value, this will make huge detailed
-    ///         files smaller (DEGAS conversions).
+    /// 6th parameter = number of parameters command that
+    /// to be looped requires.  You should at
+    /// least specify the number the command requires
+    /// ie L command requires 4 , ie W command 2.
+    /// You can specify multiples of the required number
+    /// such as 8 or 12 for the L command Max up to
+    /// 2048. It's just a total of all the parameters
+    /// required that follows it.
+    /// This will work like BASIC's READ DATA
+    /// statements between each loop step.  Also note
+    /// a _ underscore may be used to split parameters
+    /// across lines if it is used in place of the first
+    /// digit of value, this will make huge detailed
+    /// files smaller (DEGAS conversions).
     ///
-    ///   REMAINING parameters = whatever the command being looped
-    ///             requires.  If you use a "x" as a parameter
-    ///             it will be stepped in the direction of the
-    ///             FROM TO values, if you use a "y" the loop
-    ///             will step the value in a reverse direction.
-    ///             You can use both "x" and "y" at the same time.
-    ///             If you use a number it will remain as a constant
-    ///             for the command being looped through out the
-    ///             loop execution.  Adding a + before constant
-    ///             will add the "x step value" to the constant.
-    ///             Adding a - before the constant will subtract
-    ///             the constant value from the current "x step"
-    ///             value.  Adding a ! before the constant will
-    ///             subtract the "x step" value from the constant.
-    ///             Like so :
-    ///             G#&>10,30,2,0,L,4,100,+10,-10,+600,!99:
+    /// REMAINING parameters = whatever the command being looped
+    /// requires.  If you use a "x" as a parameter
+    /// it will be stepped in the direction of the
+    /// FROM TO values, if you use a "y" the loop
+    /// will step the value in a reverse direction.
+    /// You can use both "x" and "y" at the same time.
+    /// If you use a number it will remain as a constant
+    /// for the command being looped through out the
+    /// loop execution.  Adding a + before constant
+    /// will add the "x step value" to the constant.
+    /// Adding a - before the constant will subtract
+    /// the constant value from the current "x step"
+    /// value.  Adding a ! before the constant will
+    /// subtract the "x step" value from the constant.
+    /// Like so :
+    /// G#&>10,30,2,0,L,4,100,+10,-10,+600,!99:
     ///
     ///
     ///

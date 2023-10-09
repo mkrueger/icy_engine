@@ -266,6 +266,10 @@ impl EditState {
         Some(data)
     }
 
+    pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
+        self.buffer.get_overlay_layer(self.get_current_layer())
+    }
+
     pub fn get_current_layer(&self) -> usize {
         self.current_layer.clamp(0, self.buffer.layers.len().saturating_sub(1))
     }
