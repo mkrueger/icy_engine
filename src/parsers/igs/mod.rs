@@ -13,7 +13,7 @@ pub use paint::*;
 
 #[cfg(test)]
 mod tests;
-const IGS_VERSION: &str = "2.18";
+const IGS_VERSION: &str = "2.19";
 
 #[derive(Default, Debug)]
 enum State {

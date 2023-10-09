@@ -73,6 +73,14 @@ pub enum DrawingMode {
     ReverseTransparent,
 }
 
+pub enum FillPatternType {
+    Hollow,
+    Solid,
+    Pattern,
+    Hatch,
+    UserdDefined,
+}
+
 pub struct DrawExecutor {
     igs_texture: Vec<u8>,
     terminal_resolution: TerminalResolution,
@@ -97,6 +105,10 @@ pub struct DrawExecutor {
     solidline_size: usize,
     user_defined_pattern_number: usize,
 
+    fill_pattern_type: FillPatternType,
+    pattern_index_number: usize,
+    draw_border: bool,
+
     font_8px: BitFont,
     screen_memory: Vec<Vec<u8>>,
 }
@@ -104,10 +116,10 @@ pub struct DrawExecutor {
 impl Default for DrawExecutor {
     fn default() -> Self {
         Self {
-            igs_texture: vec![0; 320 * 2 * 4 * 200 * 2],
+            igs_texture: vec![0; 320 * 4 * 200],
             terminal_resolution: TerminalResolution::Low,
-            x_scale: 2.0,
-            y_scale: 2.0,
+            x_scale: 1.0,
+            y_scale: 1.0,
             pen_colors: IGS_SYSTEM_PALETTE.to_vec(),
             polymarker_color: 0,
             line_color: 0,
@@ -125,6 +137,10 @@ impl Default for DrawExecutor {
             user_defined_pattern_number: 1,
             font_8px: BitFont::from_bytes("ATARI", ATARI).unwrap(),
             screen_memory: Vec::new(),
+
+            fill_pattern_type: FillPatternType::Solid,
+            pattern_index_number: 0,
+            draw_border: false,
         }
     }
 }
@@ -217,18 +233,15 @@ impl DrawExecutor {
             for y in 0..char_size.height {
                 for x in 0..char_size.width {
                     if data[y as usize] & (128 >> x) != 0 {
-                        self.draw_pixel(pos + Position::new(x * 2, y * 2), &color);
-                        self.draw_pixel(pos + Position::new(x * 2 + 1, y * 2), &color);
-                        self.draw_pixel(pos + Position::new(x * 2, y * 2 + 1), &color);
-                        self.draw_pixel(pos + Position::new(x * 2 + 1, y * 2 + 1), &color);
+                        self.draw_pixel(pos + Position::new(x, y), &color);
                     }
                 }
             }
             match self.text_rotation {
-                TextRotation::RightReverse | TextRotation::Right => pos.x += char_size.width * 2,
-                TextRotation::Up => pos.y -= char_size.height * 2,
-                TextRotation::Down => pos.y += char_size.height * 2,
-                TextRotation::Left => pos.x -= char_size.width * 2,
+                TextRotation::RightReverse | TextRotation::Right => pos.x += char_size.width,
+                TextRotation::Up => pos.y -= char_size.height,
+                TextRotation::Down => pos.y += char_size.height,
+                TextRotation::Left => pos.x -= char_size.width,
             }
         }
     }
@@ -444,6 +457,65 @@ impl CommandExecutor for DrawExecutor {
                 self.draw_line(from, next_pos);
                 Ok(CallbackAction::Update)
             }
+            IgsCommands::PolyFill => {
+                if parameters.is_empty() {
+                    return Err(anyhow::anyhow!("PolyLine requires minimun 1 arguments"));
+                }
+                let points = parameters[0];
+                if points * 2 + 1 != parameters.len() as i32 {
+                    return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
+                }
+                let mut last_pos = self.translate_pos(Position::new(parameters[1], parameters[2]));
+                let end_pos = self.translate_pos(Position::new(parameters[parameters.len() - 2], parameters[parameters.len() - 1]));
+
+                let mut lines = Vec::new();
+
+                if self.draw_border {
+                    lines.extend(get_line_points(last_pos, end_pos));
+                    self.draw_line(last_pos, end_pos);
+                }
+
+                for i in 1..points as usize {
+                    let next_pos = self.translate_pos(Position::new(parameters[1 + i * 2], parameters[i * 2 + 2]));
+                    lines.extend(get_line_points(last_pos, next_pos));
+                    if self.draw_border {
+                        self.draw_line(last_pos, next_pos);
+                    }
+                    last_pos = next_pos;
+                }
+                lines.sort_by(|a, b| {
+                    let c = a.y.cmp(&b.y);
+                    if c.is_ne() {
+                        return c;
+                    }
+                    a.x.cmp(&b.x)
+                });
+                let mut i = 0;
+                while i < lines.len() - 1 {
+                    let pt1 = lines[i];
+                    let pt2 = lines[i + 1];
+                }
+                Ok(CallbackAction::Update)
+            }
+            IgsCommands::PolyLine => {
+                if parameters.is_empty() {
+                    return Err(anyhow::anyhow!("PolyLine requires minimun 1 arguments"));
+                }
+                let points = parameters[0];
+                if points * 2 + 1 != parameters.len() as i32 {
+                    return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
+                }
+                let mut last_pos = self.translate_pos(Position::new(parameters[1], parameters[2]));
+                let end_pos = self.translate_pos(Position::new(parameters[parameters.len() - 2], parameters[parameters.len() - 1]));
+                self.draw_line(last_pos, end_pos);
+
+                for i in 1..points as usize {
+                    let next_pos = self.translate_pos(Position::new(parameters[1 + i * 2], parameters[i * 2 + 2]));
+                    self.draw_line(last_pos, next_pos);
+                    last_pos = next_pos;
+                }
+                Ok(CallbackAction::Update)
+            }
 
             IgsCommands::LineDrawTo => {
                 if parameters.len() != 2 {
@@ -453,6 +525,7 @@ impl CommandExecutor for DrawExecutor {
                 self.draw_line(self.cur_position, next_pos);
                 Ok(CallbackAction::Update)
             }
+
             IgsCommands::Box => {
                 if parameters.len() != 5 {
                     return Err(anyhow::anyhow!("Box command requires 5 arguments"));
@@ -460,26 +533,56 @@ impl CommandExecutor for DrawExecutor {
                 let min = self.translate_pos(Position::new(parameters[0], parameters[1]));
                 let max = self.translate_pos(Position::new(parameters[2], parameters[3]));
                 let line = get_line_points(Position::new(min.x, min.y), Position::new(max.x, min.y));
-                let color = self.pen_colors[self.line_color].clone();
-                for p in line {
-                    self.draw_pixel(p, &color);
+                if self.draw_border {
+                    let color = self.pen_colors[self.line_color].clone();
+
+                    for p in line {
+                        self.draw_pixel(p, &color);
+                    }
+                    let line = get_line_points(Position::new(min.x, max.y), Position::new(max.x, max.y));
+                    for p in line {
+                        self.draw_pixel(p, &color);
+                    }
+                    let line = get_line_points(Position::new(min.x, min.y), Position::new(min.x, max.y));
+                    for p in line {
+                        self.draw_pixel(p, &color);
+                    }
+                    let line = get_line_points(Position::new(max.x, min.y), Position::new(max.x, max.y));
+                    for p in line {
+                        self.draw_pixel(p, &color);
+                    }
                 }
-                let line = get_line_points(Position::new(min.x, max.y), Position::new(max.x, max.y));
-                for p in line {
-                    self.draw_pixel(p, &color);
-                }
-                let line = get_line_points(Position::new(min.x, min.y), Position::new(min.x, max.y));
-                for p in line {
-                    self.draw_pixel(p, &color);
-                }
-                let line = get_line_points(Position::new(max.x, min.y), Position::new(max.x, max.y));
-                for p in line {
-                    self.draw_pixel(p, &color);
+
+                let color = self.pen_colors[self.fill_color].clone();
+                for y in min.y..=max.y {
+                    for x in min.x..=max.x {
+                        self.draw_pixel(Position::new(x, y), &color);
+                    }
                 }
 
                 Ok(CallbackAction::Update)
             }
 
+            IgsCommands::AttributeForFills => {
+                if parameters.len() != 3 {
+                    return Err(anyhow::anyhow!("AttributeForFills command requires 3 arguments"));
+                }
+                match parameters[0] {
+                    0 => self.fill_pattern_type = FillPatternType::Hollow,
+                    1 => self.fill_pattern_type = FillPatternType::Solid,
+                    2 => self.fill_pattern_type = FillPatternType::Pattern,
+                    3 => self.fill_pattern_type = FillPatternType::Hatch,
+                    4 => self.fill_pattern_type = FillPatternType::UserdDefined,
+                    _ => return Err(anyhow::anyhow!("AttributeForFills unknown/unsupported argument: {}", parameters[0])),
+                }
+                self.pattern_index_number = parameters[1] as usize;
+                match parameters[2] {
+                    0 => self.draw_border = false,
+                    1 => self.draw_border = true,
+                    _ => return Err(anyhow::anyhow!("AttributeForFills unknown/unsupported argument: {}", parameters[2])),
+                }
+                Ok(CallbackAction::NoUpdate)
+            }
             IgsCommands::FilledRectangle => {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("FilledRectangle command requires 4 arguments"));
@@ -688,7 +791,36 @@ impl CommandExecutor for DrawExecutor {
 
                 Ok(CallbackAction::Update)
             }
+
+            IgsCommands::VTColor => {
+                if parameters.len() != 2 {
+                    return Err(anyhow::anyhow!("VTColor command requires 2 argument"));
+                }
+                if let Some(pen) = REGISTER_TO_PEN.get(parameters[1] as usize) {
+                    let color = self.pen_colors[*pen].clone();
+
+                    if parameters[0] == 0 {
+                        caret.set_background(buf.palette.insert_color(color));
+                    } else if parameters[0] == 1 {
+                        caret.set_foreground(buf.palette.insert_color(color));
+                    } else {
+                        return Err(anyhow::anyhow!("VTColor unknown/unsupported color mode: {}", parameters[0]));
+                    }
+                    Ok(CallbackAction::NoUpdate)
+                } else {
+                    Err(anyhow::anyhow!("VTColor unknown/unsupported color selector: {}", parameters[1]))
+                }
+            }
+            IgsCommands::VTPosition => {
+                if parameters.len() != 2 {
+                    return Err(anyhow::anyhow!("VTPosition command requires 2 argument"));
+                }
+                caret.set_position(Position::new(parameters[0], parameters[1]));
+                Ok(CallbackAction::NoUpdate)
+            }
             _ => Err(anyhow::anyhow!("Unimplemented IGS command: {command:?}")),
         }
     }
 }
+
+const REGISTER_TO_PEN: &[usize; 17] = &[0, 2, 3, 6, 4, 7, 5, 8, 9, 10, 11, 14, 12, 12, 15, 13, 1];

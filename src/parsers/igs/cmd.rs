@@ -119,6 +119,21 @@ pub enum IgsCommands {
     /// 2nd paraneter = Y coordinate<br/>
     FloodFill,
 
+    /// f = command identifer
+    /// Fills a area defined by the X and Y points.
+    /// The enclosed area will be filled with the current fill
+    /// pattern, fill color, border set with the A command.
+    ///
+    /// 1st parameter = number of paired X,Y points
+    /// so the 3 means 6 parameters following.  It also
+    /// will be the number of sides the area will have.
+    /// passing a 1 or 2 here draws a point or line.
+    ///
+    /// remaining parameters = X,Y pairs forming the points
+    /// the last pair of points will be connected to the
+    /// beginning points automatically by the routine.
+    PolyFill,
+
     /// g = command identifier
     ///
     /// Turn graphic scaling on or off.
@@ -296,6 +311,20 @@ pub enum IgsCommands {
     /// 3rd parameter = ending   X coordiante
     /// 4th parameter = ending   Y coordinate
     DrawLine,
+
+    /// z = command identifer
+    /// Draws a connected line defined by the X and Y points.
+    /// Line color, type and line end points apply.
+    ///
+    /// 1st parameter = number of paired X,Y points
+    /// so the 3 means 6 parameters following.
+    /// A minimum of 2 here required!  I forced this
+    /// because 1 here would crash the system! The maximum
+    /// number of points is 128.
+    ///
+    /// remaining parameters = X,Y pairs forming the points
+    /// of the Line.
+    PolyLine,
 
     /// M = command identifier
     ///
@@ -978,6 +1007,7 @@ impl IgsCommands {
             'D' => IgsCommands::LineDrawTo,
             'E' => IgsCommands::TextEffects,
             'F' => IgsCommands::FloodFill,
+            'f' => IgsCommands::PolyFill,
             'g' => IgsCommands::GraphicScaling,
             'G' => IgsCommands::GrabScreen,
             'q' => IgsCommands::QuickPause,
@@ -987,6 +1017,7 @@ impl IgsCommands {
             'k' => IgsCommands::Cursor,
             'K' => IgsCommands::Arc,
             'L' => IgsCommands::DrawLine,
+            'z' => IgsCommands::PolyLine,
             'M' => IgsCommands::DrawingMode,
             'n' => IgsCommands::ChipMusic,
             'N' => IgsCommands::Noise,
