@@ -1,5 +1,8 @@
 use crate::Position;
 
+pub mod half_block;
+pub use half_block::*;
+
 pub fn get_line_points(from: Position, to: Position) -> Vec<Position> {
     let dx = (to.x - from.x).abs();
     let sx = if from.x < to.x { 1 } else { -1 };

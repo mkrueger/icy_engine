@@ -67,6 +67,8 @@ impl std::fmt::Display for TextAttribute {
 }
 
 impl TextAttribute {
+    pub const TRANSPARENT_COLOR: u32 = 1 << 31;
+
     pub fn new(foreground_color: u32, background_color: u32) -> Self {
         TextAttribute {
             foreground_color,

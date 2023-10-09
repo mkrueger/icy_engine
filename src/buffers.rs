@@ -9,7 +9,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position, Rectangle, SauceData, Sixel, TerminalState, TextPane, FORMATS,
+    parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position, Rectangle, SauceData, Sixel, TerminalState, TextAttribute,
+    TextPane, FORMATS,
 };
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
@@ -860,12 +861,20 @@ impl TextPane for Buffer {
         let mut ch_opt = None;
         let mut attr_opt = None;
         let mut default_font_page = 0;
+        let mut transparent_char = None;
         for i in (0..self.layers.len()).rev() {
             if i == self.overlay_layer_index {
                 if let Some(overlay) = &self.overlay_layer {
                     let pos = pos - overlay.get_offset();
                     let ch = overlay.get_char(pos);
-                    if ch.is_visible() {
+                    if ch.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR || ch.attribute.background_color == TextAttribute::TRANSPARENT_COLOR {
+                        if transparent_char.is_none() {
+                            transparent_char = Some(ch);
+                        }
+                    } else if ch.is_visible() {
+                        if let Some(transparent_char) = transparent_char {
+                            return make_solid_color(transparent_char, ch);
+                        }
                         return ch;
                     }
                 }
@@ -884,10 +893,27 @@ impl TextPane for Buffer {
             match cur_layer.mode {
                 crate::Mode::Normal => {
                     if ch.is_visible() {
-                        return merge(ch, ch_opt, attr_opt);
+                        let found_char = merge(ch, ch_opt, attr_opt);
+
+                        if found_char.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR
+                            || found_char.attribute.background_color == TextAttribute::TRANSPARENT_COLOR
+                        {
+                            if transparent_char.is_none() {
+                                transparent_char = Some(found_char);
+                            }
+                        } else {
+                            if let Some(transparent_char) = transparent_char {
+                                return make_solid_color(transparent_char, found_char);
+                            }
+                            return found_char;
+                        }
                     }
                     if !cur_layer.has_alpha_channel {
-                        return merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
+                        let res = merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
+                        if let Some(transparent_char) = transparent_char {
+                            return make_solid_color(transparent_char, res);
+                        }
+                        return res;
                     }
                 }
                 crate::Mode::Chars => {
@@ -901,6 +927,10 @@ impl TextPane for Buffer {
                     }
                 }
             }
+        }
+
+        if let Some(transparent_char) = transparent_char {
+            return transparent_char;
         }
 
         let mut ch = if self.is_terminal_buffer {
@@ -940,6 +970,24 @@ impl TextPane for Buffer {
     fn get_rectangle(&self) -> Rectangle {
         Rectangle::from_min_size((0, 0), (self.get_width(), self.get_height()))
     }
+}
+
+fn make_solid_color(mut transparent_char: AttributedChar, underlying_char: AttributedChar) -> AttributedChar {
+    let col = if underlying_char.ch == 219 as char {
+        underlying_char.attribute.foreground_color
+    } else {
+        underlying_char.attribute.background_color
+    };
+
+    if transparent_char.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR {
+        transparent_char.attribute.foreground_color = col;
+    }
+
+    if transparent_char.attribute.background_color == TextAttribute::TRANSPARENT_COLOR {
+        transparent_char.attribute.background_color = col;
+    }
+
+    transparent_char
 }
 
 #[cfg(test)]
