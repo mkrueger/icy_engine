@@ -491,9 +491,20 @@ impl CommandExecutor for DrawExecutor {
                     a.x.cmp(&b.x)
                 });
                 let mut i = 0;
+                let color = self.pen_colors[self.fill_color].clone();
                 while i < lines.len() - 1 {
                     let pt1 = lines[i];
                     let pt2 = lines[i + 1];
+                    if pt1.y == pt2.y {
+                        let mut x = pt1.x;
+                        while x <= pt2.x {
+                            self.draw_pixel(Position::new(x, pt1.y), &color);
+                            x += 1;
+                        }
+                        i += 2;
+                    } else {
+                        i += 1;
+                    }
                 }
                 Ok(CallbackAction::Update)
             }

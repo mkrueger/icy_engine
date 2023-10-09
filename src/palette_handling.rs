@@ -11,7 +11,7 @@ lazy_static::lazy_static! {
 
     static ref PAL_REGEX: Regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)").unwrap();
 
-    static ref GPL_COLOR_REGEX: Regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)\s+\S+").unwrap();
+    static ref GPL_COLOR_REGEX: Regex = Regex::new(r"(\d+)\s+(\d+)\s+(\d+)\s+(.+)").unwrap();
     static ref GPL_NAME_REGEX: Regex = Regex::new(r"\s*#Palette Name:\s*(.*)\s*").unwrap();
     static ref GPL_DESCRIPTION_REGEX: Regex = Regex::new(r"\s*#Description:\s*(.*)\s*").unwrap();
 
@@ -315,12 +315,16 @@ impl Palette {
                                         }
                                     }
                                 } else if let Some(cap) = GPL_COLOR_REGEX.captures(line) {
-                                    let (_, [r, g, b]) = cap.extract();
+                                    let (_, [r, g, b, descr]) = cap.extract();
 
                                     let r = r.parse::<u32>()?;
                                     let g = g.parse::<u32>()?;
                                     let b = b.parse::<u32>()?;
-                                    colors.push(Color::new(r as u8, g as u8, b as u8));
+                                    let mut c = Color::new(r as u8, g as u8, b as u8);
+                                    if !descr.is_empty() {
+                                        c.name = Some(descr.to_string());
+                                    }
+                                    colors.push(c);
                                 }
                             }
                         }
@@ -473,7 +477,7 @@ impl Palette {
                 res.push_str(format!("#Colors: {}\n", self.colors.len()).as_str());
 
                 for c in &self.colors {
-                    res.push_str(format!("{:3} {:3} {:3} {:02x}{:02x}{:02x}\n", c.r, c.g, c.b, c.r, c.g, c.b).as_str());
+                    res.push_str(format!("{:3} {:3} {:3} {}\n", c.r, c.g, c.b, self.description).as_str());
                 }
 
                 return res.as_bytes().to_vec();
