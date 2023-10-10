@@ -8,6 +8,7 @@ use std::{
 
 use i18n_embed_fl::fl;
 
+use crate::paint::HalfBlock;
 use crate::{
     parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position, Rectangle, SauceData, Sixel, TerminalState, TextAttribute,
     TextPane, FORMATS,
@@ -830,6 +831,37 @@ impl Buffer {
         }
         false
     }
+
+    fn make_solid_color(&self, mut transparent_char: AttributedChar, underlying_char: AttributedChar) -> AttributedChar {
+        let half_block = HalfBlock::from(self, underlying_char, Position::default());
+        match transparent_char.ch {
+            crate::paint::HALF_BLOCK_TOP => {
+                if transparent_char.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR {
+                    transparent_char.attribute.foreground_color = half_block.upper_block_color;
+                }
+                if transparent_char.attribute.background_color == TextAttribute::TRANSPARENT_COLOR {
+                    transparent_char.attribute.background_color = half_block.lower_block_color;
+                }
+            }
+            crate::paint::HALF_BLOCK_BOTTOM => {
+                if transparent_char.attribute.background_color == TextAttribute::TRANSPARENT_COLOR {
+                    transparent_char.attribute.background_color = half_block.upper_block_color;
+                }
+                if transparent_char.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR {
+                    transparent_char.attribute.foreground_color = half_block.lower_block_color;
+                }
+            }
+            _ => {
+                if transparent_char.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR {
+                    transparent_char.attribute.foreground_color = half_block.lower_block_color;
+                }
+                if transparent_char.attribute.background_color == TextAttribute::TRANSPARENT_COLOR {
+                    transparent_char.attribute.background_color = half_block.lower_block_color;
+                }
+            }
+        }
+        transparent_char
+    }
 }
 
 impl Default for Buffer {
@@ -873,7 +905,7 @@ impl TextPane for Buffer {
                         }
                     } else if ch.is_visible() {
                         if let Some(transparent_char) = transparent_char {
-                            return make_solid_color(transparent_char, ch);
+                            return self.make_solid_color(transparent_char, ch);
                         }
                         return ch;
                     }
@@ -903,7 +935,7 @@ impl TextPane for Buffer {
                             }
                         } else {
                             if let Some(transparent_char) = transparent_char {
-                                return make_solid_color(transparent_char, found_char);
+                                return self.make_solid_color(transparent_char, found_char);
                             }
                             return found_char;
                         }
@@ -911,7 +943,7 @@ impl TextPane for Buffer {
                     if !cur_layer.has_alpha_channel {
                         let res = merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
                         if let Some(transparent_char) = transparent_char {
-                            return make_solid_color(transparent_char, res);
+                            return self.make_solid_color(transparent_char, res);
                         }
                         return res;
                     }
@@ -970,24 +1002,6 @@ impl TextPane for Buffer {
     fn get_rectangle(&self) -> Rectangle {
         Rectangle::from_min_size((0, 0), (self.get_width(), self.get_height()))
     }
-}
-
-fn make_solid_color(mut transparent_char: AttributedChar, underlying_char: AttributedChar) -> AttributedChar {
-    let col = if underlying_char.ch == 219 as char {
-        underlying_char.attribute.foreground_color
-    } else {
-        underlying_char.attribute.background_color
-    };
-
-    if transparent_char.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR {
-        transparent_char.attribute.foreground_color = col;
-    }
-
-    if transparent_char.attribute.background_color == TextAttribute::TRANSPARENT_COLOR {
-        transparent_char.attribute.background_color = col;
-    }
-
-    transparent_char
 }
 
 #[cfg(test)]

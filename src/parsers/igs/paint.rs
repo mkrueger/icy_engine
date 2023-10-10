@@ -296,7 +296,7 @@ impl DrawExecutor {
             if y_pos >= res.height {
                 break;
             }
-            if y >= res.height {
+            if y >= self.screen_memory.len() as i32 {
                 break;
             }
 

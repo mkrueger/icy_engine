@@ -188,9 +188,7 @@ impl TerminalState {
             crate::OriginMode::UpperLeftCorner => {
                 if buf.is_terminal_buffer {
                     let first = buf.get_first_visible_line();
-                    let n = (first + self.get_height() - 1).min(first.max(caret.pos.y));
-
-                    caret.pos.y = n;
+                    caret.pos.y = caret.pos.y.clamp(first, first + self.get_height() - 1);
                 }
                 caret.pos.x = caret.pos.x.clamp(0, (self.get_width() - 1).max(0));
             }
