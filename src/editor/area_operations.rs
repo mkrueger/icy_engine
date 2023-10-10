@@ -47,7 +47,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -87,7 +87,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -125,7 +125,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -160,7 +160,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -195,7 +195,7 @@ impl EditState {
                 }
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(EditorError::CurrentLayerInvalid.into())
@@ -252,7 +252,7 @@ impl EditState {
             return Ok(());
         }
         let _undo = self.begin_atomic_undo(fl!(crate::LANGUAGE_LOADER, "undo-delete-selection"));
-        let layer_idx = self.get_current_layer();
+        let layer_idx = self.get_current_layer()?;
         let (area, old_layer) = if let Some(layer) = self.buffer.layers.get_mut(layer_idx) {
             (layer.get_rectangle(), layer.clone())
         } else {
@@ -268,7 +268,7 @@ impl EditState {
             }
         }
         let new_layer = self.buffer.layers.get_mut(layer_idx).unwrap().clone();
-        let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+        let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
         let _ = self.push_plain_undo(Box::new(op));
         self.clear_selection()
     }
@@ -282,7 +282,7 @@ impl EditState {
                 return Ok(());
             }
             if area.get_width() >= layer.get_width() {
-                let op = super::undo_operations::UndoScrollWholeLayerUp::new(self.get_current_layer());
+                let op = super::undo_operations::UndoScrollWholeLayerUp::new(self.get_current_layer()?);
                 return self.push_undo_action(Box::new(op));
             }
 
@@ -307,7 +307,7 @@ impl EditState {
                 line_above.chars.splice(area.left() as usize..area.left() as usize, chars);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -323,7 +323,7 @@ impl EditState {
                 return Ok(());
             }
             if area.get_width() >= layer.get_width() {
-                let op = super::undo_operations::UndoScrollWholeLayerDown::new(self.get_current_layer());
+                let op = super::undo_operations::UndoScrollWholeLayerDown::new(self.get_current_layer()?);
                 return self.push_undo_action(Box::new(op));
             }
             let old_layer = Layer::from_layer(layer, area);
@@ -347,7 +347,7 @@ impl EditState {
                 line_below.chars.splice(area.left() as usize..area.left() as usize, chars);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -372,7 +372,7 @@ impl EditState {
                 line.chars.insert(area.right() as usize - 1, ch);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
@@ -397,7 +397,7 @@ impl EditState {
                 line.chars.insert(area.left() as usize, ch);
             }
             let new_layer = Layer::from_layer(layer, area);
-            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer(), area.start, old_layer, new_layer);
+            let op = super::undo_operations::UndoLayerChange::new(self.get_current_layer()?, area.start, old_layer, new_layer);
             self.push_plain_undo(Box::new(op))
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())

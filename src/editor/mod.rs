@@ -162,12 +162,19 @@ impl EditState {
     }
 
     pub fn get_cur_layer(&self) -> Option<&Layer> {
-        self.buffer.layers.get(self.get_current_layer())
+        if let Ok(layer) = self.get_current_layer() {
+            self.buffer.layers.get(layer)
+        } else {
+            None
+        }
     }
 
     pub fn get_cur_layer_mut(&mut self) -> Option<&mut Layer> {
-        let layer = self.get_current_layer();
-        self.buffer.layers.get_mut(layer)
+        if let Ok(layer) = self.get_current_layer() {
+            self.buffer.layers.get_mut(layer)
+        } else {
+            None
+        }
     }
 
     pub fn get_caret(&self) -> &Caret {
@@ -267,11 +274,25 @@ impl EditState {
     }
 
     pub fn get_overlay_layer(&mut self) -> &mut Option<Layer> {
-        self.buffer.get_overlay_layer(self.get_current_layer())
+        if let Ok(layer) = self.get_current_layer() {
+            self.buffer.get_overlay_layer(layer)
+        } else {
+            self.buffer.get_overlay_layer(0)
+        }
     }
 
-    pub fn get_current_layer(&self) -> usize {
-        self.current_layer.clamp(0, self.buffer.layers.len().saturating_sub(1))
+    /// Returns the get current layer of this [`EditState`].
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn get_current_layer(&self) -> EngineResult<usize> {
+        let len = self.buffer.layers.len();
+        if len > 0 {
+            Ok(self.current_layer.clamp(0, len - 1))
+        } else {
+            Err(anyhow::anyhow!("No layers"))
+        }
     }
 
     pub fn set_current_layer(&mut self, layer: usize) {

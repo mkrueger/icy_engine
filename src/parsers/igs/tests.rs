@@ -2,8 +2,9 @@ use crate::{Buffer, CallbackAction, Caret, EngineResult, Size};
 
 use super::{cmd::IgsCommands, CommandExecutor};
 
+type IgsCommandVec = Vec<(IgsCommands, Vec<i32>)>;
 struct TestExecutor {
-    pub commands: Arc<Mutex<Vec<(IgsCommands, Vec<i32>)>>>,
+    pub commands: Arc<Mutex<IgsCommandVec>>,
 }
 
 impl CommandExecutor for TestExecutor {
@@ -36,7 +37,7 @@ use crate::{
     TextPane,
 };
 
-fn create_parser() -> (Arc<Mutex<Vec<(IgsCommands, Vec<i32>)>>>, Parser) {
+fn create_parser() -> (Arc<Mutex<IgsCommandVec>>, Parser) {
     let commands = Arc::new(Mutex::new(Vec::new()));
     let command_executor: Arc<Mutex<Box<dyn CommandExecutor>>> = Arc::new(Mutex::new(Box::new(TestExecutor { commands: commands.clone() })));
     let igs_parser = Parser::new(Box::<ascii::Parser>::default(), command_executor);

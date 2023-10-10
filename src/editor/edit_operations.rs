@@ -24,7 +24,7 @@ impl EditState {
                 let mirror_old = layer.get_char(mirror_pos);
                 self.push_undo_action(Box::new(UndoSetChar {
                     pos: mirror_pos,
-                    layer: self.get_current_layer(),
+                    layer: self.get_current_layer()?,
                     old: mirror_old,
                     new: attributed_char,
                 }))?;
@@ -32,7 +32,7 @@ impl EditState {
 
             self.push_undo_action(Box::new(UndoSetChar {
                 pos,
-                layer: self.get_current_layer(),
+                layer: self.get_current_layer()?,
                 old,
                 new: attributed_char,
             }))
@@ -44,7 +44,7 @@ impl EditState {
     pub fn swap_char(&mut self, pos1: impl Into<Position>, pos2: impl Into<Position>) -> EngineResult<()> {
         let pos1 = pos1.into();
         let pos2 = pos2.into();
-        let layer = self.get_current_layer();
+        let layer = self.get_current_layer()?;
         let op = UndoSwapChar { layer, pos1, pos2 };
         self.push_undo_action(Box::new(op))
     }
@@ -56,7 +56,7 @@ impl EditState {
     /// This function will return an error if .
     pub fn paste_clipboard_data(&mut self, data: &[u8]) -> EngineResult<()> {
         if let Some(layer) = Layer::from_clipboard_data(data) {
-            let op = Paste::new(self.current_layer, layer);
+            let op = Paste::new(self.get_current_layer()?, layer);
             self.push_undo_action(Box::new(op))?;
         }
         self.selection_opt = None;
@@ -77,7 +77,7 @@ impl EditState {
         layer.has_alpha_channel = true;
         layer.sixels.push(sixel);
 
-        let op = Paste::new(self.current_layer, layer);
+        let op = Paste::new(self.get_current_layer()?, layer);
         self.push_undo_action(Box::new(op))?;
         self.selection_opt = None;
         Ok(())
@@ -170,28 +170,28 @@ impl EditState {
 
     pub fn delete_row(&mut self) -> EngineResult<()> {
         let y = self.get_caret().get_position().y;
-        let layer = self.get_current_layer();
+        let layer = self.get_current_layer()?;
         let op = super::undo_operations::DeleteRow::new(layer, y);
         self.push_undo_action(Box::new(op))
     }
 
     pub fn insert_row(&mut self) -> EngineResult<()> {
         let y = self.get_caret().get_position().y;
-        let layer = self.get_current_layer();
+        let layer = self.get_current_layer()?;
         let op = super::undo_operations::InsertRow::new(layer, y);
         self.push_undo_action(Box::new(op))
     }
 
     pub fn insert_column(&mut self) -> EngineResult<()> {
         let x = self.get_caret().get_position().x;
-        let layer = self.get_current_layer();
+        let layer = self.get_current_layer()?;
         let op = super::undo_operations::InsertColumn::new(layer, x);
         self.push_undo_action(Box::new(op))
     }
 
     pub fn delete_column(&mut self) -> EngineResult<()> {
         let x = self.get_caret().get_position().x;
-        let layer = self.get_current_layer();
+        let layer = self.get_current_layer()?;
         let op = super::undo_operations::DeleteColumn::new(layer, x);
         self.push_undo_action(Box::new(op))
     }

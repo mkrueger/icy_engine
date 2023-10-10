@@ -80,6 +80,15 @@ impl Parser {
         }
     }
 
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
     fn run_loop(&mut self, buf: &mut Buffer, caret: &mut Caret, from: i32, to: i32, step: i32, delay: i32, command: char) -> EngineResult<()> {
         let cmd = IgsCommands::from_char(command)?;
         let mut i = from;
