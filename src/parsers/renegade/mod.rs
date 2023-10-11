@@ -1,5 +1,5 @@
 use super::{ansi, BufferParser};
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult};
+use crate::{Buffer, CallbackAction, Caret, EngineResult};
 
 #[derive(Default, Clone, Copy, PartialEq)]
 enum State {
@@ -16,14 +16,6 @@ pub struct Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
-        self.ansi_parser.convert_from_unicode(ch, font_page)
-    }
-
-    fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char {
-        self.ansi_parser.convert_to_unicode(attributed_char)
-    }
-
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match self.state {
             State::Normal => match ch {
@@ -46,7 +38,7 @@ impl BufferParser for Parser {
                 self.state = State::Normal;
 
                 let code = ch as u8;
-                if !(b'0'..=b'9').contains(&code) {
+                if !code.is_ascii_digit() {
                     return Err(anyhow::anyhow!("Invalid color code: {}", ch));
                 }
                 let color = first + (code - b'0');

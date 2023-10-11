@@ -82,7 +82,6 @@ pub enum FillPatternType {
     UserdDefined,
 }
 pub struct DrawExecutor {
-    igs_texture: Vec<u8>,
     dt: DrawTarget,
     terminal_resolution: TerminalResolution,
     x_scale: f32,
@@ -117,7 +116,6 @@ pub struct DrawExecutor {
 impl Default for DrawExecutor {
     fn default() -> Self {
         Self {
-            igs_texture: vec![0; 320 * 4 * 200],
             dt: DrawTarget::new(320, 200),
             terminal_resolution: TerminalResolution::Low,
             x_scale: 1.0,
@@ -151,19 +149,20 @@ impl DrawExecutor {
     pub fn clear(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         buf.clear_screen(0, caret);
         let res = self.get_resolution();
-        self.igs_texture = vec![0; res.width as usize * 4 * res.height as usize];
+        self.dt.clear(SolidSource::from_unpremultiplied_argb(0, 0, 0, 0));
     }
 
     pub fn set_resolution(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         buf.clear_screen(0, caret);
         let res = self.get_resolution();
-        self.igs_texture = vec![0; res.width as usize * 4 * res.height as usize];
+        self.dt = DrawTarget::new(res.width, res.height);
     }
 
     pub fn reset_attributes(&mut self) {
         // TODO
     }
 
+    /*
     fn draw_pixel(&mut self, p: Position, color: &Color) {
         let res = self.get_resolution();
         if p.x < 0 || p.y < 0 || p.x >= res.width || p.y >= res.height {
@@ -180,53 +179,35 @@ impl DrawExecutor {
     fn get_pixel(&self, p: Position) -> [u8; 4] {
         let offset = p.x as usize * 4 + p.y as usize * self.get_resolution().width as usize * 4;
         self.igs_texture[offset..offset + 4].try_into().unwrap()
-    }
+    }*/
 
     fn translate_pos(&self, pt: Position) -> Position {
         Position::new((pt.x as f32 * self.x_scale) as i32, (pt.y as f32 * self.y_scale) as i32)
     }
 
-    fn flood_fill(&mut self, pos: Position) {
-        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_resolution().width || pos.y >= self.get_resolution().height {
-            return;
-        }
-        let pos = self.translate_pos(pos);
-        let col = self.pen_colors[self.fill_color].clone();
-        let color = self.get_pixel(pos);
-        let (r, g, b) = col.get_rgb();
-        if r == color[0] && g == color[1] && b == color[2] {
-            return;
-        }
-        self.fill(pos, color);
-    }
-
-    fn fill(&mut self, p: Position, color: [u8; 4]) {
-        if p.x < 0 || p.y < 0 || p.x >= self.get_resolution().width || p.y >= self.get_resolution().height {
-            return;
-        }
-        if self.get_pixel(p) == color {
-            return;
-        }
-
-        let col = self.pen_colors[self.fill_color].clone();
-        self.draw_pixel(p, &col);
-        self.fill(Position::new(p.x - 1, p.y), color);
-        self.fill(Position::new(p.x + 1, p.y), color);
-        self.fill(Position::new(p.x, p.y - 1), color);
-        self.fill(Position::new(p.x, p.y + 1), color);
-    }
-
     fn draw_line(&mut self, from: Position, to: Position) {
         // println!("draw line: {:?} -> {:?}", from, to);
-        let line = get_line_points(from, to);
         self.cur_position = to;
-        let color = self.pen_colors[self.line_color].clone();
-        for p in line {
-            self.draw_pixel(p, &color);
-        }
+        let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
+
+        let mut pb = PathBuilder::new();
+        pb.move_to(from.x as f32, from.y as f32);
+        pb.line_to(to.x as f32, to.y as f32);
+        let path = pb.finish();
+
+        self.dt.stroke(
+            &path,
+            &Source::Solid(SolidSource::from_unpremultiplied_argb(0xFF, r, g, b)),
+            &StrokeStyle {
+                width: 1., // <--
+                ..StrokeStyle::default()
+            },
+            &DrawOptions::new(),
+        );
     }
 
     fn write_text(&mut self, text_pos: Position, string_parameter: &str) {
+        /*
         let mut pos = text_pos;
         let char_size = self.font_8px.size;
         let color = self.pen_colors[self.text_color].clone();
@@ -246,90 +227,60 @@ impl DrawExecutor {
                 TextRotation::Down => pos.y += char_size.height,
                 TextRotation::Left => pos.x -= char_size.width,
             }
-        }
+        }*/
     }
 
     fn blit_screen_to_screen(&mut self, _write_mode: i32, from: Position, to: Position, dest: Position) {
         let res = self.get_resolution();
-
-        for y in from.y..to.y {
-            let y_pos = dest.y + y - from.y;
-            if y < 0 || y_pos < 0 {
-                continue;
-            }
-
-            if y_pos >= res.height {
-                break;
-            }
-            if y >= res.height {
-                break;
-            }
-            let sy = (y * res.width * 4) as usize;
-            let dy = (y_pos * res.width * 4) as usize;
-
-            for x in from.x..to.x {
-                let x_pos = x - from.x + dest.x;
-                if x < 0 || x_pos < 0 {
-                    continue;
-                }
-                if x_pos >= res.width {
-                    break;
-                }
-                if x >= res.width {
-                    break;
-                }
-
-                let srcptr = sy + x as usize * 4;
-                let dstptr = dy + x_pos as usize * 4;
-                for i in 0..4 {
-                    self.igs_texture[dstptr + i] = self.igs_texture[srcptr + i];
-                }
-            }
-        }
+        //  self.dt.copy_surface(&mut self.dt, IntRect::from_points([IntPoint::new(from.x, from.y), IntPoint::new(to.x, to.y)]), IntPoint::new(dest.x, dest.y));
     }
 
     fn blit_memory_to_screen(&mut self, _write_mode: i32, from: Position, to: Position, dest: Position) {
-        let res = self.get_resolution();
+        /*
+            let res = self.get_resolution();
 
-        for y in from.y..to.y {
-            let y_pos = dest.y + y - from.y;
-            if y < 0 || y_pos < 0 {
-                continue;
-            }
-            if y_pos >= res.height {
-                break;
-            }
-            if y >= self.screen_memory.len() as i32 {
-                break;
-            }
-
-            let dy = (y_pos * res.width * 4) as usize;
-            for x in from.x..to.x {
-                let src = x as usize * 4;
-                let x_pos = x - from.x + dest.x;
-                if x < 0 || x_pos < 0 {
+            for y in from.y..to.y {
+                let y_pos = dest.y + y - from.y;
+                if y < 0 || y_pos < 0 {
                     continue;
                 }
-                if src >= res.width as usize {
+                if y_pos >= res.height {
                     break;
                 }
-                if x_pos >= res.width {
+                if y >= self.screen_memory.len() as i32 {
                     break;
                 }
 
-                let dptr = dy + x_pos as usize * 4;
-                for i in 0..4 {
-                    if src + i >= self.screen_memory[y as usize].len() {
+                let dy = (y_pos * res.width * 4) as usize;
+                for x in from.x..to.x {
+                    let src = x as usize * 4;
+                    let x_pos = x - from.x + dest.x;
+                    if x < 0 || x_pos < 0 {
+                        continue;
+                    }
+                    if src >= res.width as usize {
+                        break;
+                    }
+                    if x_pos >= res.width {
                         break;
                     }
 
-                    self.igs_texture[dptr + i] = self.screen_memory[y as usize][src + i];
+                    let dptr = dy + x_pos as usize * 4;
+                    for i in 0..4 {
+                        if src + i >= self.screen_memory[y as usize].len() {
+                            break;
+                        }
+
+                        self.igs_texture[dptr + i] = self.screen_memory[y as usize][src + i];
+                    }
                 }
             }
-        }
+
+        */
     }
 
     fn blit_screen_to_memory(&mut self, _write_mode: i32, from: Position, to: Position) {
+        /*
         let from = self.translate_pos(from);
         let to = self.translate_pos(to);
 
@@ -342,6 +293,7 @@ impl DrawExecutor {
         }
 
         self.screen_memory = data;
+        */
     }
 }
 
@@ -352,11 +304,11 @@ impl CommandExecutor for DrawExecutor {
     }
 
     fn get_texture_data(&self) -> &[u8] {
-        &self.igs_texture
+        self.dt.get_data_u8()
     }
 
     fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
-        Some((self.get_resolution(), self.igs_texture.clone()))
+        Some((self.get_resolution(), self.dt.get_data_u8().to_vec()))
     }
     fn execute_command(
         &mut self,
@@ -471,47 +423,22 @@ impl CommandExecutor for DrawExecutor {
                 if points * 2 + 1 != parameters.len() as i32 {
                     return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
                 }
-                let mut last_pos = self.translate_pos(Position::new(parameters[1], parameters[2]));
-                let end_pos = self.translate_pos(Position::new(parameters[parameters.len() - 2], parameters[parameters.len() - 1]));
-
-                let mut lines = Vec::new();
-
-                if self.draw_border {
-                    lines.extend(get_line_points(last_pos, end_pos));
-                    self.draw_line(last_pos, end_pos);
+                let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
+                let mut pb = PathBuilder::new();
+                pb.move_to(parameters[1] as f32, parameters[2] as f32);
+                let mut i = 3;
+                while i < parameters.len() {
+                    pb.line_to(parameters[i] as f32, parameters[i + 1] as f32);
+                    i += 2;
                 }
+                pb.line_to(parameters[1] as f32, parameters[2] as f32);
 
-                for i in 1..points as usize {
-                    let next_pos = self.translate_pos(Position::new(parameters[1 + i * 2], parameters[i * 2 + 2]));
-                    lines.extend(get_line_points(last_pos, next_pos));
-                    if self.draw_border {
-                        self.draw_line(last_pos, next_pos);
-                    }
-                    last_pos = next_pos;
-                }
-                lines.sort_by(|a, b| {
-                    let c = a.y.cmp(&b.y);
-                    if c.is_ne() {
-                        return c;
-                    }
-                    a.x.cmp(&b.x)
-                });
-                let mut i = 0;
-                let color = self.pen_colors[self.fill_color].clone();
-                while i < lines.len() - 1 {
-                    let pt1 = lines[i];
-                    let pt2 = lines[i + 1];
-                    if pt1.y == pt2.y {
-                        let mut x = pt1.x;
-                        while x <= pt2.x {
-                            self.draw_pixel(Position::new(x, pt1.y), &color);
-                            x += 1;
-                        }
-                        i += 2;
-                    } else {
-                        i += 1;
-                    }
-                }
+                let path = pb.finish();
+                self.dt.fill(
+                    &path,
+                    &Source::Solid(SolidSource::from_unpremultiplied_argb(0xFF, r, g, b)),
+                    &DrawOptions::new(),
+                );
                 Ok(CallbackAction::Update)
             }
             IgsCommands::PolyLine => {
@@ -522,15 +449,26 @@ impl CommandExecutor for DrawExecutor {
                 if points * 2 + 1 != parameters.len() as i32 {
                     return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
                 }
-                let mut last_pos = self.translate_pos(Position::new(parameters[1], parameters[2]));
-                let end_pos = self.translate_pos(Position::new(parameters[parameters.len() - 2], parameters[parameters.len() - 1]));
-                self.draw_line(last_pos, end_pos);
-
-                for i in 1..points as usize {
-                    let next_pos = self.translate_pos(Position::new(parameters[1 + i * 2], parameters[i * 2 + 2]));
-                    self.draw_line(last_pos, next_pos);
-                    last_pos = next_pos;
+                let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
+                let mut pb = PathBuilder::new();
+                pb.move_to(parameters[1] as f32, parameters[2] as f32);
+                let mut i = 3;
+                while i < parameters.len() {
+                    pb.line_to(parameters[i] as f32, parameters[i + 1] as f32);
+                    i += 2;
                 }
+                pb.line_to(parameters[1] as f32, parameters[2] as f32);
+
+                let path = pb.finish();
+                self.dt.stroke(
+                    &path,
+                    &Source::Solid(SolidSource::from_unpremultiplied_argb(0xFF, r, g, b)),
+                    &StrokeStyle {
+                        width: 1., // <--
+                        ..StrokeStyle::default()
+                    },
+                    &DrawOptions::new(),
+                );
                 Ok(CallbackAction::Update)
             }
 
@@ -549,33 +487,23 @@ impl CommandExecutor for DrawExecutor {
                 }
                 let min = self.translate_pos(Position::new(parameters[0], parameters[1]));
                 let max = self.translate_pos(Position::new(parameters[2], parameters[3]));
-                let line = get_line_points(Position::new(min.x, min.y), Position::new(max.x, min.y));
-                if self.draw_border {
-                    let color = self.pen_colors[self.line_color].clone();
-
-                    for p in line {
-                        self.draw_pixel(p, &color);
-                    }
-                    let line = get_line_points(Position::new(min.x, max.y), Position::new(max.x, max.y));
-                    for p in line {
-                        self.draw_pixel(p, &color);
-                    }
-                    let line = get_line_points(Position::new(min.x, min.y), Position::new(min.x, max.y));
-                    for p in line {
-                        self.draw_pixel(p, &color);
-                    }
-                    let line = get_line_points(Position::new(max.x, min.y), Position::new(max.x, max.y));
-                    for p in line {
-                        self.draw_pixel(p, &color);
-                    }
-                }
-
-                let color = self.pen_colors[self.fill_color].clone();
-                for y in min.y..=max.y {
-                    for x in min.x..=max.x {
-                        self.draw_pixel(Position::new(x, y), &color);
-                    }
-                }
+                let mut pb = PathBuilder::new();
+                pb.move_to(min.x as f32, min.y as f32);
+                pb.line_to(max.x as f32, min.y as f32);
+                pb.line_to(max.x as f32, max.y as f32);
+                pb.line_to(min.x as f32, max.y as f32);
+                pb.line_to(min.x as f32, min.y as f32);
+                let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
+                let path = pb.finish();
+                self.dt.stroke(
+                    &path,
+                    &Source::Solid(SolidSource::from_unpremultiplied_argb(0xFF, r, g, b)),
+                    &StrokeStyle {
+                        width: 1., // <--
+                        ..StrokeStyle::default()
+                    },
+                    &DrawOptions::new(),
+                );
 
                 Ok(CallbackAction::Update)
             }
@@ -607,12 +535,19 @@ impl CommandExecutor for DrawExecutor {
                 let min = self.translate_pos(Position::new(parameters[0], parameters[1]));
                 let max = self.translate_pos(Position::new(parameters[2], parameters[3]));
 
-                let c = self.pen_colors[self.fill_color].clone();
-                for y in min.y..=max.y {
-                    for x in min.x..=max.x {
-                        self.draw_pixel(Position::new(x, y), &c);
-                    }
-                }
+                let mut pb = PathBuilder::new();
+                pb.move_to(min.x as f32, min.y as f32);
+                pb.line_to(max.x as f32, min.y as f32);
+                pb.line_to(max.x as f32, max.y as f32);
+                pb.line_to(min.x as f32, max.y as f32);
+                pb.line_to(min.x as f32, min.y as f32);
+                let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
+                let path = pb.finish();
+                self.dt.fill(
+                    &path,
+                    &Source::Solid(SolidSource::from_unpremultiplied_argb(0xFF, r, g, b)),
+                    &DrawOptions::new(),
+                );
 
                 Ok(CallbackAction::Update)
             }
@@ -625,7 +560,15 @@ impl CommandExecutor for DrawExecutor {
                 }
                 let next_pos = Position::new(parameters[0], parameters[1]);
                 let color = self.pen_colors[self.line_color].clone();
-                self.draw_pixel(next_pos, &color);
+                let mut pb = PathBuilder::new();
+                pb.rect(next_pos.x as f32, next_pos.y as f32, 1.0, 1.0);
+                let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
+                let path = pb.finish();
+                self.dt.fill(
+                    &path,
+                    &Source::Solid(SolidSource::from_unpremultiplied_argb(0xFF, r, g, b)),
+                    &DrawOptions::new(),
+                );
                 self.cur_position = next_pos;
                 Ok(CallbackAction::Update)
             }
@@ -751,7 +694,7 @@ impl CommandExecutor for DrawExecutor {
                     return Err(anyhow::anyhow!("FloodFill command requires 2 arguments"));
                 }
                 let next_pos = Position::new(parameters[0], parameters[1]);
-                self.flood_fill(next_pos);
+                //      self.flood_fill(next_pos);
                 Ok(CallbackAction::Pause(100))
             }
 
