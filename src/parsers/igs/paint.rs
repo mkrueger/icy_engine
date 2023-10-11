@@ -1,5 +1,6 @@
 use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION};
 use crate::{paint::get_line_points, BitFont, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, ATARI, IGS_PALETTE, IGS_SYSTEM_PALETTE};
+use raqote::*;
 
 #[derive(Default)]
 pub enum TerminalResolution {
@@ -83,6 +84,7 @@ pub enum FillPatternType {
 
 pub struct DrawExecutor {
     igs_texture: Vec<u8>,
+    dt: DrawTarget,
     terminal_resolution: TerminalResolution,
     x_scale: f32,
     y_scale: f32,
@@ -117,6 +119,7 @@ impl Default for DrawExecutor {
     fn default() -> Self {
         Self {
             igs_texture: vec![0; 320 * 4 * 200],
+            dt: DrawTarget::new(320, 200),
             terminal_resolution: TerminalResolution::Low,
             x_scale: 1.0,
             y_scale: 1.0,
@@ -205,6 +208,7 @@ impl DrawExecutor {
         if self.get_pixel(p) == color {
             return;
         }
+        
         let col = self.pen_colors[self.fill_color].clone();
         self.draw_pixel(p, &col);
         self.fill(Position::new(p.x - 1, p.y), color);
