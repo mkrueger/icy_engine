@@ -8,7 +8,7 @@ use std::{
 
 use self::sound::{AnsiMusic, MusicState};
 
-use super::{ascii, BufferParser};
+use super::BufferParser;
 use crate::{
     update_crc16, AttributedChar, AutoWrapMode, Buffer, CallbackAction, Caret, EngineResult, FontSelectionState, HyperLink, IceMode, MouseMode, OriginMode,
     ParserError, Position, TerminalScrolling, BEL, BS, CR, FF, LF,
@@ -118,7 +118,6 @@ impl BaudEmulation {
 }
 
 pub struct Parser {
-    ascii_parser: ascii::Parser,
     pub(crate) state: EngineState,
     saved_pos: Position,
     saved_cursor_opt: Option<Caret>,
@@ -149,7 +148,6 @@ pub struct Parser {
 impl Default for Parser {
     fn default() -> Self {
         Parser {
-            ascii_parser: ascii::Parser::default(),
             state: EngineState::Default,
             saved_pos: Position::default(),
             parsed_numbers: Vec::new(),
@@ -172,14 +170,6 @@ impl Default for Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
-        self.ascii_parser.convert_from_unicode(ch, font_page)
-    }
-
-    fn convert_to_unicode(&self, ch: AttributedChar) -> char {
-        self.ascii_parser.convert_to_unicode(ch)
-    }
-
     #[allow(clippy::single_match)]
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match &self.state {

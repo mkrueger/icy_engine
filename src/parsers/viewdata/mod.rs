@@ -1,6 +1,6 @@
 #![allow(clippy::match_same_arms)]
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position, TextPane};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position, TextPane, UnicodeConverter};
 
 mod constants;
 
@@ -220,7 +220,10 @@ impl Parser {
     }
 }
 
-impl BufferParser for Parser {
+#[derive(Default)]
+pub struct CharConverter {}
+
+impl UnicodeConverter for CharConverter {
     fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         if ch == ' ' {
             return ' ';
@@ -237,7 +240,9 @@ impl BufferParser for Parser {
             _ => attributed_char.ch,
         }
     }
+}
 
+impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         match ch {

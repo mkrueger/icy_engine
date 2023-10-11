@@ -1,12 +1,15 @@
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, BEL, BS, CR, FF, LF};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, UnicodeConverter, BEL, BS, CR, FF, LF};
 #[derive(Default)]
 pub struct Parser {}
 
 #[cfg(test)]
 mod tests;
 
-impl BufferParser for Parser {
+#[derive(Default)]
+pub struct CP437Converter {}
+
+impl UnicodeConverter for CP437Converter {
     fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         if let Some(tch) = UNICODE_TO_CP437.get(&ch) {
             *tch
@@ -21,7 +24,9 @@ impl BufferParser for Parser {
             _ => attributed_char.ch,
         }
     }
+}
 
+impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match ch {
             '\x00' | '\u{00FF}' => {

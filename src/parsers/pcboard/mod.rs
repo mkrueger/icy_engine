@@ -1,5 +1,5 @@
 use super::{ansi, BufferParser};
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, TextAttribute};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, TextAttribute};
 
 #[derive(Default)]
 pub struct Parser {
@@ -13,14 +13,6 @@ pub struct Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
-        self.ansi_parser.convert_from_unicode(ch, font_page)
-    }
-
-    fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char {
-        self.ansi_parser.convert_to_unicode(attributed_char)
-    }
-
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.pcb_color {
             self.pcb_pos += 1;

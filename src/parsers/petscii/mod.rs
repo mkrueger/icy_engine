@@ -1,5 +1,5 @@
 use super::{Buffer, BufferParser};
-use crate::{AttributedChar, CallbackAction, Caret, EngineResult, ParserError, TextPane};
+use crate::{AttributedChar, CallbackAction, Caret, EngineResult, ParserError, TextPane, UnicodeConverter};
 
 #[derive(Default)]
 pub struct Parser {
@@ -159,7 +159,10 @@ const LIGHT_GREEN: u32 = 0x0d;
 const LIGHT_BLUE: u32 = 0x0e;
 const GREY3: u32 = 0x0f;
 
-impl BufferParser for Parser {
+#[derive(Default)]
+pub struct CharConverter {}
+
+impl UnicodeConverter for CharConverter {
     fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         if let Some(tch) = UNICODE_TO_PETSCII.get(&(ch as u8)) {
             *tch as char
@@ -175,7 +178,9 @@ impl BufferParser for Parser {
             ch.ch
         }
     }
+}
 
+impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         let ch = ch as u8;
         if self.got_esc {

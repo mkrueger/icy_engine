@@ -39,10 +39,12 @@ pub enum CallbackAction {
     Pause(u32),
 }
 
-pub trait BufferParser: Send {
+pub trait UnicodeConverter: Send + Sync {
     fn convert_from_unicode(&self, ch: char, font_page: usize) -> char;
     fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char;
+}
 
+pub trait BufferParser {
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
     ///
     /// # Errors

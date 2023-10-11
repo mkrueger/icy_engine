@@ -1,12 +1,15 @@
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult};
+use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, UnicodeConverter};
 
 #[derive(Default)]
 pub struct Parser {
     got_escape: bool,
 }
 
-impl BufferParser for Parser {
+#[derive(Default)]
+pub struct CharConverter {}
+
+impl UnicodeConverter for CharConverter {
     fn convert_from_unicode(&self, ch: char, _font_page: usize) -> char {
         match UNICODE_TO_ATARI.get(&ch) {
             Some(out_ch) => *out_ch,
@@ -20,7 +23,9 @@ impl BufferParser for Parser {
             _ => attributed_char.ch,
         }
     }
+}
 
+impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.got_escape {
             self.got_escape = false;

@@ -20,7 +20,7 @@ mod font_operations;
 pub use font_operations::*;
 
 use crate::{
-    ansi, overlay_mask::OverlayMask, AttributedChar, Buffer, BufferParser, Caret, EngineResult, Layer, Position, Selection, SelectionMask, Shape, TextPane,
+    ascii, overlay_mask::OverlayMask, AttributedChar, Buffer, Caret, EngineResult, Layer, Position, Selection, SelectionMask, Shape, TextPane, UnicodeConverter,
 };
 
 pub struct EditState {
@@ -29,7 +29,7 @@ pub struct EditState {
     selection_opt: Option<Selection>,
     selection_mask: SelectionMask,
     tool_overlay_mask: OverlayMask,
-    parser: Box<dyn BufferParser>,
+    unicode_converter: Box<dyn UnicodeConverter>,
 
     current_layer: usize,
     outline_style: usize,
@@ -95,7 +95,7 @@ impl Default for EditState {
         tool_overlay_mask.set_size(buffer.get_size());
 
         Self {
-            parser: Box::<ansi::Parser>::default(),
+            unicode_converter: Box::<ascii::CP437Converter>::default(),
             buffer,
             caret: Caret::default(),
             selection_opt: None,
@@ -127,12 +127,12 @@ impl EditState {
         }
     }
 
-    pub fn set_parser(&mut self, parser: Box<dyn BufferParser>) {
-        self.parser = parser;
+    pub fn set_unicode_converter(&mut self, parser: Box<dyn UnicodeConverter>) {
+        self.unicode_converter = parser;
     }
 
-    pub fn get_parser(&self) -> &dyn BufferParser {
-        &*self.parser
+    pub fn get_unicode_converter(&self) -> &dyn UnicodeConverter {
+        &*self.unicode_converter
     }
 
     pub fn set_buffer(&mut self, buffer: Buffer) {
@@ -185,8 +185,8 @@ impl EditState {
         &mut self.caret
     }
 
-    pub fn get_buffer_and_caret_mut(&mut self) -> (&mut Buffer, &mut Caret, &mut Box<dyn BufferParser>) {
-        (&mut self.buffer, &mut self.caret, &mut self.parser)
+    pub fn get_buffer_and_caret_mut(&mut self) -> (&mut Buffer, &mut Caret, &mut Box<dyn UnicodeConverter>) {
+        (&mut self.buffer, &mut self.caret, &mut self.unicode_converter)
     }
 
     pub fn get_copy_text(&mut self) -> Option<String> {
@@ -201,7 +201,7 @@ impl EditState {
             for y in start.y..=end.y {
                 for x in start.x..end.x {
                     let ch = self.buffer.get_char((x, y));
-                    res.push(self.parser.convert_to_unicode(ch));
+                    res.push(self.unicode_converter.convert_to_unicode(ch));
                 }
                 res.push('\n');
             }
@@ -214,24 +214,24 @@ impl EditState {
             if start.y == end.y {
                 for x in start.x..end.x {
                     let ch = self.buffer.get_char(Position::new(x, start.y));
-                    res.push(self.parser.convert_to_unicode(ch));
+                    res.push(self.unicode_converter.convert_to_unicode(ch));
                 }
             } else {
                 for x in start.x..(self.buffer.get_line_length(start.y)) {
                     let ch = self.buffer.get_char(Position::new(x, start.y));
-                    res.push(self.parser.convert_to_unicode(ch));
+                    res.push(self.unicode_converter.convert_to_unicode(ch));
                 }
                 res.push('\n');
                 for y in start.y + 1..end.y {
                     for x in 0..(self.buffer.get_line_length(y)) {
                         let ch = self.buffer.get_char(Position::new(x, y));
-                        res.push(self.parser.convert_to_unicode(ch));
+                        res.push(self.unicode_converter.convert_to_unicode(ch));
                     }
                     res.push('\n');
                 }
                 for x in 0..end.x {
                     let ch = self.buffer.get_char(Position::new(x, end.y));
-                    res.push(self.parser.convert_to_unicode(ch));
+                    res.push(self.unicode_converter.convert_to_unicode(ch));
                 }
             }
         }

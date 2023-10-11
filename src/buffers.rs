@@ -10,8 +10,8 @@ use i18n_embed_fl::fl;
 
 use crate::paint::HalfBlock;
 use crate::{
-    parsers, BufferParser, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position, Rectangle, SauceData, Sixel, TerminalState, TextAttribute,
-    TextPane, FORMATS,
+    parsers, EngineResult, Glyph, Layer, LoadingError, OutputFormat, Position, Rectangle, SauceData, Sixel, TerminalState, TextAttribute, TextPane,
+    UnicodeConverter, FORMATS,
 };
 
 use super::{AttributedChar, BitFont, Palette, SaveOptions, Size};
@@ -190,7 +190,7 @@ impl std::fmt::Debug for Buffer {
 impl std::fmt::Display for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut str = String::new();
-        let p = parsers::ansi::Parser::default();
+        let p = parsers::ascii::CP437Converter::default();
 
         for y in 0..self.get_height() {
             str.extend(format!("{y:3}: ").chars());

@@ -1,5 +1,5 @@
 use super::{ansi, BufferParser};
-use crate::{ansi::EngineState, AttributedChar, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle};
+use crate::{ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle};
 
 #[derive(Default)]
 enum State {
@@ -36,14 +36,6 @@ impl Parser {
 static RIP_TERMINAL_ID: &str = "RIPSCRIP01540\0";
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
-        self.ansi_parser.convert_from_unicode(ch, font_page)
-    }
-
-    fn convert_to_unicode(&self, ch: AttributedChar) -> char {
-        self.ansi_parser.convert_to_unicode(ch)
-    }
-
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         match self.state {
             State::ReadCommand => {

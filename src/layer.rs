@@ -1,6 +1,6 @@
 use i18n_embed_fl::fl;
 
-use crate::{Buffer, BufferParser, Color, Line, Position, Rectangle, Sixel, Size, TextAttribute, TextPane};
+use crate::{Buffer, Color, Line, Position, Rectangle, Sixel, Size, TextAttribute, TextPane, UnicodeConverter};
 
 use super::AttributedChar;
 
@@ -59,7 +59,7 @@ pub struct Layer {
 impl std::fmt::Display for Layer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut str = String::new();
-        let p = crate::parsers::ansi::Parser::default();
+        let p = crate::parsers::ascii::CP437Converter::default();
 
         for y in 0..self.get_line_count() {
             str.extend(format!("{y:3}: ").chars());

@@ -81,7 +81,6 @@ pub enum FillPatternType {
     Hatch,
     UserdDefined,
 }
-
 pub struct DrawExecutor {
     igs_texture: Vec<u8>,
     dt: DrawTarget,
@@ -208,7 +207,7 @@ impl DrawExecutor {
         if self.get_pixel(p) == color {
             return;
         }
-        
+
         let col = self.pen_colors[self.fill_color].clone();
         self.draw_pixel(p, &col);
         self.fill(Position::new(p.x - 1, p.y), color);

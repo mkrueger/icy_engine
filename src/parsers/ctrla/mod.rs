@@ -1,5 +1,5 @@
 use super::BufferParser;
-use crate::{ansi, AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Position};
+use crate::{ansi, Buffer, CallbackAction, Caret, EngineResult, Position};
 
 const CTRL_A: char = 1 as char;
 pub const FG: &[u8] = b"KBGCRMYW";
@@ -14,14 +14,6 @@ pub struct Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
-        self.ascii_parser.convert_from_unicode(ch, font_page)
-    }
-
-    fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char {
-        self.ascii_parser.convert_to_unicode(attributed_char)
-    }
-
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         if self.ctrl_a {
             self.ctrl_a = false;

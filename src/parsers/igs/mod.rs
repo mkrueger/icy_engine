@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::BufferParser;
-use crate::{AttributedChar, Buffer, CallbackAction, Caret, EngineResult, Size};
+use crate::{Buffer, CallbackAction, Caret, EngineResult, Size};
 
 mod cmd;
 use cmd::IgsCommands;
@@ -34,7 +34,7 @@ enum LoopState {
     ReadParameter,
 }
 
-pub trait CommandExecutor: Send {
+pub trait CommandExecutor {
     fn get_resolution(&self) -> Size;
     fn get_texture_data(&self) -> &[u8];
 
@@ -157,14 +157,6 @@ impl Parser {
 }
 
 impl BufferParser for Parser {
-    fn convert_from_unicode(&self, ch: char, font_page: usize) -> char {
-        self.fallback_parser.convert_from_unicode(ch, font_page)
-    }
-
-    fn convert_to_unicode(&self, ch: AttributedChar) -> char {
-        self.fallback_parser.convert_to_unicode(ch)
-    }
-
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         //println!("{} {:?} - numbers:{:?}", ch as u32, self.state, self.parsed_numbers);
         match &self.state {
