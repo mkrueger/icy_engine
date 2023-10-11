@@ -724,9 +724,9 @@ impl Buffer {
         };
 
         let ext = ext.to_ascii_lowercase();
-        for format in &*FORMATS {
-            if format.get_file_extension() == ext {
-                return format.load_buffer(file_name, &bytes[..len], sauce_data);
+        for fmt in &*FORMATS {
+            if fmt.get_file_extension() == ext || fmt.get_alt_extensions().contains(&ext) {
+                return fmt.load_buffer(file_name, &bytes[..len], sauce_data);
             }
         }
 

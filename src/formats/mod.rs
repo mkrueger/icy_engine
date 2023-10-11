@@ -35,6 +35,7 @@ mod color_optimization;
 pub use color_optimization::*;
 mod ctrla;
 mod icy_draw;
+mod renegade;
 mod seq;
 
 use crate::{BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, Layer, Role, Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES};
@@ -155,7 +156,7 @@ pub trait OutputFormat: Send + Sync {
 }
 
 lazy_static::lazy_static! {
-    pub static ref FORMATS: [Box<dyn OutputFormat>; 12] = [
+    pub static ref FORMATS: [Box<dyn OutputFormat>; 13] = [
         Box::<ansi::Ansi>::default(),
         Box::<icy_draw::IcyDraw>::default(),
         Box::<IceDraw>::default(),
@@ -167,6 +168,7 @@ lazy_static::lazy_static! {
         Box::<ascii::Ascii>::default(),
         Box::<artworx::Artworx>::default(),
         Box::<ctrla::CtrlA>::default(),
+        Box::<renegade::Renegade>::default(),
 
         Box::<seq::Seq>::default(),
         ];
