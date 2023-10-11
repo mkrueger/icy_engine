@@ -1,4 +1,4 @@
-use crate::{EngineResult, Line, TextPane};
+use crate::{EngineResult, Line, Size, TextPane};
 use std::cmp::{max, min};
 
 use self::ansi::sound::AnsiMusic;
@@ -51,6 +51,10 @@ pub trait BufferParser {
     ///
     /// This function will return an error if .
     fn print_char(&mut self, buffer: &mut Buffer, current_layer: usize, caret: &mut Caret, c: char) -> EngineResult<CallbackAction>;
+
+    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+        None
+    }
 }
 
 impl Caret {
@@ -209,7 +213,7 @@ impl Buffer {
         }
     }
 
-    fn print_char(&mut self, layer: usize, caret: &mut Caret, ch: AttributedChar) {
+    pub fn print_char(&mut self, layer: usize, caret: &mut Caret, ch: AttributedChar) {
         let buffer_width = self.layers[layer].get_width();
         if caret.insert_mode {
             let layer = &mut self.layers[layer];

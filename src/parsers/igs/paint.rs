@@ -355,6 +355,9 @@ impl CommandExecutor for DrawExecutor {
         &self.igs_texture
     }
 
+    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+        Some((self.get_resolution(), self.igs_texture.clone()))
+    }
     fn execute_command(
         &mut self,
         buf: &mut Buffer,

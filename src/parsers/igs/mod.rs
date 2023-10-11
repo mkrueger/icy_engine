@@ -38,6 +38,10 @@ pub trait CommandExecutor {
     fn get_resolution(&self) -> Size;
     fn get_texture_data(&self) -> &[u8];
 
+    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+        None
+    }
+
     /// .
     ///
     /// # Errors
@@ -363,6 +367,10 @@ impl BufferParser for Parser {
                 self.fallback_parser.print_char(buf, current_layer, caret, ch)
             }
         }
+    }
+
+    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+        self.command_executor.lock().unwrap().get_picture_data()
     }
 }
 
