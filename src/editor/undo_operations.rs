@@ -784,7 +784,7 @@ impl UndoOperation for InsertColumn {
         if let Some(layer) = edit_state.get_buffer_mut().layers.get_mut(self.layer) {
             let offset: usize = self.column as usize;
             for line in &mut layer.lines {
-                if line.chars.len() >= offset {
+                if line.chars.len() > offset {
                     line.chars.remove(offset);
                 }
             }
