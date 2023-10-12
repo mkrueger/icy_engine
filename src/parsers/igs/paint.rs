@@ -169,24 +169,43 @@ impl DrawExecutor {
         // TODO
     }
 
-    /*
-    fn draw_pixel(&mut self, p: Position, color: &Color) {
-        let res = self.get_resolution();
-        if p.x < 0 || p.y < 0 || p.x >= res.width || p.y >= res.height {
+    fn flood_fill(&mut self, pos: Position) {
+        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_resolution().width || pos.y >= self.get_resolution().height {
             return;
         }
-        let offset = p.x as usize * 4 + p.y as usize * res.width as usize * 4;
-        let (r, g, b) = color.get_rgb();
-        self.igs_texture[offset] = r;
-        self.igs_texture[offset + 1] = g;
-        self.igs_texture[offset + 2] = b;
-        self.igs_texture[offset + 3] = 255;
+        let pos = self.translate_pos(pos);
+        let col = self.pen_colors[self.fill_color].clone();
+        let px = self.dt.get_data()[pos.y as usize * self.dt.width() as usize + pos.x as usize];
+        let (r, g, b) = col.get_rgb();
+
+        let new_px = 255 << 24 | (b as u32) << 16 | (g as u32) << 8 | r as u32;
+        if px == new_px {
+            return;
+        }
+        self.fill(pos, px, new_px);
     }
 
-    fn get_pixel(&self, p: Position) -> [u8; 4] {
-        let offset = p.x as usize * 4 + p.y as usize * self.get_resolution().width as usize * 4;
-        self.igs_texture[offset..offset + 4].try_into().unwrap()
-    }*/
+    fn fill(&mut self, pos: Position, old_px: u32, color: u32) {
+        let width = self.dt.width();
+
+        let mut vec = vec![pos];
+
+        while let Some(pos) = vec.pop() {
+            if pos.x < 0 || pos.y < 0 || pos.x >= width || pos.y >= self.dt.height() {
+                continue;
+            }
+            let offset = pos.y as usize * width as usize + pos.x as usize;
+            let px = self.dt.get_data()[offset];
+            if px != old_px {
+                continue;
+            }
+            self.dt.get_data_mut()[offset] = color;
+            vec.push(Position::new(pos.x - 1, pos.y));
+            vec.push(Position::new(pos.x + 1, pos.y));
+            vec.push(Position::new(pos.x, pos.y - 1));
+            vec.push(Position::new(pos.x, pos.y + 1));
+        }
+    }
 
     fn translate_pos(&self, pt: Position) -> Position {
         Position::new((pt.x as f32 * self.x_scale) as i32, (pt.y as f32 * self.y_scale) as i32)
@@ -777,8 +796,7 @@ impl CommandExecutor for DrawExecutor {
                     return Err(anyhow::anyhow!("FloodFill command requires 2 arguments"));
                 }
                 let next_pos = Position::new(parameters[0], parameters[1]);
-                // self.dt.fill(path, src, options);
-                //      self.flood_fill(next_pos);
+                self.flood_fill(next_pos);
                 Ok(CallbackAction::Pause(100))
             }
 
