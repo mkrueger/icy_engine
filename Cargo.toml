@@ -22,7 +22,8 @@ regex = "1.9.5"
 thiserror = "1.0"
 anyhow = "1.0.75"
 serde = { version = "1", features = ["derive"] }
-raqote = "0.8.3"
+#raqote = "0.8.3"
+raqote = { git = "https://github.com/mkrueger/raqote/" }
 
 i18n-embed = { version = "0.14.0", features = ["fluent-system", "desktop-requester"]} 
 i18n-embed-fl = "0.7.0"
