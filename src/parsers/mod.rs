@@ -45,6 +45,10 @@ pub trait UnicodeConverter: Send + Sync {
 }
 
 pub trait BufferParser {
+    fn get_next_action(&mut self, _buffer: &mut Buffer, _caret: &mut Caret, _current_layer: usize) -> Option<CallbackAction> {
+        None
+    }
+
     /// Prints a character to the buffer. Gives back an optional string returned to the sender (in case for terminals).
     ///
     /// # Errors
