@@ -108,7 +108,7 @@ impl EditState {
             }
         }
         let op = undo_operations::InverseSelection::new(old_selection, old_mask, self.selection_mask.clone());
-        self.is_buffer_dirty = true;
+        self.set_is_buffer_dirty();
         self.push_plain_undo(Box::new(op))
     }
 
@@ -145,6 +145,6 @@ impl EditState {
             let _ = self.push_plain_undo(Box::new(op));
         }
 
-        self.is_buffer_dirty = true;
+        self.set_is_buffer_dirty();
     }
 }

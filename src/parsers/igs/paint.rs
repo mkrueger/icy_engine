@@ -86,8 +86,6 @@ pub enum FillPatternType {
 pub struct DrawExecutor {
     dt: DrawTarget,
     terminal_resolution: TerminalResolution,
-    x_scale: f32,
-    y_scale: f32,
 
     cur_position: Position,
     pen_colors: Vec<Color>,
@@ -124,8 +122,6 @@ impl Default for DrawExecutor {
         Self {
             dt: DrawTarget::new(320, 200),
             terminal_resolution: TerminalResolution::Low,
-            x_scale: 1.0,
-            y_scale: 1.0,
             pen_colors: IGS_SYSTEM_PALETTE.to_vec(),
             polymarker_color: 0,
             line_color: 0,
@@ -173,7 +169,6 @@ impl DrawExecutor {
         if pos.x < 0 || pos.y < 0 || pos.x >= self.get_resolution().width || pos.y >= self.get_resolution().height {
             return;
         }
-        let pos = self.translate_pos(pos);
         let col = self.pen_colors[self.fill_color].clone();
         let px = self.dt.get_data()[pos.y as usize * self.dt.width() as usize + pos.x as usize];
         let (r, g, b) = col.get_rgb();
@@ -207,12 +202,7 @@ impl DrawExecutor {
         }
     }
 
-    fn translate_pos(&self, pt: Position) -> Position {
-        Position::new((pt.x as f32 * self.x_scale) as i32, (pt.y as f32 * self.y_scale) as i32)
-    }
-
     fn draw_line(&mut self, from: Position, to: Position) {
-        // println!("draw line: {:?} -> {:?}", from, to);
         self.cur_position = to;
 
         let mut pb = PathBuilder::new();
@@ -220,12 +210,27 @@ impl DrawExecutor {
         pb.line_to(to.x as f32, to.y as f32);
         let path = pb.finish();
 
+        self.stroke_path(&path);
+    }
+
+    fn stroke_path(&mut self, path: &Path) {
         let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
         self.dt.stroke(
-            &path,
+            path,
             &Source::Solid(create_solid_source(r, g, b)),
-            &StrokeStyle::default(),
-            &DrawOptions::new(),
+            &StrokeStyle {
+                cap: LineCap::Butt,
+                join: LineJoin::Miter,
+                width: 1.,
+                miter_limit: 19.,
+                dash_array: Vec::new(),
+                dash_offset: 0.,
+            },
+            &DrawOptions {
+                blend_mode: BlendMode::SrcOver,
+                alpha: 1.,
+                antialias: AntialiasMode::None,
+            },
         );
     }
 
@@ -295,7 +300,7 @@ impl DrawExecutor {
 impl CommandExecutor for DrawExecutor {
     fn get_resolution(&self) -> Size {
         let s = self.terminal_resolution.get_resolution();
-        Size::new((s.width as f32 * self.x_scale) as i32, (s.height as f32 * self.y_scale) as i32)
+        Size::new(s.width, s.height)
     }
 
     fn get_texture_data(&self) -> &[u8] {
@@ -313,7 +318,7 @@ impl CommandExecutor for DrawExecutor {
         parameters: &[i32],
         string_parameter: &str,
     ) -> EngineResult<CallbackAction> {
-        println!("cmd:{command:?} params:{parameters:?}");
+        // println!("cmd:{command:?} params:{parameters:?}");
         match command {
             IgsCommands::Initialize => {
                 if parameters.len() != 1 {
@@ -405,9 +410,9 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("DrawLine command requires 4 arguments"));
                 }
-                let next_pos = self.translate_pos(Position::new(parameters[2], parameters[3]));
-                let from = self.translate_pos(Position::new(parameters[0], parameters[1]));
-                self.draw_line(from, next_pos);
+                let from = Position::new(parameters[0], parameters[1]);
+                let to = Position::new(parameters[2], parameters[3]);
+                self.draw_line(from, to);
                 Ok(CallbackAction::Update)
             }
             IgsCommands::PolyFill => {
@@ -434,16 +439,7 @@ impl CommandExecutor for DrawExecutor {
                 }
 
                 if self.draw_border {
-                    let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
-                    self.dt.stroke(
-                        &path,
-                        &Source::Solid(create_solid_source(r, g, b)),
-                        &StrokeStyle {
-                            width: 1., // <--
-                            ..StrokeStyle::default()
-                        },
-                        &DrawOptions::new(),
-                    );
+                    self.stroke_path(&path);
                 }
 
                 Ok(CallbackAction::Update)
@@ -466,16 +462,7 @@ impl CommandExecutor for DrawExecutor {
                 pb.line_to(parameters[1] as f32, parameters[2] as f32);
 
                 let path = pb.finish();
-                let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
-                self.dt.stroke(
-                    &path,
-                    &Source::Solid(create_solid_source(r, g, b)),
-                    &StrokeStyle {
-                        width: 1., // <--
-                        ..StrokeStyle::default()
-                    },
-                    &DrawOptions::new(),
-                );
+                self.stroke_path(&path);
                 Ok(CallbackAction::Update)
             }
 
@@ -483,7 +470,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("LineDrawTo command requires 2 arguments"));
                 }
-                let next_pos = self.translate_pos(Position::new(parameters[0], parameters[1]));
+                let next_pos = Position::new(parameters[0], parameters[1]);
                 self.draw_line(self.cur_position, next_pos);
                 Ok(CallbackAction::Update)
             }
@@ -492,8 +479,8 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 5 {
                     return Err(anyhow::anyhow!("Box command requires 5 arguments"));
                 }
-                let min = self.translate_pos(Position::new(parameters[0], parameters[1]));
-                let max = self.translate_pos(Position::new(parameters[2], parameters[3]));
+                let min = Position::new(parameters[0], parameters[1]);
+                let max = Position::new(parameters[2], parameters[3]);
                 let mut pb = PathBuilder::new();
                 pb.move_to(min.x as f32, min.y as f32);
                 pb.line_to(max.x as f32, min.y as f32);
@@ -508,16 +495,7 @@ impl CommandExecutor for DrawExecutor {
                 }
 
                 if self.draw_border {
-                    let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
-                    self.dt.stroke(
-                        &path,
-                        &Source::Solid(create_solid_source(r, g, b)),
-                        &StrokeStyle {
-                            width: 1., // <--
-                            ..StrokeStyle::default()
-                        },
-                        &DrawOptions::new(),
-                    );
+                    self.stroke_path(&path);
                 }
 
                 Ok(CallbackAction::Update)
@@ -568,16 +546,7 @@ impl CommandExecutor for DrawExecutor {
                 let path = pb.finish();
 
                 if self.hollow_set {
-                    let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
-                    self.dt.stroke(
-                        &path,
-                        &Source::Solid(create_solid_source(r, g, b)),
-                        &StrokeStyle {
-                            width: 1., // <--
-                            ..StrokeStyle::default()
-                        },
-                        &DrawOptions::new(),
-                    );
+                    self.stroke_path(&path);
                 } else {
                     let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
                     self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
@@ -585,6 +554,51 @@ impl CommandExecutor for DrawExecutor {
 
                 Ok(CallbackAction::Update)
             }
+
+            IgsCommands::Ellipse => {
+                if parameters.len() != 4 {
+                    return Err(anyhow::anyhow!("Ellipse command requires 4 arguments"));
+                }
+                let mut pb = PathBuilder::new();
+                pb.elliptic_arc(
+                    parameters[0] as f32,
+                    parameters[1] as f32,
+                    parameters[2] as f32,
+                    parameters[4] as f32,
+                    0.0,
+                    2.0 * std::f32::consts::PI,
+                );
+                let path = pb.finish();
+
+                if self.hollow_set {
+                    self.stroke_path(&path);
+                } else {
+                    let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
+                    self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
+                }
+
+                Ok(CallbackAction::Update)
+            }
+
+            IgsCommands::EllipticalArc => {
+                if parameters.len() != 6 {
+                    return Err(anyhow::anyhow!("EllipticalArc command requires 6 arguments"));
+                }
+                let mut pb = PathBuilder::new();
+                pb.elliptic_arc(
+                    parameters[0] as f32,
+                    parameters[1] as f32,
+                    parameters[2] as f32,
+                    parameters[4] as f32,
+                    parameters[5] as f32 / 360.0 * 2.0 * std::f32::consts::PI,
+                    parameters[6] as f32 / 360.0 * 2.0 * std::f32::consts::PI,
+                );
+                let path = pb.finish();
+                let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
+                self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
+                Ok(CallbackAction::Update)
+            }
+
             IgsCommands::QuickPause => {
                 if parameters.len() != 1 {
                     return Err(anyhow::anyhow!("QuickPause command requires 1 arguments"));
@@ -643,8 +657,8 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("FilledRectangle command requires 4 arguments"));
                 }
-                let min = self.translate_pos(Position::new(parameters[0], parameters[1]));
-                let max = self.translate_pos(Position::new(parameters[2], parameters[3]));
+                let min = Position::new(parameters[0], parameters[1]);
+                let max = Position::new(parameters[2], parameters[3]);
 
                 let mut pb = PathBuilder::new();
                 pb.move_to(min.x as f32, min.y as f32);
@@ -786,7 +800,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 3 {
                     return Err(anyhow::anyhow!("WriteText command requires 3 arguments"));
                 }
-                let text_pos = self.translate_pos(Position::new(parameters[0], parameters[1]));
+                let text_pos = Position::new(parameters[0], parameters[1]);
                 self.write_text(text_pos, string_parameter);
                 Ok(CallbackAction::Update)
             }
@@ -895,66 +909,3 @@ fn create_solid_source(r: u8, g: u8, b: u8) -> SolidSource {
 }
 
 const REGISTER_TO_PEN: &[usize; 17] = &[0, 2, 3, 6, 4, 7, 5, 8, 9, 10, 11, 14, 12, 12, 15, 13, 1];
-
-/*
-https://github.com/servo/servo/blob/master/components/canvas/raqote_backend.rs#L701
-
-    fn ellipse(
-        &mut self,
-        origin: Point2D<f32>,
-        radius_x: f32,
-        radius_y: f32,
-        rotation_angle: f32,
-        start_angle: f32,
-        end_angle: f32,
-        anticlockwise: bool,
-    ) {
-        let mut start = Angle::radians(start_angle);
-        let mut end = Angle::radians(end_angle);
-
-        // Wrap angles mod 2 * PI if necessary
-        if !anticlockwise && start > end + Angle::two_pi() ||
-            anticlockwise && end > start + Angle::two_pi()
-        {
-            start = start.positive();
-            end = end.positive();
-        }
-
-        // Calculate the total arc we're going to sweep.
-        let sweep = match anticlockwise {
-            true => {
-                if end - start == Angle::two_pi() {
-                    -Angle::two_pi()
-                } else if end > start {
-                    -(Angle::two_pi() - (end - start))
-                } else {
-                    -(start - end)
-                }
-            },
-            false => {
-                if start - end == Angle::two_pi() {
-                    Angle::two_pi()
-                } else if start > end {
-                    Angle::two_pi() - (start - end)
-                } else {
-                    end - start
-                }
-            },
-        };
-
-        let arc: Arc<f32> = Arc {
-            center: origin,
-            radii: Vector2D::new(radius_x, radius_y),
-            start_angle: start,
-            sweep_angle: sweep,
-            x_rotation: Angle::radians(rotation_angle),
-        };
-
-        self.line_to(arc.from());
-
-        arc.for_each_quadratic_bezier(&mut |q| {
-            self.quadratic_curve_to(&q.ctrl, &q.to);
-        });
-    }
-
-*/

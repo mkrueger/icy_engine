@@ -39,7 +39,7 @@ pub struct EditState {
     redo_stack: Vec<Box<dyn UndoOperation>>,
 
     pub is_palette_dirty: bool,
-    pub is_buffer_dirty: bool,
+    is_buffer_dirty: bool,
 }
 
 pub struct AtomicUndoGuard {
@@ -159,6 +159,19 @@ impl EditState {
 
     pub fn get_buffer_mut(&mut self) -> &mut Buffer {
         &mut self.buffer
+    }
+
+    pub fn is_buffer_dirty(&self) -> bool {
+        self.is_buffer_dirty
+    }
+
+    pub fn set_is_buffer_dirty(&mut self) {
+        // println!("-------------{}", std::backtrace::Backtrace::force_capture());
+        self.is_buffer_dirty = true;
+    }
+
+    pub fn set_buffer_clean(&mut self) {
+        self.is_buffer_dirty = false;
     }
 
     pub fn get_cur_layer(&self) -> Option<&Layer> {
@@ -329,7 +342,7 @@ impl EditState {
 
     fn push_plain_undo(&mut self, op: Box<dyn UndoOperation>) -> EngineResult<()> {
         if op.changes_data() {
-            self.is_buffer_dirty = true;
+            self.set_is_buffer_dirty();
         }
         let Ok(mut stack) = self.undo_stack.lock() else {
             return Err(anyhow::anyhow!("Failed to lock undo stack"));
@@ -384,7 +397,7 @@ impl UndoState for EditState {
             return Ok(());
         };
         if op.changes_data() {
-            self.is_buffer_dirty = true;
+            self.set_is_buffer_dirty();
         }
 
         let res = op.undo(self);
@@ -403,7 +416,7 @@ impl UndoState for EditState {
     fn redo(&mut self) -> EngineResult<()> {
         if let Some(mut op) = self.redo_stack.pop() {
             if op.changes_data() {
-                self.is_buffer_dirty = true;
+                self.set_is_buffer_dirty();
             }
             let res = op.redo(self);
             self.undo_stack.lock().unwrap().push(op);
