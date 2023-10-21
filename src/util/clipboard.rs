@@ -27,6 +27,7 @@ pub fn push_data(data_type: u16, data: &[u8]) -> EngineResult<()> {
                 height: 1,
                 bytes: clipboard_data.into(),
             };
+            clipboard.clear()?;
             if let Err(err) = clipboard.set_image(image) {
                 return Err(ClipboardError::ErrorInSetImage(format!("{err}")).into());
             }

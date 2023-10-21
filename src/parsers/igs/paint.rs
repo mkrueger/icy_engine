@@ -201,6 +201,21 @@ impl DrawExecutor {
             vec.push(Position::new(pos.x, pos.y + 1));
         }
     }
+    /*
+    fn draw_line(&mut self, from: Position, to: Position) {
+        self.cur_position = to;
+        let dx = to.x - from.x;
+        let mut dy = to.y - from.y;
+        let v_lin_wr = 80;
+        let yinc =
+        if dy < 0 {
+            dy = -dy;
+            -1 * v_lin_wr / 2
+        } else {
+            v_lin_wr / 2
+        };
+        let adr = from.y * self.dt.width() as i32 + from.x;
+    }*/
 
     fn draw_line(&mut self, from: Position, to: Position) {
         self.cur_position = to;
