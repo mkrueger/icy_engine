@@ -193,7 +193,6 @@ impl SauceData {
                             ANSI_LETTER_SPACING_9PX => use_letter_spacing = true,
                             _ => {}
                         }
-
                         match t_flags & ANSI_MASK_ASPECT_RATIO {
                             ANSI_ASPECT_RATIO_SQUARE | ANSI_ASPECT_RATIO_LEGACY => {
                                 use_aspect_ratio = false;
@@ -208,6 +207,21 @@ impl SauceData {
                         buffer_size = Size::new(t_info1, t_info2);
                         sauce_file_type = SauceFileType::Ansi;
                         use_ice = (t_flags & ANSI_FLAG_NON_BLINK_MODE) == ANSI_FLAG_NON_BLINK_MODE;
+
+                        match t_flags & ANSI_MASK_LETTER_SPACING {
+                            ANSI_LETTER_SPACING_LEGACY | ANSI_LETTER_SPACING_8PX => {
+                                use_letter_spacing = false;
+                            }
+                            ANSI_LETTER_SPACING_9PX => use_letter_spacing = true,
+                            _ => {}
+                        }
+                        match t_flags & ANSI_MASK_ASPECT_RATIO {
+                            ANSI_ASPECT_RATIO_SQUARE | ANSI_ASPECT_RATIO_LEGACY => {
+                                use_aspect_ratio = false;
+                            }
+                            ANSI_ASPECT_RATIO_STRETCH => use_aspect_ratio = true,
+                            _ => {}
+                        }
                         font_opt = Some(t_info_str.to_string());
                     }
                     SAUCE_FILE_TYPE_ANSIMATION => {
@@ -488,7 +502,7 @@ impl Buffer {
                 t_info2 = self.get_height();
                 if matches!(self.ice_mode, IceMode::Ice) { t_flags |= ANSI_FLAG_NON_BLINK_MODE; }
                 if let Some(sauce_data) = self.get_sauce() {
-                    if sauce_data.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_LEGACY; }
+                    if sauce_data.use_aspect_ratio { t_flags |= ANSI_ASPECT_RATIO_STRETCH; }
                     if sauce_data.use_letter_spacing { t_flags |= ANSI_LETTER_SPACING_9PX; }
                 }
             },
