@@ -965,8 +965,8 @@ impl TextPane for Buffer {
             return transparent_char;
         }
 
-        let mut ch = if self.is_terminal_buffer {
-            AttributedChar::default()
+        let mut ch = if self.is_terminal_buffer || ch_opt.is_some() || attr_opt.is_some() {
+            merge(AttributedChar::default(), ch_opt, attr_opt)
         } else {
             AttributedChar::invisible()
         };
