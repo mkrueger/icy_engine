@@ -941,7 +941,11 @@ impl TextPane for Buffer {
                         }
                     }
                     if !cur_layer.has_alpha_channel {
-                        let res = merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
+                        let mut res = merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
+                        if ch_opt.is_some() || attr_opt.is_some() {
+                            transparent_char = Some(res);
+                            res = AttributedChar::default();
+                        }
                         if let Some(transparent_char) = transparent_char {
                             return self.make_solid_color(transparent_char, res);
                         }
