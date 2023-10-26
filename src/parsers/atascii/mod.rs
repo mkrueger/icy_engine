@@ -34,6 +34,7 @@ impl BufferParser for Parser {
         }
 
         match ch {
+            '\x1B' => self.got_escape = true,
             '\x1C' => caret.up(buf, current_layer, 1),
             '\x1D' => caret.down(buf, current_layer, 1),
             '\x1E' => caret.left(buf, 1),
@@ -49,10 +50,18 @@ impl BufferParser for Parser {
             '\u{00FD}' => return Ok(CallbackAction::Beep),
             '\u{00FE}' => caret.del(buf, current_layer),
             '\u{00FF}' => caret.ins(buf, current_layer),
-            '\x1B' => {
-                self.got_escape = true;
+            _ => {
+                let mut ch = ch as u16;
+                if ch > 0x7F {
+                    ch -= 0x80;
+                    caret.attribute.set_foreground(0);
+                    caret.attribute.set_background(7);
+                } else {
+                    caret.attribute.set_foreground(7);
+                    caret.attribute.set_background(0);
+                }
+                buf.print_value(current_layer, caret, ch);
             }
-            _ => buf.print_value(current_layer, caret, ch as u16),
         }
         Ok(CallbackAction::Update)
     }
