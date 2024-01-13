@@ -1,6 +1,6 @@
 use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION};
 use crate::{BitFont, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, ATARI, IGS_PALETTE, IGS_SYSTEM_PALETTE};
-use raqote::*;
+use raqote::{AntialiasMode, BlendMode, DrawOptions, DrawTarget, IntPoint, IntRect, LineCap, LineJoin, Path, PathBuilder, SolidSource, Source, StrokeStyle};
 
 #[derive(Default)]
 pub enum TerminalResolution {
@@ -116,6 +116,8 @@ pub struct DrawExecutor {
     /// for the G command.
     double_step: f32,
 }
+unsafe impl Send for DrawExecutor {}
+unsafe impl Sync for DrawExecutor {}
 
 impl Default for DrawExecutor {
     fn default() -> Self {

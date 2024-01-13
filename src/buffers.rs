@@ -183,7 +183,7 @@ impl std::fmt::Debug for Buffer {
             .field("height", &self.get_height())
             .field("custom_palette", &self.palette)
             .field("layers", &self.layers)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

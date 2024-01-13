@@ -83,7 +83,7 @@ impl OutputFormat for Atascii {
 
         let mut p = atascii::Parser::default();
         let mut caret = Caret::default();
-        for ch in data.iter() {
+        for ch in data {
             let _ = p.print_char(&mut result, 0, &mut caret, *ch as char);
         }
         Ok(result)

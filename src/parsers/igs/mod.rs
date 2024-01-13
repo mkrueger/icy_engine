@@ -34,7 +34,7 @@ enum LoopState {
     ReadParameter,
 }
 
-pub trait CommandExecutor {
+pub trait CommandExecutor : Send + Sync {
     fn get_resolution(&self) -> Size;
     fn get_texture_data(&self) -> &[u8];
 

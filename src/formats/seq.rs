@@ -54,7 +54,7 @@ impl OutputFormat for Seq {
         let mut caret = Caret::default();
         caret.set_foreground(14);
         caret.set_background(6);
-        for ch in data.iter() {
+        for ch in data {
             let _ = p.print_char(&mut result, 0, &mut caret, *ch as char);
         }
         Ok(result)

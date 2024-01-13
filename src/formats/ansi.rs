@@ -581,7 +581,7 @@ impl StringGenerator {
         }
     }
 
-    const CONTROL_CHARS: &str = "\x1b\x07\x08\x09\x0C\x7F\r\n";
+    const CONTROL_CHARS: &'static str = "\x1b\x07\x08\x09\x0C\x7F\r\n";
 
     pub fn add_sixels(&mut self, buf: &Buffer) {
         for layer in &buf.layers {

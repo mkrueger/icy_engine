@@ -96,7 +96,7 @@ impl OutputFormat for IcyDraw {
 
         if !buf.palette.is_default() {
             let pal_data = buf.palette.export_palette(&crate::PaletteFormat::Ice);
-            let palette_data = general_purpose::STANDARD.encode(&pal_data);
+            let palette_data = general_purpose::STANDARD.encode(pal_data);
             if let Err(err) = encoder.add_ztxt_chunk("PALETTE".to_string(), palette_data) {
                 return Err(IcedError::ErrorEncodingZText(format!("{err}")).into());
             }

@@ -205,7 +205,7 @@ impl Parser {
                 }
                 9 => caret.attribute.set_is_crossed_out(true),
                 10 => caret.set_font_page(0),                            // Primary (default) font
-                11..=19 | 20 => { /* ignore alternate fonts for now */ } //return Err(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()).into()),
+                11..=20 => { /* ignore alternate fonts for now */ } //return Err(ParserError::UnsupportedEscapeSequence(self.current_sequence.clone()).into()),
                 21 => caret.attribute.set_is_double_underlined(true),
                 22 => {
                     caret.attribute.set_is_bold(false);

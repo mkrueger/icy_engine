@@ -112,7 +112,7 @@ impl std::fmt::Debug for Caret {
             .field("pos", &self.pos)
             .field("attr", &self.attribute)
             .field("insert_mode", &self.insert_mode)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
