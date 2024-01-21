@@ -32,11 +32,11 @@ pub use tundra::*;
 
 mod color_optimization;
 pub use color_optimization::*;
+mod atascii;
 mod ctrla;
 mod icy_draw;
 mod renegade;
 mod seq;
-mod atascii;
 
 use crate::{BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, Layer, Role, Size, TextPane, ANSI_FONTS, SAUCE_FONT_NAMES};
 

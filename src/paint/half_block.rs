@@ -19,7 +19,7 @@ impl HalfBlock {
                 upper_block_color: block.attribute.get_background(),
                 lower_block_color: block.attribute.get_background(),
                 is_top,
-            }
+            };
         };
 
         let Some(glyph) = font.get_glyph(block.ch) else {
@@ -27,7 +27,7 @@ impl HalfBlock {
                 upper_block_color: block.attribute.get_background(),
                 lower_block_color: block.attribute.get_background(),
                 is_top,
-            }
+            };
         };
 
         let mut upper = 0;

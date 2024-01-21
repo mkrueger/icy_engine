@@ -2,8 +2,7 @@ use std::path::Path;
 
 use super::SaveOptions;
 use crate::{
-    BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, OutputFormat, Palette,
-    ATARI_DEFAULT_PALETTE, atascii, Position, TextPane, ATARI,
+    atascii, BitFont, Buffer, BufferFeatures, BufferParser, Caret, EngineResult, OutputFormat, Palette, Position, TextPane, ATARI, ATARI_DEFAULT_PALETTE,
 };
 
 #[derive(Default)]
@@ -36,22 +35,15 @@ impl OutputFormat for Atascii {
             while pos.x < line_length {
                 let attr_ch = buf.get_char(pos);
                 let mut ch = attr_ch.ch as u8;
-                if attr_ch.attribute.background_color > 0 { 
+                if attr_ch.attribute.background_color > 0 {
                     ch += 0x80;
                 }
 
                 // escape control chars
-                if ch == b'\x1B' || 
-                   ch == b'\x1C' || 
-                   ch == b'\x1D' || 
-                   ch == b'\x1E' ||
-                   ch == b'\x1F' ||
-                   ch == b'\x7D' ||
-                   ch == b'\x7E' ||
-                   ch == b'\x7F' {
+                if ch == b'\x1B' || ch == b'\x1C' || ch == b'\x1D' || ch == b'\x1E' || ch == b'\x1F' || ch == b'\x7D' || ch == b'\x7E' || ch == b'\x7F' {
                     result.push(b'\x1B');
                 }
-    
+
                 result.push(ch);
                 pos.x += 1;
             }

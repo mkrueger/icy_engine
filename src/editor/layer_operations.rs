@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position, Role, Size, TextPane, Properties};
+use crate::{AttributedChar, EngineResult, Layer, Position, Properties, Role, Size, TextAttribute, TextPane};
 
 use super::{undo_operations, EditState};
 
@@ -155,12 +155,20 @@ impl EditState {
         for y in 0..cur_layer.get_height() {
             for x in 0..cur_layer.get_width() {
                 let pos = Position::new(x, y);
-                let ch = cur_layer.get_char(pos);
+                let mut ch = cur_layer.get_char(pos);
                 if !ch.is_visible() {
                     continue;
                 }
 
                 let pos = pos - merge_layer.get_offset() + cur_layer.get_offset();
+
+                let ch_below = merge_layer.get_char(pos);
+                if ch_below.is_visible()
+                    && (ch.attribute.foreground_color == TextAttribute::TRANSPARENT_COLOR || ch.attribute.background_color == TextAttribute::TRANSPARENT_COLOR)
+                {
+                    ch = self.buffer.make_solid_color(ch, ch_below);
+                }
+
                 merge_layer.set_char(pos, ch);
             }
         }

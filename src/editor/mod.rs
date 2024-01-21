@@ -10,11 +10,11 @@ pub use editor_error::*;
 
 mod layer_operations;
 pub use layer_operations::*;
-mod edit_operations;
 mod area_operations;
+mod edit_operations;
 pub use area_operations::*;
-mod selection_operations;
 mod font_operations;
+mod selection_operations;
 
 use crate::{
     ascii, overlay_mask::OverlayMask, AttributedChar, Buffer, Caret, EngineResult, Layer, Position, Selection, SelectionMask, Shape, TextPane, UnicodeConverter,

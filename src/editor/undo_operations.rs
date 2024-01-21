@@ -6,7 +6,8 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode, Position, SauceData, Selection, SelectionMask, Size, TextPane, Properties,
+    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode, Position, Properties, SauceData, Selection, SelectionMask,
+    Size, TextPane,
 };
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
@@ -1582,14 +1583,18 @@ impl UndoOperation for ChangeFontSlot {
 }
 
 pub struct UpdateLayerProperties {
-    index: usize, 
+    index: usize,
     old_properties: Properties,
-    new_properties: Properties
+    new_properties: Properties,
 }
 
 impl UpdateLayerProperties {
     pub fn new(index: usize, old_properties: Properties, new_properties: Properties) -> Self {
-        Self { index, old_properties, new_properties }
+        Self {
+            index,
+            old_properties,
+            new_properties,
+        }
     }
 }
 

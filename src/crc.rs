@@ -4225,9 +4225,6 @@ pub static CRC32_TABLE: [[u32; 256]; 16] = [
     ],
 ];
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::get_crc32;

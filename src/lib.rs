@@ -67,8 +67,8 @@ pub use sixel_mod::*;
 mod selection;
 pub use selection::*;
 
-mod url_scanner;
 mod selection_mask;
+mod url_scanner;
 pub use selection_mask::*;
 
 pub type EngineResult<T> = anyhow::Result<T>;
