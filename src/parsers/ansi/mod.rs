@@ -831,7 +831,7 @@ impl BufferParser for Parser {
                             Some(n) => n - 1,
                             _ => 0,
                         };
-                        if let Some(layer) = &buf.layers.get(0) {
+                        if let Some(layer) = &buf.layers.first() {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
                                 caret.pos.x = num.clamp(0, line.get_line_length());
                                 buf.terminal_state.limit_caret_pos(buf, caret);
@@ -849,7 +849,7 @@ impl BufferParser for Parser {
                             Some(n) => *n,
                             _ => 1,
                         };
-                        if let Some(layer) = &buf.layers.get(0) {
+                        if let Some(layer) = &buf.layers.first() {
                             if let Some(line) = layer.lines.get(caret.pos.y as usize) {
                                 caret.pos.x =
                                     min(line.get_line_length(), caret.pos.x + num);
@@ -974,7 +974,7 @@ impl BufferParser for Parser {
                             self.dotted_note = false;
                             self.state = EngineState::ParseAnsiMusic(MusicState::ParseMusicStyle);
                         } else if self.parsed_numbers.is_empty() {
-                            if let Some(layer) = buf.layers.get(0) {
+                            if let Some(layer) = buf.layers.first() {
                                 if caret.pos.y < layer.lines.len() as i32 {
                                     buf.remove_terminal_line(current_layer, caret.pos.y);
                                 }
@@ -989,7 +989,7 @@ impl BufferParser for Parser {
                             }
                             if let Some(number) = self.parsed_numbers.first() {
                                 let mut number = *number;
-                                if let Some(layer) = buf.layers.get(0) {
+                                if let Some(layer) = buf.layers.first() {
                                     number = min(number, layer.lines.len() as i32 - caret.pos.y);
                                 } else {
                                     return Err(ParserError::InvalidBuffer.into());

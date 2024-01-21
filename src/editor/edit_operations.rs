@@ -74,7 +74,7 @@ impl EditState {
             ),
         );
         layer.role = crate::Role::PasteImage;
-        layer.has_alpha_channel = true;
+        layer.properties.has_alpha_channel = true;
         layer.sixels.push(sixel);
 
         let op = Paste::new(self.get_current_layer()?, layer);

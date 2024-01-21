@@ -93,55 +93,6 @@ pub fn update_crc32(crc: u32, b: u8) -> u32 {
     (crc >> 8) ^ CRC32_TABLE[0][(b ^ crc as u8) as usize]
 }
 
-#[cfg(test)]
-mod tests {
-    use super::get_crc32;
-    use crate::crc::get_crc16;
-    /*
-    #[test]
-    fn bench_test() {
-
-        let mut data = Vec::new();
-        for i in 0..1024 * 32 {
-            data.push(i as u8);
-        }
-
-        let now = SystemTime::now();
-
-        for _ in 1..5000 {
-            let crc = get_crc32(&data);
-            data[0]  = crc as u8;
-        }
-        let d = SystemTime::now().duration_since(now).unwrap();
-    }*/
-
-    #[test]
-    fn test_crc32() {
-        let crc = get_crc32(&[4, 0, 0, 5, 3]);
-        assert_eq!(0xD7DC_F422, crc);
-
-        let mut data = Vec::new();
-        for i in 0..1024 * 16 {
-            data.push(i as u8);
-        }
-        let crc = get_crc32(&data);
-        assert_eq!(0xE817_22F0, crc);
-    }
-
-    #[test]
-    fn test_crc16() {
-        let crc = get_crc16(&[4, 0, 0, 5, 3]);
-        assert_eq!(0x4690, crc);
-
-        let mut data = Vec::new();
-        for i in 0..1024 * 16 {
-            data.push(i as u8);
-        }
-        let crc = get_crc16(&data);
-        assert_eq!(0xF617, crc);
-    }
-}
-
 // Table & unrolling from https://github.com/srijs/rust-crc32fast
 pub static CRC32_TABLE: [[u32; 256]; 16] = [
     [
@@ -4273,3 +4224,55 @@ pub static CRC32_TABLE: [[u32; 256]; 16] = [
         0x0D71_39D7,
     ],
 ];
+
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::get_crc32;
+    use crate::crc::get_crc16;
+    /*
+    #[test]
+    fn bench_test() {
+
+        let mut data = Vec::new();
+        for i in 0..1024 * 32 {
+            data.push(i as u8);
+        }
+
+        let now = SystemTime::now();
+
+        for _ in 1..5000 {
+            let crc = get_crc32(&data);
+            data[0]  = crc as u8;
+        }
+        let d = SystemTime::now().duration_since(now).unwrap();
+    }*/
+
+    #[test]
+    fn test_crc32() {
+        let crc = get_crc32(&[4, 0, 0, 5, 3]);
+        assert_eq!(0xD7DC_F422, crc);
+
+        let mut data = Vec::new();
+        for i in 0..1024 * 16 {
+            data.push(i as u8);
+        }
+        let crc = get_crc32(&data);
+        assert_eq!(0xE817_22F0, crc);
+    }
+
+    #[test]
+    fn test_crc16() {
+        let crc = get_crc16(&[4, 0, 0, 5, 3]);
+        assert_eq!(0x4690, crc);
+
+        let mut data = Vec::new();
+        for i in 0..1024 * 16 {
+            data.push(i as u8);
+        }
+        let crc = get_crc16(&data);
+        assert_eq!(0xF617, crc);
+    }
+}

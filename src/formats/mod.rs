@@ -3,7 +3,6 @@ mod ansi;
 use std::{error::Error, path::Path, thread, time::Duration};
 
 pub use ansi::*;
-pub use ansi::*;
 
 mod pcboard;
 use i18n_embed_fl::fl;
@@ -532,11 +531,11 @@ pub(crate) fn compare_buffers(buf_old: &Buffer, buf_new: &Buffer, compare_option
         );
         assert_eq!(buf_old.layers[layer].get_size(), buf_new.layers[layer].get_size(), "layer {layer} size differs");
         assert_eq!(
-            buf_old.layers[layer].is_visible, buf_new.layers[layer].is_visible,
+            buf_old.layers[layer].properties.is_visible, buf_new.layers[layer].properties.is_visible,
             "layer {layer} is_visible differs"
         );
         assert_eq!(
-            buf_old.layers[layer].has_alpha_channel, buf_new.layers[layer].has_alpha_channel,
+            buf_old.layers[layer].properties.has_alpha_channel, buf_new.layers[layer].properties.has_alpha_channel,
             "layer {layer} has_alpha_channel differs"
         );
 

@@ -78,7 +78,7 @@ struct Loop {
     delay: i32,
     command: IgsCommands,
     parsed_string: String,
-    loop_parameters: Vec<Vec<String>>,
+    parameters: Vec<Vec<String>>,
 }
 
 impl Loop {
@@ -92,7 +92,7 @@ impl Loop {
             delay,
             command,
             parsed_string,
-            loop_parameters,
+            parameters: loop_parameters,
         })
     }
 
@@ -102,9 +102,9 @@ impl Loop {
         if !is_running {
             return None;
         }
-        let cur_parameter = ((self.i - self.from) as usize) % self.loop_parameters.len();
+        let cur_parameter = ((self.i - self.from) as usize) % self.parameters.len();
         let mut parameters = Vec::new();
-        for p in &self.loop_parameters[cur_parameter] {
+        for p in &self.parameters[cur_parameter] {
             let mut p = p.clone();
             let mut add_step_value = false;
             let mut subtract_const_value = false;

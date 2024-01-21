@@ -114,7 +114,7 @@ impl OutputFormat for IcyDraw {
 
         for (i, layer) in buf.layers.iter().enumerate() {
             let mut result: Vec<u8> = Vec::new();
-            write_utf8_encoded_string(&mut result, &layer.title);
+            write_utf8_encoded_string(&mut result, &layer.properties.title);
 
             match layer.role {
                 crate::Role::Image => result.push(1),
@@ -124,14 +124,14 @@ impl OutputFormat for IcyDraw {
             // Some extra bytes not yet used
             result.extend([0, 0, 0, 0]);
 
-            let mode = match layer.mode {
+            let mode = match layer.properties.mode {
                 crate::Mode::Normal => 0,
                 crate::Mode::Chars => 1,
                 crate::Mode::Attributes => 2,
             };
             result.push(mode);
 
-            if let Some(color) = &layer.color {
+            if let Some(color) = &layer.properties.color {
                 let (r, g, b) = color.clone().get_rgb();
                 result.push(r);
                 result.push(g);
@@ -142,19 +142,19 @@ impl OutputFormat for IcyDraw {
             }
 
             let mut flags = 0;
-            if layer.is_visible {
+            if layer.properties.is_visible {
                 flags |= constants::layer::IS_VISIBLE;
             }
-            if layer.is_locked {
+            if layer.properties.is_locked {
                 flags |= constants::layer::EDIT_LOCK;
             }
-            if layer.is_position_locked {
+            if layer.properties.is_position_locked {
                 flags |= constants::layer::POS_LOCK;
             }
-            if layer.has_alpha_channel {
+            if layer.properties.has_alpha_channel {
                 flags |= constants::layer::HAS_ALPHA;
             }
-            if layer.is_alpha_channel_locked {
+            if layer.properties.is_alpha_channel_locked {
                 flags |= constants::layer::ALPHA_LOCKED;
             }
             result.extend(u32::to_le_bytes(flags));
@@ -519,7 +519,7 @@ impl OutputFormat for IcyDraw {
 
                                     let mode = bytes[o];
 
-                                    layer.mode = match mode {
+                                    layer.properties.mode = match mode {
                                         0 => crate::Mode::Normal,
                                         1 => crate::Mode::Chars,
                                         2 => crate::Mode::Attributes,
@@ -539,7 +539,7 @@ impl OutputFormat for IcyDraw {
                                     let alpha = bytes[o];
                                     o += 1;
                                     if alpha != 0 {
-                                        layer.color = Some(Color::new(red, green, blue));
+                                        layer.properties.color = Some(Color::new(red, green, blue));
                                     }
 
                                     let flags = u32::from_le_bytes(bytes[o..(o + 4)].try_into().unwrap());
@@ -662,13 +662,13 @@ impl OutputFormat for IcyDraw {
 
                                     // set attributes at the end because of the way the parser works
                                     if let Some(layer) = result.layers.last_mut() {
-                                        layer.is_visible = (flags & constants::layer::IS_VISIBLE) == constants::layer::IS_VISIBLE;
-                                        layer.is_locked = (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
-                                        layer.is_position_locked = (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
+                                        layer.properties.is_visible = (flags & constants::layer::IS_VISIBLE) == constants::layer::IS_VISIBLE;
+                                        layer.properties.is_locked = (flags & constants::layer::EDIT_LOCK) == constants::layer::EDIT_LOCK;
+                                        layer.properties.is_position_locked = (flags & constants::layer::POS_LOCK) == constants::layer::POS_LOCK;
 
-                                        layer.has_alpha_channel = (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
+                                        layer.properties.has_alpha_channel = (flags & constants::layer::HAS_ALPHA) == constants::layer::HAS_ALPHA;
 
-                                        layer.is_alpha_channel_locked = (flags & constants::layer::ALPHA_LOCKED) == constants::layer::ALPHA_LOCKED;
+                                        layer.properties.is_alpha_channel_locked = (flags & constants::layer::ALPHA_LOCKED) == constants::layer::ALPHA_LOCKED;
                                     }
                                 }
                             }
@@ -1048,16 +1048,16 @@ mod tests {
         let mut buf = Buffer::new((1, 1));
         buf.layers.push(Layer::new("test", (1, 1)));
         buf.layers[1].set_char((0, 0), AttributedChar::new('a', TextAttribute::default()));
-        buf.layers[0].is_visible = false;
-        buf.layers[1].is_visible = false;
+        buf.layers[0].properties.is_visible = false;
+        buf.layers[1].properties.is_visible = false;
 
         let draw = IcyDraw::default();
         let bytes = draw.to_bytes(&buf, &SaveOptions::default()).unwrap();
         let mut buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
 
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
-        buf2.layers[0].is_visible = true;
-        buf2.layers[1].is_visible = true;
+        buf2.layers[0].properties.is_visible = true;
+        buf2.layers[1].properties.is_visible = true;
     }
 
     #[test]
@@ -1066,9 +1066,9 @@ mod tests {
         buf.layers.push(Layer::new("test", (3, 1)));
         buf.layers[1].set_char((0, 0), AttributedChar::new('a', TextAttribute::default()));
         buf.layers[1].set_char((2, 0), AttributedChar::new('b', TextAttribute::default()));
-        buf.layers[0].is_visible = false;
-        buf.layers[1].is_visible = false;
-        buf.layers[1].has_alpha_channel = true;
+        buf.layers[0].properties.is_visible = false;
+        buf.layers[1].properties.is_visible = false;
+        buf.layers[1].properties.has_alpha_channel = true;
 
         assert_eq!(AttributedChar::invisible(), buf.layers[1].get_char((1, 0)));
 
@@ -1077,7 +1077,7 @@ mod tests {
         let mut buf2 = draw.load_buffer(Path::new("test.icy"), &bytes, None).unwrap();
 
         compare_buffers(&buf, &buf2, crate::CompareOptions::ALL);
-        buf2.layers[0].is_visible = true;
-        buf2.layers[1].is_visible = true;
+        buf2.layers[0].properties.is_visible = true;
+        buf2.layers[1].properties.is_visible = true;
     }
 }

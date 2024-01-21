@@ -11,7 +11,7 @@ impl EditState {
     pub fn add_new_layer(&mut self, layer: usize) -> EngineResult<()> {
         let size = self.buffer.get_size();
         let mut new_layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-new-name"), size);
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         let idx = (layer + 1).clamp(0, self.buffer.layers.len());
         let op = undo_operations::AddLayer::new(idx, new_layer);
         self.push_undo_action(Box::new(op))?;
@@ -56,7 +56,7 @@ impl EditState {
             return Err(anyhow::anyhow!("Invalid layer index: {layer}"));
         }
         let mut new_layer = self.buffer.layers[layer].clone();
-        new_layer.title = fl!(crate::LANGUAGE_LOADER, "layer-duplicate-name", name = new_layer.title);
+        new_layer.properties.title = fl!(crate::LANGUAGE_LOADER, "layer-duplicate-name", name = new_layer.properties.title);
         let op = undo_operations::AddLayer::new(layer + 1, new_layer);
         self.push_undo_action(Box::new(op))?;
         self.current_layer = layer + 1;
@@ -399,7 +399,7 @@ mod tests {
         let mut state = EditState::default();
         state.buffer.layers.clear();
         state.add_new_layer(0).unwrap();
-        assert!(state.buffer.layers[0].has_alpha_channel);
+        assert!(state.buffer.layers[0].properties.has_alpha_channel);
     }
 
     #[test]
@@ -450,45 +450,45 @@ mod tests {
     #[test]
     fn test_raise_layer() {
         let mut state = EditState::default();
-        let name = state.buffer.layers[0].title.clone();
+        let name = state.buffer.layers[0].properties.title.clone();
         state.add_new_layer(0).unwrap();
         state.raise_layer(0).unwrap();
-        assert_eq!(name, state.buffer.layers[1].title);
+        assert_eq!(name, state.buffer.layers[1].properties.title);
         state.undo().unwrap();
-        assert_ne!(name, state.buffer.layers[1].title);
+        assert_ne!(name, state.buffer.layers[1].properties.title);
     }
 
     #[test]
     fn test_lower_layer() {
         let mut state: EditState = EditState::default();
         state.add_new_layer(0).unwrap();
-        let name = state.buffer.layers[1].title.clone();
+        let name = state.buffer.layers[1].properties.title.clone();
         state.lower_layer(1).unwrap();
-        assert_eq!(name, state.buffer.layers[0].title);
+        assert_eq!(name, state.buffer.layers[0].properties.title);
         state.undo().unwrap();
-        assert_ne!(name, state.buffer.layers[0].title);
+        assert_ne!(name, state.buffer.layers[0].properties.title);
     }
 
     #[test]
     fn test_toggle_layer_visibility() {
         let mut state = EditState::default();
-        assert!(state.buffer.layers[0].is_visible);
+        assert!(state.buffer.layers[0].properties.is_visible);
         state.toggle_layer_visibility(0).unwrap();
-        assert!(!state.buffer.layers[0].is_visible);
+        assert!(!state.buffer.layers[0].properties.is_visible);
         state.undo().unwrap();
-        assert!(state.buffer.layers[0].is_visible);
+        assert!(state.buffer.layers[0].properties.is_visible);
     }
 
     #[test]
     fn test_merge_layer_down() {
         let mut state = EditState::default();
         let mut new_layer = Layer::new("1", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
         let mut new_layer = Layer::new("2", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_char((6, 6), AttributedChar::new('b', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
@@ -507,13 +507,13 @@ mod tests {
     fn test_merge_layer_down_case1() {
         let mut state = EditState::default();
         let mut new_layer = Layer::new("1", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_offset((2, 2));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
         let mut new_layer = Layer::new("2", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_char((6, 6), AttributedChar::new('b', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
@@ -530,13 +530,13 @@ mod tests {
     fn test_merge_layer_down_case2() {
         let mut state = EditState::default();
         let mut new_layer = Layer::new("1", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_offset((-1, -1));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 
         let mut new_layer = Layer::new("2", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_char((6, 6), AttributedChar::new('b', TextAttribute::default()));
         state.buffer.layers.push(new_layer);
 

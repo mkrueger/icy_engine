@@ -28,27 +28,29 @@ impl Role {
 }
 
 #[derive(Debug, Default, Clone, PartialEq)]
-pub struct Layer {
+pub struct Properties {
     pub title: String,
-    pub role: Role,
+    pub color: Option<Color>,
     pub is_visible: bool,
     pub is_locked: bool,
     pub is_position_locked: bool,
     pub is_alpha_channel_locked: bool,
     pub has_alpha_channel: bool,
+    pub mode: Mode,
+    pub offset: Position,
+}
 
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct Layer {
+    pub role: Role,
     pub transparency: u8,
+    pub properties: Properties,
 
     // Font page "default" chars are generated with
     // (needed for font mapping)
     pub default_font_page: usize,
 
-    pub color: Option<Color>,
-
-    pub mode: Mode,
-
     preview_offset: Option<Position>,
-    offset: Position,
     size: Size,
     pub lines: Vec<Line>,
 
@@ -139,8 +141,11 @@ impl Layer {
         lines.resize(size.height as usize, Line::create(size.width));
 
         Layer {
-            title: title.into(),
-            is_visible: true,
+            properties: Properties {
+                title: title.into(),
+                is_visible: true,
+                ..Default::default()
+            },
             size,
             lines,
             ..Default::default()
@@ -151,19 +156,19 @@ impl Layer {
         if let Some(offset) = self.preview_offset {
             return offset;
         }
-        self.offset
+        self.properties.offset
     }
 
     pub fn get_base_offset(&self) -> Position {
-        self.offset
+        self.properties.offset
     }
 
     pub fn set_offset(&mut self, pos: impl Into<Position>) {
-        if self.is_position_locked {
+        if self.properties.is_position_locked {
             return;
         }
         self.preview_offset = None;
-        self.offset = pos.into();
+        self.properties.offset = pos.into();
     }
 
     pub fn join(&mut self, layer: &Layer) {
@@ -189,14 +194,14 @@ impl Layer {
         if pos.x < 0 || pos.y < 0 || pos.x >= self.get_width() || pos.y >= self.get_height() {
             return;
         }
-        if self.is_locked || !self.is_visible {
+        if self.properties.is_locked || !self.properties.is_visible {
             return;
         }
         if pos.y >= self.lines.len() as i32 {
             self.lines.resize(pos.y as usize + 1, Line::create(self.size.width));
         }
 
-        if self.has_alpha_channel && self.is_alpha_channel_locked {
+        if self.properties.has_alpha_channel && self.properties.is_alpha_channel_locked {
             let old_char = self.get_char(pos);
             if !old_char.is_visible() {
                 return;
@@ -215,7 +220,7 @@ impl Layer {
     ///
     /// Panics if .
     pub fn remove_line(&mut self, index: i32) {
-        if self.is_locked || !self.is_visible {
+        if self.properties.is_locked || !self.properties.is_visible {
             return;
         }
         assert!(!(index < 0 || index >= self.lines.len() as i32), "line out of range");
@@ -228,7 +233,7 @@ impl Layer {
     ///
     /// Panics if .
     pub fn insert_line(&mut self, index: i32, line: Line) {
-        if self.is_locked || !self.is_visible {
+        if self.properties.is_locked || !self.properties.is_visible {
             return;
         }
         assert!(index >= 0, "line out of range");
@@ -291,7 +296,7 @@ impl Layer {
         let mut data = &data[17..];
 
         let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-pasted-name"), (width, height));
-        layer.has_alpha_channel = true;
+        layer.properties.has_alpha_channel = true;
         layer.role = Role::PastePreview;
         layer.set_offset((x, y));
         for y in 0..height {
@@ -344,7 +349,7 @@ mod tests {
     #[test]
     fn test_get_char() {
         let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (20, 20));
-        layer.has_alpha_channel = false;
+        layer.properties.has_alpha_channel = false;
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
 
@@ -360,7 +365,7 @@ mod tests {
     #[test]
     fn test_get_char_intransparent() {
         let mut layer = Layer::new(fl!(crate::LANGUAGE_LOADER, "layer-background-name"), (20, 20));
-        layer.has_alpha_channel = true;
+        layer.properties.has_alpha_channel = true;
 
         let mut line = Line::new();
         line.set_char(10, AttributedChar::new('a', TextAttribute::default()));
@@ -414,8 +419,8 @@ mod tests {
         assert_eq!(layer.get_width(), 7);
         assert_eq!(layer.get_height(), 8);
 
-        assert_eq!(layer.offset.x, 5);
-        assert_eq!(layer.offset.y, 6);
+        assert_eq!(layer.properties.offset.x, 5);
+        assert_eq!(layer.properties.offset.y, 6);
 
         assert!(layer.get_char((0, 0)).ch == '5');
     }

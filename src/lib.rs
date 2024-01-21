@@ -68,8 +68,6 @@ mod selection;
 pub use selection::*;
 
 mod url_scanner;
-pub use url_scanner::*;
-
 mod selection_mask;
 pub use selection_mask::*;
 

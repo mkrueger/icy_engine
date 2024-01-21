@@ -633,7 +633,7 @@ impl Buffer {
         self.overlay_layer_index = index;
         if self.overlay_layer.is_none() {
             let mut l = Layer::new("Overlay", self.get_size());
-            l.has_alpha_channel = true;
+            l.properties.has_alpha_channel = true;
             self.overlay_layer = Some(l);
         }
 
@@ -913,7 +913,7 @@ impl TextPane for Buffer {
             }
 
             let cur_layer = &self.layers[i];
-            if !cur_layer.is_visible {
+            if !cur_layer.properties.is_visible {
                 continue;
             }
             let pos = pos - cur_layer.get_offset();
@@ -922,7 +922,7 @@ impl TextPane for Buffer {
             }
             let ch = cur_layer.get_char(pos);
             default_font_page = cur_layer.default_font_page;
-            match cur_layer.mode {
+            match cur_layer.properties.mode {
                 crate::Mode::Normal => {
                     if ch.is_visible() {
                         let found_char = merge(ch, ch_opt, attr_opt);
@@ -940,7 +940,7 @@ impl TextPane for Buffer {
                             return found_char;
                         }
                     }
-                    if !cur_layer.has_alpha_channel {
+                    if !cur_layer.properties.has_alpha_channel {
                         let mut res = merge(AttributedChar::default().with_font_page(default_font_page), ch_opt, attr_opt);
                         if ch_opt.is_some() || attr_opt.is_some() {
                             transparent_char = Some(res);
@@ -1036,7 +1036,7 @@ mod tests {
         let mut buf: Buffer = Buffer::default();
 
         let mut new_layer = Layer::new("1", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_offset((2, 2));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         buf.layers.push(new_layer);
@@ -1049,13 +1049,13 @@ mod tests {
         let mut buf: Buffer = Buffer::default();
 
         let mut new_layer = Layer::new("1", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_offset((-2, -2));
         new_layer.set_char((5, 5), AttributedChar::new('a', TextAttribute::default()));
         buf.layers.push(new_layer);
 
         let mut new_layer = Layer::new("2", Size::new(10, 10));
-        new_layer.has_alpha_channel = true;
+        new_layer.properties.has_alpha_channel = true;
         new_layer.set_offset((2, 2));
         new_layer.set_char((5, 5), AttributedChar::new('b', TextAttribute::default()));
         buf.layers.push(new_layer);

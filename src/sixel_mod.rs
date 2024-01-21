@@ -71,7 +71,7 @@ impl SixelParser {
     }
 
     pub fn width(&self) -> i32 {
-        if let Some(first_line) = self.picture_data.get(0) {
+        if let Some(first_line) = self.picture_data.first() {
             (first_line.len() as i32) / 4
         } else {
             0

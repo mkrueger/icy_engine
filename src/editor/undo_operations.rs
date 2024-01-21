@@ -321,7 +321,7 @@ impl UndoOperation for ToggleLayerVisibility {
 
     fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
-            layer.is_visible = !layer.is_visible;
+            layer.properties.is_visible = !layer.properties.is_visible;
             Ok(())
         } else {
             Err(EditorError::InvalidLayer(self.index).into())
@@ -330,7 +330,7 @@ impl UndoOperation for ToggleLayerVisibility {
 
     fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
         if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
-            layer.is_visible = !layer.is_visible;
+            layer.properties.is_visible = !layer.properties.is_visible;
             Ok(())
         } else {
             Err(EditorError::InvalidLayer(self.index).into())
@@ -471,7 +471,7 @@ impl UndoOperation for AddFloatingLayer {
             } else {
                 layer.role = crate::Role::PastePreview;
             }
-            layer.title = fl!(crate::LANGUAGE_LOADER, "layer-pasted-name");
+            layer.properties.title = fl!(crate::LANGUAGE_LOADER, "layer-pasted-name");
         }
         Ok(())
     }
@@ -483,7 +483,7 @@ impl UndoOperation for AddFloatingLayer {
             } else {
                 layer.role = crate::Role::Normal;
             }
-            layer.title = fl!(crate::LANGUAGE_LOADER, "layer-new-name");
+            layer.properties.title = fl!(crate::LANGUAGE_LOADER, "layer-new-name");
         }
         Ok(())
     }
