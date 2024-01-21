@@ -43,6 +43,7 @@ undo-switch_ice_mode=Switch ICE Mode
 undo-replace_font=Replace Font
 undo-remove_font=Remove Font
 undo-change_font_slot=Change Font Slot
+undo-update_layer_properties=Update Layer Properties
 
 layer-duplicate-name={ $name } copy
 layer-new-name=Layer

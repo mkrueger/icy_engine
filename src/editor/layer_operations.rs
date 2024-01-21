@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use i18n_embed_fl::fl;
 
-use crate::{AttributedChar, EngineResult, Layer, Position, Role, Size, TextPane};
+use crate::{AttributedChar, EngineResult, Layer, Position, Role, Size, TextPane, Properties};
 
 use super::{undo_operations, EditState};
 
@@ -290,6 +290,20 @@ impl EditState {
         } else {
             Err(super::EditorError::CurrentLayerInvalid.into())
         }
+    }
+
+    /// Returns the make layer transparent of this [`EditState`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn update_layer_properties(&mut self, layer: usize, new_properties: Properties) -> EngineResult<()> {
+        let op = undo_operations::UpdateLayerProperties::new(layer, self.buffer.layers[layer].properties.clone(), new_properties);
+        self.push_undo_action(Box::new(op))
     }
 }
 

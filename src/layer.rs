@@ -171,6 +171,22 @@ impl Layer {
         self.properties.offset = pos.into();
     }
 
+    pub fn get_is_visible(&self) -> bool {
+        self.properties.is_visible
+    }
+
+    pub fn set_is_visible(&mut self, is_visible: bool) {
+        self.properties.is_visible = is_visible;
+    }
+
+    pub fn get_title(&self) -> &str {
+        &self.properties.title
+    }
+
+    pub fn set_title(&mut self, title: impl Into<String>) {
+        self.properties.title = title.into();
+    }
+
     pub fn join(&mut self, layer: &Layer) {
         for y in 0..layer.lines.len() {
             let line = &layer.lines[y];

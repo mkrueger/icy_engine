@@ -6,7 +6,7 @@ use std::{
 use i18n_embed_fl::fl;
 
 use crate::{
-    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode, Position, SauceData, Selection, SelectionMask, Size, TextPane,
+    AddType, AttributedChar, BitFont, EngineResult, IceMode, Layer, Line, Palette, PaletteMode, Position, SauceData, Selection, SelectionMask, Size, TextPane, Properties,
 };
 
 use super::{EditState, EditorError, OperationType, UndoOperation};
@@ -1577,6 +1577,42 @@ impl UndoOperation for ChangeFontSlot {
             Ok(())
         } else {
             Err(anyhow::anyhow!("empty font slot."))
+        }
+    }
+}
+
+pub struct UpdateLayerProperties {
+    index: usize, 
+    old_properties: Properties,
+    new_properties: Properties
+}
+
+impl UpdateLayerProperties {
+    pub fn new(index: usize, old_properties: Properties, new_properties: Properties) -> Self {
+        Self { index, old_properties, new_properties }
+    }
+}
+
+impl UndoOperation for UpdateLayerProperties {
+    fn get_description(&self) -> String {
+        fl!(crate::LANGUAGE_LOADER, "undo-update_layer_properties")
+    }
+
+    fn undo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.properties = self.old_properties.clone();
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
+        }
+    }
+
+    fn redo(&mut self, edit_state: &mut EditState) -> EngineResult<()> {
+        if let Some(layer) = edit_state.buffer.layers.get_mut(self.index) {
+            layer.properties = self.new_properties.clone();
+            Ok(())
+        } else {
+            Err(EditorError::InvalidLayer(self.index).into())
         }
     }
 }
