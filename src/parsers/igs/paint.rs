@@ -557,7 +557,6 @@ impl DrawExecutor {
         let x_off = [0, 12539 * x_radius / 32767, 23170 * x_radius / 32767, 30273 * x_radius / 32767, x_radius];
 
         let y_off = [y_radius, 30273 * y_radius / 32767, 23170 * y_radius / 32767, 12539 * y_radius / 32767, 0];
-        println!("x_off:{:?} y_off:{:?}", x_off, y_off);
         let xc = x2 - x_radius;
         let yc = y2 - y_radius;
 
@@ -603,13 +602,7 @@ impl CommandExecutor for DrawExecutor {
     }
 
     fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
-        let mut v = vec![];
-        for x in &self.screen {
-            for i in x.to_le_bytes() {
-                v.push(i);
-            }
-        }
-        Some((self.get_resolution(), v))
+        Some((self.get_resolution(), self.screen.clone()))
     }
 
     fn execute_command(
@@ -916,14 +909,24 @@ impl CommandExecutor for DrawExecutor {
                     }
                     2 => {
                         self.fill_pattern_type = FillPatternType::Pattern;
-                        self.fill_pattern = &TYPE_PATTERN[parameters[1] as usize - 1];
+                        if parameters[1] >= 1 && parameters[1] <= 24 {
+                            self.fill_pattern = &TYPE_PATTERN[parameters[1] as usize - 1];
+                        } else {
+                            log::warn!("AttributeForFills inlvalid type pattern number : {} (valid is 1->24)", parameters[1]);
+                            self.fill_pattern = &SOLID_PATTERN;
+                        }
                     }
                     3 => {
                         self.fill_pattern_type = FillPatternType::Hatch;
-                        if parameters[1] <= 6 {
-                            self.fill_pattern = &HATCH_PATTERN[parameters[1] as usize - 1];
+                        if parameters[1] >= 1 && parameters[1] <= 12 {
+                            if parameters[1] <= 6 {
+                                self.fill_pattern = &HATCH_PATTERN[parameters[1] as usize - 1];
+                            } else {
+                                self.fill_pattern = &HATCH_WIDE_PATTERN[parameters[1] as usize - 7];
+                            }
                         } else {
-                            self.fill_pattern = &HATCH_WIDE_PATTERN[parameters[1] as usize - 7];
+                            log::warn!("AttributeForFills inlvalid hatch pattern number : {} (valid is 1->12)", parameters[1]);
+                            self.fill_pattern = &SOLID_PATTERN;
                         }
                     }
                     4 => {

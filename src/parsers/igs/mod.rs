@@ -194,7 +194,7 @@ impl BufferParser for Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        //println!("{} {:?} - numbers:{:?}", ch as u32, self.state, self.parsed_numbers);
+        // println!("{} {:?} - numbers:{:?}", ch as u32, self.state, self.parsed_numbers);
         match &self.state {
             State::ReadCommand(command) => {
                 if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 3 {
