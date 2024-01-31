@@ -1,6 +1,8 @@
-use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION};
-use crate::{BitFont, Buffer, CallbackAction, Caret, Color, EngineResult, Position, Size, ATARI, IGS_PALETTE, IGS_SYSTEM_PALETTE};
-use raqote::{AntialiasMode, BlendMode, DrawOptions, DrawTarget, IntPoint, IntRect, LineCap, LineJoin, Path, PathBuilder, SolidSource, Source, StrokeStyle};
+use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION, LINE_STYLE, SOLID_PATTERN};
+use crate::{
+    igs::HATCH_PATTERN, igs::HATCH_WIDE_PATTERN, igs::HOLLOW_PATTERN, igs::TYPE_PATTERN, BitFont, Buffer, CallbackAction, Caret, Color, EngineResult, Position,
+    Size, ATARI, IGS_PALETTE, IGS_SYSTEM_PALETTE,
+};
 
 #[derive(Default)]
 pub enum TerminalResolution {
@@ -66,6 +68,19 @@ pub enum LineType {
     DashedDotDot,
     UserDefined,
 }
+impl LineType {
+    fn get_mask(self) -> usize {
+        match self {
+            LineType::Solid => 0,
+            LineType::LongDash => 1,
+            LineType::DottedLine => 2,
+            LineType::DashDot => 3,
+            LineType::DashedLine => 4,
+            LineType::DashedDotDot => 5,
+            LineType::UserDefined => 6,
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum DrawingMode {
@@ -83,8 +98,9 @@ pub enum FillPatternType {
     Hatch,
     UserdDefined,
 }
+
 pub struct DrawExecutor {
-    dt: DrawTarget,
+    screen: Vec<u8>,
     terminal_resolution: TerminalResolution,
 
     cur_position: Position,
@@ -106,23 +122,28 @@ pub struct DrawExecutor {
     user_defined_pattern_number: usize,
 
     fill_pattern_type: FillPatternType,
+    fill_pattern: &'static [u16],
     pattern_index_number: usize,
     draw_border: bool,
 
     font_8px: BitFont,
     hollow_set: bool,
-    screen_memory: DrawTarget,
+
+    screen_memory: Vec<u8>,
+    screen_memory_size: Size,
 
     /// for the G command.
     double_step: f32,
 }
+
 unsafe impl Send for DrawExecutor {}
+
 unsafe impl Sync for DrawExecutor {}
 
 impl Default for DrawExecutor {
     fn default() -> Self {
         Self {
-            dt: DrawTarget::new(320, 200),
+            screen: vec![0; 320 * 200 * 4],
             terminal_resolution: TerminalResolution::Low,
             pen_colors: IGS_SYSTEM_PALETTE.to_vec(),
             polymarker_color: 0,
@@ -140,9 +161,11 @@ impl Default for DrawExecutor {
             solidline_size: 1,
             user_defined_pattern_number: 1,
             font_8px: BitFont::from_bytes("ATARI", ATARI).unwrap(),
-            screen_memory: DrawTarget::new(1, 1),
+            screen_memory: Vec::new(),
+            screen_memory_size: Size::new(0, 0),
 
             fill_pattern_type: FillPatternType::Solid,
+            fill_pattern: &SOLID_PATTERN,
             pattern_index_number: 0,
             draw_border: false,
             hollow_set: false,
@@ -154,107 +177,301 @@ impl Default for DrawExecutor {
 impl DrawExecutor {
     pub fn clear(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         buf.clear_screen(0, caret);
-        self.dt.clear(SolidSource::from_unpremultiplied_argb(0, 0, 0, 0));
+        let res = self.get_resolution();
+        self.screen = vec![0; (res.width * res.height * 4) as usize];
     }
 
     pub fn set_resolution(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         buf.clear_screen(0, caret);
         let res = self.get_resolution();
-        self.dt = DrawTarget::new(res.width, res.height);
+        self.screen = vec![0; (res.width * res.height * 4) as usize];
     }
 
     pub fn reset_attributes(&mut self) {
         // TODO
     }
 
-    fn flood_fill(&mut self, pos: Position) {
-        if pos.x < 0 || pos.y < 0 || pos.x >= self.get_resolution().width || pos.y >= self.get_resolution().height {
+    fn flood_fill(&mut self, x0: i32, y0: i32) {
+        let res = self.get_resolution();
+
+        if x0 < 0 || y0 < 0 || x0 >= res.width || y0 >= res.height {
             return;
         }
+        let old_px = self.get_pixel(x0, y0);
+
+        let mut vec = vec![Position::new(x0, y0)];
         let col = self.pen_colors[self.fill_color].clone();
-        let px = self.dt.get_data()[pos.y as usize * self.dt.width() as usize + pos.x as usize];
-        let (r, g, b) = col.get_rgb();
-
-        let new_px = 255 << 24 | (b as u32) << 16 | (g as u32) << 8 | r as u32;
-        if px == new_px {
+        let rgb = col.get_rgb();
+        if old_px == rgb {
             return;
         }
-        self.fill(pos, px, new_px);
-    }
-
-    fn fill(&mut self, pos: Position, old_px: u32, color: u32) {
-        let width = self.dt.width();
-
-        let mut vec = vec![pos];
 
         while let Some(pos) = vec.pop() {
-            if pos.x < 0 || pos.y < 0 || pos.x >= width || pos.y >= self.dt.height() {
+            if pos.x < 0 || pos.y < 0 || pos.x >= res.width || pos.y >= res.height {
                 continue;
             }
-            let offset = pos.y as usize * width as usize + pos.x as usize;
-            let px = self.dt.get_data()[offset];
-            if px != old_px {
+
+            let cp = self.get_pixel(pos.x, pos.y);
+            if cp != old_px {
                 continue;
             }
-            self.dt.get_data_mut()[offset] = color;
+            self.set_pixel(pos.x, pos.y, &col);
+
             vec.push(Position::new(pos.x - 1, pos.y));
             vec.push(Position::new(pos.x + 1, pos.y));
             vec.push(Position::new(pos.x, pos.y - 1));
             vec.push(Position::new(pos.x, pos.y + 1));
         }
     }
-    /*
-    fn draw_line(&mut self, from: Position, to: Position) {
-        self.cur_position = to;
-        let dx = to.x - from.x;
-        let mut dy = to.y - from.y;
-        let v_lin_wr = 80;
-        let yinc =
-        if dy < 0 {
-            dy = -dy;
-            -1 * v_lin_wr / 2
-        } else {
-            v_lin_wr / 2
-        };
-        let adr = from.y * self.dt.width() as i32 + from.x;
-    }*/
 
-    fn draw_line(&mut self, from: Position, to: Position) {
-        self.cur_position = to;
+    fn set_pixel(&mut self, x: i32, y: i32, line_color: &Color) {
+        let (red, green, blue) = line_color.get_rgb();
 
-        let mut pb = PathBuilder::new();
-        pb.move_to(from.x as f32, from.y as f32);
-        pb.line_to(to.x as f32, to.y as f32);
-        let path = pb.finish();
-
-        self.stroke_path(&path);
+        let offset = (y * self.get_resolution().width * 4 + x * 4) as usize;
+        if offset > self.screen.len() - 4 {
+            return;
+        }
+        self.screen[offset] = red;
+        self.screen[offset + 1] = green;
+        self.screen[offset + 2] = blue;
+        self.screen[offset + 3] = 255;
     }
 
-    fn stroke_path(&mut self, path: &Path) {
-        let (r, g, b) = self.pen_colors[self.line_color].get_rgb();
-        self.dt.stroke(
-            path,
-            &Source::Solid(create_solid_source(r, g, b)),
-            &StrokeStyle {
-                cap: LineCap::Butt,
-                join: LineJoin::Miter,
-                width: 1.,
-                miter_limit: 19.,
-                dash_array: Vec::new(),
-                dash_offset: 0.,
-            },
-            &DrawOptions {
-                blend_mode: BlendMode::SrcOver,
-                alpha: 1.,
-                antialias: AntialiasMode::None,
-            },
-        );
+    fn get_pixel(&mut self, x: i32, y: i32) -> (u8, u8, u8) {
+        let offset = (y * self.get_resolution().width * 4 + x * 4) as usize;
+        (self.screen[offset], self.screen[offset + 1], self.screen[offset + 2])
+    }
+
+    fn fill_pixel(&mut self, x: i32, y: i32) {
+        let color = self.pen_colors[self.fill_color].clone();
+
+        let w = self.fill_pattern[(y as usize) % self.fill_pattern.len()];
+
+        if w & (1 << (x as usize % 16)) != 0 {
+            self.set_pixel(x, y, &color);
+        }
+    }
+
+    fn draw_line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, color: &Color, mask: usize) {
+        let mut line_mask = LINE_STYLE[mask];
+
+        let dx = (x0 - x1).abs();
+        let dy = (y0 - y1).abs();
+
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut err = dx - dy;
+
+        let mut x = x0;
+        let mut y = y0;
+        loop {
+            if 1 & line_mask != 0 {
+                self.set_pixel(x, y, color);
+            }
+            line_mask = line_mask.rotate_left(1);
+
+            if x == x1 && y == y1 {
+                break;
+            }
+
+            let e2 = 2 * err;
+            if e2 > -dy {
+                err -= dy;
+                x += sx;
+            }
+            if e2 < dx {
+                err += dx;
+                y += sy;
+            }
+        }
+    }
+
+    fn draw_circle(&mut self, xm: i32, ym: i32, r: i32) {
+        let mut x = -r;
+        let mut y = 0;
+        let mut err = 2 - 2 * r;
+        let color = self.pen_colors[self.line_color].clone();
+
+        while x < 0 {
+            self.set_pixel(xm - x, ym + y, &color); /*   I. Quadrant */
+            self.set_pixel(xm - y, ym - x, &color); /*  II. Quadrant */
+            self.set_pixel(xm + x, ym - y, &color); /* III. Quadrant */
+            self.set_pixel(xm + y, ym + x, &color); /*  IV. Quadrant */
+            let r = err;
+            if r <= y {
+                y += 1;
+                err += y * 2 + 1; /* e_xy+e_y < 0 */
+            }
+            if r > x || err > y {
+                x += 1;
+                err += x * 2 + 1; /* e_xy+e_x > 0 or no 2nd y-step */
+            }
+        }
+    }
+
+    fn draw_ellipse(&mut self, xm: i32, ym: i32, a: i32, b: i32) {
+        let mut x = -a;
+        let mut y = 0; /* II. quadrant from bottom left to top right */
+        let e2 = b * b;
+        let mut err = x * (2 * e2 + x) + e2; /* error of 1.step */
+        let color = self.pen_colors[self.line_color].clone();
+
+        while x <= 0 {
+            self.set_pixel(xm - x, ym + y, &color); /*   I. Quadrant */
+            self.set_pixel(xm + x, ym + y, &color); /*  II. Quadrant */
+            self.set_pixel(xm + x, ym - y, &color); /* III. Quadrant */
+            self.set_pixel(xm - x, ym - y, &color); /*  IV. Quadrant */
+            let e2 = 2 * err;
+            if e2 >= (x * 2 + 1) * b * b {
+                /* e_xy+e_x > 0 */
+                x += 1;
+                err += (x * 2 + 1) * b * b;
+            }
+            if e2 <= (y * 2 + 1) * a * a {
+                /* e_xy+e_y < 0 */
+                y += 1;
+                err += (y * 2 + 1) * a * a;
+            }
+        }
+
+        while y < b {
+            /* too early stop of flat ellipses a=1, */
+            y += 1;
+            self.set_pixel(xm, ym + y, &color); /* -> finish tip of ellipse */
+            self.set_pixel(xm, ym - y, &color);
+        }
+    }
+
+    fn fill_rect(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
+        for y in y0..y1 {
+            for x in x0..x1 {
+                self.fill_pixel(x, y);
+            }
+        }
+    }
+
+    fn draw_poly(&mut self, parameters: &[i32]) {
+        let mut x = parameters[0];
+        let mut y = parameters[1];
+        let color = self.pen_colors[self.fill_color].clone();
+        let mask = self.line_type.get_mask();
+        let mut i = 2;
+        while i < parameters.len() {
+            let nx = parameters[i];
+            let ny = parameters[i + 1];
+            self.draw_line(x, y, nx, ny, &color, mask);
+            x = nx;
+            y = ny;
+            i += 2;
+        }
+        // close polygon
+        self.draw_line(x, y, parameters[0], parameters[1], &color, mask);
+    }
+
+    fn fill_poly(&mut self, points: &[i32]) {
+        let max_vertices = 512;
+
+        let y_coords = points.iter().skip(1).step_by(2).copied().collect::<Vec<i32>>();
+        let y_max = *y_coords.iter().max().unwrap(); // start row (bottom)
+        let y_min = *y_coords.iter().min().unwrap(); // end row (top)
+        
+        // VDI apparently loops over the scan lines from bottom to top
+        for y in (y_min + 1..=y_max).rev() {
+            // Set up counter for vector intersections
+            let mut intersections = 0;
+
+            // Set up a buffer for storing polygon edges that intersect the scan line
+            let mut edge_buffer = Vec::new();
+
+            // Loop over all vertices/points and find the intersections
+            let point_cnt = points.len() / 2;
+            for i in 0..point_cnt {
+                // Account for fact that final point connects to the first point
+                let mut next_point = i + 1;
+                if next_point >= point_cnt {
+                    next_point = 0;
+                }
+
+                // Convenience variables for endpoints
+
+                let y1 = points[i * 2 + 1]; // Get Y-coord of 1st endpoint.
+                let y2 = points[next_point * 2 + 1]; // Get Y-coord of 2nd endpoint.
+
+                // Get Y delta of current vector/segment/edge
+                let dy = y2 - y1;
+
+                // If the current vector is horizontal (0), ignore it.
+                if dy != 0 {
+                    // Calculate deltas of each endpoint with current scan line.
+                    let dy1 = y - y1;
+                    let dy2 = y - y2;
+
+                    // Determine whether the current vector intersects with
+                    // the scan line by comparing the Y-deltas we calculated
+                    // of the two endpoints from the scan line.
+                    //
+                    // If both deltas have the same sign, then the line does
+                    // not intersect and can be ignored.  The origin for this
+                    // test is found in Newman and Sproull.
+                    if (dy1 ^ dy2) < 0 {
+                        let x1 = points[i * 2]; // Get X-coord of 1st endpoint.
+                        let x2 = points[next_point * 2]; // Get X-coord of 2nd endpoint.
+
+                        // Calculate X delta of current vector
+                        let dx = (x2 - x1) << 1; // Left shift so we can round by adding 1 below
+
+                        // Stop if we have reached the max number of verticies allowed (512)
+                        if intersections >= max_vertices {
+                            break;
+                        }
+
+                        intersections += 1;
+
+                        // Add X value for this vector to edge buffer
+                        if dx < 0 {
+                            edge_buffer.push(((dy2 * dx / dy + 1) >> 1) + x2);
+                        } else {
+                            edge_buffer.push(((dy1 * dx / dy + 1) >> 1) + x1);
+                        }
+                    }
+                }
+            }
+
+            // All of the points of intersection have now been found.  If there
+            // were none (or one, which I think is impossible), then there is
+            // nothing more to do.  Otherwise, sort the list of points of
+            // intersection in ascending order.
+            // (The list contains only the x-coordinates of the points.)
+
+            if intersections < 2 {
+                continue;
+            }
+
+            // Sort the X-coordinates, so they are arranged left to right.
+            // There are almost always exactly 2, except for weird shapes.
+            edge_buffer.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+            // Loop through all edges in pairs, filling the pixels in between.
+            let mut i = intersections / 2;
+            let j = 0;
+            while i > 0 {
+                i -= 1;
+                /* grab a pair of endpoints */
+                let x1 = edge_buffer[j];
+                let x2 = edge_buffer[j + 1];
+
+                // Fill in all pixels horizontally from (x1, y) to (x2, y)
+                for k in x1..=x2 {
+                    self.fill_pixel(k, y);
+                }
+            }
+        }
     }
 
     fn write_text(&mut self, text_pos: Position, string_parameter: &str) {
         let mut pos = text_pos;
         let char_size = self.font_8px.size;
-        let (r, g, b) = self.pen_colors[self.text_color].get_rgb();
+        let color = self.pen_colors[self.text_color].clone();
 
         for ch in string_parameter.chars() {
             let data = self.font_8px.get_glyph(ch).unwrap().data.clone();
@@ -262,14 +479,7 @@ impl DrawExecutor {
                 for x in 0..char_size.width {
                     if data[y as usize] & (128 >> x) != 0 {
                         let p = pos + Position::new(x, y);
-                        self.dt.fill_rect(
-                            p.x as f32,
-                            p.y as f32,
-                            1.0,
-                            1.0,
-                            &Source::Solid(create_solid_source(r, g, b)),
-                            &DrawOptions::default(),
-                        );
+                        self.set_pixel(p.x, p.y, &color);
                     }
                 }
             }
@@ -283,34 +493,106 @@ impl DrawExecutor {
     }
 
     fn blit_screen_to_screen(&mut self, _write_mode: i32, from: Position, to: Position, dest: Position) {
-        let mut copy = DrawTarget::new(to.x - from.x, to.y - from.y);
-        copy.copy_surface(
-            &self.dt,
-            IntRect::from_points([IntPoint::new(from.x, from.y), IntPoint::new(to.x, to.y)]),
-            IntPoint::new(0, 0),
-        );
-        let point2_d = IntPoint::new(copy.width(), copy.height());
-        self.dt
-            .copy_surface(&copy, IntRect::from_points([IntPoint::new(0, 0), point2_d]), IntPoint::new(dest.x, dest.y));
+        let width = to.x - from.x;
+        let height = to.y - from.y;
+
+        for y in 0..height {
+            for x in 0..width {
+                let (r, g, b) = self.get_pixel(from.x + x, from.y + y);
+                self.set_pixel(dest.x + x, dest.y + y, &Color::new(r, g, b));
+            }
+        }
     }
 
     fn blit_memory_to_screen(&mut self, _write_mode: i32, from: Position, to: Position, dest: Position) {
-        self.dt.copy_surface(
-            &self.screen_memory,
-            IntRect::new(IntPoint::new(from.x, from.y), IntPoint::new(to.x, to.y)),
-            IntPoint::new(dest.x, dest.y),
-        );
+        let width = to.x - from.x;
+        let height = to.y - from.y;
+        let res = self.get_resolution();
+
+        for y in 0..height {
+            let yp = y + from.y;
+            if dest.y + y >= res.height {
+                break;
+            }
+            for x in 0..width {
+                let xp = x + from.x;
+
+                if dest.x + x >= res.width {
+                    break;
+                }
+                let offset = (yp * width + xp) as usize * 4;
+                let r = self.screen_memory[offset];
+                let g = self.screen_memory[offset + 1];
+                let b = self.screen_memory[offset + 2];
+
+                self.set_pixel(dest.x + x, dest.y + y, &Color::new(r, g, b));
+            }
+        }
     }
 
     fn blit_screen_to_memory(&mut self, _write_mode: i32, from: Position, to: Position) {
-        let mut copy = DrawTarget::new(to.x - from.x, to.y - from.y);
-        copy.copy_surface(
-            &self.dt,
-            IntRect::from_points([IntPoint::new(from.x, from.y), IntPoint::new(to.x, to.y)]),
-            IntPoint::new(0, 0),
-        );
+        let width = to.x - from.x;
+        let height = to.y - from.y;
 
-        self.screen_memory = copy;
+        self.screen_memory_size = Size::new(width, height);
+        self.screen_memory.clear();
+
+        for y in from.y..to.y {
+            for x in from.x..to.x {
+                let (r, g, b) = self.get_pixel(x, y);
+                self.screen_memory.push(r);
+                self.screen_memory.push(g);
+                self.screen_memory.push(b);
+                self.screen_memory.push(255);
+            }
+        }
+    }
+
+    fn round_rect(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, parameters: i32) {
+        let mut points = Vec::new();
+
+        let x_radius = (self.get_resolution().width >> 6).min((x2 - x1) / 2);
+        let y_radius = x_radius.min((y2 - y1) / 2);
+
+        let x_off = [0, 12539 * x_radius / 32767, 23170 * x_radius / 32767, 30273 * x_radius / 32767, x_radius];
+
+        let y_off = [y_radius, 30273 * y_radius / 32767, 23170 * y_radius / 32767, 12539 * y_radius / 32767, 0];
+        println!("x_off:{:?} y_off:{:?}", x_off, y_off);
+        let xc = x2 - x_radius;
+        let yc = y2 - y_radius;
+
+        // upper right
+        for i in 0..x_off.len() {
+            points.push(xc + x_off[i]);
+            points.push(yc + y_off[i]);
+        }
+
+        // lower right
+        let yc = y1 + y_radius;
+        for i in 0..x_off.len() {
+            points.push(xc + x_off[4 - i]);
+            points.push(yc - y_off[4 - i]);
+        }
+
+        // lower left
+        let xc = x1 + x_radius;
+        for i in 0..x_off.len() {
+            points.push(xc - x_off[i]);
+            points.push(yc - y_off[i]);
+        }
+
+        // upper left
+        let yc = y2 - y_radius;
+        for i in 0..x_off.len() {
+            points.push(xc - x_off[4 - i]);
+            points.push(yc + y_off[4 - i]);
+        }
+
+        if parameters == 1 {
+            self.fill_poly(&points);
+        } else {
+            self.draw_poly(&points);
+        }
     }
 }
 
@@ -320,13 +602,16 @@ impl CommandExecutor for DrawExecutor {
         Size::new(s.width, s.height)
     }
 
-    fn get_texture_data(&self) -> &[u8] {
-        self.dt.get_data_u8()
+    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+        let mut v = vec![];
+        for x in &self.screen {
+            for i in x.to_le_bytes() {
+                v.push(i);
+            }
+        }
+        Some((self.get_resolution(), v))
     }
 
-    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
-        Some((self.get_resolution(), self.dt.get_data_u8().to_vec()))
-    }
     fn execute_command(
         &mut self,
         buf: &mut Buffer,
@@ -335,7 +620,7 @@ impl CommandExecutor for DrawExecutor {
         parameters: &[i32],
         string_parameter: &str,
     ) -> EngineResult<CallbackAction> {
-        // println!("cmd:{command:?} params:{parameters:?}");
+        println!("cmd:{command:?} params:{parameters:?}");
         match command {
             IgsCommands::Initialize => {
                 if parameters.len() != 1 {
@@ -427,59 +712,37 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("DrawLine command requires 4 arguments"));
                 }
-                let from = Position::new(parameters[0], parameters[1]);
-                let to = Position::new(parameters[2], parameters[3]);
-                self.draw_line(from, to);
+                let color = self.pen_colors[self.line_color].clone();
+                self.draw_line(parameters[0], parameters[1], parameters[2], parameters[3], &color, self.line_type.get_mask());
+                self.cur_position = Position::new(parameters[2], parameters[3]);
                 Ok(CallbackAction::Update)
             }
             IgsCommands::PolyFill => {
                 if parameters.is_empty() {
-                    return Err(anyhow::anyhow!("PolyLine requires minimun 1 arguments"));
+                    return Err(anyhow::anyhow!("PolyFill requires minimun 1 arguments"));
                 }
-                let points = parameters[0];
+                let points: i32 = parameters[0];
                 if points * 2 + 1 != parameters.len() as i32 {
-                    return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
+                    return Err(anyhow::anyhow!("PolyFill requires {} arguments was {} ", points * 2 + 1, parameters.len()));
                 }
-                let mut pb = PathBuilder::new();
-                pb.move_to(parameters[1] as f32, parameters[2] as f32);
-                let mut i = 3;
-                while i < parameters.len() {
-                    pb.line_to(parameters[i] as f32, parameters[i + 1] as f32);
-                    i += 2;
-                }
-                pb.line_to(parameters[1] as f32, parameters[2] as f32);
-
-                let path = pb.finish();
-                if matches!(self.fill_pattern_type, FillPatternType::Solid) {
-                    let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                    self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-                }
-
+                self.fill_poly(&parameters[1..]);
                 if self.draw_border {
-                    self.stroke_path(&path);
+                    self.draw_poly(&parameters[1..]);
                 }
-
                 Ok(CallbackAction::Update)
             }
+
             IgsCommands::PolyLine => {
                 if parameters.is_empty() {
                     return Err(anyhow::anyhow!("PolyLine requires minimun 1 arguments"));
                 }
-                let points = parameters[0];
+                let points: i32 = parameters[0];
                 if points * 2 + 1 != parameters.len() as i32 {
                     return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
                 }
-                let mut pb = PathBuilder::new();
-                pb.move_to(parameters[1] as f32, parameters[2] as f32);
-                let mut i = 3;
-                while i < parameters.len() {
-                    pb.line_to(parameters[i] as f32, parameters[i + 1] as f32);
-                    i += 2;
-                }
-                pb.line_to(parameters[1] as f32, parameters[2] as f32);
+                self.draw_poly(&parameters[1..]);
+                self.cur_position = Position::new(parameters[parameters.len() - 2], parameters[parameters.len() - 1]);
 
-                let path = pb.finish();
-                self.stroke_path(&path);
                 Ok(CallbackAction::Update)
             }
 
@@ -487,8 +750,16 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("LineDrawTo command requires 2 arguments"));
                 }
-                let next_pos = Position::new(parameters[0], parameters[1]);
-                self.draw_line(self.cur_position, next_pos);
+                let color = self.pen_colors[self.line_color].clone();
+                self.draw_line(
+                    self.cur_position.x,
+                    self.cur_position.y,
+                    parameters[0],
+                    parameters[1],
+                    &color,
+                    self.line_type.get_mask(),
+                );
+                self.cur_position = Position::new(parameters[0], parameters[1]);
                 Ok(CallbackAction::Update)
             }
 
@@ -496,27 +767,36 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 5 {
                     return Err(anyhow::anyhow!("Box command requires 5 arguments"));
                 }
-                let min = Position::new(parameters[0], parameters[1]);
-                let max = Position::new(parameters[2], parameters[3]);
-                let mut pb = PathBuilder::new();
-                pb.move_to(min.x as f32, min.y as f32);
-                pb.line_to(max.x as f32, min.y as f32);
-                pb.line_to(max.x as f32, max.y as f32);
-                pb.line_to(min.x as f32, max.y as f32);
-                pb.line_to(min.x as f32, min.y as f32);
-                let path = pb.finish();
+                let x0 = parameters[0];
+                let y0 = parameters[1];
+                let x1 = parameters[2];
+                let y1 = parameters[3];
 
-                if matches!(self.fill_pattern_type, FillPatternType::Solid) {
-                    let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                    self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-                }
-
+                self.fill_rect(x0, y0, x1, y1);
                 if self.draw_border {
-                    self.stroke_path(&path);
-                }
+                    let color = self.pen_colors[self.fill_color].clone();
 
+                    self.draw_line(x0, y0, x0, y1, &color, 0);
+                    self.draw_line(x1, y0, x1, y1, &color, 0);
+                    self.draw_line(x0, y0, x1, y0, &color, 0);
+                    self.draw_line(x0, y1, x1, y1, &color, 0);
+                }
                 Ok(CallbackAction::Update)
             }
+
+            IgsCommands::RoundedRectangles => {
+                if parameters.len() != 5 {
+                    return Err(anyhow::anyhow!("Box command requires 5 arguments"));
+                }
+                let x0 = parameters[0];
+                let y0 = parameters[1];
+                let x1 = parameters[2];
+                let y1 = parameters[3];
+
+                self.round_rect(x0, y0, x1, y1, parameters[4]);
+                Ok(CallbackAction::Update)
+            }
+
             IgsCommands::HollowSet => {
                 if parameters.len() != 1 {
                     return Err(anyhow::anyhow!("HollowSet command requires 1 argument"));
@@ -532,19 +812,20 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 5 {
                     return Err(anyhow::anyhow!("AttributeForFills command requires 3 arguments"));
                 }
-                let mut pb = PathBuilder::new();
-                pb.arc(
-                    parameters[0] as f32,
-                    parameters[1] as f32,
-                    parameters[2] as f32,
-                    parameters[3] as f32 / 360.0 * 2.0 * std::f32::consts::PI,
-                    parameters[4] as f32 / 360.0 * 2.0 * std::f32::consts::PI,
-                );
-                let path = pb.finish();
+                /*
+                                let mut pb = PathBuilder::new();
+                                pb.arc(
+                                    parameters[0] as f32,
+                                    parameters[1] as f32,
+                                    parameters[2] as f32,
+                                    parameters[3] as f32 / 360.0 * 2.0 * std::f32::consts::PI,
+                                    parameters[4] as f32 / 360.0 * 2.0 * std::f32::consts::PI,
+                                );
+                                let path = pb.finish();
 
-                let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-
+                                let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
+                                self.screen.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
+                */
                 Ok(CallbackAction::Update)
             }
 
@@ -552,23 +833,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 3 {
                     return Err(anyhow::anyhow!("AttributeForFills command requires 3 arguments"));
                 }
-                let mut pb = PathBuilder::new();
-                pb.arc(
-                    parameters[0] as f32,
-                    parameters[1] as f32,
-                    parameters[2] as f32,
-                    0.0,
-                    2.0 * std::f32::consts::PI,
-                );
-                let path = pb.finish();
-
-                if self.hollow_set {
-                    self.stroke_path(&path);
-                } else {
-                    let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                    self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-                }
-
+                self.draw_circle(parameters[0], parameters[1], parameters[2]);
                 Ok(CallbackAction::Update)
             }
 
@@ -576,24 +841,8 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("Ellipse command requires 4 arguments"));
                 }
-                let mut pb = PathBuilder::new();
-                pb.elliptic_arc(
-                    parameters[0] as f32,
-                    parameters[1] as f32,
-                    parameters[2] as f32,
-                    parameters[4] as f32,
-                    0.0,
-                    2.0 * std::f32::consts::PI,
-                );
-                let path = pb.finish();
 
-                if self.hollow_set {
-                    self.stroke_path(&path);
-                } else {
-                    let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                    self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-                }
-
+                self.draw_ellipse(parameters[0], parameters[1], parameters[2], parameters[3]);
                 Ok(CallbackAction::Update)
             }
 
@@ -601,6 +850,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 6 {
                     return Err(anyhow::anyhow!("EllipticalArc command requires 6 arguments"));
                 }
+                /*
                 let mut pb = PathBuilder::new();
                 pb.elliptic_arc(
                     parameters[0] as f32,
@@ -612,7 +862,8 @@ impl CommandExecutor for DrawExecutor {
                 );
                 let path = pb.finish();
                 let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
+                self.screen.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
+                */
                 Ok(CallbackAction::Update)
             }
 
@@ -655,11 +906,31 @@ impl CommandExecutor for DrawExecutor {
                     return Err(anyhow::anyhow!("AttributeForFills command requires 3 arguments"));
                 }
                 match parameters[0] {
-                    0 => self.fill_pattern_type = FillPatternType::Hollow,
-                    1 => self.fill_pattern_type = FillPatternType::Solid,
-                    2 => self.fill_pattern_type = FillPatternType::Pattern,
-                    3 => self.fill_pattern_type = FillPatternType::Hatch,
-                    4 => self.fill_pattern_type = FillPatternType::UserdDefined,
+                    0 => {
+                        self.fill_pattern_type = FillPatternType::Hollow;
+                        self.fill_pattern = &HOLLOW_PATTERN;
+                    }
+                    1 => {
+                        self.fill_pattern_type = FillPatternType::Solid;
+                        self.fill_pattern = &SOLID_PATTERN;
+                    }
+                    2 => {
+                        self.fill_pattern_type = FillPatternType::Pattern;
+                        self.fill_pattern = &TYPE_PATTERN[parameters[1] as usize - 1];
+                    }
+                    3 => {
+                        self.fill_pattern_type = FillPatternType::Hatch;
+                        if parameters[1] <= 6 {
+                            self.fill_pattern = &HATCH_PATTERN[parameters[1] as usize - 1];
+                        } else {
+                            self.fill_pattern = &HATCH_WIDE_PATTERN[parameters[1] as usize - 7];
+                        }
+                    }
+                    4 => {
+                        self.fill_pattern_type = FillPatternType::UserdDefined;
+                        // TODO
+                        self.fill_pattern = &SOLID_PATTERN;
+                    }
                     _ => return Err(anyhow::anyhow!("AttributeForFills unknown/unsupported argument: {}", parameters[0])),
                 }
                 self.pattern_index_number = parameters[1] as usize;
@@ -674,19 +945,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("FilledRectangle command requires 4 arguments"));
                 }
-                let min = Position::new(parameters[0], parameters[1]);
-                let max = Position::new(parameters[2], parameters[3]);
-
-                let mut pb = PathBuilder::new();
-                pb.move_to(min.x as f32, min.y as f32);
-                pb.line_to(max.x as f32, min.y as f32);
-                pb.line_to(max.x as f32, max.y as f32);
-                pb.line_to(min.x as f32, max.y as f32);
-                pb.line_to(min.x as f32, min.y as f32);
-                let (r, g, b) = self.pen_colors[self.fill_color].get_rgb();
-                let path = pb.finish();
-                self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-
+                self.fill_rect(parameters[0], parameters[1], parameters[2], parameters[3]);
                 Ok(CallbackAction::Update)
             }
 
@@ -696,13 +955,15 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("PolymarkerPlot command requires 2 arguments"));
                 }
+                /*
                 let next_pos = Position::new(parameters[0], parameters[1]);
                 let mut pb = PathBuilder::new();
                 pb.rect(next_pos.x as f32, next_pos.y as f32, 1.0, 1.0);
                 let (r, g, b) = self.pen_colors[self.polymarker_color].get_rgb();
                 let path = pb.finish();
-                self.dt.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
+                self.screen.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
                 self.cur_position = next_pos;
+                */
                 Ok(CallbackAction::Update)
             }
 
@@ -826,8 +1087,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("FloodFill command requires 2 arguments"));
                 }
-                let next_pos = Position::new(parameters[0], parameters[1]);
-                self.flood_fill(next_pos);
+                self.flood_fill(parameters[0], parameters[1]);
                 Ok(CallbackAction::Pause(100))
             }
 
@@ -865,7 +1125,7 @@ impl CommandExecutor for DrawExecutor {
                         self.blit_memory_to_screen(
                             write_mode,
                             Position::new(0, 0),
-                            Position::new(self.screen_memory.width(), self.screen_memory.height()),
+                            Position::new(self.screen_memory_size.width, self.screen_memory_size.height),
                             dest,
                         );
                     }
@@ -883,7 +1143,6 @@ impl CommandExecutor for DrawExecutor {
                 }
 
                 if self.double_step >= 0.0 {
-                    println!("double step:{} = {}ms", self.double_step, (self.double_step * 1000.0 / 60.0) as u32);
                     Ok(CallbackAction::Pause((self.double_step * 1000.0 / 60.0) as u32))
                 } else {
                     Ok(CallbackAction::Update)
@@ -919,10 +1178,6 @@ impl CommandExecutor for DrawExecutor {
             _ => Err(anyhow::anyhow!("Unimplemented IGS command: {command:?}")),
         }
     }
-}
-
-fn create_solid_source(r: u8, g: u8, b: u8) -> SolidSource {
-    SolidSource { r: b, g, b: r, a: 0xFF }
 }
 
 const REGISTER_TO_PEN: &[usize; 17] = &[0, 2, 3, 6, 4, 7, 5, 8, 9, 10, 11, 14, 12, 12, 15, 13, 1];

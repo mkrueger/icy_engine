@@ -11,9 +11,6 @@ impl CommandExecutor for TestExecutor {
     fn get_resolution(&self) -> Size {
         todo!();
     }
-    fn get_texture_data(&self) -> &[u8] {
-        todo!();
-    }
 
     fn execute_command(
         &mut self,
