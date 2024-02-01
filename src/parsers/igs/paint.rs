@@ -206,12 +206,24 @@ impl DrawExecutor {
             return;
         }
 
+        let mut y = y0 - 1;
+        while  y >= 0 && self.get_pixel(x0, y) == old_px {
+            vec.push(Position::new(x0, y));
+            y -= 1;
+        }
+
+        let mut y = y0 + 1;
+        while y < res.height && self.get_pixel(x0, y) == old_px {
+            vec.push(Position::new(x0, y));
+            y += 1;
+        }
+
         while let Some(pos) = vec.pop() {
             if pos.x < 0 || pos.y < 0 || pos.x >= res.width || pos.y >= res.height {
                 continue;
             }
 
-            let cp = self.get_pixel(pos.x, pos.y);
+            let cp: (u8, u8, u8) = self.get_pixel(pos.x, pos.y);
             if cp != old_px {
                 continue;
             }
@@ -219,8 +231,6 @@ impl DrawExecutor {
 
             vec.push(Position::new(pos.x - 1, pos.y));
             vec.push(Position::new(pos.x + 1, pos.y));
-            vec.push(Position::new(pos.x, pos.y - 1));
-            vec.push(Position::new(pos.x, pos.y + 1));
         }
     }
 
@@ -613,7 +623,7 @@ impl CommandExecutor for DrawExecutor {
         parameters: &[i32],
         string_parameter: &str,
     ) -> EngineResult<CallbackAction> {
-        println!("cmd:{command:?} params:{parameters:?}");
+        // println!("cmd:{command:?} params:{parameters:?}");
         match command {
             IgsCommands::Initialize => {
                 if parameters.len() != 1 {
