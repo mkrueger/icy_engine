@@ -416,7 +416,7 @@ impl Buffer {
 
 #[cfg(test)]
 fn create_buffer<T: BufferParser>(parser: &mut T, input: &[u8]) -> (Buffer, Caret) {
-    let mut buf = Buffer::create((80, 25));
+    let mut buf: Buffer = Buffer::create((80, 25));
     buf.is_terminal_buffer = true;
     let mut caret = Caret::default();
     buf.layers.first_mut().unwrap().lines.clear();
