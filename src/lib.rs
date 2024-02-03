@@ -234,6 +234,10 @@ impl Rectangle {
         }
     }
 
+    pub fn contains(&self, x: i32, y: i32) -> bool {
+        self.start.x <= x && x <= self.start.x + self.size.width && self.start.y <= y && y <= self.start.y + self.size.height
+    }
+
     pub fn contains_pt(&self, point: Position) -> bool {
         self.start.x <= point.x && point.x <= self.start.x + self.size.width && self.start.y <= point.y && point.y <= self.start.y + self.size.height
     }

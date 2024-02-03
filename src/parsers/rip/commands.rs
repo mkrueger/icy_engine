@@ -1,6 +1,6 @@
-use crate::{rip::to_base_36, EngineResult};
+use crate::{rip::to_base_36, EngineResult, Position};
 
-use super::{parse_base_36, Command};
+use super::{bgi::Bgi, parse_base_36, Command};
 
 #[derive(Default, Clone)]
 pub struct TextWindow {
@@ -9,7 +9,7 @@ pub struct TextWindow {
     pub x1: i32,
     pub y1: i32,
     pub wrap: bool,
-    pub size: i32
+    pub size: i32,
 }
 
 impl Command for TextWindow {
@@ -43,17 +43,19 @@ impl Command for TextWindow {
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|w{}{}{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1), i32::from(self.wrap), self.size
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            i32::from(self.wrap),
+            self.size
         )
     }
 }
@@ -85,31 +87,30 @@ impl Command for ViewPort {
             6 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|v{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1)
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1)
         )
     }
 }
 
 #[derive(Default, Clone)]
-pub struct ResetWindows {
-}
+pub struct ResetWindows {}
 
 impl Command for ResetWindows {
     fn to_rip_string(&self) -> String {
@@ -118,22 +119,23 @@ impl Command for ResetWindows {
 }
 
 #[derive(Default, Clone)]
-pub struct EraseWindow {
-}
+pub struct EraseWindow {}
 
 impl Command for EraseWindow {
-    
     fn to_rip_string(&self) -> String {
         "|e".to_string()
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.clear_device();
+        Ok(())
     }
 }
 
 #[derive(Default, Clone)]
-pub struct EraseView {
-}
+pub struct EraseView {}
 
 impl Command for EraseView {
-    
     fn to_rip_string(&self) -> String {
         "|E".to_string()
     }
@@ -155,30 +157,28 @@ impl Command for GotoXY {
             2 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(true)
-            }  
+            }
             3 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.move_to(self.x, self.y);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|g{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y)
-        )
+        format!("|g{}{}", to_base_36(2, self.x), to_base_36(2, self.y))
     }
 }
 
 #[derive(Default, Clone)]
-pub struct Home {
-}
+pub struct Home {}
 
 impl Command for Home {
     fn to_rip_string(&self) -> String {
@@ -187,8 +187,7 @@ impl Command for Home {
 }
 
 #[derive(Default, Clone)]
-pub struct EraseEOL {
-}
+pub struct EraseEOL {}
 
 impl Command for EraseEOL {
     fn to_rip_string(&self) -> String {
@@ -207,22 +206,22 @@ impl Command for Color {
             0 => {
                 parse_base_36(&mut self.c, ch)?;
                 Ok(true)
-            }  
+            }
             1 => {
                 parse_base_36(&mut self.c, ch)?;
                 Ok(false)
             }
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_color(self.c as u8);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
-        format!(
-            "|c{}",
-            to_base_36(2, self.c)
-        )
+        format!("|c{}", to_base_36(2, self.c))
     }
 }
 
@@ -268,25 +267,19 @@ impl Command for OnePalette {
             2 => {
                 parse_base_36(&mut self.value, ch)?;
                 Ok(true)
-            }  
+            }
             3 => {
                 parse_base_36(&mut self.value, ch)?;
                 Ok(false)
             }
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|a{}{}",
-            to_base_36(2, self.color), to_base_36(2, self.value)
-        )
+        format!("|a{}{}", to_base_36(2, self.color), to_base_36(2, self.value))
     }
 }
-
 
 #[derive(Default, Clone)]
 pub struct WriteMode {
@@ -299,25 +292,19 @@ impl Command for WriteMode {
             0 => {
                 parse_base_36(&mut self.mode, ch)?;
                 Ok(true)
-            }  
+            }
             1 => {
                 parse_base_36(&mut self.mode, ch)?;
                 Ok(false)
             }
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|W{}",
-            to_base_36(2, self.mode)
-        )
+        format!("|W{}", to_base_36(2, self.mode))
     }
 }
-
 
 #[derive(Default, Clone)]
 pub struct Move {
@@ -335,29 +322,28 @@ impl Command for Move {
             2 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(true)
-            }  
+            }
             3 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(false)
             }
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.move_to(self.x, self.y);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
-        format!(
-            "|m{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y)
-        )
+        format!("|m{}{}", to_base_36(2, self.x), to_base_36(2, self.y))
     }
 }
 
-
 #[derive(Default, Clone)]
 pub struct Text {
-    pub str: String
+    pub str: String,
 }
 
 impl Command for Text {
@@ -367,10 +353,7 @@ impl Command for Text {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|T{}",
-            self.str
-        )
+        format!("|T{}", self.str)
     }
 }
 
@@ -378,7 +361,7 @@ impl Command for Text {
 pub struct TextXY {
     pub x: i32,
     pub y: i32,
-    pub str: String
+    pub str: String,
 }
 
 impl Command for TextXY {
@@ -391,7 +374,7 @@ impl Command for TextXY {
             2 | 3 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(true)
-            }  
+            }
             _ => {
                 self.str.push(ch);
                 Ok(true)
@@ -400,11 +383,7 @@ impl Command for TextXY {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|@{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y),
-            self.str
-        )
+        format!("|@{}{}{}", to_base_36(2, self.x), to_base_36(2, self.y), self.str)
     }
 }
 
@@ -435,24 +414,29 @@ impl Command for FontStyle {
             6 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // TODO: Implement font style
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|Y{}{}{}{}",
-            to_base_36(2, self.font), to_base_36(2, self.direction), to_base_36(2, self.size), to_base_36(2, self.res)
+            to_base_36(2, self.font),
+            to_base_36(2, self.direction),
+            to_base_36(2, self.size),
+            to_base_36(2, self.res)
         )
     }
 }
@@ -473,22 +457,22 @@ impl Command for Pixel {
             2 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(true)
-            }  
+            }
             3 => {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(false)
             }
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.put_pixel(self.x, self.y, bgi.get_color());
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
-        format!(
-            "|X{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y)
-        )
+        format!("|X{}{}", to_base_36(2, self.x), to_base_36(2, self.y))
     }
 }
 
@@ -519,24 +503,29 @@ impl Command for Line {
             6 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.line(self.x0, self.y0, self.x1, self.y1);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|L{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1)
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1)
         )
     }
 }
@@ -568,24 +557,29 @@ impl Command for Rectangle {
             6 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.rectangle(self.x0, self.y0, self.x1, self.y1);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|R{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1)
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1)
         )
     }
 }
@@ -617,24 +611,29 @@ impl Command for Bar {
             6 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.bar(self.x0, self.y0, self.x1, self.y1);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|B{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1)
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1)
         )
     }
 }
@@ -657,28 +656,32 @@ impl Command for Circle {
                 parse_base_36(&mut self.y_center, ch)?;
                 Ok(true)
             }
-           
+
             4 => {
                 parse_base_36(&mut self.radius, ch)?;
                 Ok(true)
-            }  
+            }
 
             5 => {
                 parse_base_36(&mut self.radius, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.circle(self.x_center, self.y_center, self.radius);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|C{}{}{}",
-            to_base_36(2, self.x_center), to_base_36(2, self.y_center), to_base_36(2, self.radius)
+            to_base_36(2, self.x_center),
+            to_base_36(2, self.y_center),
+            to_base_36(2, self.radius)
         )
     }
 }
@@ -709,12 +712,12 @@ impl Command for Oval {
                 parse_base_36(&mut self.st_ang, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.end_ang, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.x_rad, ch)?;
                 Ok(true)
@@ -723,24 +726,31 @@ impl Command for Oval {
             10 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(true)
-            }  
+            }
 
             11 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.ellipse(self.x, self.y, self.st_ang, self.end_ang, self.x_rad, self.y_rad);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|O{}{}{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.st_ang), to_base_36(2, self.end_ang), to_base_36(2, self.x_rad), to_base_36(2, self.y_rad)
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.st_ang),
+            to_base_36(2, self.end_ang),
+            to_base_36(2, self.x_rad),
+            to_base_36(2, self.y_rad)
         )
     }
 }
@@ -772,24 +782,29 @@ impl Command for FilledOval {
             6 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.fill_ellipse(self.x_center, self.y_center, 0, 360, self.x_rad, self.y_rad);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|o{}{}{}{}",
-            to_base_36(2, self.x_center), to_base_36(2, self.y_center), to_base_36(2, self.x_rad), to_base_36(2, self.y_rad)
+            to_base_36(2, self.x_center),
+            to_base_36(2, self.y_center),
+            to_base_36(2, self.x_rad),
+            to_base_36(2, self.y_rad)
         )
     }
 }
@@ -819,33 +834,39 @@ impl Command for Arc {
                 parse_base_36(&mut self.start_ang, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.end_ang, ch)?;
                 Ok(true)
             }
-            
+
             8 => {
                 parse_base_36(&mut self.radius, ch)?;
                 Ok(true)
-            }  
+            }
 
             9 => {
                 parse_base_36(&mut self.radius, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.arc(self.x, self.y, self.start_ang, self.end_ang, self.radius);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|A{}{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.start_ang), to_base_36(2, self.end_ang), to_base_36(2, self.radius)
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.start_ang),
+            to_base_36(2, self.end_ang),
+            to_base_36(2, self.radius)
         )
     }
 }
@@ -854,7 +875,7 @@ impl Command for Arc {
 pub struct OvalArc {
     pub x: i32,
     pub y: i32,
-    pub st_ang: i32,
+    pub start_ang: i32,
     pub end_ang: i32,
     pub x_rad: i32,
     pub y_rad: i32,
@@ -873,15 +894,15 @@ impl Command for OvalArc {
             }
 
             4 | 5 => {
-                parse_base_36(&mut self.st_ang, ch)?;
+                parse_base_36(&mut self.start_ang, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.end_ang, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.x_rad, ch)?;
                 Ok(true)
@@ -890,24 +911,31 @@ impl Command for OvalArc {
             10 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(true)
-            }  
+            }
 
             11 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.ellipse(self.x, self.y, self.start_ang, self.end_ang, self.x_rad, self.y_rad);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|V{}{}{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.st_ang), to_base_36(2, self.end_ang), to_base_36(2, self.x_rad), to_base_36(2, self.y_rad)
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.start_ang),
+            to_base_36(2, self.end_ang),
+            to_base_36(2, self.x_rad),
+            to_base_36(2, self.y_rad)
         )
     }
 }
@@ -937,33 +965,39 @@ impl Command for PieSlice {
                 parse_base_36(&mut self.start_ang, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.end_ang, ch)?;
                 Ok(true)
             }
-            
+
             8 => {
                 parse_base_36(&mut self.radius, ch)?;
                 Ok(true)
-            }  
+            }
 
             9 => {
                 parse_base_36(&mut self.radius, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.pie_slice(self.x, self.y, self.start_ang, self.end_ang, self.radius);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|I{}{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.start_ang), to_base_36(2, self.end_ang), to_base_36(2, self.radius)
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.start_ang),
+            to_base_36(2, self.end_ang),
+            to_base_36(2, self.radius)
         )
     }
 }
@@ -994,12 +1028,12 @@ impl Command for OvalPieSlice {
                 parse_base_36(&mut self.st_ang, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.end_ang, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.x_rad, ch)?;
                 Ok(true)
@@ -1008,24 +1042,31 @@ impl Command for OvalPieSlice {
             10 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(true)
-            }  
+            }
 
             11 => {
                 parse_base_36(&mut self.y_rad, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.sector(self.x, self.y, self.st_ang, self.end_ang, self.x_rad, self.y_rad);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|i{}{}{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.st_ang), to_base_36(2, self.end_ang), to_base_36(2, self.x_rad), to_base_36(2, self.y_rad)
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.st_ang),
+            to_base_36(2, self.end_ang),
+            to_base_36(2, self.x_rad),
+            to_base_36(2, self.y_rad)
         )
     }
 }
@@ -1040,7 +1081,7 @@ pub struct Bezier {
     pub y3: i32,
     pub x4: i32,
     pub y4: i32,
-    pub cnt: i32
+    pub cnt: i32,
 }
 
 impl Command for Bezier {
@@ -1059,12 +1100,12 @@ impl Command for Bezier {
                 parse_base_36(&mut self.x2, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.y2, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.x3, ch)?;
                 Ok(true)
@@ -1088,24 +1129,40 @@ impl Command for Bezier {
             16 => {
                 parse_base_36(&mut self.cnt, ch)?;
                 Ok(true)
-            }  
+            }
 
             17 => {
                 parse_base_36(&mut self.cnt, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        let points = vec![
+            Position::new(self.x1, self.y1),
+            Position::new(self.x2, self.y2),
+            Position::new(self.x3, self.y3),
+            Position::new(self.x4, self.y4),
+        ];
+        bgi.draw_bezier(points.len() as i32, &points, self.cnt);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|Z{}{}{}{}{}{}{}{}{}",
-            to_base_36(2, self.x1), to_base_36(2, self.y1), to_base_36(2, self.x2), to_base_36(2, self.y2), to_base_36(2, self.x3), to_base_36(2, self.y3), to_base_36(2, self.x4), to_base_36(2, self.y4), to_base_36(2, self.cnt)
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            to_base_36(2, self.x2),
+            to_base_36(2, self.y2),
+            to_base_36(2, self.x3),
+            to_base_36(2, self.y3),
+            to_base_36(2, self.x4),
+            to_base_36(2, self.y4),
+            to_base_36(2, self.cnt)
         )
     }
 }
@@ -1113,7 +1170,7 @@ impl Command for Bezier {
 #[derive(Default, Clone)]
 pub struct Polygon {
     pub points: Vec<i32>,
-    pub npoints: i32
+    pub npoints: i32,
 }
 
 impl Command for Polygon {
@@ -1130,7 +1187,7 @@ impl Command for Polygon {
                 let mut p = self.points.pop().unwrap();
                 parse_base_36(&mut p, ch)?;
                 self.points.push(p);
-                
+
                 Ok(*state < (self.npoints + 1) * 4)
             }
         }
@@ -1149,7 +1206,7 @@ impl Command for Polygon {
 #[derive(Default, Clone)]
 pub struct FilledPolygon {
     pub points: Vec<i32>,
-    pub npoints: i32
+    pub npoints: i32,
 }
 
 impl Command for FilledPolygon {
@@ -1166,10 +1223,15 @@ impl Command for FilledPolygon {
                 let mut p = self.points.pop().unwrap();
                 parse_base_36(&mut p, ch)?;
                 self.points.push(p);
-                
+
                 Ok(*state < (self.npoints + 1) * 4)
             }
         }
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // TODO: Implement filled polygon
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
@@ -1182,13 +1244,10 @@ impl Command for FilledPolygon {
     }
 }
 
-
-
-
 #[derive(Default, Clone)]
 pub struct PolyLine {
     pub points: Vec<i32>,
-    pub npoints: i32
+    pub npoints: i32,
 }
 
 impl Command for PolyLine {
@@ -1205,7 +1264,7 @@ impl Command for PolyLine {
                 let mut p = self.points.pop().unwrap();
                 parse_base_36(&mut p, ch)?;
                 self.points.push(p);
-                
+
                 Ok(*state < (self.npoints + 1) * 4)
             }
         }
@@ -1239,32 +1298,30 @@ impl Command for Fill {
                 parse_base_36(&mut self.y, ch)?;
                 Ok(true)
             }
-           
+
             4 => {
                 parse_base_36(&mut self.border, ch)?;
                 Ok(true)
-            }  
+            }
 
             5 => {
                 parse_base_36(&mut self.border, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.flood_fill(self.x, self.y, self.border as u8);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|F{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.border)
-        )
+        format!("|F{}{}{}", to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.border))
     }
 }
-
 
 #[derive(Default, Clone)]
 pub struct LineStyle {
@@ -1287,28 +1344,28 @@ impl Command for LineStyle {
             6 => {
                 parse_base_36(&mut self.thick, ch)?;
                 Ok(true)
-            }  
+            }
 
             7 => {
                 parse_base_36(&mut self.thick, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_line_style(super::bgi::LineStyle::from(self.style as u8));
+        bgi.set_line_pattern(self.user_pat);
+        bgi.set_line_thickness(self.thick);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|={}{}{}",
-            to_base_36(2, self.style), to_base_36(4, self.user_pat), to_base_36(2, self.thick)
-        )
+        format!("|={}{}{}", to_base_36(2, self.style), to_base_36(4, self.user_pat), to_base_36(2, self.thick))
     }
 }
-
 
 #[derive(Default, Clone)]
 pub struct FillStyle {
@@ -1326,22 +1383,23 @@ impl Command for FillStyle {
             2 => {
                 parse_base_36(&mut self.color, ch)?;
                 Ok(true)
-            }  
+            }
             3 => {
                 parse_base_36(&mut self.color, ch)?;
                 Ok(false)
             }
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_fill_style(super::bgi::FillStyle::from(self.pattern as u8));
+        bgi.set_color(self.color as u8);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
-        format!(
-            "|S{}{}",
-            to_base_36(2, self.pattern), to_base_36(2, self.color)
-        )
+        format!("|S{}{}", to_base_36(2, self.pattern), to_base_36(2, self.color))
     }
 }
 
@@ -1355,7 +1413,7 @@ pub struct FillPattern {
     pub c6: i32,
     pub c7: i32,
     pub c8: i32,
-    pub col: i32
+    pub col: i32,
 }
 
 impl Command for FillPattern {
@@ -1374,12 +1432,12 @@ impl Command for FillPattern {
                 parse_base_36(&mut self.c3, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.c4, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.c5, ch)?;
                 Ok(true)
@@ -1403,24 +1461,34 @@ impl Command for FillPattern {
             16 => {
                 parse_base_36(&mut self.col, ch)?;
                 Ok(true)
-            }  
+            }
 
             17 => {
                 parse_base_36(&mut self.col, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // TODO: Implement fill pattern
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|s{}{}{}{}{}{}{}{}{}",
-            to_base_36(2, self.c1), to_base_36(2, self.c2), to_base_36(2, self.c3), to_base_36(2, self.c4), to_base_36(2, self.c5), to_base_36(2, self.c6), to_base_36(2, self.c7), to_base_36(2, self.c8), to_base_36(2, self.col)
+            to_base_36(2, self.c1),
+            to_base_36(2, self.c2),
+            to_base_36(2, self.c3),
+            to_base_36(2, self.c4),
+            to_base_36(2, self.c5),
+            to_base_36(2, self.c6),
+            to_base_36(2, self.c7),
+            to_base_36(2, self.c8),
+            to_base_36(2, self.col)
         )
     }
 }
@@ -1435,7 +1503,7 @@ pub struct Mouse {
     pub clk: i32,
     pub clr: i32,
     pub res: i32,
-    pub text: String
+    pub text: String,
 }
 
 impl Command for Mouse {
@@ -1454,12 +1522,12 @@ impl Command for Mouse {
                 parse_base_36(&mut self.y0, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.x1, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
@@ -1485,20 +1553,26 @@ impl Command for Mouse {
                 Ok(true)
             }
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1M{}{}{}{}{}{}{}{}{}",
-            to_base_36(2, self.num), to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1), to_base_36(1, self.clk), to_base_36(1, self.clr), to_base_36(5, self.res), self.text
+            to_base_36(2, self.num),
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            to_base_36(1, self.clk),
+            to_base_36(1, self.clr),
+            to_base_36(5, self.res),
+            self.text
         )
     }
 }
 
 #[derive(Default, Clone)]
-pub struct MouseFields {
-}
+pub struct MouseFields {}
 
 impl Command for MouseFields {
     fn to_rip_string(&self) -> String {
@@ -1531,33 +1605,39 @@ impl Command for BeginText {
                 parse_base_36(&mut self.x2, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.y2, ch)?;
                 Ok(true)
             }
-            
+
             8 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
-            }  
+            }
 
             9 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // Nothing?
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1T{}{}{}{}{}",
-            to_base_36(2, self.x1), to_base_36(2, self.y1), to_base_36(2, self.x2), to_base_36(2, self.y2), to_base_36(2, self.res)
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            to_base_36(2, self.x2),
+            to_base_36(2, self.y2),
+            to_base_36(2, self.res)
         )
     }
 }
@@ -1565,7 +1645,7 @@ impl Command for BeginText {
 #[derive(Default, Clone)]
 pub struct RegionText {
     pub justify: bool,
-    pub str: String
+    pub str: String,
 }
 
 impl Command for RegionText {
@@ -1579,21 +1659,20 @@ impl Command for RegionText {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|1t{}{}",
-            i32::from(self.justify), 
-            self.str
-        )
+        format!("|1t{}{}", i32::from(self.justify), self.str)
     }
 }
 
 #[derive(Default, Clone)]
-pub struct EndText {
-}
+pub struct EndText {}
 
 impl Command for EndText {
     fn to_rip_string(&self) -> String {
         "|1E".to_string()
+    }
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // Nothing
+        Ok(())
     }
 }
 
@@ -1622,33 +1701,37 @@ impl Command for GetImage {
                 parse_base_36(&mut self.x1, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
             }
-            
+
             8 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(false)
-            }  
-
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
             }
+
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // TODO: Implement get image
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1C{}{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1), to_base_36(1, self.res)
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            to_base_36(1, self.res)
         )
     }
 }
-
-
 
 #[derive(Default, Clone)]
 pub struct PutImage {
@@ -1674,23 +1757,23 @@ impl Command for PutImage {
                 parse_base_36(&mut self.mode, ch)?;
                 Ok(true)
             }
-            
+
             6 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(false)
-            }  
-
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
             }
+
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1P{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.mode), to_base_36(1, self.res)
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.mode),
+            to_base_36(1, self.res)
         )
     }
 }
@@ -1698,7 +1781,7 @@ impl Command for PutImage {
 #[derive(Default, Clone)]
 pub struct WriteIcon {
     pub res: char,
-    pub str: String
+    pub str: String,
 }
 
 impl Command for WriteIcon {
@@ -1712,11 +1795,7 @@ impl Command for WriteIcon {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|1W{}{}",
-            self.res, 
-            self.str
-        )
+        format!("|1W{}{}", self.res, self.str)
     }
 }
 
@@ -1727,7 +1806,7 @@ pub struct LoadIcon {
     pub mode: i32,
     pub clipboard: i32,
     pub res: i32,
-    pub file_name: String
+    pub file_name: String,
 }
 
 impl Command for LoadIcon {
@@ -1746,12 +1825,12 @@ impl Command for LoadIcon {
                 parse_base_36(&mut self.mode, ch)?;
                 Ok(true)
             }
-            
-            6  => {
+
+            6 => {
                 parse_base_36(&mut self.clipboard, ch)?;
                 Ok(true)
             }
-            
+
             7 | 8 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
@@ -1761,13 +1840,17 @@ impl Command for LoadIcon {
                 Ok(true)
             }
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1I{}{}{}{}{}{}",
-            to_base_36(2, self.x), to_base_36(2, self.y), to_base_36(2, self.mode), to_base_36(1, self.clipboard), to_base_36(2, self.res), self.file_name
+            to_base_36(2, self.x),
+            to_base_36(2, self.y),
+            to_base_36(2, self.mode),
+            to_base_36(1, self.clipboard),
+            to_base_36(2, self.res),
+            self.file_name
         )
     }
 }
@@ -1808,12 +1891,12 @@ impl Command for ButtonStyle {
                 parse_base_36(&mut self.orient, ch)?;
                 Ok(true)
             }
-            
+
             6..=9 => {
                 parse_base_36(&mut self.flags, ch)?;
                 Ok(true)
             }
-            
+
             10 | 11 => {
                 parse_base_36(&mut self.size, ch)?;
                 Ok(true)
@@ -1868,18 +1951,28 @@ impl Command for ButtonStyle {
                 Ok(*state < 36)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1B{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
-            to_base_36(2, self.wid), to_base_36(2, self.hgt), to_base_36(2, self.orient), to_base_36(4, self.flags), to_base_36(2, self.size), to_base_36(2, self.dfore), to_base_36(2, self.dback), to_base_36(2, self.bright), to_base_36(2, self.dark),
-            to_base_36(2, self.surface), to_base_36(2, self.grp_no), to_base_36(2, self.flags2), to_base_36(2, self.uline_col), to_base_36(2, self.corner_col), to_base_36(6, self.res)
+            to_base_36(2, self.wid),
+            to_base_36(2, self.hgt),
+            to_base_36(2, self.orient),
+            to_base_36(4, self.flags),
+            to_base_36(2, self.size),
+            to_base_36(2, self.dfore),
+            to_base_36(2, self.dback),
+            to_base_36(2, self.bright),
+            to_base_36(2, self.dark),
+            to_base_36(2, self.surface),
+            to_base_36(2, self.grp_no),
+            to_base_36(2, self.flags2),
+            to_base_36(2, self.uline_col),
+            to_base_36(2, self.corner_col),
+            to_base_36(6, self.res)
         )
     }
 }
@@ -1893,7 +1986,7 @@ pub struct Button {
     pub hotkey: i32,
     pub flags: i32,
     pub res: i32,
-    pub text: String
+    pub text: String,
 }
 
 impl Command for Button {
@@ -1912,12 +2005,12 @@ impl Command for Button {
                 parse_base_36(&mut self.x1, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.hotkey, ch)?;
                 Ok(true)
@@ -1938,13 +2031,19 @@ impl Command for Button {
                 Ok(true)
             }
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1U{}{}{}{}{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1), to_base_36(2, self.hotkey), to_base_36(1, self.flags), to_base_36(1, self.res), self.text
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            to_base_36(2, self.hotkey),
+            to_base_36(1, self.flags),
+            to_base_36(1, self.res),
+            self.text
         )
     }
 }
@@ -1953,20 +2052,20 @@ impl Command for Button {
 pub struct Define {
     pub flags: i32,
     pub res: i32,
-    pub text: String
+    pub text: String,
 }
 
 impl Command for Define {
     fn parse(&mut self, state: &mut i32, ch: char) -> EngineResult<bool> {
         match state {
-            0..=2  => {
+            0..=2 => {
                 parse_base_36(&mut self.flags, ch)?;
                 Ok(true)
             }
             3 | 4 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
-            }  
+            }
             _ => {
                 self.text.push(ch);
                 Ok(true)
@@ -1975,11 +2074,7 @@ impl Command for Define {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|1D{}{}{}",
-            to_base_36(3, self.flags), to_base_36(2, self.res),
-            self.text
-        )
+        format!("|1D{}{}{}", to_base_36(3, self.flags), to_base_36(2, self.res), self.text)
     }
 }
 
@@ -1987,20 +2082,20 @@ impl Command for Define {
 pub struct Query {
     pub mode: i32,
     pub res: i32,
-    pub text: String
+    pub text: String,
 }
 
 impl Command for Query {
     fn parse(&mut self, state: &mut i32, ch: char) -> EngineResult<bool> {
         match state {
-            0  => {
+            0 => {
                 parse_base_36(&mut self.mode, ch)?;
                 Ok(true)
             }
             1..=3 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
-            }  
+            }
             _ => {
                 self.text.push(ch);
                 Ok(true)
@@ -2009,11 +2104,7 @@ impl Command for Query {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|1\x1B{}{}{}",
-            to_base_36(1, self.mode), to_base_36(3, self.res),
-            self.text
-        )
+        format!("|1\x1B{}{}{}", to_base_36(1, self.mode), to_base_36(3, self.res), self.text)
     }
 }
 
@@ -2043,12 +2134,12 @@ impl Command for CopyRegion {
                 parse_base_36(&mut self.x1, ch)?;
                 Ok(true)
             }
-            
+
             6 | 7 => {
                 parse_base_36(&mut self.y1, ch)?;
                 Ok(true)
             }
-            
+
             8 | 9 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
@@ -2057,24 +2148,26 @@ impl Command for CopyRegion {
             10 => {
                 parse_base_36(&mut self.dest_line, ch)?;
                 Ok(true)
-            }  
+            }
 
             11 => {
                 parse_base_36(&mut self.dest_line, ch)?;
                 Ok(false)
             }
 
-            _ => {
-                Err(anyhow::Error::msg("Invalid state"))
-            }
+            _ => Err(anyhow::Error::msg("Invalid state")),
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|1G{}{}{}{}{}{}",
-            to_base_36(2, self.x0), to_base_36(2, self.y0), to_base_36(2, self.x1), to_base_36(2, self.y1), to_base_36(2, self.res), to_base_36(2, self.dest_line)
+            to_base_36(2, self.x0),
+            to_base_36(2, self.y0),
+            to_base_36(2, self.x1),
+            to_base_36(2, self.y1),
+            to_base_36(2, self.res),
+            to_base_36(2, self.dest_line)
         )
     }
 }
@@ -2082,7 +2175,7 @@ impl Command for CopyRegion {
 #[derive(Default, Clone)]
 pub struct ReadScene {
     pub res: String,
-    pub str: String
+    pub str: String,
 }
 
 impl Command for ReadScene {
@@ -2096,18 +2189,14 @@ impl Command for ReadScene {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|1R{}{}",
-            self.res, 
-            self.str
-        )
+        format!("|1R{}{}", self.res, self.str)
     }
 }
 #[derive(Default, Clone)]
 pub struct FileQuery {
     pub mode: i32,
     pub res: i32,
-    pub file_name: String
+    pub file_name: String,
 }
 
 impl Command for FileQuery {
@@ -2120,7 +2209,7 @@ impl Command for FileQuery {
             2..=5 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
-            }  
+            }
             _ => {
                 self.file_name.push(ch);
                 Ok(true)
@@ -2129,14 +2218,9 @@ impl Command for FileQuery {
     }
 
     fn to_rip_string(&self) -> String {
-        format!(
-            "|1F{}{}{}",
-            to_base_36(2, self.mode), to_base_36(4, self.res),
-            self.file_name
-        )
+        format!("|1F{}{}{}", to_base_36(2, self.mode), to_base_36(4, self.res), self.file_name)
     }
 }
-
 
 #[derive(Default, Clone)]
 pub struct EnterBlockMode {
@@ -2144,7 +2228,7 @@ pub struct EnterBlockMode {
     pub proto: i32,
     pub file_type: i32,
     pub res: i32,
-    pub file_name: String
+    pub file_name: String,
 }
 
 impl Command for EnterBlockMode {
@@ -2163,24 +2247,27 @@ impl Command for EnterBlockMode {
                 parse_base_36(&mut self.file_type, ch)?;
                 Ok(true)
             }
-            
-            4..=7  => {
+
+            4..=7 => {
                 parse_base_36(&mut self.res, ch)?;
                 Ok(true)
             }
-            
+
             _ => {
                 self.file_name.push(ch);
                 Ok(true)
             }
         }
-        
     }
 
     fn to_rip_string(&self) -> String {
         format!(
             "|9\x1B{}{}{}{}{}",
-            to_base_36(1, self.mode), to_base_36(1, self.proto), to_base_36(2, self.file_type), to_base_36(4, self.res), self.file_name
+            to_base_36(1, self.mode),
+            to_base_36(1, self.proto),
+            to_base_36(2, self.file_type),
+            to_base_36(4, self.res),
+            self.file_name
         )
     }
 }

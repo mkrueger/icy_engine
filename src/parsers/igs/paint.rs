@@ -207,7 +207,7 @@ impl DrawExecutor {
         }
 
         let mut y = y0 - 1;
-        while  y >= 0 && self.get_pixel(x0, y) == old_px {
+        while y >= 0 && self.get_pixel(x0, y) == old_px {
             vec.push(Position::new(x0, y));
             y -= 1;
         }
@@ -384,7 +384,7 @@ impl DrawExecutor {
         let y_coords = points.iter().skip(1).step_by(2).copied().collect::<Vec<i32>>();
         let y_max = *y_coords.iter().max().unwrap(); // start row (bottom)
         let y_min = *y_coords.iter().min().unwrap(); // end row (top)
-        
+
         // VDI apparently loops over the scan lines from bottom to top
         for y in (y_min + 1..=y_max).rev() {
             // Set up counter for vector intersections

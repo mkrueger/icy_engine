@@ -1,6 +1,9 @@
+use self::bgi::Bgi;
+
 use super::{ansi, BufferParser};
 use crate::{ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle};
 
+pub mod bgi;
 mod commands;
 
 #[derive(Default, Debug)]
@@ -9,7 +12,7 @@ enum State {
     Default,
     GotRipStart,
     ReadCommand(usize),
-    ReadParams
+    ReadParams,
 }
 
 #[derive(Default)]
@@ -30,6 +33,10 @@ pub trait Command {
     }
 
     fn to_rip_string(&self) -> String;
+
+    fn run(&self, _bgi: &mut Bgi) -> EngineResult<()> {
+        Ok(())
+    }
 }
 
 pub struct Parser {
@@ -44,6 +51,8 @@ pub struct Parser {
 
     rip_commands: Vec<Box<dyn Command>>,
     command: Option<Box<dyn Command>>,
+
+    pub bgi: Bgi,
 }
 
 impl Parser {
@@ -58,6 +67,7 @@ impl Parser {
             _current_write_mode: WriteMode::Normal,
             rip_commands: Vec::new(),
             command: None,
+            bgi: Bgi::default(),
         }
     }
 
@@ -261,16 +271,12 @@ fn to_base_36(len: usize, number: i32) -> String {
     let mut number = number;
     for _ in 0..len {
         let num2 = (number % 36) as u8;
-        let ch2 = if num2 < 10 {
-            (num2 + b'0') as char
-        } else {
-            (num2 - 10 + b'A') as char
-        };
+        let ch2 = if num2 < 10 { (num2 + b'0') as char } else { (num2 - 10 + b'A') as char };
 
         res = ch2.to_string() + res.as_str();
         number /= 36;
     }
-    
+
     res
 }
 
@@ -283,11 +289,10 @@ fn parse_base_36(number: &mut i32, ch: char) -> EngineResult<()> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::parsers::create_buffer;
     use super::*;
+    use crate::parsers::create_buffer;
 
     #[test]
     fn test_rip_text_window() {
@@ -318,7 +323,7 @@ mod tests {
     fn test_gotoxy() {
         test_roundtrip("|g0509");
     }
-    
+
     #[test]
     fn test_home() {
         test_roundtrip("|H");
@@ -497,13 +502,13 @@ mod tests {
     #[test]
     fn test_put_image() {
         test_roundtrip("|1P0011010");
-    } 
-    
+    }
+
     #[test]
     fn test_write_icon() {
         test_roundtrip("|1W0filename.icn");
     }
-    
+
     #[test]
     fn test_load_icon() {
         test_roundtrip("|1I001101010button.icn");
@@ -545,11 +550,11 @@ mod tests {
     }
 
     fn test_roundtrip(arg: &str) {
-       let mut parser = Parser::new(Box::default());
-       create_buffer(&mut parser, ("!".to_string() + arg + "|").as_bytes());
+        let mut parser = Parser::new(Box::default());
+        create_buffer(&mut parser, ("!".to_string() + arg + "|").as_bytes());
 
-       assert!(parser.command.is_none());
-       assert_eq!(parser.rip_commands.len(), 1);
-       assert_eq!(parser.rip_commands[0].to_rip_string(), arg);
+        assert!(parser.command.is_none());
+        assert_eq!(parser.rip_commands.len(), 1);
+        assert_eq!(parser.rip_commands[0].to_rip_string(), arg);
     }
 }
