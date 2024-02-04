@@ -1172,6 +1172,8 @@ impl Command for Bezier {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        // bgi.rip_bezier(self.x1, self.y1, self.x2, self.y2, self.x3, self.y3, self.x4, self.y4, self.cnt);
+
         let points = vec![
             Position::new(self.x1, self.y1),
             Position::new(self.x2, self.y2),
@@ -1179,6 +1181,7 @@ impl Command for Bezier {
             Position::new(self.x4, self.y4),
         ];
         bgi.draw_bezier(points.len() as i32, &points, self.cnt);
+
         Ok(())
     }
 

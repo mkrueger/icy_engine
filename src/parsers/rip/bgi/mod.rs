@@ -813,35 +813,6 @@ impl Bgi {
         }
     }
 
-    fn symmetry_vertical(&mut self, x: i32, y: i32, xoffset: i32, yoffset: i32) {
-        let ls = -self.line_thickness / 2;
-        let le = (self.line_thickness + 1) / 2;
-        for i in ls..le {
-            self.put_pixel(x + xoffset, y + yoffset - i, self.color);
-            self.put_pixel(x - xoffset, y + yoffset - i, self.color);
-            self.put_pixel(x - xoffset, y - yoffset + i - ls, self.color);
-            self.put_pixel(x + xoffset, y - yoffset + i - ls, self.color);
-        }
-    }
-
-    fn symmetry_horizontal(&mut self, x: i32, y: i32, xoffset: i32, yoffset: i32) {
-        let ls = -self.line_thickness / 2;
-        //int le = (lineThickness + 1) / 2;
-        for i in 0..self.line_thickness {
-            self.put_pixel(x + xoffset - i, y + yoffset, self.color);
-            self.put_pixel(x - xoffset - i - ls, y + yoffset, self.color);
-            self.put_pixel(x - xoffset - i - ls, y - yoffset, self.color);
-            self.put_pixel(x + xoffset - i, y - yoffset, self.color);
-        }
-    }
-
-    fn symmetry_line(&mut self, x: i32, y: i32, xoffset: i32, yoffset: i32, length: i32) {
-        self.line(x + xoffset, y + yoffset, x + xoffset + length, y + yoffset);
-        self.line(x - xoffset, y + yoffset, x - xoffset - length, y + yoffset);
-        self.line(x - xoffset, y - yoffset, x - xoffset - length, y - yoffset);
-        self.line(x + xoffset, y - yoffset, x + xoffset + length, y - yoffset);
-    }
-
     pub fn flood_fill(&mut self, x: i32, y: i32, border: u8) {
         if !self.viewport.contains(x, y) {
             return;
@@ -950,6 +921,35 @@ impl Bgi {
             }
         }
     }
+
+    /*  pub fn rip_bezier(&mut self,  x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, x4: i32, y4: i32,  cnt: i32) {
+        let mut targets = Vec::new();
+        targets.push(x1);
+        targets.push(y1);
+        for step in 1..cnt {
+            let tf = (step as f64) / cnt as f64;
+            let tr = ((cnt - step) as f64) / cnt as f64;
+            let tfs = tf.powf(2.0);
+            let tfstr = tfs * tr;
+            let tfc = tf.powf(3.0);
+            let trs = tr.powf(2.0);
+            let tftrs = tf * trs;
+            let trc = tr.powf(3.0);
+
+            let x = trc * x1 as f64 + 3.0 * tftrs * x2 as f64 + 3.0 * tfstr * x3 as f64 + tfc * x4 as f64;
+            let y = trc * y1 as f64 + 3.0 * tftrs * y2 as f64 + 3.0 * tfstr * y3 as f64 + tfc * y4 as f64;
+            targets.push(x as i32);
+            targets.push(y as i32);
+        }
+        targets.push(x4);
+        targets.push(y4);
+
+        let mut j = 2;
+        while j < targets.len() {
+            self.line(targets[j - 2], targets[j - 1], targets[j], targets[j + 1]);
+            j += 2;
+        }
+    }*/
 
     pub fn draw_bezier(&mut self, count: i32, points: &[Position], segments: i32) {
         let mut x1 = points[0].x;
@@ -1538,12 +1538,11 @@ fn add_scan_row(rows: &mut Vec<Vec<i32>>, x: i32, y: i32) {
     if !(-1..=350).contains(&y) {
         return;
     }
-    let y = y + 1;
-    if rows.len() <= y as usize {
-        rows.resize(y as usize + 1, Vec::new());
+    let y = (y + 1) as usize;
+    if rows.len() <= y {
+        rows.resize(y + 1, Vec::new());
     }
-    let row = &mut rows[y as usize];
-    row.push(x);
+    rows[y].push(x);
 }
 
 fn in_angle(angle: i32, start_angle: i32, end_angle: i32) -> bool {
