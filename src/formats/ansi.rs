@@ -48,7 +48,7 @@ impl OutputFormat for Ansi {
     }
 
     fn load_buffer(&self, file_name: &Path, data: &[u8], sauce_opt: Option<crate::SauceData>) -> anyhow::Result<crate::Buffer> {
-        let mut result = Buffer::new((80, 25));
+        let mut result: Buffer = Buffer::new((80, 25));
         result.is_terminal_buffer = false;
         result.file_name = Some(file_name.into());
         result.set_sauce(sauce_opt, true);

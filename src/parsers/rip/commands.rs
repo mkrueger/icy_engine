@@ -1,6 +1,9 @@
 use crate::{rip::to_base_36, EngineResult, Position};
 
-use super::{bgi::Bgi, parse_base_36, Command};
+use super::{
+    bgi::{Bgi, Direction, FontType},
+    parse_base_36, Command,
+};
 
 #[derive(Default, Clone)]
 pub struct TextWindow {
@@ -115,6 +118,10 @@ pub struct ResetWindows {}
 impl Command for ResetWindows {
     fn to_rip_string(&self) -> String {
         "|*".to_string()
+    }
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.graph_defaults();
+        Ok(())
     }
 }
 
@@ -242,6 +249,11 @@ impl Command for SetPalette {
         Ok(*state < 31)
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_palette(&self.palette);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         let mut res = String::from("|Q");
         for c in &self.palette {
@@ -274,6 +286,10 @@ impl Command for OnePalette {
             }
             _ => Err(anyhow::Error::msg("Invalid state")),
         }
+    }
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_palette_color(self.color, self.value as u8);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
@@ -352,6 +368,11 @@ impl Command for Text {
         Ok(true)
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.out_text(&self.str);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         format!("|T{}", self.str)
     }
@@ -380,6 +401,10 @@ impl Command for TextXY {
                 Ok(true)
             }
         }
+    }
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.out_text_xy(self.x, self.y, &self.str);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
@@ -426,7 +451,7 @@ impl Command for FontStyle {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        // TODO: Implement font style
+        bgi.set_text_style(FontType::from(self.font as u8), Direction::from(self.direction as u8), self.size);
         Ok(())
     }
 
@@ -1193,6 +1218,15 @@ impl Command for Polygon {
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        let mut points = Vec::new();
+        for i in 0..self.points.len() / 2 {
+            points.push(Position::new(self.points[i as usize * 2], self.points[i as usize * 2 + 1]));
+        }
+        bgi.draw_poly(&points);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         let mut res = String::from("|P");
         res.push_str(to_base_36(2, self.points.len() as i32 / 2).as_str());
@@ -1230,7 +1264,11 @@ impl Command for FilledPolygon {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        // TODO: Implement filled polygon
+        let mut points = Vec::new();
+        for i in 0..self.points.len() / 2 {
+            points.push(Position::new(self.points[i as usize * 2], self.points[i as usize * 2 + 1]));
+        }
+        bgi.fill_poly(&points);
         Ok(())
     }
 
@@ -1268,6 +1306,18 @@ impl Command for PolyLine {
                 Ok(*state < (self.npoints + 1) * 4)
             }
         }
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        let mut points = Vec::new();
+        for i in 0..self.points.len() / 2 {
+            points.push(Position::new(self.points[i * 2], self.points[i * 2 + 1]));
+        }
+        bgi.move_to(points[0].x, points[0].y);
+        for p in points.iter().skip(1) {
+            bgi.line_to(p.x, p.y);
+        }
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
@@ -1357,7 +1407,10 @@ impl Command for LineStyle {
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
         bgi.set_line_style(super::bgi::LineStyle::from(self.style as u8));
-        bgi.set_line_pattern(self.user_pat);
+        //  If the <style> parameter is not 4, then the <user_pat> parameter is ignored.
+        if self.style == 4 {
+            bgi.set_line_pattern(self.user_pat);
+        }
         bgi.set_line_thickness(self.thick);
         Ok(())
     }
@@ -1473,7 +1526,18 @@ impl Command for FillPattern {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        // TODO: Implement fill pattern
+        bgi.set_user_fill_pattern(&[
+            self.c1 as u8,
+            self.c2 as u8,
+            self.c3 as u8,
+            self.c4 as u8,
+            self.c5 as u8,
+            self.c6 as u8,
+            self.c7 as u8,
+            self.c8 as u8,
+        ]);
+        bgi.set_fill_style(super::bgi::FillStyle::User);
+        bgi.set_fill_color(self.col as u8);
         Ok(())
     }
 
@@ -1717,7 +1781,7 @@ impl Command for GetImage {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        // TODO: Implement get image
+        bgi.rip_image = Some(bgi.get_image(self.x0, self.y0, self.x1, self.y1));
         Ok(())
     }
 
@@ -1767,6 +1831,10 @@ impl Command for PutImage {
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.put_rip_image(self.x, self.y, super::bgi::WriteMode::from(self.mode as u8));
+        Ok(())
+    }
     fn to_rip_string(&self) -> String {
         format!(
             "|1P{}{}{}{}",

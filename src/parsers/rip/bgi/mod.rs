@@ -1,6 +1,9 @@
 use std::f64::consts;
 
-use crate::{Position, Rectangle, Size};
+use crate::{rip::bgi::font::Font, Palette, Position, Rectangle, Size, EGA_PALETTE};
+
+mod character;
+mod font;
 
 #[derive(Clone, Copy)]
 pub enum Color {
@@ -29,6 +32,19 @@ pub enum WriteMode {
     Or,
     And,
     Not,
+}
+
+impl WriteMode {
+    pub fn from(write_mode: u8) -> WriteMode {
+        match write_mode {
+            // 0 => WriteMode::Copy,
+            1 => WriteMode::Xor,
+            2 => WriteMode::Or,
+            3 => WriteMode::And,
+            4 => WriteMode::Not,
+            _ => WriteMode::Copy,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -64,7 +80,7 @@ impl LineStyle {
 
         let mut res = Vec::new();
         for i in 0..16 {
-            res.push(LineStyle::LINE_STYLE_BITS[offset] & (1 << i) != 0);
+            res.push((LineStyle::LINE_STYLE_BITS[offset] & (1 << i)) != 0);
         }
         res
     }
@@ -88,7 +104,7 @@ pub enum FillStyle {
 }
 
 impl FillStyle {
-    const FILL_STYLES: [[u8; 8]; 13] = [
+    pub const DEFAULT_FILL_PATTERNS: [[u8; 8]; 13] = [
         // Empty
         [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
         // Solid
@@ -119,7 +135,7 @@ impl FillStyle {
 
     pub fn from(fill_style: u8) -> FillStyle {
         match fill_style {
-            0 => FillStyle::Empty,
+            // 0 => FillStyle::Empty,
             1 => FillStyle::Solid,
             2 => FillStyle::Line,
             3 => FillStyle::LtSlash,
@@ -136,8 +152,11 @@ impl FillStyle {
         }
     }
 
-    pub fn get_fill_style(&self) -> &'static [u8; 8] {
-        &FillStyle::FILL_STYLES[*self as usize]
+    fn get_fill_pattern(self, fill_user_pattern: &[u8]) -> &[u8] {
+        match self {
+            FillStyle::User => fill_user_pattern,
+            _ => &FillStyle::DEFAULT_FILL_PATTERNS[self as usize],
+        }
     }
 }
 
@@ -145,6 +164,16 @@ impl FillStyle {
 pub enum Direction {
     Horizontal,
     Vertical,
+}
+
+impl Direction {
+    pub fn from(direction: u8) -> Direction {
+        match direction {
+            // 0 => Direction::Horizontal,
+            1 => Direction::Vertical,
+            _ => Direction::Horizontal,
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -163,6 +192,60 @@ pub enum FontType {
     User,
 }
 
+impl FontType {
+    pub fn get_font(&self) -> &Font {
+        match self {
+            FontType::User | FontType::Default => &FONTS[0],
+            FontType::Triplex => &FONTS[1],
+            FontType::Small => &FONTS[2],
+            FontType::SansSerif => &FONTS[3],
+            FontType::Gothic => &FONTS[4],
+            FontType::Script => &FONTS[5],
+            FontType::Simplex => &FONTS[6],
+            FontType::TriplexScript => &FONTS[7],
+            FontType::Complex => &FONTS[8],
+            FontType::European => &FONTS[9],
+            FontType::BoldOutline => &FONTS[10],
+        }
+    }
+}
+
+lazy_static::lazy_static! {
+    static ref FONTS: Vec<Font> = vec![
+        Font::load(include_bytes!("fonts/SANS.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/TRIP.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/LITT.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/SANS.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/GOTH.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/SCRI.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/SIMP.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/TSCR.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/LCOM.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/EURO.CHR")).unwrap(),
+        Font::load(include_bytes!("fonts/BOLD.CHR")).unwrap(),
+    ];
+}
+
+impl FontType {
+    pub fn from(font_type: u8) -> FontType {
+        match font_type {
+            // 0 => FontType::Default,
+            1 => FontType::Triplex,
+            2 => FontType::Small,
+            3 => FontType::SansSerif,
+            4 => FontType::Gothic,
+            5 => FontType::Script,
+            6 => FontType::Simplex,
+            7 => FontType::TriplexScript,
+            8 => FontType::Complex,
+            9 => FontType::European,
+            10 => FontType::BoldOutline,
+            11 => FontType::User,
+            _ => FontType::Default,
+        }
+    }
+}
+
 const SCREEN_SIZE: Size = Size { width: 640, height: 350 };
 
 const DEFAULT_USER_PATTERN: [u8; 8] = [0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55, 0xAA, 0x55];
@@ -170,27 +253,39 @@ const RAD2DEG: f64 = 180.0 / consts::PI;
 const DEG2RAD: f64 = consts::PI / 180.0;
 const ASPECT: f64 = 350.0 / 480.0 * 1.06; //0.772; //7.0/9.0; //350.0 / 480.0 * 1.066666;
 
+pub struct BgiImage {
+    pub width: i32,
+    pub height: i32,
+    pub data: Vec<u8>,
+}
+
 pub struct Bgi {
     color: u8,
     bkcolor: u8,
     write_mode: WriteMode,
     line_style: LineStyle,
     fill_style: FillStyle,
+    fill_user_pattern: Vec<u8>,
     fill_color: u8,
     direction: Direction,
     font: FontType,
     text_height: i32,
     text_width: i32,
-    window: Size,
+    pub window: Size,
     viewport: Rectangle,
-    palette: [Color; 16],
+    palette: Palette,
     line_thickness: i32,
     pub screen: Vec<u8>,
     line_style_bits: Vec<bool>,
     current_pos: Position,
+    char_size: i32,
+    pub rip_image: Option<BgiImage>,
 }
 
 mod bezier_handler {
+    use core::f64;
+    use std::f64::consts;
+
     const ST_ARR: [f64; 4] = [1.0, 3.0, 3.0, 1.0];
 
     pub fn first(n: i32, v: f64) -> f64 {
@@ -204,9 +299,9 @@ mod bezier_handler {
 
     pub fn second(n: i32, v: f64) -> f64 {
         match n {
-            2 => (1.0 - v).log10().exp(),
-            1 => (2.0 * (1.0 - v).log10()).exp(),
-            0 => (3.0 * (1.0 - v).log10()).exp(),
+            2 => (1.0 - v).log(consts::E).exp(),
+            1 => (2.0 * (1.0 - v).log(consts::E)).exp(),
+            0 => (3.0 * (1.0 - v).log(consts::E)).exp(),
             _ => 1.0,
         }
     }
@@ -255,6 +350,7 @@ impl Bgi {
             line_style: LineStyle::Solid,
             line_style_bits: LineStyle::Solid.get_line_style_bits(),
             fill_style: FillStyle::Solid,
+            fill_user_pattern: DEFAULT_USER_PATTERN.to_vec(),
             fill_color: 15,
             direction: Direction::Horizontal,
             font: FontType::Default,
@@ -262,27 +358,12 @@ impl Bgi {
             text_width: 8,
             window: SCREEN_SIZE,
             viewport: Rectangle::from(0, 0, SCREEN_SIZE.width, SCREEN_SIZE.height),
-            palette: [
-                Color::Black,
-                Color::Blue,
-                Color::Green,
-                Color::Cyan,
-                Color::Red,
-                Color::Magenta,
-                Color::Brown,
-                Color::LightGray,
-                Color::DarkGray,
-                Color::LightBlue,
-                Color::LightGreen,
-                Color::LightCyan,
-                Color::LightRed,
-                Color::LightMagenta,
-                Color::Yellow,
-                Color::White,
-            ],
+            palette: Palette::dos_default(),
             line_thickness: 1,
             screen: vec![0; (SCREEN_SIZE.width * SCREEN_SIZE.height) as usize],
             current_pos: Position::new(0, 0),
+            char_size: 4,
+            rip_image: None,
         }
     }
 
@@ -353,11 +434,53 @@ impl Bgi {
         self.line_style_bits = res;
     }
 
+    pub fn get_palette(&self) -> &Palette {
+        &self.palette
+    }
+
+    pub fn set_palette(&mut self, colors: &[i32]) {
+        let mut pal = Palette::new();
+        pal.clear();
+        for c in colors {
+            pal.push(EGA_PALETTE[*c as usize].clone());
+        }
+        self.palette = pal;
+    }
+
+    pub fn set_palette_color(&mut self, index: i32, color: u8) {
+        self.palette.set_color(index as u32, EGA_PALETTE[color as usize].clone());
+    }
+
+    pub fn get_font_type(&self) -> FontType {
+        self.font
+    }
+
+    pub fn get_text_direction(&self) -> Direction {
+        self.direction
+    }
+
+    pub fn get_font_size(&self) -> i32 {
+        self.char_size
+    }
+
+    pub fn set_text_style(&mut self, font: FontType, direction: Direction, char_size: i32) {
+        self.font = font;
+        self.direction = direction;
+        self.char_size = char_size.clamp(1, 10);
+    }
+
     pub fn get_pixel(&self, x: i32, y: i32) -> u8 {
         self.screen[(y * self.window.width + x) as usize]
     }
 
+    pub fn get_fill_pattern(&self) -> &Vec<u8> {
+        &self.fill_user_pattern
+    }
+
     pub fn put_pixel(&mut self, x: i32, y: i32, color: u8) {
+        if !self.viewport.contains(x, y) {
+            return;
+        }
         let pos = (y * self.window.width + x) as usize;
         match self.write_mode {
             WriteMode::Copy => {
@@ -420,7 +543,6 @@ impl Bgi {
         }
 
         end_x = end_x.min(self.viewport.right() - 1);
-
         for x in startx..=end_x {
             if self.line_style_bits[offset.abs() as usize % self.line_style_bits.len()] {
                 for cy in start_y..=end_y {
@@ -558,7 +680,6 @@ impl Bgi {
                     l_run_length += 1;
                     l_error -= l_adj_down;
                 }
-
                 self.fill_y(pos.x, pos.y, l_run_length, &mut offset);
                 pos.y += l_run_length;
                 pos.x += l_advance;
@@ -712,26 +833,22 @@ impl Bgi {
     }
 
     pub fn flood_fill(&mut self, x: i32, y: i32, border: u8) {
-        let mut fillLines = vec![Vec::new(); self.viewport.get_height() as usize + 1];
-
-        let mut pointStack = Vec::new();
-
         if !self.viewport.contains(x, y) {
             return;
         }
 
+        let mut fill_lines = vec![Vec::new(); self.viewport.get_height() as usize];
+        let mut point_stack = Vec::new();
+
         if self.screen[(y * self.window.width + x) as usize] != border {
             let li = self.find_line(x, y, border);
             if let Some(li) = li {
-                pointStack.push(FillLineInfo::new(&li, 1));
-                pointStack.push(FillLineInfo::new(&li, -1));
+                point_stack.push(FillLineInfo::new(&li, 1));
+                point_stack.push(FillLineInfo::new(&li, -1));
 
-                fillLines[li.y as usize].push(li);
+                fill_lines[li.y as usize].push(li);
                 //this.Bar(li.x1, li.y, li.x2, li.y);
-
-                while !pointStack.is_empty() {
-                    let fli = pointStack.pop().unwrap();
-
+                while let Some(fli) = point_stack.pop() {
                     let cury = fli.y + fli.dir;
                     if cury < self.viewport.bottom() && cury >= self.viewport.top() {
                         let ypos = cury * self.window.width;
@@ -740,33 +857,34 @@ impl Bgi {
                                 continue; // it's a border color, so don't scan any more this direction
                             }
 
-                            //if (AlreadyDrawn(fillLines, cx, cury))
-                            //  continue; // already been here
+                            if already_drawn(&fill_lines, cx, cury) {
+                                continue; // already been here
+                            }
 
                             let li = self.find_line(cx, cury, border); // find the borders on this line
                             if let Some(li) = li {
                                 // let cx = li.x2;
-                                pointStack.push(FillLineInfo::new(&li, fli.dir));
+                                point_stack.push(FillLineInfo::new(&li, fli.dir));
                                 if self.fill_color != 0 {
                                     // bgi doesn't go backwards when filling black!  why?  dunno.  it just does.
                                     // if we go out of current line's bounds, check the opposite dir for those
                                     if li.x2 > fli.x2 {
-                                        pointStack.push(FillLineInfo::from(li.y, fli.x2 + 1, li.x2, -fli.dir));
+                                        point_stack.push(FillLineInfo::from(li.y, fli.x2 + 1, li.x2, -fli.dir));
                                     }
                                     if li.x1 < fli.x1 {
-                                        pointStack.push(FillLineInfo::from(li.y, li.x1, fli.x1 - 1, -fli.dir));
+                                        point_stack.push(FillLineInfo::from(li.y, li.x1, fli.x1 - 1, -fli.dir));
                                     }
                                 }
 
-                                fillLines[li.y as usize].push(li);
+                                fill_lines[li.y as usize].push(li);
                             }
                         }
                     }
                 }
             }
         }
-        for i in 0..fillLines.len() {
-            for cli in &fillLines[i] {
+        for fill_line in &fill_lines {
+            for cli in fill_line {
                 self.bar(cli.x1, cli.y, cli.x2, cli.y);
             }
         }
@@ -786,24 +904,24 @@ impl Bgi {
         let bottom = rect.bottom();
         let mut ystart = rect.top() * self.window.width + rect.left();
         if matches!(self.fill_style, FillStyle::Solid) {
-            for y in rect.top()..bottom {
-                let mut xstart = ystart;
+            for _ in rect.top()..bottom {
+                let mut x_start = ystart;
                 for _ in rect.left()..right {
-                    self.screen[xstart as usize] = self.fill_color;
-                    xstart += 1;
+                    self.screen[x_start as usize] = self.fill_color;
+                    x_start += 1;
                 }
                 ystart += self.window.width;
             }
         } else {
-            let pattern = self.fill_style.get_fill_style();
+            let pattern = self.fill_style.get_fill_pattern(&self.fill_user_pattern);
             let mut ypat = rect.top() % 8;
-            for y in rect.top()..bottom {
-                let mut xstart = ystart as usize;
+            for _ in rect.top()..bottom {
+                let mut x_start = ystart as usize;
                 let mut xpatmask = (128 >> (rect.left() % 8)) as u8;
-                let pat = pattern[ypat as usize];
-                for x in rect.left()..right {
-                    self.screen[xstart] = if (pat & xpatmask) != 0 { self.fill_color } else { self.bkcolor };
-                    xstart += 1;
+                let pattern = pattern[ypat as usize];
+                for _ in rect.left()..right {
+                    self.screen[x_start] = if (pattern & xpatmask) != 0 { self.fill_color } else { self.bkcolor };
+                    x_start += 1;
                     xpatmask >>= 1;
                     if xpatmask == 0 {
                         xpatmask = 128;
@@ -818,11 +936,11 @@ impl Bgi {
     pub fn draw_bezier(&mut self, count: i32, points: &[Position], segments: i32) {
         let mut x1 = points[0].x;
         let mut y1 = points[0].y;
-        let mut v = 1.0;
+        let mut v = 1;
         loop {
             let mut x3 = 0.0;
             let mut y3 = 0.0;
-            let br = v / segments as f64;
+            let br = v as f64 / segments as f64;
             for i in 0..4usize {
                 let ar = bezier_handler::bezier(br, i as i32);
                 x3 += points[i].x as f64 * ar;
@@ -833,13 +951,61 @@ impl Bgi {
             self.line(x1, y1, x2, y2);
             x1 = x2;
             y1 = y2;
-            v += 1.0;
-            if v >= segments as f64 {
+            v += 1;
+            if v >= segments {
                 break;
             }
         }
 
         self.line(x1, y1, points[count as usize - 1].x, points[count as usize - 1].y);
+    }
+
+    pub fn draw_poly(&mut self, points: &[Position]) {
+        let mut last_point = points[0];
+        for point in points {
+            self.line(last_point.x, last_point.y, point.x, point.y);
+            last_point = point.clone();
+        }
+        self.line(last_point.x, last_point.y, points[0].x, points[0].y);
+    }
+    pub fn fill_poly(&mut self, points: &[Position]) {
+        if points.len() <= 1 {
+            return;
+        }
+
+        let mut rows = create_scan_rows();
+        if !self.viewport.contains_pt(points[0]) {
+            return;
+        }
+        for i in 1..points.len() as i32 {
+            /*if !self.viewport.Contains(points[i]) {
+                return;
+            }*/
+            scan_lines(i - 1, i, &mut rows, points, false);
+        }
+        scan_lines(points.len() as i32 - 1, 0, &mut rows, points, false);
+
+        if !matches!(self.fill_style, FillStyle::Empty) {
+            for i in 1..rows.len() as i32 {
+                let row = &mut rows[i as usize];
+                let y = i - 1;
+                if !row.is_empty() {
+                    row.sort_unstable();
+                    let mut on = false;
+                    let mut lastx = -1;
+                    for curx in row {
+                        if on {
+                            self.bar(lastx, y, *curx, y);
+                        }
+                        on = !on;
+                        lastx = *curx;
+                    }
+                }
+            }
+        }
+        if self.color != 0 {
+            self.draw_poly(points);
+        }
     }
 
     pub fn arc(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius: i32) {
@@ -853,24 +1019,24 @@ impl Bgi {
         }
 
         let radiusx = radiusx.max(1);
-        let radiusy = radiusy.max(1);
+        let radius_y = radiusy.max(1);
 
         let diameterx = radiusx * 2;
-        let diametery = radiusy * 2;
-        let b1 = diametery & 1;
-        let mut stopx = 4 * (1 - diameterx) * diametery * diametery;
-        let mut stopy = 4 * (b1 + 1) * diameterx * diameterx; // error increment
-        let mut err = stopx + stopy + b1 * diameterx * diameterx; // error of 1 step
+        let diameter_y = radius_y * 2;
+        let b1 = diameter_y & 1;
+        let mut stopx = 4 * (1 - diameterx as i64) * diameter_y as i64 * diameter_y as i64;
+        let mut stop_y = 4 * (b1 as i64 + 1) * diameterx as i64 * diameterx as i64; // error increment
+        let mut err = stopx + stop_y + b1 as i64 * diameterx as i64 * diameterx as i64; // error of 1 step
 
         let mut xoffset = radiusx;
         let mut yoffset = 0;
         let incx = 8 * diameterx * diameterx;
-        let incy = 8 * diametery * diametery;
+        let inc_y = 8 * diameter_y * diameter_y;
 
-        let aspect = radiusx as f64 / radiusy as f64;
+        let aspect = radiusx as f64 / radius_y as f64;
 
         // calculate horizontal fill angle
-        let horizontal_angle = if radiusx < radiusy { 90.0 - (45.0 * aspect) } else { 45.0 / aspect };
+        let horizontal_angle = if radiusx < radius_y { 90.0 - (45.0 * aspect) } else { 45.0 / aspect };
 
         loop {
             let e2 = 2 * err;
@@ -896,19 +1062,19 @@ impl Bgi {
                     xoffset,
                     yoffset,
                     angle.round() as i32,
-                    !(angle <= horizontal_angle),
+                    angle > horizontal_angle,
                     rows,
                 );
             }
 
-            if e2 <= stopy {
+            if e2 <= stop_y {
                 yoffset += 1;
-                stopy += incx;
-                err += stopy;
+                stop_y += incx as i64;
+                err += stop_y;
             }
             if e2 >= stopx {
                 xoffset -= 1;
-                stopx += incy;
+                stopx += inc_y as i64;
                 err += stopx;
             }
             if xoffset < 0 {
@@ -917,7 +1083,7 @@ impl Bgi {
         }
 
         xoffset += 1;
-        while yoffset < radiusy {
+        while yoffset < radius_y {
             let angle = (yoffset as f64 * aspect / xoffset as f64).atan() * RAD2DEG;
             self.symmetry_scan(
                 x,
@@ -939,7 +1105,7 @@ impl Bgi {
                     xoffset,
                     yoffset,
                     angle.round() as i32,
-                    !(angle <= horizontal_angle),
+                    angle > horizontal_angle,
                     rows,
                 );
             }
@@ -958,12 +1124,15 @@ impl Bgi {
     }
 
     pub fn draw_scan(&mut self, rows: &mut Vec<Vec<i32>>) {
-        for i in 0..rows.len() {
-            let row = &mut rows[i];
+        for i in 0..rows.len() as i32 {
+            let row = &mut rows[i as usize];
+            if row.is_empty() {
+                continue;
+            }
             let y = i - 1;
             row.dedup();
             for x in row {
-                self.put_pixel(*x, y as i32, self.color);
+                self.put_pixel(*x, y, self.color);
             }
         }
     }
@@ -1084,18 +1253,18 @@ impl Bgi {
         self.move_to(0, 0);
     }
 
-    pub fn sector(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radiusx: i32, radiusy: i32) {
+    pub fn sector(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radiusx: i32, radius_y: i32) {
         let center = Position::new(x, y);
         let mut rows = create_scan_rows();
-        let start_point = center + get_angle_size(start_angle, radiusx, radiusy);
-        let end_point = center + get_angle_size(end_angle, radiusx, radiusy);
+        let start_point = center + get_angle_size(start_angle, radiusx, radius_y);
+        let end_point = center + get_angle_size(end_angle, radiusx, radius_y);
 
         let oldthickness = self.get_line_thickness();
         if !matches!(self.line_style, LineStyle::Solid) {
             self.set_line_thickness(1);
         }
 
-        self.scan_ellipse(x, y, start_angle, end_angle, radiusx, radiusy, &mut rows);
+        self.scan_ellipse(x, y, start_angle, end_angle, radiusx, radius_y, &mut rows);
 
         scan_line(center, start_point, &mut rows, true);
         scan_line(center, end_point, &mut rows, true);
@@ -1106,7 +1275,7 @@ impl Bgi {
 
         if matches!(self.line_style, LineStyle::Solid) {
             rows = create_scan_rows(); // ugh, twice, really?!
-            self.scan_ellipse(x, y, start_angle, end_angle, radiusx, radiusy, &mut rows);
+            self.scan_ellipse(x, y, start_angle, end_angle, radiusx, radius_y, &mut rows);
             self.draw_scan(&mut rows);
         }
 
@@ -1121,8 +1290,25 @@ impl Bgi {
     pub fn pie_slice(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius: i32) {
         self.sector(x, y, start_angle, end_angle, radius, (radius as f64 * ASPECT) as i32);
     }
-    /*
 
+    pub fn graph_defaults(&mut self) {
+        self.palette = Palette::dos_default();
+        self.viewport = Rectangle::from(0, 0, self.window.width, self.window.height);
+        self.set_color(7);
+        self.set_bk_color(0);
+        self.set_line_style(LineStyle::Solid);
+        self.set_user_fill_pattern(&DEFAULT_USER_PATTERN);
+        self.set_fill_style(FillStyle::Solid);
+        self.set_fill_color(0);
+        self.clear_device();
+        self.char_size = 4;
+        self.font = FontType::Small;
+    }
+
+    pub fn set_user_fill_pattern(&mut self, pattern: &[u8]) {
+        self.fill_user_pattern = pattern.to_vec();
+    }
+    /*
     public void Bar3d(int left, int top, int right, int bottom, int depth, int topflag, IList<Rectangle> updates = null)
     {
         int temp;
@@ -1175,6 +1361,105 @@ impl Bgi {
         if (updates == null)
             UpdateRegion(drawUpdates);
     }*/
+
+    pub fn out_text(&mut self, str: &str) {
+        if str.is_empty() {
+            return;
+        }
+        let font = self.font;
+        let fd = font.get_font();
+        let text_size = fd.get_text_size(str, self.direction, self.char_size);
+        let mut cur = self.current_pos;
+        if matches!(self.direction, Direction::Vertical) {
+            cur.y += text_size.height;
+        }
+
+        for c in str.chars() {
+            let width = fd.draw_character(self, cur.x, cur.y, self.direction, self.char_size, c as u8);
+            if matches!(self.direction, Direction::Horizontal) {
+                cur.x += width as i32;
+            } else {
+                cur.y -= width as i32;
+            }
+        }
+        self.current_pos = cur;
+    }
+
+    pub fn out_text_xy(&mut self, x: i32, y: i32, str: &str) {
+        if str.is_empty() {
+            return;
+        }
+        let old_thickness = self.line_thickness;
+        self.line_thickness = 1;
+        let oldline = self.get_line_style();
+        self.set_line_style(LineStyle::Solid);
+        let font = self.font;
+        let loaded_font = font.get_font();
+
+        //  if (loadedFont != null)
+        {
+            let text_size = loaded_font.get_text_size(str, self.direction, self.char_size);
+            let mut xf = x;
+            let mut yf = y;
+            if matches!(self.direction, Direction::Vertical) {
+                yf += text_size.height;
+            }
+            for c in str.chars() {
+                let width = loaded_font.draw_character(self, xf, yf, self.direction, self.char_size, c as u8);
+                if matches!(self.direction, Direction::Horizontal) {
+                    xf += width as i32;
+                } else {
+                    yf -= width as i32;
+                }
+            }
+        }
+        self.line_thickness = old_thickness;
+        self.set_line_style(oldline);
+    }
+
+    pub fn get_image(&self, x0: i32, y0: i32, x1: i32, y1: i32) -> BgiImage {
+        let mut image = Vec::new();
+        for y in y0..y1 {
+            for x in x0..x1 {
+                image.push(self.get_pixel(x, y));
+            }
+        }
+        BgiImage {
+            width: x1 - x0,
+            height: y1 - y0,
+            data: image,
+        }
+    }
+
+    pub fn put_rip_image(&mut self, x: i32, y: i32, op: WriteMode) {
+        if let Some(rip_image) = self.rip_image.take() {
+            self.put_image(x, y, &rip_image, op);
+            self.rip_image = Some(rip_image);
+        }
+    }
+
+    pub fn put_image(&mut self, x: i32, y: i32, image: &BgiImage, op: WriteMode) {
+        let mut pos = 0;
+        for iy in 0..image.height {
+            for ix in 0..image.width {
+                let col = image.data[pos];
+                pos += 1;
+
+                let x = x + ix;
+                let y = y + iy;
+                if !self.viewport.contains(x, y) {
+                    continue;
+                }
+                match op {
+                    WriteMode::Copy => self.put_pixel(x, y, col),
+                    WriteMode::Xor => self.put_pixel(x, y, self.get_pixel(x, y) ^ col),
+                    WriteMode::Or => self.put_pixel(x, y, self.get_pixel(x, y) | col),
+                    WriteMode::And => self.put_pixel(x, y, self.get_pixel(x, y) & col),
+                    WriteMode::Not => self.put_pixel(x, y, self.get_pixel(x, y) & !col),
+                }
+            }
+        }
+    }
 }
 
 impl Default for Bgi {
@@ -1263,9 +1548,18 @@ pub fn arc_coords(angle: f64, rx: f64, ry: f64) -> Position {
     }
 }
 
-pub fn get_angle_size(angle: i32, radiusx: i32, radiusy: i32) -> Position {
+pub fn get_angle_size(angle: i32, radius_x: i32, radius_y: i32) -> Position {
     Position::new(
-        ((angle as f64 * DEG2RAD).cos() * radiusx as f64).round() as i32,
-        -((angle as f64 * DEG2RAD).sin() * radiusy as f64).round() as i32,
+        ((angle as f64 * DEG2RAD).cos() * radius_x as f64).round() as i32,
+        -((angle as f64 * DEG2RAD).sin() * radius_y as f64).round() as i32,
     )
+}
+
+fn already_drawn(fill_lines: &[Vec<LineInfo>], x: i32, y: i32) -> bool {
+    for li in &fill_lines[y as usize] {
+        if y == li.y && x >= li.x1 && x <= li.x2 {
+            return true;
+        }
+    }
+    false
 }

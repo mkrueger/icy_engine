@@ -13,6 +13,7 @@ enum State {
     GotRipStart,
     ReadCommand(usize),
     ReadParams,
+    SkipEOL,
 }
 
 #[derive(Default)]
@@ -35,6 +36,7 @@ pub trait Command {
     fn to_rip_string(&self) -> String;
 
     fn run(&self, _bgi: &mut Bgi) -> EngineResult<()> {
+        println!("not implemented RIP: {:?}", self.to_rip_string());
         Ok(())
     }
 }
@@ -74,43 +76,79 @@ impl Parser {
     pub fn clear(&mut self) {
         // clear viewport
     }
+
+    pub fn run_commands(&mut self) -> EngineResult<()> {
+        if let Some(cmd) = self.command.take() {
+            self.rip_commands.push(cmd);
+        }
+        for cmd in &self.rip_commands {
+            cmd.run(&mut self.bgi)?;
+        }
+        Ok(())
+    }
 }
 
 static RIP_TERMINAL_ID: &str = "RIPSCRIP01540\0";
 
 impl Parser {
     pub fn start_command(&mut self, cmd: Box<dyn Command>) {
+        // println!("---- start_command: {:?}", cmd.to_rip_string());
         self.command = Some(cmd);
         self.parameter_state = 0;
         self.state = State::ReadParams;
     }
 
     pub fn push_command(&mut self, cmd: Box<dyn Command>) {
-        self.state = State::Default;
+        self.state = State::GotRipStart;
         self.rip_commands.push(cmd);
     }
 }
 
 impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        // println!("state: {:?}, ch: {}", self.state, ch);
+        // println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
         match self.state {
             State::ReadParams => {
+                if ch == '\\' {
+                    self.state = State::SkipEOL;
+                    return Ok(CallbackAction::NoUpdate);
+                }
                 if ch == '|' {
                     if let Some(t) = self.command.take() {
+                        // println!("push: {:?}", t.to_rip_string());
                         self.rip_commands.push(t);
                     }
                     self.state = State::ReadCommand(0);
                     return Ok(CallbackAction::NoUpdate);
                 }
-                if self.command.as_mut().unwrap().parse(&mut self.parameter_state, ch)? {
-                    self.parameter_state += 1;
-                } else if let Some(t) = self.command.take() {
-                    self.state = State::Default;
-                    self.rip_commands.push(t);
+                match self.command.as_mut().unwrap().parse(&mut self.parameter_state, ch) {
+                    Ok(true) => {
+                        self.parameter_state += 1;
+                    }
+                    Ok(false) => {
+                        if let Some(t) = self.command.take() {
+                            self.state = State::GotRipStart;
+                            self.rip_commands.push(t);
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Error in RipScript: {}", e);
+                        self.state = State::Default;
+                        return Ok(CallbackAction::NoUpdate);
+                    }
                 }
             }
-
+            State::SkipEOL => {
+                if ch == '\r' {
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                if ch == '\n' {
+                    self.state = State::ReadParams;
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                self.state = State::ReadParams;
+                return Ok(CallbackAction::NoUpdate);
+            }
             State::ReadCommand(level) => {
                 if level == 1 {
                     match ch {
@@ -281,7 +319,7 @@ fn to_base_36(len: usize, number: i32) -> String {
 }
 
 fn parse_base_36(number: &mut i32, ch: char) -> EngineResult<()> {
-    if let Some(digit) = ch.to_digit(32) {
+    if let Some(digit) = ch.to_digit(36) {
         *number = *number * 36 + digit as i32;
         Ok(())
     } else {
