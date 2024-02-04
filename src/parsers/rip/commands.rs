@@ -287,6 +287,7 @@ impl Command for OnePalette {
             _ => Err(anyhow::Error::msg("Invalid state")),
         }
     }
+
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
         bgi.set_palette_color(self.color, self.value as u8);
         Ok(())
@@ -315,6 +316,11 @@ impl Command for WriteMode {
             }
             _ => Err(anyhow::Error::msg("Invalid state")),
         }
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_write_mode(super::bgi::WriteMode::from(self.mode as u8));
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
@@ -1447,7 +1453,7 @@ impl Command for FillStyle {
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
         bgi.set_fill_style(super::bgi::FillStyle::from(self.pattern as u8));
-        bgi.set_color(self.color as u8);
+        bgi.set_fill_color(self.color as u8);
         Ok(())
     }
 

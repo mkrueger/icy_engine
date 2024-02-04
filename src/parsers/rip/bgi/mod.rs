@@ -1,6 +1,6 @@
 use std::f64::consts;
 
-use crate::{rip::bgi::font::Font, Palette, Position, Rectangle, Size, EGA_PALETTE};
+use crate::{rip::bgi::font::Font, BitFont, Palette, Position, Rectangle, Size, EGA_PALETTE};
 
 mod character;
 mod font;
@@ -86,7 +86,7 @@ impl LineStyle {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum FillStyle {
     Empty,
     Solid,
@@ -211,6 +211,8 @@ impl FontType {
 }
 
 lazy_static::lazy_static! {
+    static ref DEFAULT_BITFONT : BitFont = BitFont::from_sauce_name("IBM VGA50").unwrap();
+
     static ref FONTS: Vec<Font> = vec![
         Font::load(include_bytes!("fonts/SANS.CHR")).unwrap(),
         Font::load(include_bytes!("fonts/TRIP.CHR")).unwrap(),
@@ -253,7 +255,7 @@ const RAD2DEG: f64 = 180.0 / consts::PI;
 const DEG2RAD: f64 = consts::PI / 180.0;
 const ASPECT: f64 = 350.0 / 480.0 * 1.06; //0.772; //7.0/9.0; //350.0 / 480.0 * 1.066666;
 
-pub struct BgiImage {
+pub struct Image {
     pub width: i32,
     pub height: i32,
     pub data: Vec<u8>,
@@ -279,7 +281,7 @@ pub struct Bgi {
     line_style_bits: Vec<bool>,
     current_pos: Position,
     char_size: i32,
-    pub rip_image: Option<BgiImage>,
+    pub rip_image: Option<Image>,
 }
 
 mod bezier_handler {
@@ -351,7 +353,7 @@ impl Bgi {
             line_style_bits: LineStyle::Solid.get_line_style_bits(),
             fill_style: FillStyle::Solid,
             fill_user_pattern: DEFAULT_USER_PATTERN.to_vec(),
-            fill_color: 15,
+            fill_color: 0,
             direction: Direction::Horizontal,
             font: FontType::Default,
             text_height: 8,
@@ -403,7 +405,7 @@ impl Bgi {
 
     pub fn set_fill_color(&mut self, color: u8) -> u8 {
         let old = self.fill_color;
-        self.fill_color = color;
+        self.fill_color = color % 16;
         old
     }
 
@@ -470,7 +472,12 @@ impl Bgi {
     }
 
     pub fn get_pixel(&self, x: i32, y: i32) -> u8 {
-        self.screen[(y * self.window.width + x) as usize]
+        let o = (y * self.window.width + x) as usize;
+        if o < self.screen.len() {
+            self.screen[o]
+        } else {
+            0
+        }
     }
 
     pub fn get_fill_pattern(&self) -> &Vec<u8> {
@@ -482,6 +489,9 @@ impl Bgi {
             return;
         }
         let pos = (y * self.window.width + x) as usize;
+        if pos >= self.screen.len() {
+            return;
+        }
         match self.write_mode {
             WriteMode::Copy => {
                 self.screen[pos] = color;
@@ -836,7 +846,6 @@ impl Bgi {
         if !self.viewport.contains(x, y) {
             return;
         }
-
         let mut fill_lines = vec![Vec::new(); self.viewport.get_height() as usize];
         let mut point_stack = Vec::new();
 
@@ -852,18 +861,21 @@ impl Bgi {
                     let cury = fli.y + fli.dir;
                     if cury < self.viewport.bottom() && cury >= self.viewport.top() {
                         let ypos = cury * self.window.width;
-                        for cx in fli.x1..=fli.x2 {
+                        let mut cx = fli.x1;
+                        while cx <= fli.x2 {
                             if self.screen[(ypos + cx) as usize] == border {
+                                cx += 1;
                                 continue; // it's a border color, so don't scan any more this direction
                             }
 
                             if already_drawn(&fill_lines, cx, cury) {
+                                cx += 1;
                                 continue; // already been here
                             }
 
                             let li = self.find_line(cx, cury, border); // find the borders on this line
                             if let Some(li) = li {
-                                // let cx = li.x2;
+                                cx = li.x2;
                                 point_stack.push(FillLineInfo::new(&li, fli.dir));
                                 if self.fill_color != 0 {
                                     // bgi doesn't go backwards when filling black!  why?  dunno.  it just does.
@@ -878,6 +890,7 @@ impl Bgi {
 
                                 fill_lines[li.y as usize].push(li);
                             }
+                            cx += 1;
                         }
                     }
                 }
@@ -899,7 +912,6 @@ impl Bgi {
         if rect.get_width() == 0 || rect.get_height() == 0 {
             return;
         }
-
         let right = rect.right();
         let bottom = rect.bottom();
         let mut ystart = rect.top() * self.window.width + rect.left();
@@ -907,6 +919,9 @@ impl Bgi {
             for _ in rect.top()..bottom {
                 let mut x_start = ystart;
                 for _ in rect.left()..right {
+                    if x_start as usize >= self.screen.len() {
+                        break;
+                    }
                     self.screen[x_start as usize] = self.fill_color;
                     x_start += 1;
                 }
@@ -920,6 +935,9 @@ impl Bgi {
                 let mut xpatmask = (128 >> (rect.left() % 8)) as u8;
                 let pattern = pattern[ypat as usize];
                 for _ in rect.left()..right {
+                    if x_start >= self.screen.len() {
+                        break;
+                    }
                     self.screen[x_start] = if (pattern & xpatmask) != 0 { self.fill_color } else { self.bkcolor };
                     x_start += 1;
                     xpatmask >>= 1;
@@ -1363,68 +1381,70 @@ impl Bgi {
     }*/
 
     pub fn out_text(&mut self, str: &str) {
-        if str.is_empty() {
-            return;
-        }
-        let font = self.font;
-        let fd = font.get_font();
-        let text_size = fd.get_text_size(str, self.direction, self.char_size);
-        let mut cur = self.current_pos;
-        if matches!(self.direction, Direction::Vertical) {
-            cur.y += text_size.height;
-        }
-
-        for c in str.chars() {
-            let width = fd.draw_character(self, cur.x, cur.y, self.direction, self.char_size, c as u8);
-            if matches!(self.direction, Direction::Horizontal) {
-                cur.x += width as i32;
-            } else {
-                cur.y -= width as i32;
-            }
-        }
-        self.current_pos = cur;
+        self.current_pos = self.out_text_xy(self.current_pos.x, self.current_pos.y, str);
     }
 
-    pub fn out_text_xy(&mut self, x: i32, y: i32, str: &str) {
+    pub fn out_text_xy(&mut self, x: i32, y: i32, str: &str) -> Position {
         if str.is_empty() {
-            return;
+            return self.current_pos;
         }
+        let font = self.font;
+
+        let mut xf = x;
+        let mut yf = y;
+
+        if matches!(font, FontType::Default) {
+            let old_write_mode = self.write_mode;
+            self.set_write_mode(WriteMode::Copy);
+            for c in str.chars() {
+                if let Some(glyph) = DEFAULT_BITFONT.get_glyph(c) {
+                    for y in 0..8 {
+                        for x in 0..8 {
+                            if glyph.data[y as usize] & (1 << (7 - x)) != 0 {
+                                self.put_pixel(xf + x, yf + y, self.color);
+                            }
+                        }
+                    }
+                    xf += 8;
+                }
+            }
+            self.set_write_mode(old_write_mode);
+            return Position::new(xf, yf);
+        }
+
         let old_thickness = self.line_thickness;
         self.line_thickness = 1;
         let oldline = self.get_line_style();
         self.set_line_style(LineStyle::Solid);
-        let font = self.font;
-        let loaded_font = font.get_font();
 
         //  if (loadedFont != null)
-        {
-            let text_size = loaded_font.get_text_size(str, self.direction, self.char_size);
-            let mut xf = x;
-            let mut yf = y;
-            if matches!(self.direction, Direction::Vertical) {
-                yf += text_size.height;
-            }
-            for c in str.chars() {
-                let width = loaded_font.draw_character(self, xf, yf, self.direction, self.char_size, c as u8);
-                if matches!(self.direction, Direction::Horizontal) {
-                    xf += width as i32;
-                } else {
-                    yf -= width as i32;
-                }
+        let loaded_font = font.get_font();
+        let text_size = loaded_font.get_text_size(str, self.direction, self.char_size);
+        if matches!(self.direction, Direction::Vertical) {
+            yf += text_size.height;
+        }
+        for c in str.chars() {
+            let width = loaded_font.draw_character(self, xf, yf, self.direction, self.char_size, c as u8);
+            if matches!(self.direction, Direction::Horizontal) {
+                xf += width as i32;
+            } else {
+                yf -= width as i32;
             }
         }
         self.line_thickness = old_thickness;
         self.set_line_style(oldline);
+
+        Position::new(xf, yf)
     }
 
-    pub fn get_image(&self, x0: i32, y0: i32, x1: i32, y1: i32) -> BgiImage {
+    pub fn get_image(&self, x0: i32, y0: i32, x1: i32, y1: i32) -> Image {
         let mut image = Vec::new();
         for y in y0..y1 {
             for x in x0..x1 {
                 image.push(self.get_pixel(x, y));
             }
         }
-        BgiImage {
+        Image {
             width: x1 - x0,
             height: y1 - y0,
             data: image,
@@ -1438,7 +1458,7 @@ impl Bgi {
         }
     }
 
-    pub fn put_image(&mut self, x: i32, y: i32, image: &BgiImage, op: WriteMode) {
+    pub fn put_image(&mut self, x: i32, y: i32, image: &Image, op: WriteMode) {
         let mut pos = 0;
         for iy in 0..image.height {
             for ix in 0..image.width {
