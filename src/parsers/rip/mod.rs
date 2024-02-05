@@ -82,9 +82,50 @@ impl Parser {
             self.rip_commands.push(cmd);
         }
         for cmd in &self.rip_commands {
+            //println!("run: {:?}", cmd.to_rip_string());
             cmd.run(&mut self.bgi)?;
         }
         Ok(())
+    }
+
+    fn parse_parameter(&mut self, ch: char) -> Option<Result<CallbackAction, anyhow::Error>> {
+        if ch == '\\' {
+            self.state = State::SkipEOL;
+            return Some(Ok(CallbackAction::NoUpdate));
+        }
+        if ch == '\n' || ch == '\r' {
+            if let Some(t) = self.command.take() {
+                // println!("push: {:?}", t.to_rip_string());
+                self.rip_commands.push(t);
+            }
+            self.state = State::Default;
+            return Some(Ok(CallbackAction::NoUpdate));
+        }
+        if ch == '|' {
+            if let Some(t) = self.command.take() {
+                // println!("push: {:?}", t.to_rip_string());
+                self.rip_commands.push(t);
+            }
+            self.state = State::ReadCommand(0);
+            return Some(Ok(CallbackAction::NoUpdate));
+        }
+        match self.command.as_mut().unwrap().parse(&mut self.parameter_state, ch) {
+            Ok(true) => {
+                self.parameter_state += 1;
+            }
+            Ok(false) => {
+                if let Some(t) = self.command.take() {
+                    self.state = State::GotRipStart;
+                    self.rip_commands.push(t);
+                }
+            }
+            Err(e) => {
+                log::error!("Error in RipScript: {}", e);
+                self.state = State::Default;
+                return Some(Ok(CallbackAction::NoUpdate));
+            }
+        }
+        None
     }
 }
 
@@ -109,33 +150,8 @@ impl BufferParser for Parser {
         // println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
         match self.state {
             State::ReadParams => {
-                if ch == '\\' {
-                    self.state = State::SkipEOL;
-                    return Ok(CallbackAction::NoUpdate);
-                }
-                if ch == '|' {
-                    if let Some(t) = self.command.take() {
-                        // println!("push: {:?}", t.to_rip_string());
-                        self.rip_commands.push(t);
-                    }
-                    self.state = State::ReadCommand(0);
-                    return Ok(CallbackAction::NoUpdate);
-                }
-                match self.command.as_mut().unwrap().parse(&mut self.parameter_state, ch) {
-                    Ok(true) => {
-                        self.parameter_state += 1;
-                    }
-                    Ok(false) => {
-                        if let Some(t) = self.command.take() {
-                            self.state = State::GotRipStart;
-                            self.rip_commands.push(t);
-                        }
-                    }
-                    Err(e) => {
-                        log::error!("Error in RipScript: {}", e);
-                        self.state = State::Default;
-                        return Ok(CallbackAction::NoUpdate);
-                    }
+                if let Some(value) = self.parse_parameter(ch) {
+                    return value;
                 }
             }
             State::SkipEOL => {
@@ -146,10 +162,18 @@ impl BufferParser for Parser {
                     self.state = State::ReadParams;
                     return Ok(CallbackAction::NoUpdate);
                 }
+                if let Some(value) = self.parse_parameter(ch) {
+                    return value;
+                }
                 self.state = State::ReadParams;
                 return Ok(CallbackAction::NoUpdate);
             }
             State::ReadCommand(level) => {
+                if ch == '!' {
+                    self.state = State::GotRipStart;
+                    return Ok(CallbackAction::NoUpdate);
+                }
+
                 if level == 1 {
                     match ch {
                         'M' => self.start_command(Box::<commands::Mouse>::default()),
@@ -234,6 +258,7 @@ impl BufferParser for Parser {
                         self.state = State::ReadCommand(9);
                         return Ok(CallbackAction::NoUpdate);
                     }
+                    '$' => self.start_command(Box::<commands::TextVariable>::default()),
                     '#' => {
                         // RIP_NO_MORE
                         self.state = State::Default;
@@ -250,6 +275,10 @@ impl BufferParser for Parser {
             }
             State::GotRipStart => {
                 // got !
+                if ch == '!' {
+                    return Ok(CallbackAction::NoUpdate);
+                }
+
                 if ch != '|' {
                     self.state = State::Default;
                     self.fallback_parser.print_char(buf, current_layer, caret, '!')?;

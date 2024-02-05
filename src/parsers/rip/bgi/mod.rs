@@ -25,7 +25,7 @@ pub enum Color {
     White,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum WriteMode {
     Copy,
     Xor,
@@ -57,7 +57,14 @@ pub enum LineStyle {
 }
 
 impl LineStyle {
-    const LINE_STYLE_BITS: [u32; 5] = [0xFFFF, 0xCCCC, 0xF878, 0xF8F8, 0x0000];
+    const LINE_PATTERNS: [u32; 5] = [
+        // Solid
+        0xFFFF, // Dotted
+        0xCCCC, // Center
+        0xF878, // Dashed
+        0xF8F8, // User
+        0xFFFF,
+    ];
 
     pub fn from(line_style: u8) -> LineStyle {
         match line_style {
@@ -69,7 +76,7 @@ impl LineStyle {
         }
     }
 
-    pub fn get_line_style_bits(&self) -> Vec<bool> {
+    pub fn get_line_pattern(&self) -> Vec<bool> {
         let offset = match self {
             LineStyle::Solid => 0,
             LineStyle::Dotted => 1,
@@ -80,7 +87,7 @@ impl LineStyle {
 
         let mut res = Vec::new();
         for i in 0..16 {
-            res.push((LineStyle::LINE_STYLE_BITS[offset] & (1 << i)) != 0);
+            res.push((LineStyle::LINE_PATTERNS[offset] & (1 << i)) != 0);
         }
         res
     }
@@ -278,10 +285,13 @@ pub struct Bgi {
     palette: Palette,
     line_thickness: i32,
     pub screen: Vec<u8>,
-    line_style_bits: Vec<bool>,
+    line_pattern: Vec<bool>,
     current_pos: Position,
     char_size: i32,
     pub rip_image: Option<Image>,
+
+    text_window: Option<Rectangle>,
+    text_window_wrap: bool,
 }
 
 mod bezier_handler {
@@ -338,7 +348,7 @@ impl FillLineInfo {
         }
     }
 
-    pub fn from(x1: i32, x2: i32, y: i32, dir: i32) -> Self {
+    pub fn from(y: i32, x1: i32, x2: i32, dir: i32) -> Self {
         Self { dir, x1, x2, y }
     }
 }
@@ -350,7 +360,7 @@ impl Bgi {
             bkcolor: 0,
             write_mode: WriteMode::Copy,
             line_style: LineStyle::Solid,
-            line_style_bits: LineStyle::Solid.get_line_style_bits(),
+            line_pattern: LineStyle::Solid.get_line_pattern(),
             fill_style: FillStyle::Solid,
             fill_user_pattern: DEFAULT_USER_PATTERN.to_vec(),
             fill_color: 0,
@@ -366,6 +376,8 @@ impl Bgi {
             current_pos: Position::new(0, 0),
             char_size: 4,
             rip_image: None,
+            text_window: None,
+            text_window_wrap: false,
         }
     }
 
@@ -416,7 +428,7 @@ impl Bgi {
     pub fn set_line_style(&mut self, style: LineStyle) -> LineStyle {
         let old = self.line_style;
         self.line_style = style;
-        self.line_style_bits = style.get_line_style_bits();
+        self.line_pattern = style.get_line_pattern();
         old
     }
 
@@ -433,7 +445,7 @@ impl Bgi {
         for i in 0..16 {
             res.push(pattern & (1 << i) != 0);
         }
-        self.line_style_bits = res;
+        self.line_pattern = res;
     }
 
     pub fn get_palette(&self) -> &Palette {
@@ -506,7 +518,7 @@ impl Bgi {
                 self.screen[pos] &= color;
             }
             WriteMode::Not => {
-                self.screen[pos] &= !color;
+                self.screen[pos] = !color % 16;
             }
         }
     }
@@ -553,8 +565,9 @@ impl Bgi {
         }
 
         end_x = end_x.min(self.viewport.right() - 1);
+
         for x in startx..=end_x {
-            if self.line_style_bits[offset.abs() as usize % self.line_style_bits.len()] {
+            if self.line_pattern[offset.abs() as usize % self.line_pattern.len()] {
                 for cy in start_y..=end_y {
                     self.put_pixel(x, cy, self.color);
                 }
@@ -598,7 +611,7 @@ impl Bgi {
         end_y = end_y.min(self.viewport.bottom() - 1);
 
         for y in start_y..=end_y {
-            if self.line_style_bits[offset.abs() as usize % self.line_style_bits.len()] {
+            if self.line_pattern[offset.abs() as usize % self.line_pattern.len()] {
                 for cx in start_x..=end_x {
                     self.put_pixel(cx, y, self.color);
                 }
@@ -614,7 +627,6 @@ impl Bgi {
         let ly_delta = (y2 - y1).abs();
         let lx_delta = (x2 - x1).abs();
         let mut offset = 0;
-
         if lx_delta == 0 {
             self.fill_y(x1, y1.min(y2), ly_delta + 1, &mut offset);
         } else if ly_delta == 0 {
@@ -756,6 +768,232 @@ impl Bgi {
         self.line(left, top, left, bottom);
     }
 
+    pub fn flood_fill(&mut self, x: i32, y: i32, border: u8) {
+        if !self.viewport.contains(x, y) {
+            return;
+        }
+        let mut fill_lines = vec![Vec::new(); self.viewport.get_height() as usize];
+        let mut point_stack = Vec::new();
+
+        if self.screen[(y * self.window.width + x) as usize] != border {
+            let li = self.find_line(x, y, border);
+            if let Some(li) = li {
+                point_stack.push(FillLineInfo::new(&li, 1));
+                point_stack.push(FillLineInfo::new(&li, -1));
+
+                fill_lines[li.y as usize].push(li);
+
+                while let Some(fli) = point_stack.pop() {
+                    let cury = fli.y + fli.dir;
+                    if cury < self.viewport.bottom() && cury >= self.viewport.top() {
+                        let y_offset = cury * self.window.width;
+                        let mut cx = fli.x1;
+                        while cx <= fli.x2 {
+                            if self.screen[(y_offset + cx) as usize] == border {
+                                cx += 1;
+                                continue; // it's a border color, so don't scan any more this direction
+                            }
+
+                            if already_drawn(&fill_lines, cx, cury) {
+                                cx += 1;
+                                continue; // already been here
+                            }
+
+                            let li = self.find_line(cx, cury, border); // find the borders on this line
+                            if let Some(li) = li {
+                                cx = li.x2;
+                                point_stack.push(FillLineInfo::new(&li, fli.dir));
+                                if self.fill_color != 0 {
+                                    // bgi doesn't go backwards when filling black!  why?  dunno.  it just does.
+                                    // if we go out of current line's bounds, check the opposite dir for those
+                                    if li.x2 > fli.x2 {
+                                        point_stack.push(FillLineInfo::from(li.y, fli.x2 + 1, li.x2, -fli.dir));
+                                    }
+                                    if li.x1 < fli.x1 {
+                                        point_stack.push(FillLineInfo::from(li.y, li.x1, fli.x1 - 1, -fli.dir));
+                                    }
+                                }
+
+                                fill_lines[li.y as usize].push(li);
+                            }
+                            cx += 1;
+                        }
+                    }
+                }
+            }
+        }
+        for fill_line in &fill_lines {
+            for li in fill_line {
+                self.bar(li.x1, li.y, li.x2, li.y);
+            }
+        }
+    }
+
+    pub fn bar(&mut self, left: i32, top: i32, right: i32, bottom: i32) {
+        self.bar_rect(Rectangle::from(left, top, right - left + 1, bottom - top + 1));
+    }
+
+    pub fn bar_rect(&mut self, rect: Rectangle) {
+        let rect = rect.intersect(&self.viewport);
+        if rect.get_width() == 0 || rect.get_height() == 0 {
+            return;
+        }
+        let right = rect.right();
+        let bottom = rect.bottom();
+        let mut ystart = rect.top() * self.window.width + rect.left();
+        if matches!(self.fill_style, FillStyle::Solid) {
+            for _ in rect.top()..bottom {
+                let mut x_start = ystart;
+                for _ in rect.left()..right {
+                    if x_start as usize >= self.screen.len() {
+                        break;
+                    }
+                    self.screen[x_start as usize] = self.fill_color;
+                    x_start += 1;
+                }
+                ystart += self.window.width;
+            }
+        } else {
+            let pattern = self.fill_style.get_fill_pattern(&self.fill_user_pattern);
+            let mut ypat = rect.top() % 8;
+            for _ in rect.top()..bottom {
+                let mut x_start = ystart as usize;
+                let mut xpatmask = (128 >> (rect.left() % 8)) as u8;
+                let pattern = pattern[ypat as usize];
+                for _ in rect.left()..right {
+                    if x_start >= self.screen.len() {
+                        break;
+                    }
+                    self.screen[x_start] = if (pattern & xpatmask) != 0 { self.fill_color } else { self.bkcolor };
+                    x_start += 1;
+                    xpatmask >>= 1;
+                    if xpatmask == 0 {
+                        xpatmask = 128;
+                    }
+                }
+                ypat = (ypat + 1) % 8;
+                ystart += self.window.width;
+            }
+        }
+    }
+
+    pub fn rip_bezier(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, x4: i32, y4: i32, cnt: i32) {
+        let mut targets = Vec::new();
+        targets.push(x1);
+        targets.push(y1);
+        for step in 1..cnt {
+            let tf = (step as f64) / cnt as f64;
+            let tr = ((cnt - step) as f64) / cnt as f64;
+            let tfs = tf.powf(2.0);
+            let tfstr = tfs * tr;
+            let tfc = tf.powf(3.0);
+            let trs = tr.powf(2.0);
+            let tftrs = tf * trs;
+            let trc = tr.powf(3.0);
+
+            let x = trc * x1 as f64 + 3.0 * tftrs * x2 as f64 + 3.0 * tfstr * x3 as f64 + tfc * x4 as f64;
+            let y = trc * y1 as f64 + 3.0 * tftrs * y2 as f64 + 3.0 * tfstr * y3 as f64 + tfc * y4 as f64;
+            targets.push(x as i32);
+            targets.push(y as i32);
+        }
+        targets.push(x4);
+        targets.push(y4);
+
+        let mut j = 2;
+        while j < targets.len() {
+            self.line(targets[j - 2], targets[j - 1], targets[j], targets[j + 1]);
+            j += 2;
+        }
+    }
+
+    pub fn draw_bezier(&mut self, count: i32, points: &[Position], segments: i32) {
+        let mut x1 = points[0].x;
+        let mut y1 = points[0].y;
+        let mut v = 1;
+        loop {
+            let mut x3 = 0.0;
+            let mut y3 = 0.0;
+            let br = v as f64 / segments as f64;
+            for i in 0..4usize {
+                let ar = bezier_handler::bezier(br, i as i32);
+                x3 += points[i].x as f64 * ar;
+                y3 += points[i].y as f64 * ar;
+            }
+            let x2 = (x3).round() as i32;
+            let y2 = (y3).round() as i32;
+            self.line(x1, y1, x2, y2);
+            x1 = x2;
+            y1 = y2;
+            v += 1;
+            if v >= segments {
+                break;
+            }
+        }
+
+        self.line(x1, y1, points[count as usize - 1].x, points[count as usize - 1].y);
+    }
+
+    pub fn draw_poly(&mut self, points: &[Position]) {
+        let mut last_point = points[0];
+        for point in points {
+            self.line(last_point.x, last_point.y, point.x, point.y);
+            last_point = point.clone();
+        }
+        self.line(last_point.x, last_point.y, points[0].x, points[0].y);
+    }
+
+    pub fn draw_poly_line(&mut self, points: &[Position]) {
+        let mut last_point = points[0];
+        for point in points {
+            self.line(last_point.x, last_point.y, point.x, point.y);
+            last_point = point.clone();
+        }
+    }
+
+    pub fn fill_poly(&mut self, points: &[Position]) {
+        if points.len() <= 1 {
+            return;
+        }
+
+        let mut rows = create_scan_rows();
+        if !self.viewport.contains_pt(points[0]) {
+            return;
+        }
+        for i in 1..points.len() as i32 {
+            /*if !self.viewport.Contains(points[i]) {
+                return;
+            }*/
+            scan_lines(i - 1, i, &mut rows, points, false);
+        }
+        scan_lines(points.len() as i32 - 1, 0, &mut rows, points, false);
+
+        if !matches!(self.fill_style, FillStyle::Empty) {
+            for i in 1..rows.len() as i32 {
+                let row = &mut rows[i as usize];
+                let y = i - 1;
+                if !row.is_empty() {
+                    row.sort_unstable();
+                    let mut on = false;
+                    let mut lastx = -1;
+                    for curx in row {
+                        if on {
+                            self.bar(lastx, y, *curx, y);
+                        }
+                        on = !on;
+                        lastx = *curx;
+                    }
+                }
+            }
+        }
+        if self.color != 0 {
+            self.draw_poly(points);
+        }
+    }
+
+    pub fn arc(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius: i32) {
+        self.ellipse(x, y, start_angle, end_angle, radius, (radius as f64 * ASPECT).round() as i32);
+    }
+
     fn symmetry_scan(
         &mut self,
         x: i32,
@@ -813,228 +1051,13 @@ impl Bgi {
         }
     }
 
-    pub fn flood_fill(&mut self, x: i32, y: i32, border: u8) {
-        if !self.viewport.contains(x, y) {
-            return;
-        }
-        let mut fill_lines = vec![Vec::new(); self.viewport.get_height() as usize];
-        let mut point_stack = Vec::new();
-
-        if self.screen[(y * self.window.width + x) as usize] != border {
-            let li = self.find_line(x, y, border);
-            if let Some(li) = li {
-                point_stack.push(FillLineInfo::new(&li, 1));
-                point_stack.push(FillLineInfo::new(&li, -1));
-
-                fill_lines[li.y as usize].push(li);
-                //this.Bar(li.x1, li.y, li.x2, li.y);
-                while let Some(fli) = point_stack.pop() {
-                    let cury = fli.y + fli.dir;
-                    if cury < self.viewport.bottom() && cury >= self.viewport.top() {
-                        let ypos = cury * self.window.width;
-                        let mut cx = fli.x1;
-                        while cx <= fli.x2 {
-                            if self.screen[(ypos + cx) as usize] == border {
-                                cx += 1;
-                                continue; // it's a border color, so don't scan any more this direction
-                            }
-
-                            if already_drawn(&fill_lines, cx, cury) {
-                                cx += 1;
-                                continue; // already been here
-                            }
-
-                            let li = self.find_line(cx, cury, border); // find the borders on this line
-                            if let Some(li) = li {
-                                cx = li.x2;
-                                point_stack.push(FillLineInfo::new(&li, fli.dir));
-                                if self.fill_color != 0 {
-                                    // bgi doesn't go backwards when filling black!  why?  dunno.  it just does.
-                                    // if we go out of current line's bounds, check the opposite dir for those
-                                    if li.x2 > fli.x2 {
-                                        point_stack.push(FillLineInfo::from(li.y, fli.x2 + 1, li.x2, -fli.dir));
-                                    }
-                                    if li.x1 < fli.x1 {
-                                        point_stack.push(FillLineInfo::from(li.y, li.x1, fli.x1 - 1, -fli.dir));
-                                    }
-                                }
-
-                                fill_lines[li.y as usize].push(li);
-                            }
-                            cx += 1;
-                        }
-                    }
-                }
-            }
-        }
-        for fill_line in &fill_lines {
-            for cli in fill_line {
-                self.bar(cli.x1, cli.y, cli.x2, cli.y);
-            }
-        }
-    }
-
-    pub fn bar(&mut self, left: i32, top: i32, right: i32, bottom: i32) {
-        self.bar_rect(Rectangle::from(left, top, right - left + 1, bottom - top + 1));
-    }
-
-    pub fn bar_rect(&mut self, rect: Rectangle) {
-        let rect = rect.intersect(&self.viewport);
-        if rect.get_width() == 0 || rect.get_height() == 0 {
-            return;
-        }
-        let right = rect.right();
-        let bottom = rect.bottom();
-        let mut ystart = rect.top() * self.window.width + rect.left();
-        if matches!(self.fill_style, FillStyle::Solid) {
-            for _ in rect.top()..bottom {
-                let mut x_start = ystart;
-                for _ in rect.left()..right {
-                    if x_start as usize >= self.screen.len() {
-                        break;
-                    }
-                    self.screen[x_start as usize] = self.fill_color;
-                    x_start += 1;
-                }
-                ystart += self.window.width;
-            }
-        } else {
-            let pattern = self.fill_style.get_fill_pattern(&self.fill_user_pattern);
-            let mut ypat = rect.top() % 8;
-            for _ in rect.top()..bottom {
-                let mut x_start = ystart as usize;
-                let mut xpatmask = (128 >> (rect.left() % 8)) as u8;
-                let pattern = pattern[ypat as usize];
-                for _ in rect.left()..right {
-                    if x_start >= self.screen.len() {
-                        break;
-                    }
-                    self.screen[x_start] = if (pattern & xpatmask) != 0 { self.fill_color } else { self.bkcolor };
-                    x_start += 1;
-                    xpatmask >>= 1;
-                    if xpatmask == 0 {
-                        xpatmask = 128;
-                    }
-                }
-                ypat = (ypat + 1) % 8;
-                ystart += self.window.width;
-            }
-        }
-    }
-
-    /*  pub fn rip_bezier(&mut self,  x1: i32, y1: i32, x2: i32, y2: i32, x3: i32, y3: i32, x4: i32, y4: i32,  cnt: i32) {
-        let mut targets = Vec::new();
-        targets.push(x1);
-        targets.push(y1);
-        for step in 1..cnt {
-            let tf = (step as f64) / cnt as f64;
-            let tr = ((cnt - step) as f64) / cnt as f64;
-            let tfs = tf.powf(2.0);
-            let tfstr = tfs * tr;
-            let tfc = tf.powf(3.0);
-            let trs = tr.powf(2.0);
-            let tftrs = tf * trs;
-            let trc = tr.powf(3.0);
-
-            let x = trc * x1 as f64 + 3.0 * tftrs * x2 as f64 + 3.0 * tfstr * x3 as f64 + tfc * x4 as f64;
-            let y = trc * y1 as f64 + 3.0 * tftrs * y2 as f64 + 3.0 * tfstr * y3 as f64 + tfc * y4 as f64;
-            targets.push(x as i32);
-            targets.push(y as i32);
-        }
-        targets.push(x4);
-        targets.push(y4);
-
-        let mut j = 2;
-        while j < targets.len() {
-            self.line(targets[j - 2], targets[j - 1], targets[j], targets[j + 1]);
-            j += 2;
-        }
-    }*/
-
-    pub fn draw_bezier(&mut self, count: i32, points: &[Position], segments: i32) {
-        let mut x1 = points[0].x;
-        let mut y1 = points[0].y;
-        let mut v = 1;
-        loop {
-            let mut x3 = 0.0;
-            let mut y3 = 0.0;
-            let br = v as f64 / segments as f64;
-            for i in 0..4usize {
-                let ar = bezier_handler::bezier(br, i as i32);
-                x3 += points[i].x as f64 * ar;
-                y3 += points[i].y as f64 * ar;
-            }
-            let x2 = (x3).round() as i32;
-            let y2 = (y3).round() as i32;
-            self.line(x1, y1, x2, y2);
-            x1 = x2;
-            y1 = y2;
-            v += 1;
-            if v >= segments {
-                break;
-            }
-        }
-
-        self.line(x1, y1, points[count as usize - 1].x, points[count as usize - 1].y);
-    }
-
-    pub fn draw_poly(&mut self, points: &[Position]) {
-        let mut last_point = points[0];
-        for point in points {
-            self.line(last_point.x, last_point.y, point.x, point.y);
-            last_point = point.clone();
-        }
-        self.line(last_point.x, last_point.y, points[0].x, points[0].y);
-    }
-    pub fn fill_poly(&mut self, points: &[Position]) {
-        if points.len() <= 1 {
-            return;
-        }
-
-        let mut rows = create_scan_rows();
-        if !self.viewport.contains_pt(points[0]) {
-            return;
-        }
-        for i in 1..points.len() as i32 {
-            /*if !self.viewport.Contains(points[i]) {
-                return;
-            }*/
-            scan_lines(i - 1, i, &mut rows, points, false);
-        }
-        scan_lines(points.len() as i32 - 1, 0, &mut rows, points, false);
-
-        if !matches!(self.fill_style, FillStyle::Empty) {
-            for i in 1..rows.len() as i32 {
-                let row = &mut rows[i as usize];
-                let y = i - 1;
-                if !row.is_empty() {
-                    row.sort_unstable();
-                    let mut on = false;
-                    let mut lastx = -1;
-                    for curx in row {
-                        if on {
-                            self.bar(lastx, y, *curx, y);
-                        }
-                        on = !on;
-                        lastx = *curx;
-                    }
-                }
-            }
-        }
-        if self.color != 0 {
-            self.draw_poly(points);
-        }
-    }
-
-    pub fn arc(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius: i32) {
-        self.ellipse(x, y, start_angle, end_angle, radius, (radius as f64 * ASPECT) as i32);
-    }
-
     pub fn scan_ellipse(&mut self, x: i32, y: i32, mut start_angle: i32, mut end_angle: i32, radiusx: i32, radiusy: i32, rows: &mut Vec<Vec<i32>>) {
         // check if valid angles
         if start_angle > end_angle {
             std::mem::swap(&mut start_angle, &mut end_angle);
         }
+
+        let end_angle = end_angle + 3;
 
         let radiusx = radiusx.max(1);
         let radius_y = radiusy.max(1);
@@ -1060,29 +1083,9 @@ impl Bgi {
             let e2 = 2 * err;
             let angle = (yoffset as f64 * aspect / xoffset as f64).atan() * RAD2DEG;
 
-            self.symmetry_scan(
-                x,
-                y,
-                start_angle,
-                end_angle,
-                xoffset,
-                yoffset,
-                angle.round() as i32,
-                angle <= horizontal_angle,
-                rows,
-            );
-            if (angle - horizontal_angle).abs() < 1.0 {
-                self.symmetry_scan(
-                    x,
-                    y,
-                    start_angle,
-                    end_angle,
-                    xoffset,
-                    yoffset,
-                    angle.round() as i32,
-                    angle > horizontal_angle,
-                    rows,
-                );
+            self.symmetry_scan(x, y, start_angle, end_angle, xoffset, yoffset, angle as i32, angle <= horizontal_angle, rows);
+            if (angle - horizontal_angle).abs() <= 1.0 {
+                self.symmetry_scan(x, y, start_angle, end_angle, xoffset, yoffset, angle as i32, angle > horizontal_angle, rows);
             }
 
             if e2 <= stop_y {
@@ -1099,7 +1102,6 @@ impl Bgi {
                 break;
             }
         }
-
         xoffset += 1;
         while yoffset < radius_y {
             let angle = (yoffset as f64 * aspect / xoffset as f64).atan() * RAD2DEG;
@@ -1114,7 +1116,7 @@ impl Bgi {
                 angle <= horizontal_angle,
                 rows,
             );
-            if angle == horizontal_angle {
+            if (angle - horizontal_angle).abs() <= f64::EPSILON {
                 self.symmetry_scan(
                     x,
                     y,
@@ -1459,6 +1461,9 @@ impl Bgi {
     }
 
     pub fn put_image(&mut self, x: i32, y: i32, image: &Image, op: WriteMode) {
+        let old_wm = self.get_write_mode();
+        self.set_write_mode(op);
+
         let mut pos = 0;
         for iy in 0..image.height {
             for ix in 0..image.width {
@@ -1470,15 +1475,29 @@ impl Bgi {
                 if !self.viewport.contains(x, y) {
                     continue;
                 }
-                match op {
-                    WriteMode::Copy => self.put_pixel(x, y, col),
-                    WriteMode::Xor => self.put_pixel(x, y, self.get_pixel(x, y) ^ col),
-                    WriteMode::Or => self.put_pixel(x, y, self.get_pixel(x, y) | col),
-                    WriteMode::And => self.put_pixel(x, y, self.get_pixel(x, y) & col),
-                    WriteMode::Not => self.put_pixel(x, y, self.get_pixel(x, y) & !col),
-                }
+                self.put_pixel(x, y, col);
             }
         }
+
+        self.set_write_mode(old_wm);
+    }
+
+    pub fn set_text_window(&mut self, x1: i32, y1: i32, x2: i32, y2: i32, wrap: bool) {
+        self.text_window = Some(Rectangle::from(x1, y1, x2 - x1, y2 - y1));
+        self.text_window_wrap = wrap;
+    }
+
+    pub fn clear_text_window(&mut self) {
+        if let Some(text_window) = self.text_window {
+            self.bar_rect(text_window);
+        }
+    }
+
+    pub fn set_viewport(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
+        self.viewport = Rectangle::from(x0, y0, x1 - x0, y1 - y0);
+    }
+    pub fn clear_viewport(&mut self) {
+        self.bar_rect(self.viewport);
     }
 }
 
@@ -1559,11 +1578,17 @@ pub fn arc_coords(angle: f64, rx: f64, ry: f64) -> Position {
     if s.abs() < c.abs() {
         let tg = s / c;
         let xr = (rx * rx * ry * ry / (ry * ry + rx * rx * tg * tg)).sqrt();
-        Position::new(if c >= 0.0 { xr } else { -xr } as i32, if s >= 0.0 { -xr * tg } else { xr * tg } as i32)
+        Position::new(
+            (if c >= 0.0 { xr } else { -xr }).round() as i32,
+            (if s >= 0.0 { -xr * tg } else { xr * tg }).round() as i32,
+        )
     } else {
         let ctg = c / s;
         let yr = (rx * rx * ry * ry / (rx * rx + ry * ry * ctg * ctg)).sqrt();
-        Position::new(if c >= 0.0 { yr * ctg } else { -yr * ctg } as i32, if s >= 0.0 { -yr } else { yr } as i32)
+        Position::new(
+            (if c >= 0.0 { yr * ctg } else { -yr * ctg }).round() as i32,
+            (if s >= 0.0 { -yr } else { yr }).round() as i32,
+        )
     }
 }
 

@@ -42,12 +42,25 @@ impl Command for TextWindow {
             }
 
             9 => {
-                self.size = ch.to_digit(32).unwrap() as i32;
+                self.size = ch.to_digit(36).unwrap() as i32;
                 Ok(false)
             }
 
             _ => Err(anyhow::Error::msg("Invalid state")),
         }
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        let (x, y) = match self.size {
+            1 => (7, 8),
+            2 => (8, 14),
+            3 => (7, 14),
+            4 => (16, 14),
+            _ => (8, 8),
+        };
+
+        bgi.set_text_window(self.x0 * x, self.y0 * y, self.x1 * x, self.y1 * y, self.wrap);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
@@ -58,7 +71,7 @@ impl Command for TextWindow {
             to_base_36(2, self.x1),
             to_base_36(2, self.y1),
             i32::from(self.wrap),
-            self.size
+            to_base_36(1, self.size),
         )
     }
 }
@@ -101,6 +114,11 @@ impl Command for ViewPort {
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_viewport(self.x0, self.y0, self.x1, self.y1);
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         format!(
             "|v{}{}{}{}",
@@ -134,7 +152,7 @@ impl Command for EraseWindow {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        bgi.clear_device();
+        bgi.clear_text_window();
         Ok(())
     }
 }
@@ -145,6 +163,11 @@ pub struct EraseView {}
 impl Command for EraseView {
     fn to_rip_string(&self) -> String {
         "|E".to_string()
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.clear_viewport();
+        Ok(())
     }
 }
 
@@ -654,7 +677,11 @@ impl Command for Bar {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        bgi.bar(self.x0, self.y0, self.x1, self.y1);
+        let (left, right) = if self.x0 < self.x1 { (self.x0, self.x1) } else { (self.x1, self.x0) };
+
+        let (top, bottom) = if self.y0 < self.y1 { (self.y0, self.y1) } else { (self.y1, self.y0) };
+
+        bgi.bar(left, top, right, bottom);
         Ok(())
     }
 
@@ -1172,16 +1199,16 @@ impl Command for Bezier {
     }
 
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        // bgi.rip_bezier(self.x1, self.y1, self.x2, self.y2, self.x3, self.y3, self.x4, self.y4, self.cnt);
-
-        let points = vec![
-            Position::new(self.x1, self.y1),
-            Position::new(self.x2, self.y2),
-            Position::new(self.x3, self.y3),
-            Position::new(self.x4, self.y4),
-        ];
-        bgi.draw_bezier(points.len() as i32, &points, self.cnt);
-
+        bgi.rip_bezier(self.x1, self.y1, self.x2, self.y2, self.x3, self.y3, self.x4, self.y4, self.cnt);
+        /*
+                let points = vec![
+                    Position::new(self.x1, self.y1),
+                    Position::new(self.x2, self.y2),
+                    Position::new(self.x3, self.y3),
+                    Position::new(self.x4, self.y4),
+                ];
+                bgi.draw_bezier(points.len() as i32, &points, self.cnt);
+        */
         Ok(())
     }
 
@@ -1230,7 +1257,7 @@ impl Command for Polygon {
     fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
         let mut points = Vec::new();
         for i in 0..self.points.len() / 2 {
-            points.push(Position::new(self.points[i as usize * 2], self.points[i as usize * 2 + 1]));
+            points.push(Position::new(self.points[i * 2], self.points[i * 2 + 1]));
         }
         bgi.draw_poly(&points);
         Ok(())
@@ -1322,10 +1349,7 @@ impl Command for PolyLine {
         for i in 0..self.points.len() / 2 {
             points.push(Position::new(self.points[i * 2], self.points[i * 2 + 1]));
         }
-        bgi.move_to(points[0].x, points[0].y);
-        for p in points.iter().skip(1) {
-            bgi.line_to(p.x, p.y);
-        }
+        bgi.draw_poly_line(&points);
         Ok(())
     }
 
@@ -1844,6 +1868,7 @@ impl Command for PutImage {
         bgi.put_rip_image(self.x, self.y, super::bgi::WriteMode::from(self.mode as u8));
         Ok(())
     }
+
     fn to_rip_string(&self) -> String {
         format!(
             "|1P{}{}{}{}",
@@ -2236,6 +2261,12 @@ impl Command for CopyRegion {
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        let image = bgi.get_image(self.x0, self.y0, self.x1, self.y1 + 1);
+        bgi.put_image(self.x0, self.dest_line, &image, bgi.get_write_mode());
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         format!(
             "|1G{}{}{}{}{}{}",
@@ -2346,5 +2377,24 @@ impl Command for EnterBlockMode {
             to_base_36(4, self.res),
             self.file_name
         )
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct TextVariable {
+    pub text: String,
+}
+
+impl Command for TextVariable {
+    fn parse(&mut self, _state: &mut i32, ch: char) -> EngineResult<bool> {
+        if ch == '$' {
+            return Ok(false);
+        }
+        self.text.push(ch);
+        Ok(true)
+    }
+
+    fn to_rip_string(&self) -> String {
+        format!("|${}$", self.text)
     }
 }
