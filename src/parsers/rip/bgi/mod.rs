@@ -2,6 +2,8 @@ use std::f64::consts;
 
 use crate::{rip::bgi::font::Font, BitFont, Palette, Position, Rectangle, Size, EGA_PALETTE};
 
+use super::commands::Mouse;
+
 mod character;
 mod font;
 
@@ -268,9 +270,121 @@ pub struct Image {
     pub data: Vec<u8>,
 }
 
+#[derive(Clone, Copy, Default)]
+pub enum LabelOrientation {
+    Above,
+    Left,
+    #[default]
+    Center,
+    Right,
+    Below,
+}
+
+impl LabelOrientation {
+    pub fn from(orientation: u8) -> LabelOrientation {
+        match orientation {
+            0 => LabelOrientation::Above,
+            1 => LabelOrientation::Left,
+            // 2 => LabelOrientation::Center,
+            3 => LabelOrientation::Right,
+            4 => LabelOrientation::Below,
+            _ => LabelOrientation::Center,
+        }
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct ButtonStyle2 {
+    pub size: Size,
+    pub orientation: LabelOrientation,
+
+    pub bevel_size: i32,
+
+    pub label_color: i32,
+    pub drop_shadow_color: i32,
+    pub bright: i32,
+    pub dark: i32,
+
+    pub flags: i32,
+    pub flags2: i32,
+
+    pub surface_color: i32,
+    pub group: i32,
+    pub underline_color: i32,
+    pub corner_color: i32,
+}
+
+impl ButtonStyle2 {
+    pub fn is_clipboard_button(&self) -> bool {
+        self.flags & 1 != 0
+    }
+
+    pub fn is_icon_button(&self) -> bool {
+        self.flags & 128 != 0
+    }
+
+    pub fn is_plain_button(&self) -> bool {
+        self.flags & 256 != 0
+    }
+
+    pub fn is_mouse_button(&self) -> bool {
+        self.flags & 1024 != 0
+    }
+
+    pub fn is_invertable_button(&self) -> bool {
+        self.flags & 2 != 0
+    }
+
+    pub fn reset_screen_after_click(&self) -> bool {
+        self.flags & 4 != 0
+    }
+
+    pub fn display_chisel(&self) -> bool {
+        self.flags & 8 != 0
+    }
+
+    pub fn display_recessed(&self) -> bool {
+        self.flags & 16 != 0
+    }
+
+    pub fn display_dropshadow(&self) -> bool {
+        self.flags & 32 != 0
+    }
+
+    pub fn stamp_image_on_clipboard(&self) -> bool {
+        self.flags & 64 != 0
+    }
+
+    pub fn display_bevel_special_effect(&self) -> bool {
+        self.flags & 512 != 0
+    }
+
+    pub fn underline_hotkey(&self) -> bool {
+        self.flags & 2048 != 0
+    }
+
+    pub fn use_hotkey_for_icon_button(&self) -> bool {
+        self.flags & 4096 != 0
+    }
+
+    pub fn adj_vertical_center(&self) -> bool {
+        self.flags & 8192 != 0
+    }
+
+    pub fn belongs_to_a_radio_group(&self) -> bool {
+        self.flags & 16384 != 0
+    }
+
+    pub fn display_sunken_effect(&self) -> bool {
+        self.flags & 32768 != 0
+    }
+}
+
 pub struct Bgi {
     color: u8,
     bkcolor: u8,
+
+    button_style: ButtonStyle2,
     write_mode: WriteMode,
     line_style: LineStyle,
     fill_style: FillStyle,
@@ -292,6 +406,8 @@ pub struct Bgi {
 
     text_window: Option<Rectangle>,
     text_window_wrap: bool,
+
+    mouse_fields: Vec<MouseField>,
 }
 
 mod bezier_handler {
@@ -352,6 +468,19 @@ impl FillLineInfo {
         Self { dir, x1, x2, y }
     }
 }
+pub struct MouseField {
+    x1: i32,
+    y1: i32,
+    x2: i32,
+    y2: i32,
+    hotkey: u8,
+}
+
+impl MouseField {
+    pub fn new(x1: i32, y1: i32, x2: i32, y2: i32, hotkey: u8) -> Self {
+        Self { x1, y1, x2, y2, hotkey }
+    }
+}
 
 impl Bgi {
     pub fn new() -> Bgi {
@@ -378,6 +507,8 @@ impl Bgi {
             rip_image: None,
             text_window: None,
             text_window_wrap: false,
+            button_style: ButtonStyle2::default(),
+            mouse_fields: Vec::new(),
         }
     }
 
@@ -494,6 +625,10 @@ impl Bgi {
 
     pub fn get_fill_pattern(&self) -> &Vec<u8> {
         &self.fill_user_pattern
+    }
+
+    pub fn set_button_style(&mut self, style: ButtonStyle2) {
+        self.button_style = style;
     }
 
     pub fn put_pixel(&mut self, x: i32, y: i32, color: u8) {
@@ -707,6 +842,35 @@ impl Bgi {
                 pos.x += l_advance;
             }
             self.fill_y(pos.x, pos.y, l_end_length, &mut offset);
+        }
+    }
+
+    fn draw_line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, color: u8) {
+        let dx = (x0 - x1).abs();
+        let dy = (y0 - y1).abs();
+
+        let sx = if x0 < x1 { 1 } else { -1 };
+        let sy = if y0 < y1 { 1 } else { -1 };
+        let mut err = dx - dy;
+
+        let mut x = x0;
+        let mut y = y0;
+        loop {
+            self.put_pixel(x, y, color);
+
+            if x == x1 && y == y1 {
+                break;
+            }
+
+            let e2 = 2 * err;
+            if e2 > -dy {
+                err -= dy;
+                x += sx;
+            }
+            if e2 < dx {
+                err += dx;
+                y += sy;
+            }
         }
     }
 
@@ -1323,6 +1487,7 @@ impl Bgi {
         self.clear_device();
         self.char_size = 4;
         self.font = FontType::Small;
+        self.clear_mouse_fields();
     }
 
     pub fn set_user_fill_pattern(&mut self, pattern: &[u8]) {
@@ -1439,6 +1604,20 @@ impl Bgi {
         Position::new(xf, yf)
     }
 
+    pub fn get_text_size(&mut self, str: &str) -> Size {
+        if str.is_empty() {
+            return Size::new(0, 0);
+        }
+
+        let font = self.font;
+        if matches!(font, FontType::Default) {
+            return Size::new(str.len() as i32 * 8, 8);
+        }
+
+        let loaded_font = font.get_font();
+        loaded_font.get_text_size(str, self.direction, self.char_size)
+    }
+
     pub fn get_image(&self, x0: i32, y0: i32, x1: i32, y1: i32) -> Image {
         let mut image = Vec::new();
         for y in y0..y1 {
@@ -1498,6 +1677,221 @@ impl Bgi {
     }
     pub fn clear_viewport(&mut self) {
         self.bar_rect(self.viewport);
+    }
+
+    pub fn clear_mouse_fields(&mut self) {
+        self.mouse_fields.clear();
+    }
+
+    pub fn add_mouse_field(&mut self, mouse_field: MouseField) {
+        self.mouse_fields.push(mouse_field);
+    }
+
+    pub fn add_button(&mut self, x1: i32, y1: i32, mut x2: i32, mut y2: i32, hotkey: u8, flags: i32, text: &str) {
+        let mut ox = x1;
+        let mut oy = y1;
+
+        let bg = 0;
+        let ch = self.button_style.label_color as u8;
+        let cs = self.button_style.drop_shadow_color as u8;
+        let su = self.button_style.surface_color as u8;
+        let ul = self.button_style.underline_color as u8;
+        let cc = self.button_style.corner_color as u8;
+
+        let mut width = x2 - x1 + 1;
+        let mut height = y2 - y1 + 1;
+
+        self.add_mouse_field(MouseField::new(x1, y1, x2, y2, hotkey));
+
+        if x2 == 0 {
+            width = self.button_style.size.width;
+            x2 = x1 + width;
+        }
+        if y2 == 0 {
+            height = self.button_style.size.height;
+            y2 = y1 + height;
+        }
+        //  println!("add_button({}, {}, {}, {}, {}, {}, {})", x1, y1, x2, y2, hotkey, flags, text);
+
+        if self.button_style.display_recessed() && !self.button_style.is_invertable_button() {
+            width += 4;
+            height += 4;
+            ox -= 2;
+            oy -= 2;
+        }
+
+        if self.button_style.display_bevel_special_effect() {
+            width += 2 * self.button_style.bevel_size;
+            height += 2 * self.button_style.bevel_size;
+            ox -= self.button_style.bevel_size;
+            oy -= self.button_style.bevel_size;
+        }
+
+        if self.button_style.display_recessed() && !self.button_style.is_invertable_button() {
+            self.draw_line(ox, oy, ox + width - 1, oy, cs);
+            self.draw_line(ox, oy, ox, oy + height - 1, cs);
+            self.draw_line(ox + width - 1, oy, ox + width - 1, oy + height - 1, ch);
+            self.draw_line(ox, oy + height - 1, ox + width - 1, oy + height - 1, ch);
+            self.put_pixel(ox, oy, cc);
+            self.put_pixel(ox + width - 1, oy, cc);
+            self.put_pixel(ox, oy + height - 1, cc);
+            self.put_pixel(ox + width - 1, oy + height - 1, cc);
+            self.draw_line(ox + 1, oy + 1, ox + width - 2, oy + 1, bg);
+            self.draw_line(ox + 1, oy + 1, ox + 1, oy + height - 2, bg);
+            self.draw_line(ox + width - 2, oy + 1, ox + width - 2, oy + height - 2, bg);
+            self.draw_line(ox + 1, oy + height - 2, ox + width - 2, oy + height - 2, bg);
+            self.put_pixel(ox + 1, oy + 1, cc);
+            self.put_pixel(ox + width - 2, oy + 1, cc);
+            self.put_pixel(ox, oy + height - 2, cc);
+            self.put_pixel(ox + width - 2, oy + height - 2, cc);
+        }
+
+        if self.button_style.display_bevel_special_effect() {
+            for i in 1..self.button_style.bevel_size {
+                self.draw_line(x1 - i, y1 - i, x2 - 1 + i, y1 - i, ch);
+                self.draw_line(x1 - i, y1 - i, x1 - i, y2 - 1 + i, ch);
+                self.draw_line(x2 - 1 + i, y2 - 1 + i, x2 - 1 + i, y1 - i, cs);
+                self.draw_line(x2 - 1 + i, y2 - 1 + i, x1 - i, y2 - 1 + i, cs);
+                self.put_pixel(x1 - i, y1 - i, cc);
+                self.put_pixel(x2 - 1 + i, y1 - i, cc);
+                self.put_pixel(x1 - i, y2 - 1 + i, cc);
+                self.put_pixel(x2 - 1 + i, y2 - 1 + i, cc);
+            }
+        }
+        for y in y1..y2 {
+            for x in x1..x2 {
+                self.put_pixel(x, y, su);
+            }
+        }
+
+        if self.button_style.display_sunken_effect() {
+            self.draw_line(x1, y1, x2, y1, cs);
+            self.draw_line(x1, y1, x1, y2, cs);
+            self.draw_line(x2, y2, x2, y1, ch);
+            self.draw_line(x2, y2, x1, y2, ch);
+            self.put_pixel(x1, y1, cc);
+            self.put_pixel(x2, y1, cc);
+            self.put_pixel(x2, y2, cc);
+            self.put_pixel(x1, y2, cc);
+        }
+        /*
+            if (but->flags.chisel) {
+                chisel_inset(y2 - y1 + 1, &xinset, &yinset);
+                self.draw_line(x1 + xinset,
+                    y1 + yinset,
+                    x2 - xinset - 1,
+                    y1 + yinset,
+                    cs,
+                    0xffff,
+                    1);
+                self.draw_line(x1 + xinset,
+                    y1 + yinset,
+                    x1 + xinset,
+                    y2 - yinset - 1,
+                    cs,
+                    0xffff,
+                    1);
+
+                self.draw_line(x1 + xinset + 1,
+                    y1 + yinset + 1,
+                    x2 - xinset - 1,
+                    y1 + yinset + 1,
+                    ch,
+                    0xffff,
+                    1);
+                self.draw_line(x2 - xinset - 1,
+                    y1 + yinset + 1,
+                    x2 - xinset - 1,
+                    y2 - yinset - 1,
+                    ch,
+                    0xffff,
+                    1);
+                self.draw_line(x2 - xinset - 1,
+                    y2 - yinset - 1,
+                    x1 + xinset + 1,
+                    y2 - yinset - 1,
+                    ch,
+                    0xffff,
+                    1);
+                self.draw_line(x1 + xinset + 1,
+                    y2 - yinset - 1,
+                    x1 + xinset + 1,
+                    y1 + yinset + 1,
+                    ch,
+                    0xffff,
+                    1);
+
+                self.draw_line(x1 + xinset + 2,
+                    y2 - 2 - yinset,
+                    x2 - xinset - 2,
+                    y2 - 2 - yinset,
+                    cs,
+                    0xffff,
+                    1);
+                self.draw_line(x2 - xinset - 2,
+                    y2 - 2 - yinset,
+                    x2 - xinset - 2,
+                    y1 + yinset + 2,
+                    cs,
+                    0xffff,
+                    1);
+            }
+        */
+        // TODO: Handle icons
+        /*
+        if self.button_style.stamp_image_on_clipboard() {
+            rip.clipboard = getpixels(x1 - but->bevel_size,
+                    y1 - but->bevel_size,
+                    x2 + but->bevel_size,
+                    y2 + but->bevel_size,
+                    false);
+            rip.bstyle.button = BUTTON_TYPE_CLIPBOARD;
+            rip.bstyle.flags.chisel = false;
+            rip.bstyle.flags.bevel = false;
+            rip.bstyle.flags.autostamp = false;
+            rip.bstyle.flags.sunken = false;
+        }*/
+
+        /*
+        if (but->flags.left_justify)
+            puts("TODO: Left Justify flag");
+        if (but->flags.right_justify)
+            puts("TODO: Right Justify flag");
+            */
+        if !text.is_empty() {
+            let mut text = text.to_string();
+            if let Some(strip) = text.strip_prefix("<>") {
+                text = strip.to_string();
+            }
+            if text.ends_with("<>") {
+                text.pop();
+                text.pop();
+            }
+
+            match self.button_style.orientation {
+                LabelOrientation::Above => todo!(),
+                LabelOrientation::Left => todo!(),
+                LabelOrientation::Right => todo!(),
+                LabelOrientation::Below => todo!(),
+
+                LabelOrientation::Center => {
+                    let old_col = self.get_color();
+                    let text_size = self.get_text_size(&text);
+                    let tx = ox + (width - text_size.width) / 2;
+                    let ty = oy + (height - text_size.height) / 2;
+
+                    if self.button_style.display_dropshadow() {
+                        self.set_color(cs);
+                        self.out_text_xy(tx + 1, ty + 1, &text);
+                    }
+
+                    self.set_color(ch);
+                    self.out_text_xy(tx, ty, &text);
+
+                    self.set_color(old_col);
+                }
+            }
+        }
     }
 }
 

@@ -1,7 +1,7 @@
-use crate::{rip::to_base_36, EngineResult, Position};
+use crate::{rip::to_base_36, EngineResult, Position, Size};
 
 use super::{
-    bgi::{Bgi, Direction, FontType},
+    bgi::{Bgi, ButtonStyle2, Direction, FontType, LabelOrientation},
     parse_base_36, Command,
 };
 
@@ -1672,6 +1672,11 @@ impl Command for Mouse {
 pub struct MouseFields {}
 
 impl Command for MouseFields {
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.clear_mouse_fields();
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         "|1K".to_string()
     }
@@ -2057,6 +2062,25 @@ impl Command for ButtonStyle {
         }
     }
 
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.set_button_style(ButtonStyle2 {
+            size: Size::new(self.wid, self.hgt),
+            orientation: LabelOrientation::from(self.orient as u8),
+            flags: self.flags,
+            bevel_size: self.size,
+            label_color: self.dfore,
+            drop_shadow_color: self.dback,
+            bright: self.bright,
+            dark: self.dark,
+            surface_color: self.surface,
+            group: self.grp_no,
+            flags2: self.flags2,
+            underline_color: self.uline_col,
+            corner_color: self.corner_col,
+        });
+        Ok(())
+    }
+
     fn to_rip_string(&self) -> String {
         format!(
             "|1B{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
@@ -2133,6 +2157,11 @@ impl Command for Button {
                 Ok(true)
             }
         }
+    }
+
+    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+        bgi.add_button(self.x0, self.y0, self.x1, self.y1, self.hotkey as u8, self.flags, &self.text);
+        Ok(())
     }
 
     fn to_rip_string(&self) -> String {
