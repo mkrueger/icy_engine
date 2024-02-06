@@ -56,9 +56,8 @@ pub trait BufferParser {
     /// This function will return an error if .
     fn print_char(&mut self, buffer: &mut Buffer, current_layer: usize, caret: &mut Caret, c: char) -> EngineResult<CallbackAction>;
 
-    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
-        None
-    }
+    fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
+        None    }
 }
 
 impl Caret {

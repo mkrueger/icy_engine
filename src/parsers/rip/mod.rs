@@ -1,7 +1,7 @@
 use self::bgi::Bgi;
 
 use super::{ansi, BufferParser};
-use crate::{ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle};
+use crate::{ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle, Size};
 
 pub mod bgi;
 mod commands;
@@ -53,7 +53,7 @@ pub struct Parser {
 
     rip_commands: Vec<Box<dyn Command>>,
     command: Option<Box<dyn Command>>,
-
+    last_rip_update: usize,
     pub bgi: Bgi,
 }
 
@@ -70,6 +70,7 @@ impl Parser {
             rip_commands: Vec::new(),
             command: None,
             bgi: Bgi::default(),
+            last_rip_update: usize::MAX
         }
     }
 
@@ -77,6 +78,7 @@ impl Parser {
         // clear viewport
     }
 
+/*
     pub fn run_commands(&mut self) -> EngineResult<()> {
         if let Some(cmd) = self.command.take() {
             self.rip_commands.push(cmd);
@@ -86,7 +88,7 @@ impl Parser {
             cmd.run(&mut self.bgi)?;
         }
         Ok(())
-    }
+    }*/
 
     fn parse_parameter(&mut self, ch: char) -> Option<Result<CallbackAction, anyhow::Error>> {
         if ch == '\\' {
@@ -96,6 +98,7 @@ impl Parser {
         if ch == '\n' || ch == '\r' {
             if let Some(t) = self.command.take() {
                 // println!("push: {:?}", t.to_rip_string());
+                t.run(&mut self.bgi);
                 self.rip_commands.push(t);
             }
             self.state = State::Default;
@@ -103,7 +106,7 @@ impl Parser {
         }
         if ch == '|' {
             if let Some(t) = self.command.take() {
-                // println!("push: {:?}", t.to_rip_string());
+                t.run(&mut self.bgi);
                 self.rip_commands.push(t);
             }
             self.state = State::ReadCommand(0);
@@ -116,6 +119,7 @@ impl Parser {
             Ok(false) => {
                 if let Some(t) = self.command.take() {
                     self.state = State::GotRipStart;
+                    t.run(&mut self.bgi);
                     self.rip_commands.push(t);
                 }
             }
@@ -141,13 +145,14 @@ impl Parser {
 
     pub fn push_command(&mut self, cmd: Box<dyn Command>) {
         self.state = State::GotRipStart;
+        cmd.run(&mut self.bgi);
         self.rip_commands.push(cmd);
     }
 }
 
 impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        // println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
+        //println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
         match self.state {
             State::ReadParams => {
                 if let Some(value) = self.parse_parameter(ch) {
@@ -217,7 +222,10 @@ impl BufferParser for Parser {
                 match ch {
                     'w' => self.start_command(Box::<commands::TextWindow>::default()),
                     'v' => self.start_command(Box::<commands::ViewPort>::default()),
-                    '*' => self.push_command(Box::<commands::ResetWindows>::default()),
+                    '*' => {
+                        self.push_command(Box::<commands::ResetWindows>::default());
+                        self.rip_commands.clear();
+                    }
                     'e' => self.push_command(Box::<commands::EraseWindow>::default()),
                     'E' => self.push_command(Box::<commands::EraseView>::default()),
                     'g' => self.start_command(Box::<commands::GotoXY>::default()),
@@ -323,13 +331,37 @@ impl BufferParser for Parser {
                             self.state = State::GotRipStart;
                             return Ok(CallbackAction::NoUpdate);
                         }
+                        self.fallback_parser.print_char(buf, current_layer, caret, ch);
                     }
                     _ => {}
                 }
             }
         }
+        Ok(CallbackAction::NoUpdate)
+    }
 
-        self.fallback_parser.print_char(buf, current_layer, caret, ch)
+    fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
+        if self.last_rip_update == self.rip_commands.len() {
+            return None;
+        }
+        self.last_rip_update = self.rip_commands.len();
+        let mut pixels = Vec::new();
+        let pal = self.bgi.get_palette().clone();
+        for i in &self.bgi.screen {
+            if *i == 0 {
+                pixels.push(0);
+                pixels.push(0);
+                pixels.push(0);
+                pixels.push(0);
+                continue;
+            }
+            let (r, g, b) = pal.get_rgb(*i as u32);
+            pixels.push(r);
+            pixels.push(g);
+            pixels.push(b);
+            pixels.push(255);
+        }
+        Some((self.bgi.window, pixels))
     }
 }
 

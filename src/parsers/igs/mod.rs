@@ -36,7 +36,7 @@ enum LoopState {
 
 pub trait CommandExecutor: Send + Sync {
     fn get_resolution(&self) -> Size;
-    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+    fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
         None
     }
 
@@ -412,7 +412,7 @@ impl BufferParser for Parser {
         }
     }
 
-    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+    fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
         self.command_executor.lock().unwrap().get_picture_data()
     }
 }

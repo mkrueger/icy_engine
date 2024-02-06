@@ -611,7 +611,7 @@ impl CommandExecutor for DrawExecutor {
         Size::new(s.width, s.height)
     }
 
-    fn get_picture_data(&self) -> Option<(Size, Vec<u8>)> {
+    fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
         Some((self.get_resolution(), self.screen.clone()))
     }
 
