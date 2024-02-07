@@ -13,26 +13,26 @@ use super::Bgi;
 use super::Direction;
 
 pub struct Font {
-    name: String,
-    size: u16,
-    font_major: u8,
-    font_minor: u8,
-    min_major: u8,
-    min_minor: u8,
+    pub name: String,
+    pub size: u16,
+    pub font_major: u8,
+    pub font_minor: u8,
+    pub min_major: u8,
+    pub min_minor: u8,
 
     characters: Vec<Option<Character>>,
 
     /// Height from origin to top of capitol
-    org_to_cap: i8,
+    pub org_to_cap: i8,
     /// Height from origin to baseline
-    org_to_base: i8,
+    pub org_to_base: i8,
     /// Height from origin to bot of decender
-    org_to_dec: i8,
+    pub org_to_dec: i8,
 
-    capital_height: i32,
-    base_height: i32,
-    descender_height: i32,
-    lower_case_height: i32,
+    pub capital_height: i32,
+    pub base_height: i32,
+    pub descender_height: i32,
+    pub lower_case_height: i32,
 }
 
 impl Font {
@@ -209,10 +209,10 @@ impl Font {
         match dir {
             Direction::Horizontal => Size::new(
                 width as i32,
-                (self.get_height() + self.org_to_dec.abs() as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize] as i32,
+                (self.get_height() + self.org_to_dec.abs() as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize],
             ),
             Direction::Vertical => Size::new(
-                (self.get_height() + self.org_to_dec.abs() as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize] as i32,
+                (self.get_height() + self.org_to_dec.abs() as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize],
                 width as i32,
             ),
         }
@@ -250,10 +250,10 @@ impl Font {
         match dir {
             Direction::Horizontal => Size::new(
                 width.round() as i32,
-                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize] as i32,
+                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize],
             ),
             Direction::Vertical => Size::new(
-                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize] as i32,
+                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize],
                 width.round() as i32,
             ),
         }

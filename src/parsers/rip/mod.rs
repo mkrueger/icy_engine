@@ -1,4 +1,6 @@
-use self::bgi::Bgi;
+use std::path::PathBuf;
+
+use self::bgi::{Bgi, MouseField};
 
 use super::{ansi, BufferParser};
 use crate::{ansi::EngineState, Buffer, CallbackAction, Caret, EngineResult, ParserError, Rectangle, Size};
@@ -35,9 +37,14 @@ pub trait Command {
 
     fn to_rip_string(&self) -> String;
 
-    fn run(&self, _bgi: &mut Bgi) -> EngineResult<()> {
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    fn run(&self, _buf: &mut Buffer, _bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         println!("not implemented RIP: {:?}", self.to_rip_string());
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 }
 
@@ -51,14 +58,16 @@ pub struct Parser {
     _viewport: Option<Rectangle>,
     _current_write_mode: WriteMode,
 
+    rip_counter: i32,
     rip_commands: Vec<Box<dyn Command>>,
     command: Option<Box<dyn Command>>,
-    last_rip_update: usize,
+    last_rip_update: i32,
     pub bgi: Bgi,
+    pub record_rip_commands: bool,
 }
 
 impl Parser {
-    pub fn new(fallback_parser: Box<ansi::Parser>) -> Self {
+    pub fn new(fallback_parser: Box<ansi::Parser>, file_path: PathBuf) -> Self {
         Self {
             fallback_parser,
             enable_rip: true,
@@ -69,8 +78,10 @@ impl Parser {
             _current_write_mode: WriteMode::Normal,
             rip_commands: Vec::new(),
             command: None,
-            bgi: Bgi::default(),
-            last_rip_update: usize::MAX
+            bgi: Bgi::new(file_path),
+            last_rip_update: 0,
+            record_rip_commands: false,
+            rip_counter: 0,
         }
     }
 
@@ -78,19 +89,15 @@ impl Parser {
         // clear viewport
     }
 
-/*
-    pub fn run_commands(&mut self) -> EngineResult<()> {
-        if let Some(cmd) = self.command.take() {
-            self.rip_commands.push(cmd);
+    fn record_rip_command(&mut self, cmd: Box<dyn Command>) {
+        self.rip_counter = self.rip_counter.wrapping_add(1);
+        if !self.record_rip_commands {
+            return;
         }
-        for cmd in &self.rip_commands {
-            //println!("run: {:?}", cmd.to_rip_string());
-            cmd.run(&mut self.bgi)?;
-        }
-        Ok(())
-    }*/
+        self.rip_commands.push(cmd);
+    }
 
-    fn parse_parameter(&mut self, ch: char) -> Option<Result<CallbackAction, anyhow::Error>> {
+    fn parse_parameter(&mut self, buf: &mut Buffer, ch: char) -> Option<Result<CallbackAction, anyhow::Error>> {
         if ch == '\\' {
             self.state = State::SkipEOL;
             return Some(Ok(CallbackAction::NoUpdate));
@@ -100,16 +107,16 @@ impl Parser {
         }
         if ch == '\n' {
             if let Some(t) = self.command.take() {
-                t.run(&mut self.bgi);
-                self.rip_commands.push(t);
+                t.run(buf, &mut self.bgi);
+                self.record_rip_command(t);
             }
             self.state = State::Default;
             return Some(Ok(CallbackAction::NoUpdate));
         }
         if ch == '|' {
             if let Some(t) = self.command.take() {
-                t.run(&mut self.bgi);
-                self.rip_commands.push(t);
+                t.run(buf, &mut self.bgi);
+                self.record_rip_command(t);
             }
             self.state = State::ReadCommand(0);
             return Some(Ok(CallbackAction::NoUpdate));
@@ -121,8 +128,8 @@ impl Parser {
             Ok(false) => {
                 if let Some(t) = self.command.take() {
                     self.state = State::GotRipStart;
-                    t.run(&mut self.bgi);
-                    self.rip_commands.push(t);
+                    t.run(buf, &mut self.bgi);
+                    self.record_rip_command(t);
                 }
             }
             Err(e) => {
@@ -135,7 +142,7 @@ impl Parser {
     }
 }
 
-static RIP_TERMINAL_ID: &str = "RIPSCRIP01540\0";
+static RIP_TERMINAL_ID: &str = "RIPSCRIP015410";
 
 impl Parser {
     pub fn start_command(&mut self, cmd: Box<dyn Command>) {
@@ -145,19 +152,25 @@ impl Parser {
         self.state = State::ReadParams;
     }
 
-    pub fn push_command(&mut self, cmd: Box<dyn Command>) {
+    pub fn push_command(&mut self, buf: &mut Buffer, cmd: Box<dyn Command>) {
         self.state = State::GotRipStart;
-        cmd.run(&mut self.bgi);
-        self.rip_commands.push(cmd);
+        cmd.run(buf, &mut self.bgi);
+        self.record_rip_command(cmd);
     }
 }
 
 impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
         // println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
+
+        if buf.terminal_state.cleared_screen {
+            buf.terminal_state.cleared_screen = false;
+            self.bgi.graph_defaults();
+        }
+
         match self.state {
             State::ReadParams => {
-                if let Some(value) = self.parse_parameter(ch) {
+                if let Some(value) = self.parse_parameter(buf, ch) {
                     return value;
                 }
                 return Ok(CallbackAction::NoUpdate);
@@ -170,7 +183,7 @@ impl BufferParser for Parser {
                     self.state = State::ReadParams;
                     return Ok(CallbackAction::NoUpdate);
                 }
-                if let Some(value) = self.parse_parameter(ch) {
+                if let Some(value) = self.parse_parameter(buf, ch) {
                     return value;
                 }
                 self.state = State::ReadParams;
@@ -185,10 +198,10 @@ impl BufferParser for Parser {
                 if level == 1 {
                     match ch {
                         'M' => self.start_command(Box::<commands::Mouse>::default()),
-                        'K' => self.push_command(Box::<commands::MouseFields>::default()),
+                        'K' => self.push_command(buf, Box::<commands::MouseFields>::default()),
                         'T' => self.start_command(Box::<commands::BeginText>::default()),
                         't' => self.start_command(Box::<commands::RegionText>::default()),
-                        'E' => self.push_command(Box::<commands::EndText>::default()),
+                        'E' => self.push_command(buf, Box::<commands::EndText>::default()),
                         'C' => self.start_command(Box::<commands::GetImage>::default()),
                         'P' => self.start_command(Box::<commands::PutImage>::default()),
                         'W' => self.start_command(Box::<commands::WriteIcon>::default()),
@@ -225,15 +238,12 @@ impl BufferParser for Parser {
                 match ch {
                     'w' => self.start_command(Box::<commands::TextWindow>::default()),
                     'v' => self.start_command(Box::<commands::ViewPort>::default()),
-                    '*' => {
-                        self.push_command(Box::<commands::ResetWindows>::default());
-                        self.rip_commands.clear();
-                    }
-                    'e' => self.push_command(Box::<commands::EraseWindow>::default()),
-                    'E' => self.push_command(Box::<commands::EraseView>::default()),
+                    '*' => self.push_command(buf, Box::<commands::ResetWindows>::default()),
+                    'e' => self.push_command(buf, Box::<commands::EraseWindow>::default()),
+                    'E' => self.push_command(buf, Box::<commands::EraseView>::default()),
                     'g' => self.start_command(Box::<commands::GotoXY>::default()),
-                    'H' => self.push_command(Box::<commands::Home>::default()),
-                    '>' => self.push_command(Box::<commands::EraseEOL>::default()),
+                    'H' => self.push_command(buf, Box::<commands::Home>::default()),
+                    '>' => self.push_command(buf, Box::<commands::EraseEOL>::default()),
                     'c' => self.start_command(Box::<commands::Color>::default()),
                     'Q' => self.start_command(Box::<commands::SetPalette>::default()),
                     'a' => self.start_command(Box::<commands::OnePalette>::default()),
@@ -277,6 +287,9 @@ impl BufferParser for Parser {
                     }
                     _ => {
                         self.state = State::Default;
+                        if self.bgi.suspend_text {
+                            return Ok(CallbackAction::NoUpdate);
+                        }
                         self.fallback_parser.print_char(buf, current_layer, caret, '!')?;
                         self.fallback_parser.print_char(buf, current_layer, caret, '|')?;
                         return self.fallback_parser.print_char(buf, current_layer, caret, ch);
@@ -294,6 +307,10 @@ impl BufferParser for Parser {
                 }
                 if ch != '|' {
                     self.state = State::Default;
+                    if self.bgi.suspend_text {
+                        return Ok(CallbackAction::NoUpdate);
+                    }
+
                     self.fallback_parser.print_char(buf, current_layer, caret, '!')?;
                     return self.fallback_parser.print_char(buf, current_layer, caret, ch);
                 }
@@ -307,11 +324,14 @@ impl BufferParser for Parser {
                             // Select Graphic Rendition
                             self.fallback_parser.state = EngineState::Default;
                             if self.fallback_parser.parsed_numbers.is_empty() {
+                                println!("RIP_TERMINAL_ID: {:?}", RIP_TERMINAL_ID);
                                 return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                             }
 
                             match self.fallback_parser.parsed_numbers.first() {
                                 Some(0) => {
+                                    println!("RIP_TERMINAL_ID: {:?}", RIP_TERMINAL_ID);
+
                                     return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                                 }
                                 Some(1) => {
@@ -341,31 +361,22 @@ impl BufferParser for Parser {
                 }
             }
         }
+        if self.bgi.suspend_text {
+            return Ok(CallbackAction::NoUpdate);
+        }
         self.fallback_parser.print_char(buf, current_layer, caret, ch)
     }
 
+    fn get_mouse_fields(&self) -> Vec<MouseField> {
+        self.bgi.get_mouse_fields()
+    }
+
     fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
-        if self.last_rip_update == self.rip_commands.len() {
+        if self.last_rip_update == self.rip_counter {
             return None;
         }
-        self.last_rip_update = self.rip_commands.len();
-        let mut pixels = Vec::new();
-        let pal = self.bgi.get_palette().clone();
-        for i in &self.bgi.screen {
-            if *i == 0 {
-                pixels.push(0);
-                pixels.push(0);
-                pixels.push(0);
-                pixels.push(0);
-                continue;
-            }
-            let (r, g, b) = pal.get_rgb(*i as u32);
-            pixels.push(r);
-            pixels.push(g);
-            pixels.push(b);
-            pixels.push(255);
-        }
-        Some((self.bgi.window, pixels))
+        self.last_rip_update = self.rip_counter;
+        Some((self.bgi.window, self.bgi.screen.clone()))
     }
 }
 
@@ -379,7 +390,6 @@ fn to_base_36(len: usize, number: i32) -> String {
         res = ch2.to_string() + res.as_str();
         number /= 36;
     }
-
     res
 }
 
@@ -653,7 +663,7 @@ mod tests {
     }
 
     fn test_roundtrip(arg: &str) {
-        let mut parser = Parser::new(Box::default());
+        let mut parser = Parser::new(Box::default(), PathBuf::new());
         create_buffer(&mut parser, ("!".to_string() + arg + "|").as_bytes());
 
         assert!(parser.command.is_none());

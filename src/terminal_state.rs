@@ -43,7 +43,7 @@ pub struct TerminalState {
     pub high_intensity_attribute_font_slot: usize,
     pub blink_attribute_font_slot: usize,
     pub high_intensity_blink_attribute_font_slot: usize,
-
+    pub cleared_screen: bool,
     tab_stops: Vec<i32>,
     baud_rate: BaudEmulation,
 }
@@ -89,6 +89,7 @@ impl TerminalState {
             high_intensity_attribute_font_slot: 0,
             blink_attribute_font_slot: 0,
             high_intensity_blink_attribute_font_slot: 0,
+            cleared_screen: false,
         };
         ret.reset_tabs();
         ret

@@ -1,8 +1,6 @@
-use std::f64::consts;
+use std::{f64::consts, path::PathBuf};
 
 use crate::{rip::bgi::font::Font, BitFont, Palette, Position, Rectangle, Size, EGA_PALETTE};
-
-use super::commands::Mouse;
 
 mod character;
 mod font;
@@ -402,12 +400,14 @@ pub struct Bgi {
     line_pattern: Vec<bool>,
     current_pos: Position,
     char_size: i32,
+    pub suspend_text: bool,
     pub rip_image: Option<Image>,
 
     text_window: Option<Rectangle>,
     text_window_wrap: bool,
 
     mouse_fields: Vec<MouseField>,
+    pub file_path: PathBuf,
 }
 
 mod bezier_handler {
@@ -468,22 +468,31 @@ impl FillLineInfo {
         Self { dir, x1, x2, y }
     }
 }
+#[derive(Clone, Debug)]
 pub struct MouseField {
-    x1: i32,
-    y1: i32,
-    x2: i32,
-    y2: i32,
-    hotkey: u8,
+    pub x1: i32,
+    pub y1: i32,
+    pub x2: i32,
+    pub y2: i32,
+    pub host_command: Option<String>,
 }
 
 impl MouseField {
-    pub fn new(x1: i32, y1: i32, x2: i32, y2: i32, hotkey: u8) -> Self {
-        Self { x1, y1, x2, y2, hotkey }
+    pub fn new(x1: i32, y1: i32, x2: i32, y2: i32, host_command: Option<String>) -> Self {
+        Self { x1, y1, x2, y2, host_command }
+    }
+
+    pub fn contains_field(&self, field: &MouseField) -> bool {
+        self.x1 <= field.x1 && self.y1 <= field.y1
+    }
+
+    pub fn contains(&self, x: i32, y: i32) -> bool {
+        x >= self.x1 && x <= self.x2 && y >= self.y1 && y <= self.y2
     }
 }
 
 impl Bgi {
-    pub fn new() -> Bgi {
+    pub fn new(file_path: PathBuf) -> Bgi {
         Bgi {
             color: 7,
             bkcolor: 0,
@@ -509,6 +518,8 @@ impl Bgi {
             text_window_wrap: false,
             button_style: ButtonStyle2::default(),
             mouse_fields: Vec::new(),
+            suspend_text: false,
+            file_path,
         }
     }
 
@@ -1415,7 +1426,7 @@ impl Bgi {
         self.ellipse(x, y, 0, 360, rx, ry);
     }
 
-    pub fn ellipse(&mut self, x: i32, y: i32, start_angle: i32,end_angle: i32, radius_x: i32, radius_y: i32) {
+    pub fn ellipse(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius_x: i32, radius_y: i32) {
         if start_angle == end_angle {
             return;
         }
@@ -1428,18 +1439,20 @@ impl Bgi {
         }
     }
 
-   fn _ellipse(&mut self, x: i32, y: i32, start_angle: i32,end_angle: i32, radius_x: i32, radius_y: i32) {
+    fn _ellipse(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius_x: i32, radius_y: i32) {
         let xradius = radius_x as f64;
         let yradius = radius_y as f64;
-        
+
         for angle in start_angle..=end_angle {
             let angle = angle as f64;
-            self.draw_line (x + (xradius * (angle * DEG2RAD).cos()).round() as i32,
+            self.draw_line(
+                x + (xradius * (angle * DEG2RAD).cos()).round() as i32,
                 y - (yradius * (angle * DEG2RAD).sin()).round() as i32,
                 x + (xradius * ((angle + 1.0) * DEG2RAD).cos()).round() as i32,
                 y - (yradius * ((angle + 1.0) * DEG2RAD).sin()).round() as i32,
-            self.color);
-         }
+                self.color,
+            );
+        }
     }
 
     pub fn fill_ellipse(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius_x: i32, radius_y: i32) {
@@ -1505,6 +1518,7 @@ impl Bgi {
         self.char_size = 4;
         self.font = FontType::Small;
         self.clear_mouse_fields();
+        self.suspend_text = false;
     }
 
     pub fn set_user_fill_pattern(&mut self, pattern: &[u8]) {
@@ -1700,11 +1714,26 @@ impl Bgi {
         self.mouse_fields.clear();
     }
 
+    pub fn get_mouse_fields(&self) -> Vec<MouseField> {
+        self.mouse_fields.clone()
+    }
+
     pub fn add_mouse_field(&mut self, mouse_field: MouseField) {
         self.mouse_fields.push(mouse_field);
     }
 
-    pub fn add_button(&mut self, x1: i32, y1: i32, mut x2: i32, mut y2: i32, hotkey: u8, flags: i32, text: &str) {
+    pub fn add_button(
+        &mut self,
+        x1: i32,
+        y1: i32,
+        mut x2: i32,
+        mut y2: i32,
+        hotkey: u8,
+        flags: i32,
+        icon_file: Option<&str>,
+        text: &str,
+        host_command: Option<String>,
+    ) {
         let mut ox = x1;
         let mut oy = y1;
 
@@ -1718,8 +1747,6 @@ impl Bgi {
         let mut width = x2 - x1 + 1;
         let mut height = y2 - y1 + 1;
 
-        self.add_mouse_field(MouseField::new(x1, y1, x2, y2, hotkey));
-
         if x2 == 0 {
             width = self.button_style.size.width;
             x2 = x1 + width;
@@ -1728,6 +1755,9 @@ impl Bgi {
             height = self.button_style.size.height;
             y2 = y1 + height;
         }
+
+        self.add_mouse_field(MouseField::new(x1, y1, x2, y2, host_command));
+
         //  println!("add_button({}, {}, {}, {}, {}, {}, {})", x1, y1, x2, y2, hotkey, flags, text);
 
         if self.button_style.display_recessed() && !self.button_style.is_invertable_button() {
@@ -1905,16 +1935,22 @@ impl Bgi {
                     self.set_color(ch);
                     self.out_text_xy(tx, ty, &text);
 
+                    // print hotkey
+                    if hotkey != 0 && hotkey != 255 {
+                        let hk_ch = (hotkey as char).to_ascii_uppercase();
+                        for (i, ch) in text.chars().enumerate() {
+                            if ch.to_ascii_uppercase() == hk_ch {
+                                let hotkey_size = self.get_text_size(&text[0..i]);
+                                self.set_color(ul);
+                                self.out_text_xy(tx + hotkey_size.width, ty, &ch.to_string());
+                                break;
+                            }
+                        }
+                    }
                     self.set_color(old_col);
                 }
             }
         }
-    }
-}
-
-impl Default for Bgi {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

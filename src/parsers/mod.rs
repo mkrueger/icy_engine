@@ -1,7 +1,7 @@
 use crate::{EngineResult, Line, Size, TextPane};
 use std::cmp::{max, min};
 
-use self::ansi::sound::AnsiMusic;
+use self::{ansi::sound::AnsiMusic, rip::bgi::MouseField};
 
 use super::{AttributedChar, Buffer, Caret, Position};
 
@@ -44,6 +44,8 @@ pub trait UnicodeConverter: Send + Sync {
     fn convert_to_unicode(&self, attributed_char: AttributedChar) -> char;
 }
 
+const EMPTY_MOUSE_FIELD: Vec<MouseField> = Vec::new();
+
 pub trait BufferParser {
     fn get_next_action(&mut self, _buffer: &mut Buffer, _caret: &mut Caret, _current_layer: usize) -> Option<CallbackAction> {
         None
@@ -56,8 +58,13 @@ pub trait BufferParser {
     /// This function will return an error if .
     fn print_char(&mut self, buffer: &mut Buffer, current_layer: usize, caret: &mut Caret, c: char) -> EngineResult<CallbackAction>;
 
+    fn get_mouse_fields(&self) -> Vec<MouseField> {
+        EMPTY_MOUSE_FIELD
+    }
+
     fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
-        None    }
+        None
+    }
 }
 
 impl Caret {
@@ -322,6 +329,7 @@ impl Buffer {
         let layer = &mut self.layers[layer];
         layer.clear();
         self.stop_sixel_threads();
+        self.terminal_state.cleared_screen = true;
         if self.is_terminal_buffer {
             self.set_size(self.terminal_state.get_size());
         }

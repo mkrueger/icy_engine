@@ -1,4 +1,10 @@
-use crate::{rip::to_base_36, EngineResult, Position, Size};
+use std::{fs, io::Cursor, os::unix::fs::MetadataExt, time::UNIX_EPOCH};
+
+use chrono::{Datelike, NaiveDateTime, Timelike};
+
+use crate::{rip::to_base_36, Buffer, CallbackAction, EngineResult, Position, Size};
+use byteorder::{LittleEndian, ReadBytesExt};
+use std::io::prelude::*;
 
 use super::{
     bgi::{Bgi, ButtonStyle2, Direction, FontType, LabelOrientation},
@@ -50,7 +56,7 @@ impl Command for TextWindow {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let (x, y) = match self.size {
             1 => (7, 8),
             2 => (8, 14),
@@ -58,9 +64,22 @@ impl Command for TextWindow {
             4 => (16, 14),
             _ => (8, 8),
         };
+        if self.x0 == 0 && self.y0 == 0 && self.x1 == 0 && self.y1 == 0 && self.size == 0 && !self.wrap {
+            bgi.suspend_text = !bgi.suspend_text;
+        }
+        buf.terminal_state.set_margins_left_right(self.x0, self.x1);
+        buf.terminal_state.set_margins_top_bottom(self.y0, self.y1);
+
+        println!("set margins");
+        println!("{} {} {} {}", self.x0, self.y0, self.x1, self.y1);
+        println!(
+            "{:?} {:?}",
+            buf.terminal_state.get_margins_left_right(),
+            buf.terminal_state.get_margins_top_bottom()
+        );
 
         bgi.set_text_window(self.x0 * x, self.y0 * y, self.x1 * x, self.y1 * y, self.wrap);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -114,9 +133,9 @@ impl Command for ViewPort {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_viewport(self.x0, self.y0, self.x1, self.y1);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -137,9 +156,12 @@ impl Command for ResetWindows {
     fn to_rip_string(&self) -> String {
         "|*".to_string()
     }
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+        buf.terminal_state.clear_margins_left_right();
+        buf.terminal_state.clear_margins_top_bottom();
+
         bgi.graph_defaults();
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 }
 
@@ -151,9 +173,9 @@ impl Command for EraseWindow {
         "|e".to_string()
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.clear_text_window();
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 }
 
@@ -165,9 +187,9 @@ impl Command for EraseView {
         "|E".to_string()
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.clear_viewport();
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 }
 
@@ -197,9 +219,9 @@ impl Command for GotoXY {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.move_to(self.x, self.y);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -245,9 +267,9 @@ impl Command for Color {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_color(self.c as u8);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -272,9 +294,9 @@ impl Command for SetPalette {
         Ok(*state < 31)
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_palette(&self.palette);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -311,9 +333,9 @@ impl Command for OnePalette {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_palette_color(self.color, self.value as u8);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -341,9 +363,9 @@ impl Command for WriteMode {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_write_mode(super::bgi::WriteMode::from(self.mode as u8));
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -376,9 +398,9 @@ impl Command for Move {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.move_to(self.x, self.y);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -397,9 +419,9 @@ impl Command for Text {
         Ok(true)
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.out_text(&self.str);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -431,9 +453,9 @@ impl Command for TextXY {
             }
         }
     }
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.out_text_xy(self.x, self.y, &self.str);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -479,9 +501,9 @@ impl Command for FontStyle {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_text_style(FontType::from(self.font as u8), Direction::from(self.direction as u8), self.size);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -520,9 +542,9 @@ impl Command for Pixel {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.put_pixel(self.x, self.y, bgi.get_color());
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -568,9 +590,9 @@ impl Command for Line {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.line(self.x0, self.y0, self.x1, self.y1);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -622,9 +644,9 @@ impl Command for Rectangle {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.rectangle(self.x0, self.y0, self.x1, self.y1);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -676,13 +698,13 @@ impl Command for Bar {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let (left, right) = if self.x0 < self.x1 { (self.x0, self.x1) } else { (self.x1, self.x0) };
 
         let (top, bottom) = if self.y0 < self.y1 { (self.y0, self.y1) } else { (self.y1, self.y0) };
 
         bgi.bar(left, top, right, bottom);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -729,9 +751,9 @@ impl Command for Circle {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.circle(self.x_center, self.y_center, self.radius);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -795,9 +817,9 @@ impl Command for Oval {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.ellipse(self.x, self.y, self.st_ang, self.end_ang, self.x_rad, self.y_rad);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -851,9 +873,9 @@ impl Command for FilledOval {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.fill_ellipse(self.x_center, self.y_center, 0, 360, self.x_rad, self.y_rad);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -912,9 +934,9 @@ impl Command for Arc {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.arc(self.x, self.y, self.start_ang, self.end_ang, self.radius);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -980,9 +1002,9 @@ impl Command for OvalArc {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.ellipse(self.x, self.y, self.start_ang, self.end_ang, self.x_rad, self.y_rad);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1043,9 +1065,9 @@ impl Command for PieSlice {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.pie_slice(self.x, self.y, self.start_ang, self.end_ang, self.radius);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1111,9 +1133,9 @@ impl Command for OvalPieSlice {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.sector(self.x, self.y, self.st_ang, self.end_ang, self.x_rad, self.y_rad);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1198,7 +1220,7 @@ impl Command for Bezier {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.rip_bezier(self.x1, self.y1, self.x2, self.y2, self.x3, self.y3, self.x4, self.y4, self.cnt);
         /*
                 let points = vec![
@@ -1209,7 +1231,7 @@ impl Command for Bezier {
                 ];
                 bgi.draw_bezier(points.len() as i32, &points, self.cnt);
         */
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1254,13 +1276,13 @@ impl Command for Polygon {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let mut points = Vec::new();
         for i in 0..self.points.len() / 2 {
             points.push(Position::new(self.points[i * 2], self.points[i * 2 + 1]));
         }
         bgi.draw_poly(&points);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1299,13 +1321,13 @@ impl Command for FilledPolygon {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let mut points = Vec::new();
         for i in 0..self.points.len() / 2 {
-            points.push(Position::new(self.points[i as usize * 2], self.points[i as usize * 2 + 1]));
+            points.push(Position::new(self.points[i * 2], self.points[i * 2 + 1]));
         }
         bgi.fill_poly(&points);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1344,13 +1366,13 @@ impl Command for PolyLine {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let mut points = Vec::new();
         for i in 0..self.points.len() / 2 {
             points.push(Position::new(self.points[i * 2], self.points[i * 2 + 1]));
         }
         bgi.draw_poly_line(&points);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1396,9 +1418,9 @@ impl Command for Fill {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.flood_fill(self.x, self.y, self.border as u8);
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1438,14 +1460,14 @@ impl Command for LineStyle {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_line_style(super::bgi::LineStyle::from(self.style as u8));
         //  If the <style> parameter is not 4, then the <user_pat> parameter is ignored.
         if self.style == 4 {
             bgi.set_line_pattern(self.user_pat);
         }
         bgi.set_line_thickness(self.thick);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1478,10 +1500,10 @@ impl Command for FillStyle {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_fill_style(super::bgi::FillStyle::from(self.pattern as u8));
         bgi.set_fill_color(self.color as u8);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1558,7 +1580,7 @@ impl Command for FillPattern {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_user_fill_pattern(&[
             self.c1 as u8,
             self.c2 as u8,
@@ -1571,7 +1593,7 @@ impl Command for FillPattern {
         ]);
         bgi.set_fill_style(super::bgi::FillStyle::User);
         bgi.set_fill_color(self.col as u8);
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1672,9 +1694,9 @@ impl Command for Mouse {
 pub struct MouseFields {}
 
 impl Command for MouseFields {
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.clear_mouse_fields();
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1727,9 +1749,9 @@ impl Command for BeginText {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         // Nothing?
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1772,9 +1794,9 @@ impl Command for EndText {
     fn to_rip_string(&self) -> String {
         "|1E".to_string()
     }
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         // Nothing
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 }
 
@@ -1818,9 +1840,9 @@ impl Command for GetImage {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.rip_image = Some(bgi.get_image(self.x0, self.y0, self.x1, self.y1));
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1869,9 +1891,9 @@ impl Command for PutImage {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.put_rip_image(self.x, self.y, super::bgi::WriteMode::from(self.mode as u8));
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -1947,6 +1969,59 @@ impl Command for LoadIcon {
                 Ok(true)
             }
         }
+    }
+
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+        let mut file_name = bgi.file_path.clone();
+        file_name.push(&self.file_name.to_uppercase());
+        let Ok(file_name) = file_name.canonicalize() else {
+            return Ok(CallbackAction::SendString("0".to_string()));
+        };
+        if !file_name.starts_with(&bgi.file_path) {
+            log::error!("Invalid file path: {}. Rejected.", self.file_name);
+            return Ok(CallbackAction::SendString("0".to_string()));
+        }
+
+        println!("Loading icon: {}", file_name.to_str().unwrap());
+        if !file_name.exists() {
+            log::error!("File not found: {}", self.file_name);
+            return Ok(CallbackAction::NoUpdate);
+        }
+        let mut file = std::fs::File::open(file_name)?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf)?;
+        let mut br = Cursor::new(buf);
+
+        let width = br.read_u16::<LittleEndian>()? + 1;
+        let height = br.read_u16::<LittleEndian>()? + 1;
+
+        let tmt = br.read_u16::<LittleEndian>()? + 1;
+
+        println!("Icon size: {}x{} at {}x{} mode:{}", width, height, self.x, self.y, self.mode);
+        /*
+        00    Paste the image on-screen normally                   (COPY)
+        01    Exclusive-OR  image with the one already on screen   (XOR)
+        02    Logically OR  image with the one already on screen   (OR)
+        03    Logically AND image with the one already on screen   (AND)
+        04    Paste the inverse of the image on the screen         (NOT)
+        */
+        let mode = match self.mode {
+            // 0 => bgi.set_write_mode(super::bgi::WriteMode::Copy),
+            1 => bgi.set_write_mode(super::bgi::WriteMode::Xor),
+            2 => bgi.set_write_mode(super::bgi::WriteMode::Or),
+            3 => bgi.set_write_mode(super::bgi::WriteMode::And),
+            4 => bgi.set_write_mode(super::bgi::WriteMode::Not),
+            _ => bgi.set_write_mode(super::bgi::WriteMode::Copy),
+        };
+        for y in 0..height {
+            for x in 0..width {
+                let color = br.read_u32::<LittleEndian>()?;
+                println!("color: {}", color);
+                bgi.put_pixel(self.x + x as i32, self.y + y as i32, color as u8);
+            }
+        }
+        bgi.set_write_mode(mode);
+        return Ok(CallbackAction::Update);
     }
 
     fn to_rip_string(&self) -> String {
@@ -2062,7 +2137,7 @@ impl Command for ButtonStyle {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         bgi.set_button_style(ButtonStyle2 {
             size: Size::new(self.wid, self.hgt),
             orientation: LabelOrientation::from(self.orient as u8),
@@ -2078,7 +2153,7 @@ impl Command for ButtonStyle {
             underline_color: self.uline_col,
             corner_color: self.corner_col,
         });
-        Ok(())
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {
@@ -2159,9 +2234,50 @@ impl Command for Button {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
-        bgi.add_button(self.x0, self.y0, self.x1, self.y1, self.hotkey as u8, self.flags, &self.text);
-        Ok(())
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+        let split: Vec<&str> = self.text.split("<>").collect();
+
+        if split.len() == 4 {
+            bgi.add_button(
+                self.x0,
+                self.y0,
+                self.x1,
+                self.y1,
+                self.hotkey as u8,
+                self.flags,
+                Some(&split[0]),
+                &split[1],
+                Some(parse_host_command(&split[2])),
+            );
+        } else if split.len() == 3 {
+            bgi.add_button(
+                self.x0,
+                self.y0,
+                self.x1,
+                self.y1,
+                self.hotkey as u8,
+                self.flags,
+                None,
+                &split[1],
+                Some(parse_host_command(&split[2])),
+            );
+        } else if split.len() == 2 {
+            bgi.add_button(self.x0, self.y0, self.x1, self.y1, self.hotkey as u8, self.flags, None, &split[1], None);
+        } else {
+            bgi.add_button(
+                self.x0,
+                self.y0,
+                self.x1,
+                self.y1,
+                self.hotkey as u8,
+                self.flags,
+                None,
+                &format!("error in text {}", split.len()),
+                None,
+            );
+        }
+
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -2177,6 +2293,46 @@ impl Command for Button {
             self.text
         )
     }
+}
+
+fn parse_host_command(split: &str) -> String {
+    let mut res = String::new();
+    let mut got_caret = false;
+    for c in split.chars() {
+        if got_caret {
+            match c {
+                // Null (ASCII 0)
+                '@' => res.push('\x00'),
+                // Beep
+                'G' => res.push('\x07'),
+                // Clear Screen (Top of Form)
+                'L' => res.push('\x0C'),
+                // Carriage Return
+                'M' => res.push('\x0D'),
+                // Break (sometimes)
+                'C' => res.push('\x18'),
+                // Backspace
+                'H' => res.push('\x08'),
+                // Escape character
+                '[' => res.push('\x1B'),
+                // Pause data transmission
+                'S' => res.push('1'),
+                // Resume data transmission
+                'Q' => res.push('2'),
+                _ => {
+                    log::error!("Invalid character after ^ in button command: {}", c);
+                }
+            }
+            got_caret = false;
+            continue;
+        }
+        if c == '^' {
+            got_caret = true;
+            continue;
+        }
+        res.push(c);
+    }
+    res
 }
 
 #[derive(Default, Clone)]
@@ -2290,10 +2446,10 @@ impl Command for CopyRegion {
         }
     }
 
-    fn run(&self, bgi: &mut Bgi) -> EngineResult<()> {
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let image = bgi.get_image(self.x0, self.y0, self.x1, self.y1 + 1);
         bgi.put_image(self.x0, self.dest_line, &image, bgi.get_write_mode());
-        Ok(())
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -2352,6 +2508,103 @@ impl Command for FileQuery {
                 Ok(true)
             }
         }
+    }
+
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+        let mut file_name = bgi.file_path.clone();
+        file_name.push(&self.file_name.to_uppercase());
+        let Ok(file_name) = file_name.canonicalize() else {
+            return Ok(CallbackAction::SendString("0".to_string()));
+        };
+        if !file_name.starts_with(&bgi.file_path) {
+            log::error!("Invalid file path: {}. Rejected.", self.file_name);
+            return Ok(CallbackAction::SendString("0".to_string()));
+        }
+        match self.mode {
+            // Simply query the existence of the file.  If it exists, a "1" is
+            // returned.  Otherwise a "0" is returned to the Host (without a
+            // carriage return).
+            0 => {
+                if file_name.exists() {
+                    return Ok(CallbackAction::SendString("1".to_string()));
+                }
+                return Ok(CallbackAction::SendString("0".to_string()));
+            }
+
+            // Same as 0, except a carriage return is added after the response.
+            1 => {
+                if file_name.exists() {
+                    return Ok(CallbackAction::SendString("1\r\n".to_string()));
+                }
+                return Ok(CallbackAction::SendString("0\r\n".to_string()));
+            }
+
+            // Queries the existence of a file.  If it does not exist, a "0" is
+            // returned to the Host followed by a carriage return.  If it does
+            // exist, the returned text is a "1." followed by the file size (in
+            // decimal).  The return sequence is terminated by a carriage
+            // return.  An example of the returned text could be "1.20345".
+            2 => {
+                if let Ok(data) = fs::metadata(file_name) {
+                    return Ok(CallbackAction::SendString(format!("1.{}\r\n", data.size())));
+                }
+                return Ok(CallbackAction::SendString("0\r\n".to_string()));
+            }
+            // Queries extended return information.  If the file does not
+            // exist, a "0" is returned followed by a carriage return.  If it
+            // does exist, the text returned to the Host is in the Format:
+            // 1.size.date.time <cr>.  An example of a return statement could
+            // be "1.20345.01/02/93.03:04:30<cr>"
+            3 => {
+                if let Ok(data) = fs::metadata(file_name) {
+                    let time = data.modified().unwrap().duration_since(UNIX_EPOCH).unwrap();
+                    if let Some(time) = NaiveDateTime::from_timestamp_opt(time.as_secs() as i64, 0) {
+                        return Ok(CallbackAction::SendString(format!(
+                            "1.{}.{:02}.{:02}.{:02}.{:02}:{:02}:{:02}\r\n",
+                            data.size(),
+                            time.month(),
+                            time.day(),
+                            time.year(),
+                            time.second(),
+                            time.minute(),
+                            time.hour()
+                        )));
+                    }
+                    return Ok(CallbackAction::SendString(format!("1.{}.\r\n", data.size())));
+                }
+                return Ok(CallbackAction::SendString("0\r\n".to_string()));
+            }
+            // Queries extended return information.  If the file does not
+            // exist, a "0" is returned followed by a carriage return.  If it
+            // does exist, the text returned to the Host is in the Format:
+            // 1.filename.size.date.time <cr>. An example of a return statement
+            // could be "1.MYFILE.RIP.20345.01/02/93.03:04:30 <cr>".  Note that
+            // the file extension adds another period into the return text.
+            4 => {
+                if let Ok(data) = fs::metadata(file_name) {
+                    let time = data.modified().unwrap().duration_since(UNIX_EPOCH).unwrap();
+                    if let Some(time) = NaiveDateTime::from_timestamp_opt(time.as_secs() as i64, 0) {
+                        return Ok(CallbackAction::SendString(format!(
+                            "1.{}.{}.{:02}.{:02}.{:02}.{:02}:{:02}:{:02}\r\n",
+                            self.file_name,
+                            data.size(),
+                            time.month(),
+                            time.day(),
+                            time.year(),
+                            time.second(),
+                            time.minute(),
+                            time.hour()
+                        )));
+                    }
+                    return Ok(CallbackAction::SendString(format!("1.{}.{}.\r\n", self.file_name, data.size())));
+                }
+                return Ok(CallbackAction::SendString("0\r\n".to_string()));
+            }
+            _ => {
+                log::error!("Invalid mode for FileQuery: {}", self.mode);
+            }
+        }
+        Ok(CallbackAction::NoUpdate)
     }
 
     fn to_rip_string(&self) -> String {

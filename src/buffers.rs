@@ -168,7 +168,6 @@ pub struct Buffer {
 
     font_table: HashMap<usize, BitFont>,
     is_font_table_dirty: bool,
-
     pub layers: Vec<Layer>,
 
     pub sixel_threads: VecDeque<std::thread::JoinHandle<EngineResult<Sixel>>>, // pub undo_stack: Vec<Box<dyn UndoOperation>>,

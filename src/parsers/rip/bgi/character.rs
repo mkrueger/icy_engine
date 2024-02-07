@@ -58,9 +58,9 @@ pub struct Character {
 }
 
 impl Character {
-    pub fn new() -> Character {
-        Character { strokes: Vec::new(), width: 0 }
-    }
+    /* pub fn new() -> Character {
+        Character { strokes: Vec:new(), width: 0 }
+    }*/
 
     pub fn get_width(&self, scale_factor: i32) -> f32 {
         (self.width * SCALE_UP[scale_factor as usize]) as f32 / SCALE_DOWN[scale_factor as usize] as f32
