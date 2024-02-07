@@ -953,7 +953,8 @@ impl Bgi {
                         let y_offset = cury * self.window.width;
                         let mut cx = fli.x1;
                         while cx <= fli.x2 {
-                            if self.screen[(y_offset + cx) as usize] == border {
+                            let cur_px = self.screen[(y_offset + cx) as usize];
+                            if cur_px == border || cur_px == self.fill_color && matches!(self.fill_style, FillStyle::Solid) {
                                 cx += 1;
                                 continue; // it's a border color, so don't scan any more this direction
                             }
@@ -1414,15 +1415,31 @@ impl Bgi {
         self.ellipse(x, y, 0, 360, rx, ry);
     }
 
-    pub fn ellipse(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius_x: i32, radius_y: i32) {
-        let mut rows = create_scan_rows();
-        if start_angle > end_angle {
-            self.scan_ellipse(x, y, 0, end_angle, radius_x, radius_y, &mut rows);
-            self.scan_ellipse(x, y, start_angle, 360, radius_x, radius_y, &mut rows);
-        } else {
-            self.scan_ellipse(x, y, start_angle, end_angle, radius_x, radius_y, &mut rows);
+    pub fn ellipse(&mut self, x: i32, y: i32, start_angle: i32,end_angle: i32, radius_x: i32, radius_y: i32) {
+        if start_angle == end_angle {
+            return;
         }
-        self.draw_scan(&mut rows);
+
+        if start_angle > end_angle {
+            self._ellipse(x, y, 0, end_angle, radius_x, radius_y);
+            self._ellipse(x, y, start_angle, 360, radius_x, radius_y);
+        } else {
+            self._ellipse(x, y, start_angle, end_angle, radius_x, radius_y);
+        }
+    }
+
+   fn _ellipse(&mut self, x: i32, y: i32, start_angle: i32,end_angle: i32, radius_x: i32, radius_y: i32) {
+        let xradius = radius_x as f64;
+        let yradius = radius_y as f64;
+        
+        for angle in start_angle..=end_angle {
+            let angle = angle as f64;
+            self.draw_line (x + (xradius * (angle * DEG2RAD).cos()).round() as i32,
+                y - (yradius * (angle * DEG2RAD).sin()).round() as i32,
+                x + (xradius * ((angle + 1.0) * DEG2RAD).cos()).round() as i32,
+                y - (yradius * ((angle + 1.0) * DEG2RAD).sin()).round() as i32,
+            self.color);
+         }
     }
 
     pub fn fill_ellipse(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius_x: i32, radius_y: i32) {

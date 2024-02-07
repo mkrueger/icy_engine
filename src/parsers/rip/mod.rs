@@ -95,9 +95,11 @@ impl Parser {
             self.state = State::SkipEOL;
             return Some(Ok(CallbackAction::NoUpdate));
         }
-        if ch == '\n' || ch == '\r' {
+        if ch == '\r' {
+            return Some(Ok(CallbackAction::NoUpdate));
+        }
+        if ch == '\n' {
             if let Some(t) = self.command.take() {
-                // println!("push: {:?}", t.to_rip_string());
                 t.run(&mut self.bgi);
                 self.rip_commands.push(t);
             }
@@ -152,12 +154,13 @@ impl Parser {
 
 impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        //println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
+        // println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
         match self.state {
             State::ReadParams => {
                 if let Some(value) = self.parse_parameter(ch) {
                     return value;
                 }
+                return Ok(CallbackAction::NoUpdate);
             }
             State::SkipEOL => {
                 if ch == '\r' {
@@ -286,7 +289,9 @@ impl BufferParser for Parser {
                 if ch == '!' {
                     return Ok(CallbackAction::NoUpdate);
                 }
-
+                if ch == '\n' || ch == '\r' {
+                    return Ok(CallbackAction::Update);
+                }
                 if ch != '|' {
                     self.state = State::Default;
                     self.fallback_parser.print_char(buf, current_layer, caret, '!')?;
@@ -331,13 +336,12 @@ impl BufferParser for Parser {
                             self.state = State::GotRipStart;
                             return Ok(CallbackAction::NoUpdate);
                         }
-                        self.fallback_parser.print_char(buf, current_layer, caret, ch);
                     }
                     _ => {}
                 }
             }
         }
-        Ok(CallbackAction::NoUpdate)
+        self.fallback_parser.print_char(buf, current_layer, caret, ch)
     }
 
     fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
