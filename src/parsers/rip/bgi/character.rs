@@ -72,23 +72,23 @@ impl Character {
         if matches!(dir, super::Direction::Horizontal) {
             for stroke in &self.strokes {
                 let curx = x + (stroke.x * SCALE_UP[size] / SCALE_DOWN[size]);
-                let cury = y + height - (stroke.y * SCALE_UP[size] / SCALE_DOWN[size]);
+                let cur_y = y + height - (stroke.y * SCALE_UP[size] / SCALE_DOWN[size]);
 
                 if matches!(stroke.stype, StrokeType::MoveTo) {
-                    bgi.move_to(curx, cury);
+                    bgi.move_to(curx, cur_y);
                 } else if matches!(stroke.stype, StrokeType::LineTo) {
-                    bgi.line_to(curx, cury);
+                    bgi.line_to(curx, cur_y);
                 }
             }
         } else {
             for stroke in &self.strokes {
                 let curx = x + height - (stroke.y * SCALE_UP[size] / SCALE_DOWN[size]);
-                let cury = y - (stroke.x * SCALE_UP[size] / SCALE_DOWN[size]);
+                let cur_y = y - (stroke.x * SCALE_UP[size] / SCALE_DOWN[size]);
 
                 if matches!(stroke.stype, StrokeType::MoveTo) {
-                    bgi.move_to(curx, cury);
+                    bgi.move_to(curx, cur_y);
                 } else if matches!(stroke.stype, StrokeType::LineTo) {
-                    bgi.line_to(curx, cury);
+                    bgi.line_to(curx, cur_y);
                 }
             }
         }

@@ -268,7 +268,7 @@ pub struct Image {
     pub data: Vec<u8>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub enum LabelOrientation {
     Above,
     Left,
@@ -291,7 +291,7 @@ impl LabelOrientation {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct ButtonStyle2 {
     pub size: Size,
     pub orientation: LabelOrientation,
@@ -390,8 +390,6 @@ pub struct Bgi {
     fill_color: u8,
     direction: Direction,
     font: FontType,
-    text_height: i32,
-    text_width: i32,
     pub window: Size,
     viewport: Rectangle,
     palette: Palette,
@@ -475,11 +473,19 @@ pub struct MouseField {
     pub x2: i32,
     pub y2: i32,
     pub host_command: Option<String>,
+    pub style: ButtonStyle2,
 }
 
 impl MouseField {
-    pub fn new(x1: i32, y1: i32, x2: i32, y2: i32, host_command: Option<String>) -> Self {
-        Self { x1, y1, x2, y2, host_command }
+    pub fn new(x1: i32, y1: i32, x2: i32, y2: i32, host_command: Option<String>, style: ButtonStyle2) -> Self {
+        Self {
+            x1,
+            y1,
+            x2,
+            y2,
+            host_command,
+            style,
+        }
     }
 
     pub fn contains_field(&self, field: &MouseField) -> bool {
@@ -504,8 +510,6 @@ impl Bgi {
             fill_color: 0,
             direction: Direction::Horizontal,
             font: FontType::Default,
-            text_height: 8,
-            text_width: 8,
             window: SCREEN_SIZE,
             viewport: Rectangle::from(0, 0, SCREEN_SIZE.width, SCREEN_SIZE.height),
             palette: Palette::dos_default(),
@@ -713,7 +717,7 @@ impl Bgi {
         end_x = end_x.min(self.viewport.right() - 1);
 
         for x in startx..=end_x {
-            if self.line_pattern[offset.abs() as usize % self.line_pattern.len()] {
+            if self.line_pattern[*offset as usize % self.line_pattern.len()] {
                 for cy in start_y..=end_y {
                     self.put_pixel(x, cy, self.color);
                 }
@@ -757,7 +761,7 @@ impl Bgi {
         end_y = end_y.min(self.viewport.bottom() - 1);
 
         for y in start_y..=end_y {
-            if self.line_pattern[offset.abs() as usize % self.line_pattern.len()] {
+            if self.line_pattern[*offset as usize % self.line_pattern.len()] {
                 for cx in start_x..=end_x {
                     self.put_pixel(cx, y, self.color);
                 }
@@ -771,13 +775,13 @@ impl Bgi {
 
     pub fn line(&mut self, x1: i32, y1: i32, x2: i32, y2: i32) {
         let ly_delta = (y2 - y1).abs();
-        let lx_delta = (x2 - x1).abs();
+        let lx_delta2 = (x2 - x1).abs();
         let mut offset = 0;
-        if lx_delta == 0 {
+        if lx_delta2 == 0 {
             self.fill_y(x1, y1.min(y2), ly_delta + 1, &mut offset);
         } else if ly_delta == 0 {
-            self.fill_x(y1, x1.min(x2), lx_delta + 1, &mut offset);
-        } else if lx_delta >= ly_delta {
+            self.fill_x(y1, x1.min(x2), lx_delta2 + 1, &mut offset);
+        } else if lx_delta2 >= ly_delta {
             let l_advance = 1;
             let (mut pos, l_step) = if y1 < y2 {
                 (Position::new(x1, y1), if x1 > x2 { -1 } else { 1 })
@@ -785,8 +789,8 @@ impl Bgi {
                 (Position::new(x2, y2), if x2 > x1 { -1 } else { 1 })
             };
 
-            let l_whole_step = (lx_delta / ly_delta) * l_step;
-            let mut l_adj_up = lx_delta % ly_delta;
+            let l_whole_step = (lx_delta2 / ly_delta) * l_step;
+            let mut l_adj_up = lx_delta2 % ly_delta;
             let l_adj_down = ly_delta * 2;
             let mut l_error = l_adj_up - l_adj_down;
             l_adj_up *= 2;
@@ -816,16 +820,16 @@ impl Bgi {
                 pos.y += l_advance;
             }
             self.fill_x(pos.y, pos.x, l_end_length, &mut offset);
-        } else if lx_delta < ly_delta {
+        } else if lx_delta2 < ly_delta {
             let (mut pos, l_advance) = if y1 < y2 {
                 (Position::new(x1, y1), if x1 > x2 { -1 } else { 1 })
             } else {
                 (Position::new(x2, y2), if x2 > x1 { -1 } else { 1 })
             };
 
-            let l_whole_step = ly_delta / lx_delta;
-            let mut l_adj_up = ly_delta % lx_delta;
-            let l_adj_down = lx_delta * 2;
+            let l_whole_step = ly_delta / lx_delta2;
+            let mut l_adj_up = ly_delta % lx_delta2;
+            let l_adj_down = lx_delta2 * 2;
             let mut l_error = l_adj_up - l_adj_down;
             l_adj_up *= 2;
             let mut l_start_length = (l_whole_step / 2) + 1;
@@ -834,14 +838,14 @@ impl Bgi {
                 l_start_length -= 1;
             }
             if (l_whole_step & 0x01) != 0 {
-                l_error += lx_delta;
+                l_error += lx_delta2;
             }
 
             self.fill_y(pos.x, pos.y, l_start_length, &mut offset);
             pos.y += l_start_length;
             pos.x += l_advance;
 
-            for _ in 0..(lx_delta - 1) {
+            for _ in 0..(lx_delta2 - 1) {
                 let mut l_run_length = l_whole_step;
                 l_error += l_adj_up;
                 if l_error > 0 {
@@ -1062,13 +1066,13 @@ impl Bgi {
             let tr = ((cnt - step) as f64) / cnt as f64;
             let tfs = tf.powf(2.0);
             let tfstr = tfs * tr;
-            let tfc = tf.powf(3.0);
-            let trs = tr.powf(2.0);
-            let tftrs = tf * trs;
+            let tf_c = tf.powf(3.0);
+            let tr_s = tr.powf(2.0);
+            let tftrs = tf * tr_s;
             let trc = tr.powf(3.0);
 
-            let x = trc * x1 as f64 + 3.0 * tftrs * x2 as f64 + 3.0 * tfstr * x3 as f64 + tfc * x4 as f64;
-            let y = trc * y1 as f64 + 3.0 * tftrs * y2 as f64 + 3.0 * tfstr * y3 as f64 + tfc * y4 as f64;
+            let x = trc * x1 as f64 + 3.0 * tftrs * x2 as f64 + 3.0 * tfstr * x3 as f64 + tf_c * x4 as f64;
+            let y = trc * y1 as f64 + 3.0 * tftrs * y2 as f64 + 3.0 * tfstr * y3 as f64 + tf_c * y4 as f64;
             targets.push(x as i32);
             targets.push(y as i32);
         }
@@ -1090,10 +1094,10 @@ impl Bgi {
             let mut x3 = 0.0;
             let mut y3 = 0.0;
             let br = v as f64 / segments as f64;
-            for i in 0..4usize {
+            for (i, point) in points.iter().enumerate() {
                 let ar = bezier_handler::bezier(br, i as i32);
-                x3 += points[i].x as f64 * ar;
-                y3 += points[i].y as f64 * ar;
+                x3 += point.x as f64 * ar;
+                y3 += point.y as f64 * ar;
             }
             let x2 = (x3).round() as i32;
             let y2 = (y3).round() as i32;
@@ -1113,7 +1117,7 @@ impl Bgi {
         let mut last_point = points[0];
         for point in points {
             self.line(last_point.x, last_point.y, point.x, point.y);
-            last_point = point.clone();
+            last_point = *point;
         }
         self.line(last_point.x, last_point.y, points[0].x, points[0].y);
     }
@@ -1122,7 +1126,7 @@ impl Bgi {
         let mut last_point = points[0];
         for point in points {
             self.line(last_point.x, last_point.y, point.x, point.y);
-            last_point = point.clone();
+            last_point = *point;
         }
     }
 
@@ -1227,7 +1231,7 @@ impl Bgi {
         }
     }
 
-    pub fn scan_ellipse(&mut self, x: i32, y: i32, mut start_angle: i32, mut end_angle: i32, radiusx: i32, radiusy: i32, rows: &mut Vec<Vec<i32>>) {
+    pub fn scan_ellipse(&mut self, x: i32, y: i32, mut start_angle: i32, mut end_angle: i32, radiusx: i32, radius_y: i32, rows: &mut Vec<Vec<i32>>) {
         // check if valid angles
         if start_angle > end_angle {
             std::mem::swap(&mut start_angle, &mut end_angle);
@@ -1236,7 +1240,7 @@ impl Bgi {
         let end_angle = end_angle + 3;
 
         let radiusx = radiusx.max(1);
-        let radius_y = radiusy.max(1);
+        let radius_y = radius_y.max(1);
 
         let diameterx = radiusx * 2;
         let diameter_y = radius_y * 2;
@@ -1441,15 +1445,15 @@ impl Bgi {
 
     fn _ellipse(&mut self, x: i32, y: i32, start_angle: i32, end_angle: i32, radius_x: i32, radius_y: i32) {
         let xradius = radius_x as f64;
-        let yradius = radius_y as f64;
+        let y_radius = radius_y as f64;
 
         for angle in start_angle..=end_angle {
             let angle = angle as f64;
             self.draw_line(
                 x + (xradius * (angle * DEG2RAD).cos()).round() as i32,
-                y - (yradius * (angle * DEG2RAD).sin()).round() as i32,
+                y - (y_radius * (angle * DEG2RAD).sin()).round() as i32,
                 x + (xradius * ((angle + 1.0) * DEG2RAD).cos()).round() as i32,
-                y - (yradius * ((angle + 1.0) * DEG2RAD).sin()).round() as i32,
+                y - (y_radius * ((angle + 1.0) * DEG2RAD).sin()).round() as i32,
                 self.color,
             );
         }
@@ -1592,21 +1596,20 @@ impl Bgi {
         let mut yf = y;
 
         if matches!(font, FontType::Default) {
-            let old_write_mode = self.write_mode;
-            self.set_write_mode(WriteMode::Copy);
             for c in str.chars() {
                 if let Some(glyph) = DEFAULT_BITFONT.get_glyph(c) {
                     for y in 0..8 {
+                        let mut pos = ((yf + y) * self.window.width + xf) as usize;
                         for x in 0..8 {
                             if glyph.data[y as usize] & (1 << (7 - x)) != 0 {
-                                self.put_pixel(xf + x, yf + y, self.color);
+                                self.screen[pos] = self.color;
                             }
+                            pos += 1;
                         }
                     }
                     xf += 8;
                 }
             }
-            self.set_write_mode(old_write_mode);
             return Position::new(xf, yf);
         }
 
@@ -1729,17 +1732,15 @@ impl Bgi {
         mut x2: i32,
         mut y2: i32,
         hotkey: u8,
-        flags: i32,
-        icon_file: Option<&str>,
+        _flags: i32,
+        _icon_file: Option<&str>,
         text: &str,
         host_command: Option<String>,
+        pressed: bool,
     ) {
-        let mut ox = x1;
-        let mut oy = y1;
-
         let bg = 0;
         let ch = self.button_style.label_color as u8;
-        let cs = self.button_style.drop_shadow_color as u8;
+        let cs = self.button_style.dark as u8;
         let su = self.button_style.surface_color as u8;
         let ul = self.button_style.underline_color as u8;
         let cc = self.button_style.corner_color as u8;
@@ -1756,11 +1757,13 @@ impl Bgi {
             y2 = y1 + height;
         }
 
-        self.add_mouse_field(MouseField::new(x1, y1, x2, y2, host_command));
+        println!("{:16b} {:16b}", self.button_style.flags, self.button_style.flags2);
 
-        //  println!("add_button({}, {}, {}, {}, {}, {}, {})", x1, y1, x2, y2, hotkey, flags, text);
+        self.add_mouse_field(MouseField::new(x1, y1, x2, y2, host_command, self.button_style.clone()));
+        let mut ox = x1;
+        let mut oy = y1;
 
-        if self.button_style.display_recessed() && !self.button_style.is_invertable_button() {
+        if self.button_style.display_recessed() && !pressed {
             width += 4;
             height += 4;
             ox -= 2;
@@ -1774,27 +1777,21 @@ impl Bgi {
             oy -= self.button_style.bevel_size;
         }
 
-        if self.button_style.display_recessed() && !self.button_style.is_invertable_button() {
+        if self.button_style.display_recessed() && !pressed {
             self.draw_line(ox, oy, ox + width - 1, oy, cs);
-            self.draw_line(ox, oy, ox, oy + height - 1, cs);
-            self.draw_line(ox + width - 1, oy, ox + width - 1, oy + height - 1, ch);
-            self.draw_line(ox, oy + height - 1, ox + width - 1, oy + height - 1, ch);
+            self.draw_line(ox, oy, ox, oy + height - 2, cs);
+
+            self.draw_line(ox + width - 1, oy, ox + width - 1, oy + height - 2, ch);
+            self.draw_line(ox, oy + height - 2, ox + width - 1, oy + height - 2, ch);
+
             self.put_pixel(ox, oy, cc);
             self.put_pixel(ox + width - 1, oy, cc);
-            self.put_pixel(ox, oy + height - 1, cc);
-            self.put_pixel(ox + width - 1, oy + height - 1, cc);
-            self.draw_line(ox + 1, oy + 1, ox + width - 2, oy + 1, bg);
-            self.draw_line(ox + 1, oy + 1, ox + 1, oy + height - 2, bg);
-            self.draw_line(ox + width - 2, oy + 1, ox + width - 2, oy + height - 2, bg);
-            self.draw_line(ox + 1, oy + height - 2, ox + width - 2, oy + height - 2, bg);
-            self.put_pixel(ox + 1, oy + 1, cc);
-            self.put_pixel(ox + width - 2, oy + 1, cc);
             self.put_pixel(ox, oy + height - 2, cc);
-            self.put_pixel(ox + width - 2, oy + height - 2, cc);
+            self.put_pixel(ox + width - 1, oy + height - 2, cc);
         }
 
         if self.button_style.display_bevel_special_effect() {
-            for i in 1..self.button_style.bevel_size {
+            for i in 1..=self.button_style.bevel_size {
                 self.draw_line(x1 - i, y1 - i, x2 - 1 + i, y1 - i, ch);
                 self.draw_line(x1 - i, y1 - i, x1 - i, y2 - 1 + i, ch);
                 self.draw_line(x2 - 1 + i, y2 - 1 + i, x2 - 1 + i, y1 - i, cs);
@@ -1805,6 +1802,7 @@ impl Bgi {
                 self.put_pixel(x2 - 1 + i, y2 - 1 + i, cc);
             }
         }
+
         for y in y1..y2 {
             for x in x1..x2 {
                 self.put_pixel(x, y, su);
@@ -1821,69 +1819,21 @@ impl Bgi {
             self.put_pixel(x2, y2, cc);
             self.put_pixel(x1, y2, cc);
         }
-        /*
-            if (but->flags.chisel) {
-                chisel_inset(y2 - y1 + 1, &xinset, &yinset);
-                self.draw_line(x1 + xinset,
-                    y1 + yinset,
-                    x2 - xinset - 1,
-                    y1 + yinset,
-                    cs,
-                    0xffff,
-                    1);
-                self.draw_line(x1 + xinset,
-                    y1 + yinset,
-                    x1 + xinset,
-                    y2 - yinset - 1,
-                    cs,
-                    0xffff,
-                    1);
 
-                self.draw_line(x1 + xinset + 1,
-                    y1 + yinset + 1,
-                    x2 - xinset - 1,
-                    y1 + yinset + 1,
-                    ch,
-                    0xffff,
-                    1);
-                self.draw_line(x2 - xinset - 1,
-                    y1 + yinset + 1,
-                    x2 - xinset - 1,
-                    y2 - yinset - 1,
-                    ch,
-                    0xffff,
-                    1);
-                self.draw_line(x2 - xinset - 1,
-                    y2 - yinset - 1,
-                    x1 + xinset + 1,
-                    y2 - yinset - 1,
-                    ch,
-                    0xffff,
-                    1);
-                self.draw_line(x1 + xinset + 1,
-                    y2 - yinset - 1,
-                    x1 + xinset + 1,
-                    y1 + yinset + 1,
-                    ch,
-                    0xffff,
-                    1);
+        if self.button_style.display_chisel() {
+            let (xinset, yinset) = chisel_inset(y2 - y1 + 1);
+            self.draw_line(x1 + xinset, y1 + yinset, x2 - xinset - 1, y1 + yinset, cs);
+            self.draw_line(x1 + xinset, y1 + yinset, x1 + xinset, y2 - yinset - 1, cs);
 
-                self.draw_line(x1 + xinset + 2,
-                    y2 - 2 - yinset,
-                    x2 - xinset - 2,
-                    y2 - 2 - yinset,
-                    cs,
-                    0xffff,
-                    1);
-                self.draw_line(x2 - xinset - 2,
-                    y2 - 2 - yinset,
-                    x2 - xinset - 2,
-                    y1 + yinset + 2,
-                    cs,
-                    0xffff,
-                    1);
-            }
-        */
+            self.draw_line(x1 + xinset + 1, y1 + yinset + 1, x2 - xinset - 1, y1 + yinset + 1, ch);
+            self.draw_line(x2 - xinset - 1, y1 + yinset + 1, x2 - xinset - 1, y2 - yinset - 1, ch);
+            self.draw_line(x2 - xinset - 1, y2 - yinset - 1, x1 + xinset + 1, y2 - yinset - 1, ch);
+            self.draw_line(x1 + xinset + 1, y2 - yinset - 1, x1 + xinset + 1, y1 + yinset + 1, ch);
+
+            self.draw_line(x1 + xinset + 2, y2 - 2 - yinset, x2 - xinset - 2, y2 - 2 - yinset, cs);
+            self.draw_line(x2 - xinset - 2, y2 - 2 - yinset, x2 - xinset - 2, y1 + yinset + 2, cs);
+        }
+
         // TODO: Handle icons
         /*
         if self.button_style.stamp_image_on_clipboard() {
@@ -1928,7 +1878,7 @@ impl Bgi {
                     let ty = oy + (height - text_size.height) / 2;
 
                     if self.button_style.display_dropshadow() {
-                        self.set_color(cs);
+                        self.set_color(self.button_style.drop_shadow_color as u8);
                         self.out_text_xy(tx + 1, ty + 1, &text);
                     }
 
@@ -1952,6 +1902,34 @@ impl Bgi {
             }
         }
     }
+}
+
+fn chisel_inset(height: i32) -> (i32, i32) {
+    if height < 12 {
+        return (1, 1);
+    }
+    if height < 25 {
+        return (3, 2);
+    }
+    if height < 40 {
+        return (4, 3);
+    }
+    if height < 75 {
+        return (6, 5);
+    }
+    if height < 150 {
+        return (7, 5);
+    }
+    if height < 200 {
+        return (8, 6);
+    }
+    if height < 250 {
+        return (10, 7);
+    }
+    if height < 300 {
+        return (11, 8);
+    }
+    (13, 9)
 }
 
 fn scan_line(start: Position, end: Position, rows: &mut Vec<Vec<i32>>, full: bool) {

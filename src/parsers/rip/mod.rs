@@ -89,8 +89,10 @@ impl Parser {
         // clear viewport
     }
 
-    fn record_rip_command(&mut self, cmd: Box<dyn Command>) {
+    fn record_rip_command(&mut self, buf: &mut Buffer, cmd: Box<dyn Command>) {
+        //println!("RIP: {:?}", cmd.to_rip_string());
         self.rip_counter = self.rip_counter.wrapping_add(1);
+        let _ = cmd.run(buf, &mut self.bgi);
         if !self.record_rip_commands {
             return;
         }
@@ -107,16 +109,14 @@ impl Parser {
         }
         if ch == '\n' {
             if let Some(t) = self.command.take() {
-                t.run(buf, &mut self.bgi);
-                self.record_rip_command(t);
+                self.record_rip_command(buf, t);
             }
             self.state = State::Default;
             return Some(Ok(CallbackAction::NoUpdate));
         }
         if ch == '|' {
             if let Some(t) = self.command.take() {
-                t.run(buf, &mut self.bgi);
-                self.record_rip_command(t);
+                self.record_rip_command(buf, t);
             }
             self.state = State::ReadCommand(0);
             return Some(Ok(CallbackAction::NoUpdate));
@@ -128,8 +128,7 @@ impl Parser {
             Ok(false) => {
                 if let Some(t) = self.command.take() {
                     self.state = State::GotRipStart;
-                    t.run(buf, &mut self.bgi);
-                    self.record_rip_command(t);
+                    self.record_rip_command(buf, t);
                 }
             }
             Err(e) => {
@@ -154,18 +153,18 @@ impl Parser {
 
     pub fn push_command(&mut self, buf: &mut Buffer, cmd: Box<dyn Command>) {
         self.state = State::GotRipStart;
-        cmd.run(buf, &mut self.bgi);
-        self.record_rip_command(cmd);
+        self.record_rip_command(buf, cmd);
     }
 }
 
 impl BufferParser for Parser {
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        // println!("state: {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
+        // println!("state:  {:?}, ch: {}, ch#:{}", self.state, ch, ch as u32);
 
         if buf.terminal_state.cleared_screen {
             buf.terminal_state.cleared_screen = false;
             self.bgi.graph_defaults();
+            self.rip_counter += 1;
         }
 
         match self.state {
@@ -223,14 +222,12 @@ impl BufferParser for Parser {
                     return Ok(CallbackAction::NoUpdate);
                 }
                 if level == 9 {
-                    match ch {
-                        '\x1B' => self.start_command(Box::<commands::EnterBlockMode>::default()),
-
-                        _ => {
-                            log::error!("Error in RipScript: Unknown level 1 command: {}", ch);
-                            self.state = State::Default;
-                            return Ok(CallbackAction::NoUpdate);
-                        }
+                    if let '\x1B' = ch {
+                        self.start_command(Box::<commands::EnterBlockMode>::default());
+                    } else {
+                        log::error!("Error in RipScript: Unknown level 1 command: {}", ch);
+                        self.state = State::Default;
+                        return Ok(CallbackAction::NoUpdate);
                     }
                     return Ok(CallbackAction::NoUpdate);
                 }
@@ -324,14 +321,11 @@ impl BufferParser for Parser {
                             // Select Graphic Rendition
                             self.fallback_parser.state = EngineState::Default;
                             if self.fallback_parser.parsed_numbers.is_empty() {
-                                println!("RIP_TERMINAL_ID: {:?}", RIP_TERMINAL_ID);
                                 return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                             }
 
                             match self.fallback_parser.parsed_numbers.first() {
                                 Some(0) => {
-                                    println!("RIP_TERMINAL_ID: {:?}", RIP_TERMINAL_ID);
-
                                     return Ok(CallbackAction::SendString(RIP_TERMINAL_ID.to_string()));
                                 }
                                 Some(1) => {
@@ -376,7 +370,23 @@ impl BufferParser for Parser {
             return None;
         }
         self.last_rip_update = self.rip_counter;
-        Some((self.bgi.window, self.bgi.screen.clone()))
+        let mut pixels = Vec::new();
+        let pal = self.bgi.get_palette().clone();
+        for i in &self.bgi.screen {
+            if *i == 0 {
+                pixels.push(0);
+                pixels.push(0);
+                pixels.push(0);
+                pixels.push(0);
+                continue;
+            }
+            let (r, g, b) = pal.get_rgb(*i as u32);
+            pixels.push(r);
+            pixels.push(g);
+            pixels.push(b);
+            pixels.push(255);
+        }
+        Some((self.bgi.window, pixels))
     }
 }
 

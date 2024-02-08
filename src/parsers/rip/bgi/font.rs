@@ -15,10 +15,6 @@ use super::Direction;
 pub struct Font {
     pub name: String,
     pub size: u16,
-    pub font_major: u8,
-    pub font_minor: u8,
-    pub min_major: u8,
-    pub min_minor: u8,
 
     characters: Vec<Option<Character>>,
 
@@ -51,10 +47,10 @@ impl Font {
         let name: [u8; 4] = [br.read_u8()?, br.read_u8()?, br.read_u8()?, br.read_u8()?];
         let font_name = String::from_utf8_lossy(&name).to_string();
         let font_size = br.read_u16::<LittleEndian>()?;
-        let font_major = br.read_u8()?;
-        let font_minor = br.read_u8()?;
-        let min_major = br.read_u8()?;
-        let min_minor = br.read_u8()?;
+        let _font_major = br.read_u8()?;
+        let _font_minor = br.read_u8()?;
+        let _min_major = br.read_u8()?;
+        let _min_minor = br.read_u8()?;
 
         br.set_position(header_size as u64);
 
@@ -159,10 +155,6 @@ impl Font {
         Ok(Self {
             name: font_name,
             size: font_size,
-            font_major,
-            font_minor,
-            min_major,
-            min_minor,
             org_to_cap,
             org_to_base,
             org_to_dec,
@@ -231,10 +223,10 @@ impl Font {
         match dir {
             Direction::Horizontal => Size::new(
                 width as i32,
-                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize] as i32,
+                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize],
             ),
             Direction::Vertical => Size::new(
-                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize] as i32,
+                (self.get_height() + self.org_to_dec as i32 + 1) * SCALE_UP[size as usize] / SCALE_DOWN[size as usize],
                 width as i32,
             ),
         }
@@ -242,10 +234,8 @@ impl Font {
 
     pub fn get_max_character_size(&self, dir: Direction, size: i32) -> Size {
         let mut width = 0.0f32;
-        for ch in &self.characters {
-            if let Some(ch) = ch {
-                width = width.max(ch.get_width(size));
-            }
+        for ch in self.characters.iter().flatten() {
+            width = width.max(ch.get_width(size));
         }
         match dir {
             Direction::Horizontal => Size::new(

@@ -1,4 +1,4 @@
-use std::{fs, io::Cursor, os::unix::fs::MetadataExt, time::UNIX_EPOCH};
+use std::{fs, io::Cursor, os::unix::fs::MetadataExt, time::UNIX_EPOCH, vec};
 
 use chrono::{Datelike, NaiveDateTime, Timelike};
 
@@ -67,17 +67,7 @@ impl Command for TextWindow {
         if self.x0 == 0 && self.y0 == 0 && self.x1 == 0 && self.y1 == 0 && self.size == 0 && !self.wrap {
             bgi.suspend_text = !bgi.suspend_text;
         }
-        buf.terminal_state.set_margins_left_right(self.x0, self.x1);
-        buf.terminal_state.set_margins_top_bottom(self.y0, self.y1);
-
-        println!("set margins");
-        println!("{} {} {} {}", self.x0, self.y0, self.x1, self.y1);
-        println!(
-            "{:?} {:?}",
-            buf.terminal_state.get_margins_left_right(),
-            buf.terminal_state.get_margins_top_bottom()
-        );
-
+        buf.terminal_state.set_text_window(self.x0, self.y0, self.x1, self.y1);
         bgi.set_text_window(self.x0 * x, self.y0 * y, self.x1 * x, self.y1 * y, self.wrap);
         Ok(CallbackAction::NoUpdate)
     }
@@ -157,8 +147,8 @@ impl Command for ResetWindows {
         "|*".to_string()
     }
     fn run(&self, buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
-        buf.terminal_state.clear_margins_left_right();
-        buf.terminal_state.clear_margins_top_bottom();
+        buf.terminal_state.clear_text_window();
+        bgi.clear_text_window();
 
         bgi.graph_defaults();
         Ok(CallbackAction::NoUpdate)
@@ -1749,7 +1739,7 @@ impl Command for BeginText {
         }
     }
 
-    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+    fn run(&self, _buf: &mut Buffer, _bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         // Nothing?
         Ok(CallbackAction::NoUpdate)
     }
@@ -1794,7 +1784,7 @@ impl Command for EndText {
     fn to_rip_string(&self) -> String {
         "|1E".to_string()
     }
-    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+    fn run(&self, _buf: &mut Buffer, _bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         // Nothing
         Ok(CallbackAction::NoUpdate)
     }
@@ -1982,7 +1972,7 @@ impl Command for LoadIcon {
             return Ok(CallbackAction::SendString("0".to_string()));
         }
 
-        println!("Loading icon: {}", file_name.to_str().unwrap());
+        // println!("Loading icon: {}", file_name.to_str().unwrap());
         if !file_name.exists() {
             log::error!("File not found: {}", self.file_name);
             return Ok(CallbackAction::NoUpdate);
@@ -1990,14 +1980,17 @@ impl Command for LoadIcon {
         let mut file = std::fs::File::open(file_name)?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
+
+        let _len = buf.len();
         let mut br = Cursor::new(buf);
 
-        let width = br.read_u16::<LittleEndian>()? + 1;
-        let height = br.read_u16::<LittleEndian>()? + 1;
+        let width = br.read_u16::<LittleEndian>()? as i32 + 1;
+        let height = br.read_u16::<LittleEndian>()? as i32 + 1;
 
-        let tmt = br.read_u16::<LittleEndian>()? + 1;
+        // let _tmp = br.read_u16::<LittleEndian>()? + 1;
 
-        println!("Icon size: {}x{} at {}x{} mode:{}", width, height, self.x, self.y, self.mode);
+        // println!("Icon size: {}x{} at {}x{} mode:{}", width, height, self.x, self.y, self.mode);
+
         /*
         00    Paste the image on-screen normally                   (COPY)
         01    Exclusive-OR  image with the one already on screen   (XOR)
@@ -2014,14 +2007,26 @@ impl Command for LoadIcon {
             _ => bgi.set_write_mode(super::bgi::WriteMode::Copy),
         };
         for y in 0..height {
-            for x in 0..width {
-                let color = br.read_u32::<LittleEndian>()?;
-                println!("color: {}", color);
-                bgi.put_pixel(self.x + x as i32, self.y + y as i32, color as u8);
+            if self.y + y >= bgi.window.height {
+                break;
+            }
+            let row = (width / 8 + i32::from((width & 7) != 0)) as usize;
+            let mut planes = vec![0u8; row * 4];
+            br.read_exact(&mut planes)?;
+
+            for x in 0..width as usize {
+                if self.x + x as i32 >= bgi.window.width {
+                    break;
+                }
+                let mut color = (planes[(row * 3) + (x / 8)] >> (7 - (x & 7))) & 1;
+                color |= ((planes[(row * 2) + (x / 8)] >> (7 - (x & 7))) & 1) << 1;
+                color |= ((planes[row + (x / 8)] >> (7 - (x & 7))) & 1) << 2;
+                color |= ((planes[x / 8] >> (7 - (x & 7))) & 1) << 3;
+                bgi.put_pixel(self.x + x as i32, self.y + y, color);
             }
         }
         bgi.set_write_mode(mode);
-        return Ok(CallbackAction::Update);
+        Ok(CallbackAction::Update)
     }
 
     fn to_rip_string(&self) -> String {
@@ -2043,7 +2048,7 @@ pub struct ButtonStyle {
     pub hgt: i32,
     pub orient: i32,
     pub flags: i32,
-    pub size: i32,
+    pub bevsize: i32,
     pub dfore: i32,
     pub dback: i32,
     pub bright: i32,
@@ -2080,7 +2085,7 @@ impl Command for ButtonStyle {
             }
 
             10 | 11 => {
-                parse_base_36(&mut self.size, ch)?;
+                parse_base_36(&mut self.bevsize, ch)?;
                 Ok(true)
             }
 
@@ -2142,7 +2147,7 @@ impl Command for ButtonStyle {
             size: Size::new(self.wid, self.hgt),
             orientation: LabelOrientation::from(self.orient as u8),
             flags: self.flags,
-            bevel_size: self.size,
+            bevel_size: self.bevsize,
             label_color: self.dfore,
             drop_shadow_color: self.dback,
             bright: self.bright,
@@ -2163,7 +2168,7 @@ impl Command for ButtonStyle {
             to_base_36(2, self.hgt),
             to_base_36(2, self.orient),
             to_base_36(4, self.flags),
-            to_base_36(2, self.size),
+            to_base_36(2, self.bevsize),
             to_base_36(2, self.dfore),
             to_base_36(2, self.dback),
             to_base_36(2, self.bright),
@@ -2245,9 +2250,10 @@ impl Command for Button {
                 self.y1,
                 self.hotkey as u8,
                 self.flags,
-                Some(&split[0]),
-                &split[1],
-                Some(parse_host_command(&split[2])),
+                Some(split[0]),
+                split[1],
+                Some(parse_host_command(split[2])),
+                false,
             );
         } else if split.len() == 3 {
             bgi.add_button(
@@ -2258,11 +2264,12 @@ impl Command for Button {
                 self.hotkey as u8,
                 self.flags,
                 None,
-                &split[1],
-                Some(parse_host_command(&split[2])),
+                split[1],
+                Some(parse_host_command(split[2])),
+                false,
             );
         } else if split.len() == 2 {
-            bgi.add_button(self.x0, self.y0, self.x1, self.y1, self.hotkey as u8, self.flags, None, &split[1], None);
+            bgi.add_button(self.x0, self.y0, self.x1, self.y1, self.hotkey as u8, self.flags, None, split[1], None, false);
         } else {
             bgi.add_button(
                 self.x0,
@@ -2274,6 +2281,7 @@ impl Command for Button {
                 None,
                 &format!("error in text {}", split.len()),
                 None,
+                false,
             );
         }
 

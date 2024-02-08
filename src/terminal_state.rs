@@ -1,4 +1,4 @@
-use crate::{ansi::BaudEmulation, Buffer, Caret, Size};
+use crate::{ansi::BaudEmulation, Buffer, Caret, Rectangle, Size};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TerminalScrolling {
@@ -46,6 +46,7 @@ pub struct TerminalState {
     pub cleared_screen: bool,
     tab_stops: Vec<i32>,
     baud_rate: BaudEmulation,
+    pub text_window: Option<Rectangle>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -90,6 +91,7 @@ impl TerminalState {
             blink_attribute_font_slot: 0,
             high_intensity_blink_attribute_font_slot: 0,
             cleared_screen: false,
+            text_window: None,
         };
         ret.reset_tabs();
         ret
@@ -225,5 +227,15 @@ impl TerminalState {
 
     pub fn clear_margins_left_right(&mut self) {
         self.margins_left_right = None;
+    }
+
+    pub fn set_text_window(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
+        println!("set text window!");
+        self.text_window = Some(Rectangle::from_coords(x0, y0, x1, y1));
+    }
+
+    pub fn clear_text_window(&mut self) {
+        println!("clear text window!   ");
+        self.text_window = None;
     }
 }
