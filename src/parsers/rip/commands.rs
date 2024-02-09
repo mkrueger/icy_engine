@@ -1667,7 +1667,9 @@ impl Command for Mouse {
 
     fn run(&self, _buf: &mut Buffer, _caret: &mut Caret, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         let host_command = parse_host_command(&self.text);
-        bgi.add_mouse_field(MouseField::new(self.x0, self.y0, self.x1, self.y1, Some(host_command), ButtonStyle2::default()));
+        let mut style = ButtonStyle2::default();
+        style.flags |= 1024;
+        bgi.add_mouse_field(MouseField::new(self.x0, self.y0, self.x1, self.y1, Some(host_command), style));
         Ok(CallbackAction::NoUpdate)
     }
     fn to_rip_string(&self) -> String {
