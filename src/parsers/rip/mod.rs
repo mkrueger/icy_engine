@@ -16,6 +16,7 @@ enum State {
     ReadCommand(usize),
     ReadParams,
     SkipEOL,
+    EndRip,
 }
 
 #[derive(Default)]
@@ -42,7 +43,7 @@ pub trait Command {
     /// # Errors
     ///
     /// This function will return an error if .
-    fn run(&self, _buf: &mut Buffer, _bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+    fn run(&self, _buf: &mut Buffer, _caret: &mut Caret, _bgi: &mut Bgi) -> EngineResult<CallbackAction> {
         println!("not implemented RIP: {:?}", self.to_rip_string());
         Ok(CallbackAction::NoUpdate)
     }
@@ -89,17 +90,18 @@ impl Parser {
         // clear viewport
     }
 
-    fn record_rip_command(&mut self, buf: &mut Buffer, cmd: Box<dyn Command>) {
+    fn record_rip_command(&mut self, buf: &mut Buffer, caret: &mut Caret, cmd: Box<dyn Command>) -> EngineResult<CallbackAction> {
         //println!("RIP: {:?}", cmd.to_rip_string());
         self.rip_counter = self.rip_counter.wrapping_add(1);
-        let _ = cmd.run(buf, &mut self.bgi);
+        let result = cmd.run(buf, caret, &mut self.bgi);
         if !self.record_rip_commands {
-            return;
+            return result;
         }
         self.rip_commands.push(cmd);
+        result
     }
 
-    fn parse_parameter(&mut self, buf: &mut Buffer, ch: char) -> Option<Result<CallbackAction, anyhow::Error>> {
+    fn parse_parameter(&mut self, buf: &mut Buffer, caret: &mut Caret, ch: char) -> Option<Result<CallbackAction, anyhow::Error>> {
         if ch == '\\' {
             self.state = State::SkipEOL;
             return Some(Ok(CallbackAction::NoUpdate));
@@ -108,17 +110,17 @@ impl Parser {
             return Some(Ok(CallbackAction::NoUpdate));
         }
         if ch == '\n' {
-            if let Some(t) = self.command.take() {
-                self.record_rip_command(buf, t);
-            }
             self.state = State::Default;
+            if let Some(t) = self.command.take() {
+                return Some(self.record_rip_command(buf, caret, t));
+            }
             return Some(Ok(CallbackAction::NoUpdate));
         }
         if ch == '|' {
-            if let Some(t) = self.command.take() {
-                self.record_rip_command(buf, t);
-            }
             self.state = State::ReadCommand(0);
+            if let Some(t) = self.command.take() {
+                return Some(self.record_rip_command(buf, caret, t));
+            }
             return Some(Ok(CallbackAction::NoUpdate));
         }
         match self.command.as_mut().unwrap().parse(&mut self.parameter_state, ch) {
@@ -128,7 +130,7 @@ impl Parser {
             Ok(false) => {
                 if let Some(t) = self.command.take() {
                     self.state = State::GotRipStart;
-                    self.record_rip_command(buf, t);
+                    return Some(self.record_rip_command(buf, caret, t));
                 }
             }
             Err(e) => {
@@ -141,7 +143,7 @@ impl Parser {
     }
 }
 
-static RIP_TERMINAL_ID: &str = "RIPSCRIP015410";
+static RIP_TERMINAL_ID: &str = "RIPSCRIP015410\0";
 
 impl Parser {
     pub fn start_command(&mut self, cmd: Box<dyn Command>) {
@@ -151,9 +153,14 @@ impl Parser {
         self.state = State::ReadParams;
     }
 
-    pub fn push_command(&mut self, buf: &mut Buffer, cmd: Box<dyn Command>) {
+    /// .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn push_command(&mut self, buf: &mut Buffer, caret: &mut Caret, cmd: Box<dyn Command>) -> EngineResult<CallbackAction> {
         self.state = State::GotRipStart;
-        self.record_rip_command(buf, cmd);
+        self.record_rip_command(buf, caret, cmd)
     }
 }
 
@@ -169,7 +176,7 @@ impl BufferParser for Parser {
 
         match self.state {
             State::ReadParams => {
-                if let Some(value) = self.parse_parameter(buf, ch) {
+                if let Some(value) = self.parse_parameter(buf, caret, ch) {
                     return value;
                 }
                 return Ok(CallbackAction::NoUpdate);
@@ -182,12 +189,30 @@ impl BufferParser for Parser {
                     self.state = State::ReadParams;
                     return Ok(CallbackAction::NoUpdate);
                 }
-                if let Some(value) = self.parse_parameter(buf, ch) {
+                if let Some(value) = self.parse_parameter(buf, caret, ch) {
                     return value;
                 }
                 self.state = State::ReadParams;
                 return Ok(CallbackAction::NoUpdate);
             }
+            State::EndRip => {
+                if ch == '\r' {
+                    return Ok(CallbackAction::NoUpdate);
+                }
+                if ch == '\n' {
+                    self.state = State::Default;
+                    return Ok(CallbackAction::NoUpdate);
+                }
+
+                if ch == '|' {
+                    self.state = State::ReadCommand(0);
+                    return Ok(CallbackAction::NoUpdate);
+                }
+
+                self.state = State::Default;
+                return Ok(CallbackAction::NoUpdate);
+            }
+
             State::ReadCommand(level) => {
                 if ch == '!' {
                     self.state = State::GotRipStart;
@@ -197,10 +222,10 @@ impl BufferParser for Parser {
                 if level == 1 {
                     match ch {
                         'M' => self.start_command(Box::<commands::Mouse>::default()),
-                        'K' => self.push_command(buf, Box::<commands::MouseFields>::default()),
+                        'K' => return self.push_command(buf, caret, Box::<commands::MouseFields>::default()),
                         'T' => self.start_command(Box::<commands::BeginText>::default()),
                         't' => self.start_command(Box::<commands::RegionText>::default()),
-                        'E' => self.push_command(buf, Box::<commands::EndText>::default()),
+                        'E' => return self.push_command(buf, caret, Box::<commands::EndText>::default()),
                         'C' => self.start_command(Box::<commands::GetImage>::default()),
                         'P' => self.start_command(Box::<commands::PutImage>::default()),
                         'W' => self.start_command(Box::<commands::WriteIcon>::default()),
@@ -235,12 +260,12 @@ impl BufferParser for Parser {
                 match ch {
                     'w' => self.start_command(Box::<commands::TextWindow>::default()),
                     'v' => self.start_command(Box::<commands::ViewPort>::default()),
-                    '*' => self.push_command(buf, Box::<commands::ResetWindows>::default()),
-                    'e' => self.push_command(buf, Box::<commands::EraseWindow>::default()),
-                    'E' => self.push_command(buf, Box::<commands::EraseView>::default()),
+                    '*' => return self.push_command(buf, caret, Box::<commands::ResetWindows>::default()),
+                    'e' => return self.push_command(buf, caret, Box::<commands::EraseWindow>::default()),
+                    'E' => return self.push_command(buf, caret, Box::<commands::EraseView>::default()),
                     'g' => self.start_command(Box::<commands::GotoXY>::default()),
-                    'H' => self.push_command(buf, Box::<commands::Home>::default()),
-                    '>' => self.push_command(buf, Box::<commands::EraseEOL>::default()),
+                    'H' => return self.push_command(buf, caret, Box::<commands::Home>::default()),
+                    '>' => return self.push_command(buf, caret, Box::<commands::EraseEOL>::default()),
                     'c' => self.start_command(Box::<commands::Color>::default()),
                     'Q' => self.start_command(Box::<commands::SetPalette>::default()),
                     'a' => self.start_command(Box::<commands::OnePalette>::default()),
@@ -279,7 +304,7 @@ impl BufferParser for Parser {
                     '$' => self.start_command(Box::<commands::TextVariable>::default()),
                     '#' => {
                         // RIP_NO_MORE
-                        self.state = State::Default;
+                        self.state = State::EndRip;
                         return Ok(CallbackAction::NoUpdate);
                     }
                     _ => {

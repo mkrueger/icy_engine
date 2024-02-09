@@ -1757,8 +1757,6 @@ impl Bgi {
             y2 = y1 + height;
         }
 
-        println!("{:16b} {:16b}", self.button_style.flags, self.button_style.flags2);
-
         self.add_mouse_field(MouseField::new(x1, y1, x2, y2, host_command, self.button_style.clone()));
         let mut ox = x1;
         let mut oy = y1;
@@ -1882,7 +1880,6 @@ impl Bgi {
                         self.out_text_xy(tx + 1, ty + 1, &text);
                     }
 
-                    println!("label color : {}", self.button_style.label_color);
                     self.set_color(ch);
                     self.out_text_xy(tx, ty, &text);
 
