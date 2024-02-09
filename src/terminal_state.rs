@@ -231,9 +231,13 @@ impl TerminalState {
 
     pub fn set_text_window(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
         self.text_window = Some(Rectangle::from_coords(x0, y0, x1, y1));
+        self.set_margins_top_bottom(0, y1 - y0);
+        self.set_margins_left_right(0, x1 - x0);
     }
 
     pub fn clear_text_window(&mut self) {
         self.text_window = None;
+        self.clear_margins_top_bottom();
+        self.clear_margins_left_right();
     }
 }

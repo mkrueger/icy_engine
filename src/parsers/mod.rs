@@ -329,7 +329,6 @@ impl Buffer {
         let layer = &mut self.layers[layer];
         layer.clear();
         self.stop_sixel_threads();
-        self.terminal_state.cleared_screen = true;
         if self.is_terminal_buffer {
             self.set_size(self.terminal_state.get_size());
         }

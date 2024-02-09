@@ -311,22 +311,12 @@ pub struct ButtonStyle2 {
     pub underline_color: i32,
     pub corner_color: i32,
 }
+// Button flags: 1000010100110010                0
+// Button flags:      11100110110              110
 
 impl ButtonStyle2 {
     pub fn is_clipboard_button(&self) -> bool {
         self.flags & 1 != 0
-    }
-
-    pub fn is_icon_button(&self) -> bool {
-        self.flags & 128 != 0
-    }
-
-    pub fn is_plain_button(&self) -> bool {
-        self.flags & 256 != 0
-    }
-
-    pub fn is_mouse_button(&self) -> bool {
-        self.flags & 1024 != 0
     }
 
     pub fn is_invertable_button(&self) -> bool {
@@ -353,8 +343,20 @@ impl ButtonStyle2 {
         self.flags & 64 != 0
     }
 
+    pub fn is_icon_button(&self) -> bool {
+        self.flags & 128 != 0
+    }
+
+    pub fn is_plain_button(&self) -> bool {
+        self.flags & 256 != 0
+    }
+
     pub fn display_bevel_special_effect(&self) -> bool {
         self.flags & 512 != 0
+    }
+
+    pub fn is_mouse_button(&self) -> bool {
+        self.flags & 1024 != 0
     }
 
     pub fn underline_hotkey(&self) -> bool {
@@ -375,6 +377,26 @@ impl ButtonStyle2 {
 
     pub fn display_sunken_effect(&self) -> bool {
         self.flags & 32768 != 0
+    }
+
+    pub fn is_checkbox_button(&self) -> bool {
+        self.flags2 & 1 != 0
+    }
+
+    pub fn highlight_hotkey(&self) -> bool {
+        self.flags2 & 2 != 0
+    }
+
+    pub fn explode(&self) -> bool {
+        self.flags2 & 4 != 0
+    }
+
+    pub fn left_justify_label(&self) -> bool {
+        self.flags2 & 8 != 0
+    }
+
+    pub fn right_justify_label(&self) -> bool {
+        self.flags2 & 16 != 0
     }
 }
 
@@ -1776,16 +1798,24 @@ impl Bgi {
         }
 
         if self.button_style.display_recessed() && !pressed {
-            self.draw_line(ox, oy, ox + width - 1, oy, cs);
+            self.draw_line(ox, oy, ox + width - 2, oy, cs);
             self.draw_line(ox, oy, ox, oy + height - 2, cs);
-
-            self.draw_line(ox + width - 1, oy, ox + width - 1, oy + height - 2, ch);
-            self.draw_line(ox, oy + height - 2, ox + width - 1, oy + height - 2, ch);
+            self.draw_line(ox + width - 2, oy, ox + width - 2, oy + height - 2, ch);
+            self.draw_line(ox, oy + height - 2, ox + width - 2, oy + height - 2, ch);
 
             self.put_pixel(ox, oy, cc);
-            self.put_pixel(ox + width - 1, oy, cc);
+            self.put_pixel(ox + width - 2, oy, cc);
             self.put_pixel(ox, oy + height - 2, cc);
-            self.put_pixel(ox + width - 1, oy + height - 2, cc);
+            self.put_pixel(ox + width - 2, oy + height - 2, cc);
+
+            let ox = ox + 1;
+            let oy = oy + 1;
+            let width = width - 2;
+            let height = height - 2;
+            self.draw_line(ox, oy, ox + width - 2, oy, bg);
+            self.draw_line(ox, oy, ox, oy + height - 2, bg);
+            self.draw_line(ox + width - 2, oy, ox + width - 2, oy + height - 2, bg);
+            self.draw_line(ox, oy + height - 2, ox + width - 2, oy + height - 2, bg);
         }
 
         if self.button_style.display_bevel_special_effect() {
@@ -1882,15 +1912,36 @@ impl Bgi {
 
                     self.set_color(ch);
                     self.out_text_xy(tx, ty, &text);
-
                     // print hotkey
-                    if self.button_style.underline_hotkey() && hotkey != 0 && hotkey != 255 {
+                    if hotkey != 0 && hotkey != 255 {
                         let hk_ch = (hotkey as char).to_ascii_uppercase();
                         for (i, ch) in text.chars().enumerate() {
                             if ch.to_ascii_uppercase() == hk_ch {
-                                let hotkey_size = self.get_text_size(&text[0..i]);
-                                self.set_color(ul);
-                                self.out_text_xy(tx + hotkey_size.width, ty, &ch.to_string());
+                                let prefix_size: Size = self.get_text_size(&text[0..i]);
+                                if self.button_style.highlight_hotkey() {
+                                    self.set_color(ul);
+                                    self.out_text_xy(tx + prefix_size.width, ty, &ch.to_string());
+                                }
+
+                                if self.button_style.underline_hotkey() {
+                                    let hotkey_size = self.get_text_size(&text[i..=i]);
+                                    if self.button_style.display_dropshadow() {
+                                        self.draw_line(
+                                            tx + prefix_size.width + 1,
+                                            ty + hotkey_size.height + 2,
+                                            tx + prefix_size.width + hotkey_size.width,
+                                            ty + hotkey_size.height + 2,
+                                            cs,
+                                        );
+                                    }
+                                    self.draw_line(
+                                        tx + prefix_size.width,
+                                        ty + hotkey_size.height + 1,
+                                        tx + prefix_size.width + hotkey_size.width - 1,
+                                        ty + hotkey_size.height + 1,
+                                        ul,
+                                    );
+                                }
                                 break;
                             }
                         }
