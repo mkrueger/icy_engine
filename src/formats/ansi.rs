@@ -715,7 +715,7 @@ mod tests {
                 /*
                 for x in 23..30 {
                     let ch = buf2.layers[0].get_char((x, 0));
-                    println!("{:?} {:?}", ch, buf2.palette.get_color(ch.attribute.get_foreground()));
+                    "{:?} {:?}", ch, buf2.palette.get_color(ch.attribute.get_foreground()));
                 }
                 */
 

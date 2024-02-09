@@ -105,10 +105,10 @@ pub struct DrawExecutor {
 
     cur_position: Position,
     pen_colors: Vec<Color>,
-    polymarker_color: usize,
-    line_color: usize,
-    fill_color: usize,
-    text_color: usize,
+    polymarker_color: u8,
+    line_color: u8,
+    fill_color: u8,
+    text_color: u8,
 
     text_effects: TextEffects,
     text_size: i32,
@@ -143,7 +143,7 @@ unsafe impl Sync for DrawExecutor {}
 impl Default for DrawExecutor {
     fn default() -> Self {
         Self {
-            screen: vec![0; 320 * 200 * 4],
+            screen: vec![1; 320 * 200],
             terminal_resolution: TerminalResolution::Low,
             pen_colors: IGS_SYSTEM_PALETTE.to_vec(),
             polymarker_color: 0,
@@ -178,13 +178,13 @@ impl DrawExecutor {
     pub fn clear(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         buf.clear_screen(0, caret);
         let res = self.get_resolution();
-        self.screen = vec![0; (res.width * res.height * 4) as usize];
+        self.screen = vec![1; (res.width * res.height) as usize];
     }
 
     pub fn set_resolution(&mut self, buf: &mut Buffer, caret: &mut Caret) {
         buf.clear_screen(0, caret);
         let res = self.get_resolution();
-        self.screen = vec![0; (res.width * res.height * 4) as usize];
+        self.screen = vec![1; (res.width * res.height) as usize];
     }
 
     pub fn reset_attributes(&mut self) {
@@ -200,9 +200,8 @@ impl DrawExecutor {
         let old_px = self.get_pixel(x0, y0);
 
         let mut vec = vec![Position::new(x0, y0)];
-        let col = self.pen_colors[self.fill_color].clone();
-        let rgb = col.get_rgb();
-        if old_px == rgb {
+        let col = self.fill_color;
+        if old_px == col {
             return;
         }
 
@@ -223,46 +222,38 @@ impl DrawExecutor {
                 continue;
             }
 
-            let cp: (u8, u8, u8) = self.get_pixel(pos.x, pos.y);
+            let cp = self.get_pixel(pos.x, pos.y);
             if cp != old_px {
                 continue;
             }
-            self.set_pixel(pos.x, pos.y, &col);
+            self.set_pixel(pos.x, pos.y, col);
 
             vec.push(Position::new(pos.x - 1, pos.y));
             vec.push(Position::new(pos.x + 1, pos.y));
         }
     }
 
-    fn set_pixel(&mut self, x: i32, y: i32, line_color: &Color) {
-        let (red, green, blue) = line_color.get_rgb();
-
-        let offset = (y * self.get_resolution().width * 4 + x * 4) as usize;
+    fn set_pixel(&mut self, x: i32, y: i32, line_color: u8) {
+        let offset = (y * self.get_resolution().width + x) as usize;
         if offset > self.screen.len() - 4 {
             return;
         }
-        self.screen[offset] = red;
-        self.screen[offset + 1] = green;
-        self.screen[offset + 2] = blue;
-        self.screen[offset + 3] = 255;
+        self.screen[offset] = line_color;
     }
 
-    fn get_pixel(&mut self, x: i32, y: i32) -> (u8, u8, u8) {
-        let offset = (y * self.get_resolution().width * 4 + x * 4) as usize;
-        (self.screen[offset], self.screen[offset + 1], self.screen[offset + 2])
+    fn get_pixel(&mut self, x: i32, y: i32) -> u8 {
+        let offset = (y * self.get_resolution().width + x) as usize;
+        self.screen[offset]
     }
 
     fn fill_pixel(&mut self, x: i32, y: i32) {
-        let color = self.pen_colors[self.fill_color].clone();
-
         let w = self.fill_pattern[(y as usize) % self.fill_pattern.len()];
-
         if w & (1 << (x as usize % 16)) != 0 {
-            self.set_pixel(x, y, &color);
+            self.set_pixel(x, y, self.fill_color);
         }
     }
 
-    fn draw_line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, color: &Color, mask: usize) {
+    fn draw_line(&mut self, x0: i32, y0: i32, x1: i32, y1: i32, color: u8, mask: usize) {
         let mut line_mask = LINE_STYLE[mask];
 
         let dx = (x0 - x1).abs();
@@ -300,13 +291,13 @@ impl DrawExecutor {
         let mut x = -r;
         let mut y = 0;
         let mut err = 2 - 2 * r;
-        let color = self.pen_colors[self.line_color].clone();
+        let color = self.line_color;
 
         while x < 0 {
-            self.set_pixel(xm - x, ym + y, &color); /*   I. Quadrant */
-            self.set_pixel(xm - y, ym - x, &color); /*  II. Quadrant */
-            self.set_pixel(xm + x, ym - y, &color); /* III. Quadrant */
-            self.set_pixel(xm + y, ym + x, &color); /*  IV. Quadrant */
+            self.set_pixel(xm - x, ym + y, color); /*   I. Quadrant */
+            self.set_pixel(xm - y, ym - x, color); /*  II. Quadrant */
+            self.set_pixel(xm + x, ym - y, color); /* III. Quadrant */
+            self.set_pixel(xm + y, ym + x, color); /*  IV. Quadrant */
             let r = err;
             if r <= y {
                 y += 1;
@@ -324,13 +315,13 @@ impl DrawExecutor {
         let mut y = 0; /* II. quadrant from bottom left to top right */
         let e2 = b * b;
         let mut err = x * (2 * e2 + x) + e2; /* error of 1.step */
-        let color = self.pen_colors[self.line_color].clone();
+        let color = self.line_color;
 
         while x <= 0 {
-            self.set_pixel(xm - x, ym + y, &color); /*   I. Quadrant */
-            self.set_pixel(xm + x, ym + y, &color); /*  II. Quadrant */
-            self.set_pixel(xm + x, ym - y, &color); /* III. Quadrant */
-            self.set_pixel(xm - x, ym - y, &color); /*  IV. Quadrant */
+            self.set_pixel(xm - x, ym + y, color); /*   I. Quadrant */
+            self.set_pixel(xm + x, ym + y, color); /*  II. Quadrant */
+            self.set_pixel(xm + x, ym - y, color); /* III. Quadrant */
+            self.set_pixel(xm - x, ym - y, color); /*  IV. Quadrant */
             let e2 = 2 * err;
             if e2 >= (x * 2 + 1) * b * b {
                 /* e_xy+e_x > 0 */
@@ -347,14 +338,14 @@ impl DrawExecutor {
         while y < b {
             /* too early stop of flat ellipses a=1, */
             y += 1;
-            self.set_pixel(xm, ym + y, &color); /* -> finish tip of ellipse */
-            self.set_pixel(xm, ym - y, &color);
+            self.set_pixel(xm, ym + y, color); /* -> finish tip of ellipse */
+            self.set_pixel(xm, ym - y, color);
         }
     }
 
     fn fill_rect(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
-        for y in y0..y1 {
-            for x in x0..x1 {
+        for y in y0..=y1 {
+            for x in x0..=x1 {
                 self.fill_pixel(x, y);
             }
         }
@@ -363,30 +354,54 @@ impl DrawExecutor {
     fn draw_poly(&mut self, parameters: &[i32]) {
         let mut x = parameters[0];
         let mut y = parameters[1];
-        let color = self.pen_colors[self.fill_color].clone();
         let mask = self.line_type.get_mask();
         let mut i = 2;
         while i < parameters.len() {
             let nx = parameters[i];
             let ny = parameters[i + 1];
-            self.draw_line(x, y, nx, ny, &color, mask);
+            self.draw_line(x, y, nx, ny, self.fill_color, mask);
             x = nx;
             y = ny;
             i += 2;
         }
         // close polygon
-        self.draw_line(x, y, parameters[0], parameters[1], &color, mask);
+        self.draw_line(x, y, parameters[0], parameters[1], self.fill_color, mask);
+    }
+
+    fn draw_polyline(&mut self, parameters: &[i32]) {
+        let mut x = parameters[0];
+        let mut y = parameters[1];
+        let mask = self.line_type.get_mask();
+        let mut i = 2;
+        while i < parameters.len() {
+            let nx = parameters[i];
+            let ny = parameters[i + 1];
+            self.draw_line(x, y, nx, ny, self.fill_color, mask);
+            x = nx;
+            y = ny;
+            i += 2;
+        }
     }
 
     fn fill_poly(&mut self, points: &[i32]) {
         let max_vertices = 512;
 
-        let y_coords = points.iter().skip(1).step_by(2).copied().collect::<Vec<i32>>();
-        let y_max = *y_coords.iter().max().unwrap(); // start row (bottom)
-        let y_min = *y_coords.iter().min().unwrap(); // end row (top)
+        let mut i = 3;
+        let mut y_max = points[1];
+        let mut y_min = points[1];
+        while i < points.len() {
+            let y = points[i];
+            if y > y_max {
+                y_max = y;
+            }
+            if y < y_min {
+                y_min = y;
+            }
+            i += 2;
+        }
 
         // VDI apparently loops over the scan lines from bottom to top
-        for y in (y_min + 1..=y_max).rev() {
+        for y in (y_min..=y_max).rev() {
             // Set up counter for vector intersections
             let mut intersections = 0;
 
@@ -411,38 +426,36 @@ impl DrawExecutor {
                 let dy = y2 - y1;
 
                 // If the current vector is horizontal (0), ignore it.
-                if dy != 0 {
-                    // Calculate deltas of each endpoint with current scan line.
-                    let dy1 = y - y1;
-                    let dy2 = y - y2;
+                // Calculate deltas of each endpoint with current scan line.
+                let dy1 = y - y1;
+                let dy2 = y - y2;
 
-                    // Determine whether the current vector intersects with
-                    // the scan line by comparing the Y-deltas we calculated
-                    // of the two endpoints from the scan line.
-                    //
-                    // If both deltas have the same sign, then the line does
-                    // not intersect and can be ignored.  The origin for this
-                    // test is found in Newman and Sproull.
-                    if (dy1 ^ dy2) < 0 {
-                        let x1 = points[i * 2]; // Get X-coord of 1st endpoint.
-                        let x2 = points[next_point * 2]; // Get X-coord of 2nd endpoint.
+                // Determine whether the current vector intersects with
+                // the scan line by comparing the Y-deltas we calculated
+                // of the two endpoints from the scan line.
+                //
+                // If both deltas have the same sign, then the line does
+                // not intersect and can be ignored.  The origin for this
+                // test is found in Newman and Sproull.
+                if (dy1 ^ dy2) < 0 {
+                    let x1 = points[i * 2]; // Get X-coord of 1st endpoint.
+                    let x2 = points[next_point * 2]; // Get X-coord of 2nd endpoint.
 
-                        // Calculate X delta of current vector
-                        let dx = (x2 - x1) << 1; // Left shift so we can round by adding 1 below
+                    // Calculate X delta of current vector
+                    let dx = (x2 - x1) << 1; // Left shift so we can round by adding 1 below
 
-                        // Stop if we have reached the max number of verticies allowed (512)
-                        if intersections >= max_vertices {
-                            break;
-                        }
+                    // Stop if we have reached the max number of verticies allowed (512)
+                    if intersections >= max_vertices {
+                        break;
+                    }
 
-                        intersections += 1;
+                    intersections += 1;
 
-                        // Add X value for this vector to edge buffer
-                        if dx < 0 {
-                            edge_buffer.push(((dy2 * dx / dy + 1) >> 1) + x2);
-                        } else {
-                            edge_buffer.push(((dy1 * dx / dy + 1) >> 1) + x1);
-                        }
+                    // Add X value for this vector to edge buffer
+                    if dx < 0 {
+                        edge_buffer.push(((dy2 * dx / dy + 1) >> 1) + x2);
+                    } else {
+                        edge_buffer.push(((dy1 * dx / dy + 1) >> 1) + x1);
                     }
                 }
             }
@@ -463,17 +476,17 @@ impl DrawExecutor {
 
             // Loop through all edges in pairs, filling the pixels in between.
             let mut i = intersections / 2;
-            let j = 0;
+            let mut j = 0;
             while i > 0 {
                 i -= 1;
                 /* grab a pair of endpoints */
                 let x1 = edge_buffer[j];
                 let x2 = edge_buffer[j + 1];
-
                 // Fill in all pixels horizontally from (x1, y) to (x2, y)
                 for k in x1..=x2 {
                     self.fill_pixel(k, y);
                 }
+                j += 2;
             }
         }
     }
@@ -481,7 +494,7 @@ impl DrawExecutor {
     fn write_text(&mut self, text_pos: Position, string_parameter: &str) {
         let mut pos = text_pos;
         let char_size = self.font_8px.size;
-        let color = self.pen_colors[self.text_color].clone();
+        let color = self.text_color;
 
         for ch in string_parameter.chars() {
             let data = self.font_8px.get_glyph(ch).unwrap().data.clone();
@@ -489,7 +502,7 @@ impl DrawExecutor {
                 for x in 0..char_size.width {
                     if data[y as usize] & (128 >> x) != 0 {
                         let p = pos + Position::new(x, y);
-                        self.set_pixel(p.x, p.y, &color);
+                        self.set_pixel(p.x, p.y, color);
                     }
                 }
             }
@@ -508,8 +521,8 @@ impl DrawExecutor {
 
         for y in 0..height {
             for x in 0..width {
-                let (r, g, b) = self.get_pixel(from.x + x, from.y + y);
-                self.set_pixel(dest.x + x, dest.y + y, &Color::new(r, g, b));
+                let color = self.get_pixel(from.x + x, from.y + y);
+                self.set_pixel(dest.x + x, dest.y + y, color);
             }
         }
     }
@@ -530,12 +543,9 @@ impl DrawExecutor {
                 if dest.x + x >= res.width {
                     break;
                 }
-                let offset = (yp * width + xp) as usize * 4;
-                let r = self.screen_memory[offset];
-                let g = self.screen_memory[offset + 1];
-                let b = self.screen_memory[offset + 2];
-
-                self.set_pixel(dest.x + x, dest.y + y, &Color::new(r, g, b));
+                let offset = (yp * width + xp) as usize;
+                let color = self.screen_memory[offset];
+                self.set_pixel(dest.x + x, dest.y + y, color);
             }
         }
     }
@@ -549,11 +559,8 @@ impl DrawExecutor {
 
         for y in from.y..to.y {
             for x in from.x..to.x {
-                let (r, g, b) = self.get_pixel(x, y);
-                self.screen_memory.push(r);
-                self.screen_memory.push(g);
-                self.screen_memory.push(b);
-                self.screen_memory.push(255);
+                let color = self.get_pixel(x, y);
+                self.screen_memory.push(color);
             }
         }
     }
@@ -612,7 +619,15 @@ impl CommandExecutor for DrawExecutor {
     }
 
     fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
-        Some((self.get_resolution(), self.screen.clone()))
+        let mut pixels = Vec::new();
+        for i in &self.screen {
+            let (r, g, b) = self.pen_colors[*i as usize].get_rgb();
+            pixels.push(r);
+            pixels.push(g);
+            pixels.push(b);
+            pixels.push(255);
+        }
+        Some((self.get_resolution(), pixels))
     }
 
     fn execute_command(
@@ -623,7 +638,7 @@ impl CommandExecutor for DrawExecutor {
         parameters: &[i32],
         string_parameter: &str,
     ) -> EngineResult<CallbackAction> {
-        // println!("cmd:{command:?} params:{parameters:?}");
+        //  println!("cmd:{command:?} params:{parameters:?}");
         match command {
             IgsCommands::Initialize => {
                 if parameters.len() != 1 {
@@ -648,7 +663,6 @@ impl CommandExecutor for DrawExecutor {
                     }
                     x => return Err(anyhow::anyhow!("Initialize unknown/unsupported argument: {x}")),
                 }
-
                 Ok(CallbackAction::Update)
             }
             IgsCommands::ScreenClear => {
@@ -685,10 +699,10 @@ impl CommandExecutor for DrawExecutor {
                     return Err(anyhow::anyhow!("ColorSet command requires 2 arguments"));
                 }
                 match parameters[0] {
-                    0 => self.polymarker_color = parameters[1] as usize,
-                    1 => self.line_color = parameters[1] as usize,
-                    2 => self.fill_color = parameters[1] as usize,
-                    3 => self.text_color = parameters[1] as usize,
+                    0 => self.polymarker_color = parameters[1] as u8,
+                    1 => self.line_color = parameters[1] as u8,
+                    2 => self.fill_color = parameters[1] as u8,
+                    3 => self.text_color = parameters[1] as u8,
                     x => return Err(anyhow::anyhow!("ColorSet unknown/unsupported argument: {x}")),
                 }
                 Ok(CallbackAction::NoUpdate)
@@ -715,8 +729,8 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("DrawLine command requires 4 arguments"));
                 }
-                let color = self.pen_colors[self.line_color].clone();
-                self.draw_line(parameters[0], parameters[1], parameters[2], parameters[3], &color, self.line_type.get_mask());
+                let color = self.line_color;
+                self.draw_line(parameters[0], parameters[1], parameters[2], parameters[3], color, self.line_type.get_mask());
                 self.cur_position = Position::new(parameters[2], parameters[3]);
                 Ok(CallbackAction::Update)
             }
@@ -743,7 +757,7 @@ impl CommandExecutor for DrawExecutor {
                 if points * 2 + 1 != parameters.len() as i32 {
                     return Err(anyhow::anyhow!("PolyLine requires {} arguments was {} ", points * 2 + 1, parameters.len()));
                 }
-                self.draw_poly(&parameters[1..]);
+                self.draw_polyline(&parameters[1..]);
                 self.cur_position = Position::new(parameters[parameters.len() - 2], parameters[parameters.len() - 1]);
 
                 Ok(CallbackAction::Update)
@@ -753,13 +767,12 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("LineDrawTo command requires 2 arguments"));
                 }
-                let color = self.pen_colors[self.line_color].clone();
                 self.draw_line(
                     self.cur_position.x,
                     self.cur_position.y,
                     parameters[0],
                     parameters[1],
-                    &color,
+                    self.line_color,
                     self.line_type.get_mask(),
                 );
                 self.cur_position = Position::new(parameters[0], parameters[1]);
@@ -770,19 +783,27 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 5 {
                     return Err(anyhow::anyhow!("Box command requires 5 arguments"));
                 }
-                let x0 = parameters[0];
-                let y0 = parameters[1];
-                let x1 = parameters[2];
-                let y1 = parameters[3];
+                let mut x0 = parameters[0];
+                let mut y0 = parameters[1];
+                let mut x1 = parameters[2];
+                let mut y1 = parameters[3];
+
+                if x0 > x1 {
+                    std::mem::swap(&mut x0, &mut x1);
+                }
+
+                if y0 > y1 {
+                    std::mem::swap(&mut y0, &mut y1);
+                }
 
                 self.fill_rect(x0, y0, x1, y1);
                 if self.draw_border {
-                    let color = self.pen_colors[self.fill_color].clone();
+                    let color = self.fill_color;
 
-                    self.draw_line(x0, y0, x0, y1, &color, 0);
-                    self.draw_line(x1, y0, x1, y1, &color, 0);
-                    self.draw_line(x0, y0, x1, y0, &color, 0);
-                    self.draw_line(x0, y1, x1, y1, &color, 0);
+                    self.draw_line(x0, y0, x0, y1, color, 0);
+                    self.draw_line(x1, y0, x1, y1, color, 0);
+                    self.draw_line(x0, y0, x1, y0, color, 0);
+                    self.draw_line(x0, y1, x1, y1, color, 0);
                 }
                 Ok(CallbackAction::Update)
             }
