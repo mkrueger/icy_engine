@@ -7,11 +7,11 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::prelude::*;
 
 use super::{
-    bgi::{Bgi, ButtonStyle2, Direction, FontType, LabelOrientation},
+    bgi::{Bgi, ButtonStyle2, Direction, FontType, LabelOrientation, MouseField},
     parse_base_36, Command,
 };
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct TextWindow {
     pub x0: i32,
     pub y0: i32,
@@ -67,6 +67,7 @@ impl Command for TextWindow {
         if self.x0 == 0 && self.y0 == 0 && self.x1 == 0 && self.y1 == 0 && self.size == 0 && !self.wrap {
             bgi.suspend_text = !bgi.suspend_text;
         }
+        println!("TextWindow: {:?}", self);
         buf.terminal_state.set_text_window(self.x0, self.y0, self.x1, self.y1);
         bgi.set_text_window(self.x0 * x, self.y0 * y, self.x1 * x, self.y1 * y, self.wrap);
         Ok(CallbackAction::NoUpdate)
@@ -1664,6 +1665,11 @@ impl Command for Mouse {
         }
     }
 
+    fn run(&self, _buf: &mut Buffer, bgi: &mut Bgi) -> EngineResult<CallbackAction> {
+        let host_command = parse_host_command(&self.text);
+        bgi.add_mouse_field(MouseField::new(self.x0, self.y0, self.x1, self.y1, Some(host_command), ButtonStyle2::default()));
+        Ok(CallbackAction::NoUpdate)
+    }
     fn to_rip_string(&self) -> String {
         format!(
             "|1M{}{}{}{}{}{}{}{}{}",

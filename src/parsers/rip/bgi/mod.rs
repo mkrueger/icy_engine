@@ -1878,15 +1878,16 @@ impl Bgi {
                     let ty = oy + (height - text_size.height) / 2;
 
                     if self.button_style.display_dropshadow() {
-                        self.set_color(self.button_style.drop_shadow_color as u8);
+                        self.set_color(cs);
                         self.out_text_xy(tx + 1, ty + 1, &text);
                     }
 
+                    println!("label color : {}", self.button_style.label_color);
                     self.set_color(ch);
                     self.out_text_xy(tx, ty, &text);
 
                     // print hotkey
-                    if hotkey != 0 && hotkey != 255 {
+                    if self.button_style.underline_hotkey() && hotkey != 0 && hotkey != 255 {
                         let hk_ch = (hotkey as char).to_ascii_uppercase();
                         for (i, ch) in text.chars().enumerate() {
                             if ch.to_ascii_uppercase() == hk_ch {
