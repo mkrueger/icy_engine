@@ -1,4 +1,4 @@
-use std::{fs, io::Cursor, os::unix::fs::MetadataExt, path, time::UNIX_EPOCH, vec};
+use std::{fs, io::Cursor, path, time::UNIX_EPOCH, vec};
 
 use chrono::{Datelike, NaiveDateTime, Timelike};
 
@@ -2545,7 +2545,7 @@ impl Command for FileQuery {
             // return.  An example of the returned text could be "1.20345".
             2 => {
                 if let Ok(data) = fs::metadata(file_name) {
-                    return Ok(CallbackAction::SendString(format!("1.{}\r\n", data.size())));
+                    return Ok(CallbackAction::SendString(format!("1.{}\r\n", data.len())));
                 }
                 return Ok(CallbackAction::SendString("0\r\n".to_string()));
             }
@@ -2560,7 +2560,7 @@ impl Command for FileQuery {
                     if let Some(time) = NaiveDateTime::from_timestamp_opt(time.as_secs() as i64, 0) {
                         return Ok(CallbackAction::SendString(format!(
                             "1.{}.{:02}.{:02}.{:02}.{:02}:{:02}:{:02}\r\n",
-                            data.size(),
+                            data.len(),
                             time.month(),
                             time.day(),
                             time.year(),
@@ -2569,7 +2569,7 @@ impl Command for FileQuery {
                             time.second(),
                         )));
                     }
-                    return Ok(CallbackAction::SendString(format!("1.{}.\r\n", data.size())));
+                    return Ok(CallbackAction::SendString(format!("1.{}.\r\n", data.len())));
                 }
                 return Ok(CallbackAction::SendString("0\r\n".to_string()));
             }
@@ -2586,7 +2586,7 @@ impl Command for FileQuery {
                         return Ok(CallbackAction::SendString(format!(
                             "1.{}.{}.{:02}.{:02}.{:02}.{:02}:{:02}:{:02}\r\n",
                             self.file_name,
-                            data.size(),
+                            data.len(),
                             time.month(),
                             time.day(),
                             time.year(),
@@ -2595,7 +2595,7 @@ impl Command for FileQuery {
                             time.second(),
                         )));
                     }
-                    return Ok(CallbackAction::SendString(format!("1.{}.{}.\r\n", self.file_name, data.size())));
+                    return Ok(CallbackAction::SendString(format!("1.{}.{}.\r\n", self.file_name, data.len())));
                 }
                 return Ok(CallbackAction::SendString("0\r\n".to_string()));
             }
