@@ -1,4 +1,4 @@
-use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION, LINE_STYLE, SOLID_PATTERN};
+use super::{cmd::IgsCommands, CommandExecutor, IGS_VERSION, LINE_STYLE, RANDOM_PATTERN, SOLID_PATTERN};
 use crate::{
     igs::HATCH_PATTERN, igs::HATCH_WIDE_PATTERN, igs::HOLLOW_PATTERN, igs::TYPE_PATTERN, BitFont, Buffer, CallbackAction, Caret, Color, EngineResult, Position,
     Size, ATARI, IGS_PALETTE, IGS_SYSTEM_PALETTE,
@@ -343,7 +343,45 @@ impl DrawExecutor {
         }
     }
 
-    fn fill_rect(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
+    fn fill_ellipse(&mut self, xm: i32, ym: i32, a: i32, b: i32) {
+        let mut x = -a;
+        let mut y = 0; /* II. quadrant from bottom left to top right */
+        let e2 = b * b;
+        let mut err = x * (2 * e2 + x) + e2; /* error of 1.step */
+        let color = self.line_color;
+
+        while x <= 0 {
+            self.fill_rect(xm - x, ym + y, xm + x, ym + y); /*  II. Quadrant */
+            self.fill_rect(xm + x, ym - y, xm - x, ym - y); /*  IV. Quadrant */
+            let e2 = 2 * err;
+            if e2 >= (x * 2 + 1) * b * b {
+                /* e_xy+e_x > 0 */
+                x += 1;
+                err += (x * 2 + 1) * b * b;
+            }
+            if e2 <= (y * 2 + 1) * a * a {
+                /* e_xy+e_y < 0 */
+                y += 1;
+                err += (y * 2 + 1) * a * a;
+            }
+        }
+
+        while y < b {
+            /* too early stop of flat ellipses a=1, */
+            y += 1;
+            self.set_pixel(xm, ym + y, color); /* -> finish tip of ellipse */
+            self.set_pixel(xm, ym - y, color);
+        }
+    }
+
+    fn fill_rect(&mut self, mut x0: i32, mut y0: i32, mut x1: i32, mut y1: i32) {
+        if y0 > y1 {
+            std::mem::swap(&mut y0, &mut y1);
+        }
+        if x0 > x1 {
+            std::mem::swap(&mut x0, &mut x1);
+        }
+
         for y in y0..=y1 {
             for x in x0..=x1 {
                 self.fill_pixel(x, y);
@@ -610,6 +648,38 @@ impl DrawExecutor {
             self.draw_poly(&points);
         }
     }
+
+    fn draw_poly_maker(&mut self, x0: i32, y0: i32) {
+        let points = match self.polymaker_type {
+            PolymarkerType::Point => vec![1i32, 2, 0, 0, 0, 0],
+            PolymarkerType::Plus => vec![2, 2, 0, -3, 0, 3, 2, -4, 0, 4, 0],
+            PolymarkerType::Star => vec![3, 2, 0, -3, 0, 3, 2, 3, 2, -3, -2, 2, 3, -2, -3, 2],
+            PolymarkerType::Square => vec![1, 5, -4, -3, 4, -3, 4, 3, -4, 3, -4, -3],
+            PolymarkerType::DiagonalCross => vec![2, 2, -4, -3, 4, 3, 2, -4, 3, 4, -3],
+            PolymarkerType::Diamond => vec![1, 5, -4, 0, 0, -3, 4, 0, 0, 3, -4, 0],
+        };
+        let num_lines = points[0];
+        let mut i = 1;
+        let old_color = self.fill_color;
+        let old_type = self.line_type;
+        self.line_type = LineType::Solid;
+        self.fill_color = self.polymarker_color;
+        for _ in 0..num_lines {
+            let num_points = points[i] as usize;
+            i += 1;
+            let mut p = Vec::new();
+            p.push(x0);
+            p.push(y0);
+            for x in 0..num_points {
+                p.push(points[i + x * 2] + x0);
+                p.push(points[i + x * 2 + 1] + y0);
+            }
+            self.draw_polyline(&p);
+            i += num_points;
+        }
+        self.line_type = old_type;
+        self.fill_color = old_color;
+    }
 }
 
 impl CommandExecutor for DrawExecutor {
@@ -857,7 +927,10 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 3 {
                     return Err(anyhow::anyhow!("AttributeForFills command requires 3 arguments"));
                 }
-                self.draw_circle(parameters[0], parameters[1], parameters[2]);
+                self.fill_ellipse(parameters[0], parameters[1], parameters[2], parameters[2]);
+                if self.draw_border {
+                    self.draw_circle(parameters[0], parameters[1], parameters[2]);
+                }
                 Ok(CallbackAction::Update)
             }
 
@@ -865,8 +938,10 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 4 {
                     return Err(anyhow::anyhow!("Ellipse command requires 4 arguments"));
                 }
-
-                self.draw_ellipse(parameters[0], parameters[1], parameters[2], parameters[3]);
+                self.fill_ellipse(parameters[0], parameters[1], parameters[2], parameters[3]);
+                if self.draw_border {
+                    self.draw_ellipse(parameters[0], parameters[1], parameters[2], parameters[3]);
+                }
                 Ok(CallbackAction::Update)
             }
 
@@ -940,7 +1015,9 @@ impl CommandExecutor for DrawExecutor {
                     }
                     2 => {
                         self.fill_pattern_type = FillPatternType::Pattern;
-                        if parameters[1] >= 1 && parameters[1] <= 24 {
+                        if parameters[1] == 0 {
+                            self.fill_pattern = &RANDOM_PATTERN;
+                        } else if parameters[1] >= 1 && parameters[1] <= 24 {
                             self.fill_pattern = &TYPE_PATTERN[parameters[1] as usize - 1];
                         } else {
                             log::warn!("AttributeForFills inlvalid type pattern number : {} (valid is 1->24)", parameters[1]);
@@ -989,15 +1066,7 @@ impl CommandExecutor for DrawExecutor {
                 if parameters.len() != 2 {
                     return Err(anyhow::anyhow!("PolymarkerPlot command requires 2 arguments"));
                 }
-                /*
-                let next_pos = Position::new(parameters[0], parameters[1]);
-                let mut pb = PathBuilder::new();
-                pb.rect(next_pos.x as f32, next_pos.y as f32, 1.0, 1.0);
-                let (r, g, b) = self.pen_colors[self.polymarker_color].get_rgb();
-                let path = pb.finish();
-                self.screen.fill(&path, &Source::Solid(create_solid_source(r, g, b)), &DrawOptions::new());
-                self.cur_position = next_pos;
-                */
+                self.draw_poly_maker(parameters[0], parameters[1]);
                 Ok(CallbackAction::Update)
             }
 
