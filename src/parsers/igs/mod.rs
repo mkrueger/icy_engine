@@ -4,7 +4,7 @@ use std::{
 };
 
 use super::BufferParser;
-use crate::{Buffer, CallbackAction, Caret, EngineResult, Size};
+use crate::{ansi, Buffer, CallbackAction, Caret, EngineResult, Size};
 
 mod cmd;
 use cmd::IgsCommands;
@@ -56,7 +56,7 @@ pub trait CommandExecutor: Send + Sync {
 }
 
 pub struct Parser {
-    fallback_parser: Box<dyn BufferParser>,
+    fallback_parser: ansi::Parser,
     state: State,
     parsed_numbers: Vec<i32>,
     parsed_string: String,
@@ -65,7 +65,6 @@ pub struct Parser {
     loop_parameters: Vec<Vec<String>>,
     command_executor: Arc<Mutex<Box<dyn CommandExecutor>>>,
     got_double_colon: bool,
-    initialized: bool,
     cur_loop: Option<Loop>,
 }
 struct Loop {
@@ -163,9 +162,9 @@ impl Loop {
 }
 
 impl Parser {
-    pub fn new(fallback_parser: Box<dyn BufferParser>, command_executor: Arc<Mutex<Box<dyn CommandExecutor>>>) -> Self {
+    pub fn new(command_executor: Arc<Mutex<Box<dyn CommandExecutor>>>) -> Self {
         Self {
-            fallback_parser,
+            fallback_parser: ansi::Parser::default(),
             state: State::Default,
             parsed_numbers: Vec::new(),
             command_executor,
@@ -175,7 +174,6 @@ impl Parser {
             loop_cmd: ' ',
             got_double_colon: false,
             cur_loop: None,
-            initialized: false,
         }
     }
 }
@@ -195,7 +193,6 @@ impl BufferParser for Parser {
     }
 
     fn print_char(&mut self, buf: &mut Buffer, current_layer: usize, caret: &mut Caret, ch: char) -> EngineResult<CallbackAction> {
-        // println!("{} {:?} - numbers:{:?}", ch as u32, self.state, self.parsed_numbers);
         match &self.state {
             State::ReadCommand(command) => {
                 if *command == IgsCommands::WriteText && self.parsed_numbers.len() >= 3 {
@@ -207,7 +204,6 @@ impl BufferParser for Parser {
                             .unwrap()
                             .execute_command(buf, caret, *command, &parameters, &self.parsed_string);
                         self.state = State::ReadCommandStart;
-                        self.initialized = true;
                         self.parsed_string.clear();
                         return res;
                     }
@@ -409,18 +405,12 @@ impl BufferParser for Parser {
                     self.state = State::GotIgsStart;
                     return Ok(CallbackAction::NoUpdate);
                 }
-                if ch == '\x1B' {
-                    self.initialized = false;
-                }
                 self.fallback_parser.print_char(buf, current_layer, caret, ch)
             }
         }
     }
 
     fn get_picture_data(&mut self) -> Option<(Size, Vec<u8>)> {
-        if !self.initialized {
-            return None;
-        }
         self.command_executor.lock().unwrap().get_picture_data()
     }
 }

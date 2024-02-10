@@ -28,7 +28,6 @@ impl CommandExecutor for TestExecutor {
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    ascii,
     igs::Parser,
     parsers::{create_buffer, update_buffer_force},
     TextPane,
@@ -37,7 +36,7 @@ use crate::{
 fn create_parser() -> (Arc<Mutex<IgsCommandVec>>, Parser) {
     let commands = Arc::new(Mutex::new(Vec::new()));
     let command_executor: Arc<Mutex<Box<dyn CommandExecutor>>> = Arc::new(Mutex::new(Box::new(TestExecutor { commands: commands.clone() })));
-    let igs_parser = Parser::new(Box::<ascii::Parser>::default(), command_executor);
+    let igs_parser = Parser::new(command_executor);
     (commands, igs_parser)
 }
 
