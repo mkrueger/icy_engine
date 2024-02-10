@@ -152,7 +152,7 @@ impl Default for DrawExecutor {
             text_color: 0,
             cur_position: Position::new(0, 0),
             text_effects: TextEffects::Normal,
-            text_size: 8,
+            text_size: 9,
             text_rotation: TextRotation::Right,
             polymaker_type: PolymarkerType::Point,
             line_type: LineType::Solid,
@@ -205,6 +205,39 @@ impl DrawExecutor {
             return;
         }
 
+        while let Some(pos) = vec.pop() {
+            if pos.x < 0 || pos.y < 0 || pos.x >= res.width || pos.y >= res.height {
+                continue;
+            }
+
+            let cp = self.get_pixel(pos.x, pos.y);
+            if cp != old_px {
+                continue;
+            }
+            self.set_pixel(pos.x, pos.y, col);
+
+            vec.push(Position::new(pos.x - 1, pos.y));
+            vec.push(Position::new(pos.x + 1, pos.y));
+            vec.push(Position::new(pos.x, pos.y - 1));
+            vec.push(Position::new(pos.x, pos.y + 1));
+        }
+    }
+
+    /*
+    fn flood_fill(&mut self, x0: i32, y0: i32) {
+        let res = self.get_resolution();
+
+        if x0 < 0 || y0 < 0 || x0 >= res.width || y0 >= res.height {
+            return;
+        }
+        let old_px = self.get_pixel(x0, y0);
+
+        let mut vec = vec![Position::new(x0, y0)];
+        let col = self.fill_color;
+        if old_px == col {
+            return;
+        }
+
         let mut y = y0 - 1;
         while y >= 0 && self.get_pixel(x0, y) == old_px {
             vec.push(Position::new(x0, y));
@@ -231,7 +264,7 @@ impl DrawExecutor {
             vec.push(Position::new(pos.x - 1, pos.y));
             vec.push(Position::new(pos.x + 1, pos.y));
         }
-    }
+    }*/
 
     fn set_pixel(&mut self, x: i32, y: i32, line_color: u8) {
         let offset = (y * self.get_resolution().width + x) as usize;
@@ -534,21 +567,33 @@ impl DrawExecutor {
         let char_size = self.font_8px.size;
         let color = self.text_color;
 
+        let font_size = match self.text_size {
+            8 => Size::new(7, 7),
+            // 9 => Size::new(8, 8),
+            10 => Size::new(9, 14),
+            // 16 => Size::new(8, 14),
+            // 18 => Size::new(8, 16),
+            // 20 => Size::new(8, 18),
+            _ => Size::new(8, 8),
+        };
+
         for ch in string_parameter.chars() {
             let data = self.font_8px.get_glyph(ch).unwrap().data.clone();
-            for y in 0..char_size.height {
-                for x in 0..char_size.width {
-                    if data[y as usize] & (128 >> x) != 0 {
+            for y in 0..font_size.height {
+                for x in 0..font_size.width {
+                    let iy = (y as f32 / font_size.height as f32 * char_size.height as f32) as i32;
+                    let ix = (x as f32 / font_size.width as f32 * char_size.width as f32) as i32;
+                    if data[iy as usize] & (128 >> ix) != 0 {
                         let p = pos + Position::new(x, y);
                         self.set_pixel(p.x, p.y, color);
                     }
                 }
             }
             match self.text_rotation {
-                TextRotation::RightReverse | TextRotation::Right => pos.x += char_size.width,
-                TextRotation::Up => pos.y -= char_size.height,
-                TextRotation::Down => pos.y += char_size.height,
-                TextRotation::Left => pos.x -= char_size.width,
+                TextRotation::RightReverse | TextRotation::Right => pos.x += font_size.width - 1,
+                TextRotation::Up => pos.y -= font_size.height,
+                TextRotation::Down => pos.y += font_size.height,
+                TextRotation::Left => pos.x -= font_size.width - 1,
             }
         }
     }
@@ -663,7 +708,7 @@ impl DrawExecutor {
         let old_color = self.fill_color;
         let old_type = self.line_type;
         self.line_type = LineType::Solid;
-        self.fill_color = self.polymarker_color;
+        self.fill_color = self.line_color;
         for _ in 0..num_lines {
             let num_points = points[i] as usize;
             i += 1;
