@@ -268,7 +268,7 @@ impl DrawExecutor {
 
     fn set_pixel(&mut self, x: i32, y: i32, line_color: u8) {
         let offset = (y * self.get_resolution().width + x) as usize;
-        if offset > self.screen.len() - 4 {
+        if offset >= self.screen.len() {
             return;
         }
         self.screen[offset] = line_color;
