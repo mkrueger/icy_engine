@@ -20,7 +20,7 @@ png = "0.17.10"
 icy_sixel = "0.1.1"
 regex = "1.9.5"
 thiserror = "1.0"
-anyhow = "1.0.75"
+anyhow = "1.0.80"
 serde = { version = "1", features = ["derive"] }
 byteorder = "1"
 
