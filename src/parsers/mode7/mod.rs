@@ -21,8 +21,8 @@ pub struct Parser {
 
     is_in_graphic_mode: bool,
 
-    graphics_bg: u32,
-    alpha_bg: u32,
+    _graphics_bg: u32,
+    _alpha_bg: u32,
 }
 
 impl Default for Parser {
@@ -33,14 +33,14 @@ impl Default for Parser {
             held_graphics_character: ' ',
             is_contiguous: true,
             is_in_graphic_mode: false,
-            graphics_bg: 0,
-            alpha_bg: 0,
+            _graphics_bg: 0,
+            _alpha_bg: 0,
         }
     }
 }
 
 impl Parser {
-    fn reset_screen(&mut self) {
+    fn _reset_screen(&mut self) {
         self.got_esc = false;
 
         self.hold_graphics = false;
@@ -48,8 +48,8 @@ impl Parser {
 
         self.is_contiguous = true;
         self.is_in_graphic_mode = false;
-        self.graphics_bg = 0;
-        self.alpha_bg = 0;
+        self._graphics_bg = 0;
+        self._alpha_bg = 0;
     }
 
     fn fill_to_eol(buf: &mut Buffer, caret: &Caret) {
@@ -72,8 +72,8 @@ impl Parser {
         }
     }
 
-    fn reset_on_row_change(&mut self, caret: &mut Caret) {
-        self.reset_screen();
+    fn _reset_on_row_change(&mut self, caret: &mut Caret) {
+        self._reset_screen();
         caret.reset_color_attribute();
     }
 
@@ -130,11 +130,9 @@ impl Parser {
             let offset = if self.is_contiguous { 128 } else { 192 };
             if (160..=191).contains(&print_ch) {
                 print_ch = print_ch - 160 + offset;
-                println!(" {ch} -> {print_ch}");
             }
             if (225..=255).contains(&print_ch) {
                 print_ch = print_ch - 225 + 31 + offset;
-                println!(" {ch} -> {print_ch}");
             }
         }
         let ach = AttributedChar::new(print_ch as char, caret.attribute);
